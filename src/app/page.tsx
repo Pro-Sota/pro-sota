@@ -1,12 +1,11 @@
 import CustomNavbar from "@/components/custom_navbar";
+import HomeHeroSection from "@/components/home_hero_section";
 
 export default function Home() {
   return (
-    <div>
+    <div className="bg-white flex flex-col items-center min-h-screen overflow-x-hidden">
       <CustomNavbar />
-      <div className="flex flex-col items-center justify-center min-h-screen py-2">
-        <h1 className="text-6xl font-bold">Welcome to Pro Sota!</h1>
-      </div>
+      <HomeHeroSection />
     </div>
   );
 }
