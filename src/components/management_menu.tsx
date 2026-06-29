@@ -36,7 +36,7 @@ export default function ManagementMenu() {
                 />
             </div>
 
-            <ul className="flex flex-col space-y-2 w-full">
+            <ul className="flex flex-col  w-full">
                 {menuItems.map((item) => {
                     const isActive =
                         item.href === "/management"
@@ -46,10 +46,10 @@ export default function ManagementMenu() {
                     return (
                         <li
                             key={item.href}
-                            className={`border-b transition-colors ${
+                            className={`text-sm pl-2 transition-colors rounded-md ${
                                 isActive
-                                    ? "border-white"
-                                    : "border-transparent hover:border-gray-400"
+                                    ? "bg-gray-800"
+                                    : ""
                             }`}
                         >
                             <Link

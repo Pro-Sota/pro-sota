@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
@@ -11,7 +11,6 @@ import {
   SearchIcon,
   X,
 } from "lucide-react";
-import ProjectTable from "@/components/project_table_view";
 import ProjectTableView from "@/components/project_table_view";
 import ProjectGridView from "@/components/project_grid_view";
 import ProjectMapView from "@/components/project_map_view";
@@ -85,14 +84,20 @@ export default function ProjectsPage() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const updateSearchParams = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
+const updateSearchParams = (key: string, value: string) => {
+  const params = new URLSearchParams(searchParams.toString());
 
+  if (
+    (key === "filter" && value === "todos") ||
+    (key === "view" && value === "grid")
+  ) {
+    params.delete(key);
+  } else {
     params.set(key, value);
+  }
 
-    router.replace(`${pathname}?${params.toString()}`);
-  };
-
+  router.replace(`${pathname}?${params.toString()}`);
+};
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();

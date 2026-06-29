@@ -1,5 +1,6 @@
 "use client";
 import DashboardMenu from "@/components/management_menu";
+
 export default function Layout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <>
