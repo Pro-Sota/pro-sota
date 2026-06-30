@@ -44,8 +44,8 @@ export default function ProjectTableView({ projects }: { projects: Project[] }) 
     return (
 
         <table className="table-fixed w-full border-collapse border-t border-gray-300">
-            <thead className="h-12">
-                <tr className="text-left text-sm font-semibold ">
+            <thead className="h-12 pl-2">
+                <tr className="text-left text-sm font-semibold pl-2 ">
                     <th className="w-1/4">Project Name</th>
                     <th className="w-1/6">Progress</th>
                     <th className="w-1/6">Priority</th>
@@ -54,14 +54,14 @@ export default function ProjectTableView({ projects }: { projects: Project[] }) 
                     <th className="w-1/6">Localização</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody className="">
                 {projects.map((project) => (
                     <tr
                         key={project.id}
                         onClick={() => router.push(`/management/projects/${project.id}`)}
-                        className="cursor-pointer hover:bg-gray-100 h-20"
+                        className="cursor-pointer hover:bg-gray-100 h-20 ml-2"
                     >
-                        <td className="border-b border-gray-200 py-2">
+                        <td className="border-b border-gray-200 py-2 ml-2">
                             <div className="text-sm font-semibold">{project.name}</div>
                         </td>
                         <td>

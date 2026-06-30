@@ -15,7 +15,7 @@ import ProjectTableView from "@/components/project_table_view";
 import ProjectGridView from "@/components/project_grid_view";
 import ProjectMapView from "@/components/project_map_view";
 
-type Status =
+export type Status =
   | "em-curso"
   | "concluido"
   | "em-observacao";
@@ -123,11 +123,13 @@ const updateSearchParams = (key: string, value: string) => {
   });
 
   const buttonClass =
-    "h-8 px-4 bg-gray-200 text-gray-400 flex items-center justify-centertext-sm rounded hover:border-gray-500 border border-transparent transition-colors duration-300 cursor-pointer";
+    "h-8 px-4 text-gray-400 flex text-sm items-center justify-centertext-sm rounded hover:border-gray-500 border border-gray=200f transition-colors duration-300 cursor-pointer";
 
   return (
-    <div className="flex flex-col  text-black mx-8">
+    <div className="flex flex-col  text-black px-8 pt-2 ">
       <div>
+
+       { /* new project button */}
         <div className="flex flex-row items-center justify-between mb-4">
           <h1 className="text-2xl text-black font-medium">Projectos</h1>
           <Link href="/management/projects/new-project">
@@ -138,6 +140,7 @@ const updateSearchParams = (key: string, value: string) => {
         </div>
 
         <div className="flex flex-row items-center justify-between mb-4">
+         { /* search bar */}
           <div className="flex flex-row items-center gap-3">
             {isOpen ? (
               <div className="relative ">
@@ -156,7 +159,8 @@ const updateSearchParams = (key: string, value: string) => {
                   }}
                 />
 
-                <button
+{                /* filter buttons */
+}                <button
                   onClick={() => {
                     setSearchTerm("");
                     setIsOpen(false);
@@ -165,6 +169,7 @@ const updateSearchParams = (key: string, value: string) => {
                 >
                   <X className="h-4 w-4" />
                 </button>
+
               </div>
             ) : (
               <button
@@ -184,14 +189,15 @@ const updateSearchParams = (key: string, value: string) => {
                 {f.label}
               </button>
             ))}
-
           </div>
 
+          {/* view filter */}
           <div className="flex flex-row items-center gap-4">
             <button onClick={() => updateSearchParams("view", "grid")} className="cursor-pointer" title="ver em grade" > <Grid2X2Icon className="w-4 h-4" /> </button>
             <button onClick={() => updateSearchParams("view", "list")} className="cursor-pointer" title="ver em lista" > <ListIcon className="w-4 h-4" /> </button>
             <button onClick={() => updateSearchParams("view", "map")} className="cursor-pointer" title="ver em mapa"   > <MapIcon className="w-4 h-4" /> </button>
           </div>
+
         </div>
       </div>
 
