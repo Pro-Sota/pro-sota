@@ -10,9 +10,9 @@ export default function ProjectSidebar({projectId}: {projectId: string  }) {
         { name: "Recentes", href: "#", icon: <Clock className="w-4 h-4" /> },
         { name: "Favorites", href: "#", icon: <Star className="w-4 h-4" /> },
     ];
-    
-    const pathname = usePathname()
 
+    const pathname = usePathname()
+    
     return (
         <div className="w-64 px-4 text-gray-800 text-sm ml-4 border-r border-gray-300">
             <ul className="">
