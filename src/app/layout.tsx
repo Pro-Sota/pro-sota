@@ -27,13 +27,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        <script src="frappe-gantt.umd.js"></script>
-        <link rel="stylesheet" href="frappe-gantt.css" />
-      </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+ 
+      <body className="min-h-full flex flex-col overflow-x-hidden">{children}</body>
 
     </html>
 
   );
 }
+

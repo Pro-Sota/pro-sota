@@ -20,7 +20,7 @@ const menuItems = [
 
 export default function ManagementMenu() {
     const pathname = usePathname();
-
+    
     return (
         <nav className="fixed bg-neutral-700 text-white px-4 w-[250px] flex flex-col items-start min-h-screen">
             <div className="flex justify-start items-start mb-4 mt-2 w-full">
@@ -65,3 +65,4 @@ export default function ManagementMenu() {
         </nav>
     );
 }
+

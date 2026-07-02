@@ -145,7 +145,7 @@ export default function ProjectLayout({
       {/* BODY */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* SIDEBAR */}
-        <div className="shrink-0">
+        <div className="">
           <ProjectSideBar projectId={projectId} />
         </div>
 

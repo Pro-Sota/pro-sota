@@ -1,7 +1,5 @@
-import Timeline from "@/components/timeline";
 import KpiCard from "./components/kpi_card";
-
-
+import GanttChart from "@/components/gantt";
 
 const kpis = [
   { title: "Progress", value: "30" },
@@ -14,24 +12,46 @@ const kpis = [
 
 const tasks = [
   {
+    start: new Date(2026, 6, 1),
+    end: new Date(2026, 6, 5),
+    name: "Task 1",
     id: "1",
-    name: "Site Analysis",
-    start: "2026-07-01",
-    end: "2026-07-05",
-    progress: 40
+    type: "task" as const,
+    progress: 50,
+    isDisabled: false,
   },
   {
-  id: "2",
-  name: "Site Visits",
-  start:"2026-07-06",
-  end: "2026-07-10",
-  progress: 40
-}
-]
+    start: new Date(2026, 6, 1),
+    end: new Date(2026, 6, 5),
+    name: "Task 2",
+    id: "2",
+    type: "task" as const,
+    progress: 50,
+    isDisabled: false,
+  },
+  {
+    start: new Date(2026, 8, 1),
+    end: new Date(2026, 8, 5),
+    name: "Task 3",
+    id: "3",
+    type: "task" as const,
+    progress: 50,
+    isDisabled: false,
+  },
+  {
+    start: new Date(2026, 7, 1),
+    end: new Date(2026, 7, 5),
+    name: "Task 4",
+    id: "4",
+    type: "task" as const,
+    progress: 50,
+    isDisabled: true,
+  },
+];
 
 export default function Overview() {
   return (
-    <div className="space-y-10 px-4 md:px-8 overflow-x-hidden w-full max-w-full">
+    <div className="space-y-10 px-4 md:px-8 w-full min-w-0 overflow-x-hidden">
       {/* KPI Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 w-full min-w-0">
         {kpis.map((kpi) => (
@@ -39,9 +59,9 @@ export default function Overview() {
         ))}
       </div>
 
-      {/* Timeline */}
-      <div className="w-full max-w-full overflow-hidden min-w-0">
-        <Timeline />
+      {/* Gantt */}
+      <div className="w-full min-w-0 overflow-hidden">
+        <GanttChart />
       </div>
     </div>
   );
