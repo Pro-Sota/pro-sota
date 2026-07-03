@@ -1,10 +1,8 @@
-"use client";
-
-import ProjectSideBar from "@/components/project_side_bar";
+import ProjectNavbar from "@/components/project_side_bar";
 import { MoveLeftIcon } from "lucide-react";
-import { use } from "react";
-import { Project, Status } from "../../page";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Project, Status } from "../../page";
 
 const projects: Project[] = [
   {
@@ -21,7 +19,7 @@ const projects: Project[] = [
     id: 2,
     name: "Patriota View",
     progress: 90,
-    client: "Carlos Jose",
+    client: "Ilda",
     priority: "High",
     status: "concluido",
     dueDate: "20 de Junho",
@@ -30,8 +28,28 @@ const projects: Project[] = [
   {
     id: 3,
     name: "Talatona Tower",
-    client: "Pedro",
+    client: "Eliene",
     progress: 15,
+    priority: "Medium",
+    status: "em-observacao",
+    dueDate: "30 de Julho",
+    location: "Huambo",
+  },
+  {
+    id: 4,
+    name: "Marina Bay",
+    client: "Pedro Joao",
+    progress: 15,
+    priority: "High",
+    status: "em-observacao",
+    dueDate: "30 de Julho",
+    location: "Huambo",
+  },
+  {
+    id: 5,
+    name: "Imgombota Chamber",
+    client: "Carlos Jose",
+    progress: 54,
     priority: "Low",
     status: "em-observacao",
     dueDate: "30 de Julho",
@@ -39,62 +57,56 @@ const projects: Project[] = [
   },
 ];
 
-export default function ProjectLayout({
+const statusColor: Record<Status, string> = {
+  "em-curso": "bg-blue-500",
+  "concluido": "bg-green-500",
+  "em-observacao": "bg-yellow-500",
+};
+
+const statusLabel: Record<Status, string> = {
+  "em-curso": "Em curso",
+  "concluido": "Concluído",
+  "em-observacao": "Em observação",
+};
+
+export default async function ProjectLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
   params: Promise<{ projectId: string }>;
 }) {
-  const { projectId } = use(params);
-
-  const statusColor: Record<Status, string> = {
-    "em-curso": "bg-blue-500",
-    "concluido": "bg-green-500",
-    "em-observacao": "bg-yellow-500",
-  };
-
-  const statusLabel: Record<Status, string> = {
-    "em-curso": "Em curso",
-    "concluido": "Concluído",
-    "em-observacao": "Em observação",
-  };
+  const { projectId } = await params;
 
   const project = projects.find((p) => p.id === Number(projectId));
 
   if (!project) {
-    return (
-      <div className="flex h-screen items-center justify-center text-black">
-        <p>Projeto não encontrado.</p>
-      </div>
-    );
+    notFound();
   }
 
   return (
     <div className="flex flex-col h-screen overflow-x-hidden">
       {/* NAV */}
-      <nav className="flex h-[45px] items-center justify-between border-b border-gray-200 px-8 shrink-0">
+      <nav className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-8">
         <Link
           href="/management/projects"
-          className="text-black flex flex-row gap-2 items-center cursor-pointer"
+          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-black"
         >
-          <MoveLeftIcon className="w-4 h-4" />
-          <p className="text-sm hover:underline underline-offset-4">
-            Projectos
-          </p>
+          <MoveLeftIcon className="h-4 w-4" />
+          <span className="text-sm font-medium">Projetos</span>
         </Link>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
           <Link
             href={`/management/projects/${projectId}/edit`}
-            className="text-sm text-black hover:underline"
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-50 hover:text-black"
           >
             Editar
           </Link>
 
           <Link
             href={`/management/projects/${projectId}/archive`}
-            className="text-sm text-black hover:underline"
+            className="rounded-md bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
           >
             Arquivar
           </Link>
@@ -102,55 +114,72 @@ export default function ProjectLayout({
       </nav>
 
       {/* HEADER */}
-      <div className="py-2 border-b border-gray-200 shrink-0">
-        <div className="px-8 mt-4 max-w-3xl text-black space-y-2">
-          <div className="flex flex-row justify-between items-center">
-            <h1 className="text-xl font-semibold">{project.name}</h1>
+      <div className="shrink-0 border-b border-gray-200 bg-white py-6">
+        <div className=" max-w-4xl px-8">
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+                  {project.name}
+                </h1>
 
-            <div className="flex items-center text-sm">
-              <div
-                className={`h-2.5 w-2.5 rounded-full ${statusColor[project.status]} me-2`}
-              />
-              {statusLabel[project.status]}
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                  <span>{project.location}</span>
+                  <span>•</span>
+                  <span>{project.client}</span>
+                </div>
+              </div>
+
+              <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm font-medium text-gray-700">
+                <span
+                  className={`mr-2 h-2.5 w-2.5 rounded-full ${statusColor[project.status]}`}
+                />
+                {statusLabel[project.status]}
+              </span>
             </div>
-          </div>
 
-          <p className="text-sm text-gray-600">
-            Location: {project.location}
-            <span className="mx-2">•</span>
-            Client: {project.client}
-          </p>
+            {/* Progress */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">
+                  Progress
+                </span>
 
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3 w-full md:w-1/2">
-              <div className="flex-1 h-5 bg-gray-300 rounded-full overflow-hidden">
+                <span className="text-sm font-semibold text-gray-900">
+                  {project.progress}%
+                </span>
+              </div>
+
+              <div
+                className="h-2 overflow-hidden rounded-full bg-gray-200"
+                role="progressbar"
+                aria-valuenow={project.progress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
                 <div
-                  className="h-full bg-slate-800 transition-all"
+                  className="h-full rounded-full bg-slate-900 transition-all duration-500"
                   style={{ width: `${project.progress}%` }}
                 />
               </div>
 
-              <span className="text-sm font-medium">
-                {project.progress}%
-              </span>
-            </div>
+              <div className="mt-3 flex items-center justify-between text-sm">
+                <span className="text-gray-500">Deadline</span>
 
-            <p className="text-sm font-semibold">
-              Deadline: {project.dueDate}
-            </p>
+                <span className="font-medium text-gray-900">
+                  {project.dueDate}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* BODY */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* SIDEBAR */}
-        <div className="">
-          <ProjectSideBar projectId={projectId} />
-        </div>
+      <div className="flex flex-col overflow-hidden">
+        <ProjectNavbar projectId={projectId} />
 
-        {/* MAIN */}
-        <main className="flex-1 overflow-y-auto bg-white pt-4 min-w-0">
+        <main className="flex-1 h-full overflow-y-auto bg-white min-w-0">
           {children}
         </main>
       </div>

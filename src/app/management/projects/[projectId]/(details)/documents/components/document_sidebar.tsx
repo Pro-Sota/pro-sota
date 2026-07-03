@@ -1,43 +1,83 @@
 "use client";
-import { Clock, Star, Folder, File } from "lucide-react";
+
+import { Clock, Star, Folder, File, Archive, Trash } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+interface ProjectSidebarProps {
+  projectId: string;
+}
 
-export default function ProjectSidebar({projectId}: {projectId: string  }) {
+export default function DocumentSidebar({ projectId }: ProjectSidebarProps) {
+  const pathname = usePathname();
 
-    const menuList = [
-        { name: "Todos os documentos", href: "", icon: <File className="w-4 h-4" /> },
-        { name: "Recentes", href: "#", icon: <Clock className="w-4 h-4" /> },
-        { name: "Favorites", href: "#", icon: <Star className="w-4 h-4" /> },
-    ];
+  const isActive = (href: string) => pathname.startsWith(href);
 
-    const pathname = usePathname()
-    
-    return (
-        <div className="w-64 px-4 text-gray-800 text-sm ml-4 border-r border-gray-300">
-            <ul className="">
-                {menuList.map((item, index) => (
-                    <li key={index} className="p-2 bg-white hover:bg-gray-200 cursor-pointer">
-                        <div className="flex items-center">
-                            <span className="mr-2">{item.icon}</span>
-                            <span>{item.name}</span>
-                        </div>
-                    </li>
-                ))}
-            </ul>
-            <hr className="my-4 border-gray-300" />
-            <ul>
-                <li className="p-2 bg-white hover:bg-gray-200 cursor-pointer"><div className="flex items-center">
-                    <Folder className="w-4 h-4 mr-2" /> <span>Folder</span>
-                </div></li>
-            </ul>
-            <hr className="my-4 border-gray-300" />
+  const base = `/management/projects/${projectId}/documents`;
 
-            <ul className="mt-32">
-                <li className="p-2 bg-white hover:bg-gray-200 cursor-pointer"><div className="flex items-center">
-                    <Folder className="w-4 h-4 mr-2" /> <span>Archive</span>
-                </div></li>
-            </ul>
-        </div>
-    );
+  const menuItems = [
+    { name: "Todos os documentos", href: `${base}/all-files`, icon: File },
+    { name: "Recentes", href: `${base}/recents`, icon: Clock },
+    { name: "Favoritos", href: `${base}/favorites`, icon: Star },
+  ];
+
+  const folderItem = {
+    name: "Folders",
+    href: `${base}/folders`,
+    icon: Folder,
+  };
+
+  const bottomItems = [
+    { name: "Archive", href: `${base}/archive`, icon: Archive },
+    { name: "Trash", href: `${base}/trash-files`, icon: Trash },
+  ];
+
+  const linkClass = (href: string) =>
+    `flex items-center p-2 rounded-md transition-colors ${
+      isActive(href)
+        ? "bg-blue-500 text-white"
+        : "text-gray-800 hover:bg-gray-200"
+    }`;
+
+  return (
+    <aside className="sticky top-0 flex h-screen w-64 flex-shrink-0 flex-col ml-4 py-2 px-4 border-r border-gray-300 text-sm">
+      <nav aria-label="Project documents" className="flex-1">
+        <ul className="space-y-1">
+          {menuItems.map(({ name, href, icon: Icon }) => (
+            <li key={href}>
+              <Link href={href} className={linkClass(href)}>
+                <Icon className="w-4 h-4 mr-2" />
+                <span>{name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        <hr className="my-4 border-gray-300" />
+
+        <ul>
+          <li>
+            <Link href={folderItem.href} className={linkClass(folderItem.href)}>
+              <folderItem.icon className="w-4 h-4 mr-2" />
+              <span>{folderItem.name}</span>
+            </Link>
+          </li>
+        </ul>
+      </nav>
+
+      <div>
+        <hr className="my-4 border-gray-300" />
+        <ul className="space-y-1 pb-4">
+          {bottomItems.map(({ name, href, icon: Icon }) => (
+            <li key={href}>
+              <Link href={href} className={linkClass(href)}>
+                <Icon className="w-4 h-4 mr-2" />
+                <span>{name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </aside>
+  );
 }
