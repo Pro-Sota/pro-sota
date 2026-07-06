@@ -14,75 +14,8 @@ import {
 import ProjectTableView from "@/components/project_table_view";
 import ProjectGridView from "@/components/project_grid_view";
 import ProjectMapView from "@/components/project_map_view";
+import { projects } from "./data"
 
-export type Status =
-  | "em-curso"
-  | "concluido"
-  | "em-observacao";
-
-export type Project = {
-  id: number;
-  name: string;
-  client: string;
-  progress: number;
-  priority: "Low" | "Medium" | "High";
-  status: Status;
-  dueDate: string;
-  location: string;
-};
-
-const projects: Project[] = [
-  {
-    id: 1,
-    name: "Eliada the second",
-    progress: 50,
-    client: "Claudio Conceicao",
-    priority: "Medium",
-    status: "em-curso",
-    dueDate: "15 de Junho",
-    location: "Luanda",
-  },
-  {
-    id: 2,
-    name: "Patriota View",
-    progress: 90,
-    client: "Ilda",
-    priority: "High",
-    status: "concluido",
-    dueDate: "20 de Junho",
-    location: "Benguela",
-  },
-  {
-    id: 3,
-    name: "Talatona Tower",
-    client: "Eliene",
-    progress: 15,
-    priority: "Medium",
-    status: "em-observacao",
-    dueDate: "30 de Julho",
-    location: "Huambo",
-  },
-  {
-    id: 4,
-    name: "Marina Bay",
-    client: "Pedro Joao",
-    progress: 15,
-    priority: "High",
-    status: "em-observacao",
-    dueDate: "30 de Julho",
-    location: "Huambo",
-  },
-  {
-    id: 5,
-    name: "Imgombota Chamber",
-    client: "Carlos Jose",
-    progress: 54,
-    priority: "Low",
-    status: "em-observacao",
-    dueDate: "30 de Julho",
-    location: "Huambo",
-  },
-];
 
 const filters = [
   { value: "todos", label: "Todos" },
@@ -92,6 +25,7 @@ const filters = [
 ] as const;
 
 export default function ProjectsPage() {
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isActive, setIsActive] = useState(false);
@@ -104,20 +38,20 @@ export default function ProjectsPage() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-const updateSearchParams = (key: string, value: string) => {
-  const params = new URLSearchParams(searchParams.toString());
+  const updateSearchParams = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
 
-  if (
-    (key === "filter" && value === "todos") ||
-    (key === "view" && value === "grid")
-  ) {
-    params.delete(key);
-  } else {
-    params.set(key, value);
-  }
+    if (
+      (key === "filter" && value === "todos") ||
+      (key === "view" && value === "grid")
+    ) {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
 
-  router.replace(`${pathname}?${params.toString()}`);
-};
+    router.replace(`${pathname}?${params.toString()}`);
+  };
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();
@@ -149,7 +83,7 @@ const updateSearchParams = (key: string, value: string) => {
     <div className="flex flex-col  text-black px-8 pt-2 ">
       <div>
 
-       { /* new project button */}
+        { /* new project button */}
         <div className="flex flex-row items-center justify-between mb-4">
           <h1 className="text-2xl text-black font-medium">Projectos</h1>
           <Link href="/management/projects/new-project">
@@ -160,7 +94,7 @@ const updateSearchParams = (key: string, value: string) => {
         </div>
 
         <div className="flex flex-row items-center justify-between mb-4">
-         { /* search bar */}
+          { /* search bar */}
           <div className="flex flex-row items-center gap-3">
             {isOpen ? (
               <div className="relative ">
@@ -179,8 +113,8 @@ const updateSearchParams = (key: string, value: string) => {
                   }}
                 />
 
-{                /* filter buttons */
-}                <button
+                {  /* filter buttons */}
+                <button
                   onClick={() => {
                     setSearchTerm("");
                     setIsOpen(false);

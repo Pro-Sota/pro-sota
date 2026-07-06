@@ -1,5 +1,5 @@
 import ProjectNavbar from "@/components/project_side_bar";
-import { MoveLeftIcon } from "lucide-react";
+import { ChevronLeft, MoveLeftIcon } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Project, Status } from "../../page";
@@ -92,7 +92,7 @@ export default async function ProjectLayout({
           href="/management/projects"
           className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-black"
         >
-          <MoveLeftIcon className="h-4 w-4" />
+          <ChevronLeft className="h-4 w-4" />
           <span className="text-sm font-medium">Projetos</span>
         </Link>
 
@@ -113,72 +113,8 @@ export default async function ProjectLayout({
         </div>
       </nav>
 
-      {/* HEADER */}
-      <div className="shrink-0 border-b border-gray-200 bg-white py-6">
-        <div className=" max-w-4xl px-8">
-          <div className="space-y-5">
-            {/* Header */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
-                  {project.name}
-                </h1>
-
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
-                  <span>{project.location}</span>
-                  <span>•</span>
-                  <span>{project.client}</span>
-                </div>
-              </div>
-
-              <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm font-medium text-gray-700">
-                <span
-                  className={`mr-2 h-2.5 w-2.5 rounded-full ${statusColor[project.status]}`}
-                />
-                {statusLabel[project.status]}
-              </span>
-            </div>
-
-            {/* Progress */}
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
-                  Progress
-                </span>
-
-                <span className="text-sm font-semibold text-gray-900">
-                  {project.progress}%
-                </span>
-              </div>
-
-              <div
-                className="h-2 overflow-hidden rounded-full bg-gray-200"
-                role="progressbar"
-                aria-valuenow={project.progress}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
-                <div
-                  className="h-full rounded-full bg-slate-900 transition-all duration-500"
-                  style={{ width: `${project.progress}%` }}
-                />
-              </div>
-
-              <div className="mt-3 flex items-center justify-between text-sm">
-                <span className="text-gray-500">Deadline</span>
-
-                <span className="font-medium text-gray-900">
-                  {project.dueDate}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="flex flex-col overflow-hidden">
         <ProjectNavbar projectId={projectId} />
-
         <main className="flex-1 h-full overflow-y-auto bg-white min-w-0">
           {children}
         </main>

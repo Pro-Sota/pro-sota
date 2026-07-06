@@ -22,22 +22,6 @@ export default function ProjectNavbar({
       href: `/management/projects/${projectId}/documents`,
     },
     {
-      name: "Architecture",
-      href: `/management/projects/${projectId}/architecture`,
-    },
-    {
-      name: "Construction",
-      href: `/management/projects/${projectId}/construction`,
-    },
-    {
-      name: "Engineering",
-      href: `/management/projects/${projectId}/engineering`,
-    },
-    {
-      name: "Fiscalization",
-      href: `/management/projects/${projectId}/fiscalization`,
-    },
-    {
       name: "Approvals and reviews",
       href: `/management/projects/${projectId}/approvals-and-reviews`,
     },
