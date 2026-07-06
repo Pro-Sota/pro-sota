@@ -1,34 +1,34 @@
 "use client";
 
-import { useState, useMemo, } from "react";
-import { FileText, Search, Upload, Download, MoreVertical } from "lucide-react";
-import DocumentTableView from "../components/document_table";
-import DocumentGridView from "../components/document_grid";
-import { mockDocuments } from "../data";
+import { useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
-
-// Replace with real data (props, fetch, server component, etc.)
-
+import DocumentGridView from "../components/document_grid";
+import DocumentTableView from "../components/document_table";
+import { mockDocuments } from "../data";
 
 export default function AllDocuments() {
   const [query, setQuery] = useState("");
 
-  const filteredDocuments = useMemo(() => {
-    if (!query.trim()) return mockDocuments;
-    const q = query.toLowerCase();
-    return mockDocuments.filter(
-      (doc) =>
-        doc.name.toLowerCase().includes(q) ||
-        doc.category.toLowerCase().includes(q) ||
-        doc.uploadedBy.toLowerCase().includes(q)
-    );
-  }, [query]);
-
   const searchParams = useSearchParams();
 
-    const viewMode =
-    (searchParams.get("view") as "grid" | "list") ?? "list";
+  const viewMode: "grid" | "list" =
+    searchParams.get("view") === "grid" ? "grid" : "list";
+
+  const filteredDocuments = useMemo(() => {
+    const search = query.trim().toLowerCase();
+
+    if (!search) return mockDocuments;
+
+    return mockDocuments.filter((doc) => {
+      return (
+        doc.name.toLowerCase().includes(search) ||
+        doc.category.toLowerCase().includes(search) ||
+        doc.uploadedBy.toLowerCase().includes(search)
+      );
+    });
+  }, [query]);
 
   return (
     <div className="flex h-full flex-col">
@@ -39,6 +39,7 @@ export default function AllDocuments() {
             <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
               Todos os Documentos
             </h1>
+
             <p className="mt-1 text-sm text-gray-500">
               Aqui você pode ver todos os documentos do projeto.
             </p>
@@ -48,6 +49,7 @@ export default function AllDocuments() {
         {/* Search */}
         <div className="relative mt-5 max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
           <input
             type="text"
             value={query}
@@ -59,11 +61,11 @@ export default function AllDocuments() {
       </div>
 
       {/* Content */}
-
-
-    {viewMode == "grid" && (<DocumentGridView documents={filteredDocuments}/>)}
-    {viewMode == "list" && (<DocumentTableView documents={filteredDocuments}/>)}
- 
+      {viewMode === "grid" ? (
+        <DocumentGridView documents={filteredDocuments} />
+      ) : (
+        <DocumentTableView documents={filteredDocuments} />
+      )}
     </div>
   );
 }
