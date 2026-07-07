@@ -16,10 +16,9 @@ export default async function DocumentLayout({
   const { projectId } = await params;
 
   return (
-    <div className="flex flex row w-full overflow-hidden">
+    <div className="flex flex row w-full h-full overflow-hidden">
       <DocumentSidebar projectId={projectId} />
-
-      <main className="min-w-0 min-h-0 flex-1 overflow-y-auto bg-white">
+      <main className=" flex-1 overflow-y-auto bg-white">
         <DocumentNav />
         {children}
       </main>

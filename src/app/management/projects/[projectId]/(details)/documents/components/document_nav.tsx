@@ -5,7 +5,7 @@ import { Grid, List } from "lucide-react";
 
 import CreateFolderDialog from "./create_folder_dialog";
 
-export default function DocumentNav() {
+export default function rfDocumentNav() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();

@@ -31,25 +31,20 @@ export default function AllDocuments() {
   }, [query]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-max flex-col">
       {/* Header */}
-      <div className="shrink-0 px-8 pt-6">
+      <div className="px-4 pt-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
               Todos os Documentos
             </h1>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Aqui você pode ver todos os documentos do projeto.
-            </p>
           </div>
         </div>
 
         {/* Search */}
-        <div className="relative mt-5 max-w-sm">
+        <div className="relative my-2 max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-
           <input
             type="text"
             value={query}
@@ -59,13 +54,6 @@ export default function AllDocuments() {
           />
         </div>
       </div>
-
-      {/* Content */}
-      {viewMode === "grid" ? (
-        <DocumentGridView documents={filteredDocuments} />
-      ) : (
-        <DocumentTableView documents={filteredDocuments} />
-      )}
     </div>
   );
 }

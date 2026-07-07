@@ -43,7 +43,7 @@ export default function ProjectNavbar({
     pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <nav className="shrink-0 border-b border-gray-200 px-8">
+    <nav className="shrink-0 border-b border-gray-200 px-4">
       <ul className="flex flex-row gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {tabMenu.map((item) => {
           const active = isActive(item.href);

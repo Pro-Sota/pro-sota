@@ -1,7 +1,7 @@
 import { Download, FileText, MoreVertical } from "lucide-react";
-import { Document } from "../types"
+import { DocumentType } from "../types"
 
-export default function DocumentTableView({ documents }: { documents: Document[] }) {
+export default function DocumentTableView({ documents }: { documents: DocumentType[] }) {
 
     if (documents.length === 0) {
         return (<div className="flex h-full flex-col items-center justify-center text-center">
@@ -15,7 +15,7 @@ export default function DocumentTableView({ documents }: { documents: Document[]
         </div>)
     }
     return (
-        <div className="overflow-hidden rounded-lg border border-gray-200">
+        <div className="overflow-hidden rounded-lg border border-gray-200 mx-4 ">
             <table className="w-full text-left text-sm">
                 <thead>
                     <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">

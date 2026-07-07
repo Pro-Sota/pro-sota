@@ -3,19 +3,20 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { Building, CalendarCheck, FileText, Folder, HomeIcon, Icon, MessageCircle, Pencil, Settings, Users, UsersRound, WalletCards } from "lucide-react";
 
 const menuItems = [
-    { name: "Overview", href: "/management" },
-    { name: "Projects", href: "/management/projects" },
-    { name: "Communication", href: "/management/communication" },
-    { name: "Clients", href: "/management/clients" },
-    { name: "Design and Drawing", href: "/management/design-and-drawing" },
-    { name: "Team", href: "/management/team" },
-    { name: "Tasks and Schedule", href: "/management/tasks-and-schedule" },
-    { name: "Finance", href: "/management/finances" },
-    { name: "Documents & Reports", href: "/management/documents-and-reports" },
-    { name: "Construction Administration", href: "/management/construction-administration" },
-    { name: "Settings", href: "/management/settings" },
+    { name: "Overview", href: "/management", icon:<HomeIcon /> },
+    { name: "Projects", href: "/management/projects", icon: <Folder /> },
+    { name: "Communication", href: "/management/communication", icon:<MessageCircle /> },
+    { name: "Clients", href: "/management/clients", icon: <Users /> },
+    { name: "Design and Drawing", href: "/management/design-and-drawing", Icon:<Pencil /> },
+    { name: "Team", href: "/management/team", icon:<UsersRound /> },
+    { name: "Tasks and Schedule", href: "/management/tasks-and-schedule", icon:<CalendarCheck /> },
+    { name: "Finance", href: "/management/finances", icon:<WalletCards /> },
+    { name: "Documents & Reports", href: "/management/documents-and-reports", icon: <FileText /> },
+    { name: "Construction Administration", href: "/management/construction-administration", icon: <Building /> },
+    { name: "Settings", href: "/management/settings", icon: <Settings /> },
 ];
 
 export default function ManagementMenu() {

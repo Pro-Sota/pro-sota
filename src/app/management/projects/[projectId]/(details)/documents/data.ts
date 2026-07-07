@@ -1,6 +1,6 @@
-import {Document} from "./types";
+import {DocumentType} from "./types";
 
-export const mockDocuments: Document[] = [
+export const mockDocuments: DocumentType[] = [
   {
     id: "1",
     name: "Contrato de Prestação de Serviços.pdf",
