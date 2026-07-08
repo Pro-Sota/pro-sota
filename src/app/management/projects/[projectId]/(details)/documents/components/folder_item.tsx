@@ -1,77 +1,70 @@
-import { ChevronDown, ChevronRight, FolderOpen } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+"use client";
+
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { FolderItemType } from "../types";
 
 interface FolderItemProps {
   folder: FolderItemType;
+  selected: string;
+  expanded: boolean;
+  onToggle: () => void;
+  onSelected: (value: string, href: string) => void;
 }
 
-
-export default function FolderItem({ folder }: FolderItemProps) {
-  const pathname = usePathname();
-
+export default function FolderItem({
+  folder,
+  selected,
+  expanded,
+  onToggle,
+  onSelected,
+}: FolderItemProps) {
   const hasChildren =
     folder.children && folder.children.length > 0;
 
-  const isOpen = pathname.startsWith(folder.href);
+const handleClick = () => {
+  onSelected(folder.id, folder.href);
 
-  const Icon = folder.icon;
-
-  const itemClass = `
-    flex items-center rounded-md p-2 transition-colors
-    ${
-      pathname.startsWith(folder.href)
-        ? "bg-slate-500 text-white"
-        : "text-gray-800 hover:bg-gray-200"
-    }
-  `;
-
-  if (!hasChildren) {
-    return (
-      <li>
-        <Link
-          href={folder.href}
-          className={itemClass}
-        >
-          <Icon className="mr-2 h-4 w-4" />
-          {folder.name}
-        </Link>
-      </li>
-    );
+  if (hasChildren) {
+    onToggle();
   }
+};
 
   return (
     <li>
-      <Link
-        href={folder.href}
+      <button
+        type="button"
+        onClick={handleClick}
         className={`
-          flex w-full items-center justify-between rounded-md p-2 transition-colors
+          flex w-full cursor-pointer items-center rounded-md p-2 transition-colors
           ${
-            pathname.startsWith(folder.href)
+            selected === folder.id
               ? "bg-slate-500 text-white"
               : "text-gray-800 hover:bg-gray-200"
           }
         `}
       >
-        <div className="flex items-center">
-          <Icon className="mr-2 h-4 w-4" />
-          {folder.name}
-        </div>
+        {hasChildren &&
+          (expanded ? (
+            <ChevronDown className="mr-1 h-4 w-4" />
+          ) : (
+            <ChevronRight className="mr-1 h-4 w-4" />
+          ))}
 
-        {isOpen ? (
-          <ChevronDown className="h-4 w-4" />
-        ) : (
-          <ChevronRight className="h-4 w-4" />
-        )}
-      </Link>
+        <folder.icon className="mr-2 h-4 w-4" />
 
-      {isOpen && (
-        <ul className="ml-5 mt-1 space-y-1 border-l border-gray-200 pl-3">
-          {folder.children?.map((child) => (
+        {folder.name}
+      </button>
+
+      {expanded && hasChildren && (
+        <ul className="ml-4 space-y-1">
+          {folder.children!.map((child) => (
             <FolderItem
-              key={child.href}
+              key={child.id}
               folder={child}
+              selected={selected}
+              expanded={false}
+              onToggle={() => {}}
+              onSelected={onSelected}
             />
           ))}
         </ul>

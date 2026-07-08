@@ -1,4 +1,4 @@
-import {FolderType, DocumentType} from "../types";
+import { FolderType, DocumentType } from "../types";
 import DocumentCard from "./document_card";
 import FolderCard from "./folder_card";
 
@@ -11,31 +11,32 @@ export default function DocumentGridView({
   folders,
   documents,
 }: DocumentGridViewProps) {
-  if (folders.length === 0 && documents.length === 0) {
+  const isEmpty = folders.length === 0 && documents.length === 0;
+
+  if (isEmpty) {
     return (
-      <div className="py-10 text-center text-gray-500">
-        No documents found.
+      <div className="flex h-full flex-col items-center justify-center py-10 text-center">
+        <p className="text-sm font-medium text-gray-900">
+          Nenhum documento encontrado
+        </p>
+        <p className="mt-1 text-sm text-gray-500">
+          Tente pesquisar por outro termo.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="mx-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {/* Folders */}
-      {folders.map((folder) => (
-        <FolderCard
-          key={folder.id}
-          folder={folder}
-        />
-      ))}
+    <div className="mx-4 overflow-x-auto">
+      <div className="grid grid-flow-col auto-cols-[240px] gap-6">
+        {folders.map(folder => (
+          <FolderCard key={folder.id} folder={folder} />
+        ))}
 
-      {/* Documents */}
-      {documents.map((doc) => (
-        <DocumentCard
-          key={doc.id}
-          document={doc}
-        />
-      ))}
+        {documents.map(doc => (
+          <DocumentCard key={doc.id} document={doc} />
+        ))}
+      </div>
     </div>
   );
 }

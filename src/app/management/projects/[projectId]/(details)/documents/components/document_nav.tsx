@@ -1,31 +1,25 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { Grid, List } from "lucide-react";
 
 import CreateFolderDialog from "./create_folder_dialog";
 
-export default function rfDocumentNav() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  const view = searchParams.get("view") === "grid" ? "grid" : "list";
-
-  const setView = (newView: "list" | "grid") => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("view", newView);
-
-    router.replace(`${pathname}?${params.toString()}`, {
-      scroll: false,
-    });
-  };
+export default function DocumentToolbar({
+  view,
+  setViewAction,
+}: {
+  view: "list" | "grid";
+  setViewAction: (view: "list" | "grid") => void;
+}) { 
 
   return (
     <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-300 bg-white px-4 py-2">
+      <CreateFolderDialog />
+
       <div className="flex items-center gap-2">
         <button
-          onClick={() => setView("list")}
+          onClick={() => setViewAction("list")}
           className={`flex items-center gap-1 rounded px-3 py-1 text-sm transition cursor-pointer ${
             view === "list"
               ? "bg-slate-500 text-white"
@@ -37,7 +31,7 @@ export default function rfDocumentNav() {
         </button>
 
         <button
-          onClick={() => setView("grid")}
+          onClick={() => setViewAction("grid")}
           className={`flex items-center gap-1 rounded px-3 py-1 text-sm transition cursor-pointer ${
             view === "grid"
               ? "bg-slate-500 text-white"
@@ -48,8 +42,7 @@ export default function rfDocumentNav() {
           Grid
         </button>
       </div>
-
-      <CreateFolderDialog />
     </div>
   );
 }
+

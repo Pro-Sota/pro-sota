@@ -2,27 +2,28 @@
 export type DocumentType = {
     id: string;
     name: string;
+    folder_id:string;
+    document_type:string;
+    revision_id:string;
     category: string;
-    uploadedBy: string;
+    createdBy: string;
     uploadedAt: string;
-    size: string;
 }
 
 export type FolderType = {
-
     id: string;
     name: string;
-    type: string;
-    projectId: string;
-    itemCount: number;
-    uploadedBy: string;
+    parent_folder_id:string;
+    project_id: string;
+    createdBy: string;
     createdAt: string;
-    size: string;
 }
 
 export interface FolderItemType {
-  name: string;
-  href: string;
-  icon?: any;
-  children?: FolderItemType[];
+    id:string;
+    name: string;
+    href: string;
+    onSelect: (value:string) => void;
+    icon?: any;
+    children?: FolderItemType[];
 }
