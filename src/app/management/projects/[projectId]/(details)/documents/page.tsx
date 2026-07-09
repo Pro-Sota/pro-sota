@@ -27,22 +27,25 @@ export default function ProjectDocument({ params, searchParams
 
   const getFolderDocuments = (fName:string) => {
     const folder = getFolder(fName); 
-    return mockDocuments.filter((doc) => doc.folder_id === folder)
+    return mockDocuments.filter((doc) => doc.folder_id === folder?.id)
+  }
+  
+  const getFolderFolders = (folderName:string) => {
+     const folderId = getFolder(folderName)?.id;
+    return folders.filter((folder) => folder.parent_folder_id == folderId)
   }
 
   const filteredFolders = (filter:string) => {
-    if(filter == "all-files") return folders;
-    if(filter == "recents") return folders;
-    if(filter == "favorites") return folders;
+    if(filter == "all-files") return [];
+    if(filter == "recents") return [];
 
-    return folders.filter((folder) => folder.name == selected)
+    return getFolderFolders(filter);
   }
 
   const filteredDocuments = (filter:string) => {
     if(filter == "all-files") return mockDocuments;
     if(filter == "recents") return mockDocuments;
-    if(filter == "favorites") return mockDocuments;
-    return mockDocuments.filter((doc) => doc.folder_id);
+    return getFolderDocuments(filter);
   }
 
   return (

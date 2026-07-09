@@ -26,17 +26,17 @@ export default function DocumentGridView({
     );
   }
 
-  return (
-    <div className="mx-4 overflow-x-auto">
-      <div className="grid grid-flow-col auto-cols-[240px] gap-6">
-        {folders.map(folder => (
-          <FolderCard key={folder.id} folder={folder} />
-        ))}
+ return (
+  <div className="mx-4">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {folders.map((folder) => (
+        <FolderCard key={folder.id} folder={folder} />
+      ))}
 
-        {documents.map(doc => (
-          <DocumentCard key={doc.id} document={doc} />
-        ))}
-      </div>
+      {documents.map((doc) => (
+        <DocumentCard key={doc.id} document={doc} />
+      ))}
     </div>
-  );
+  </div>
+);
 }

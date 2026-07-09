@@ -1,5 +1,5 @@
-import CustomNavbar from "@/components/custom_navbar";
-import HomeHeroSection from "@/components/home_hero_section";
+import CustomNavbar from "@/app/components/custom_navbar";
+import HomeHeroSection from "@/app/components/home_hero_section";
 
 export default function Home() {
   return (

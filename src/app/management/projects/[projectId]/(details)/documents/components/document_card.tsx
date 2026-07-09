@@ -2,7 +2,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { DocumentType } from "../types";
 
-export default function DocumentCard({ document }: { document: DocumentType }) {
+export default function DocumentCard({
+    document,
+}: {
+    document: DocumentType;
+}) {
     const getDocumentLogo = (name: string) => {
         const fileName = name.toLowerCase();
 
@@ -13,27 +17,33 @@ export default function DocumentCard({ document }: { document: DocumentType }) {
     };
 
     return (
-        <div className="flex flex-col items-center rounded-lg border border-gray-200 p-2 ">
-            <div className="flex h-24 w-24 items-center justify-center">
+        <div className="group relative overflow-hidden mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl">
+            {/* Background Accent */}
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-400" />
+
+            {/* Icon */}
+            <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-xl bg-blue-50 transition-colors group-hover:bg-blue-100">
                 <Image
                     src={getDocumentLogo(document.name)}
                     alt={document.name}
-                    width={100}
-                    height={100}
-                    className="h-24 w-24 object-contain"
+                    width={60}
+                    height={60}
+                    className="object-contain"
                     quality={100}
                 />
             </div>
 
-            <p className="my-2 text-center text-sm break-all text-gray-700">
+            {/* Document Name */}
+            <h3 className="line-clamp-2 min-h-[3.5rem] text-sm font-semibold text-slate-800">
                 {document.name}
-            </p>
+            </h3>
 
-            <div className="flex w-full justify-between gap-3 border-t border-gray-200 p-2">
+            {/* Actions */}
+            <div className=" flex gap-3">
                 <Link
                     href={document.name}
                     download
-                    className="w-full bg-slate-500 rounded-md text-center px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+                    className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white transition hover:bg-blue-700"
                 >
                     Download
                 </Link>
@@ -42,9 +52,9 @@ export default function DocumentCard({ document }: { document: DocumentType }) {
                     href={document.name}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-md w-full px-4 py-2 text-sm font-medium border border-gray-200 text-gray-500 transition hover:bg-gray-200"
+                    className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-center text-sm font-medium text-slate-600 transition hover:bg-slate-100"
                 >
-                    Ver documento
+                    Open
                 </Link>
             </div>
         </div>

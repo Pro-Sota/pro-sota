@@ -1,4 +1,4 @@
-import {DocumentType, FolderType} from "./types";
+import { DocumentType, FolderType } from "./types";
 
 export const mockDocuments: DocumentType[] = [
   {
@@ -7,7 +7,7 @@ export const mockDocuments: DocumentType[] = [
     category: "Contratos",
     createdBy: "Ana Silva",
     uploadedAt: "12 Jun 2026",
-    folder_id: "1",
+    folder_id: "5",
     document_type: "pdf",
     revision_id: ""
   },
@@ -17,7 +17,7 @@ export const mockDocuments: DocumentType[] = [
     category: "Arquitetura",
     createdBy: "João Pereira",
     uploadedAt: "08 Jun 2026",
-    folder_id: "2",
+    folder_id: "1",
     document_type: "dwg",
     revision_id: ""
   },
@@ -27,7 +27,7 @@ export const mockDocuments: DocumentType[] = [
     category: "Fiscalização",
     createdBy: "Marta Costa",
     uploadedAt: "02 Jun 2026",
-    folder_id: "1",
+    folder_id: "4",
     document_type: "pdf",
     revision_id: ""
   },
@@ -47,7 +47,7 @@ export const mockDocuments: DocumentType[] = [
     category: "Engenharia",
     createdBy: "Carlos Mendes",
     uploadedAt: "20 Mai 2026",
-    folder_id: "2",
+    folder_id: "3",
     document_type: "docx",
     revision_id: ""
   },
@@ -73,7 +73,7 @@ export const folders: FolderType[] = [
   {
     id: "1.3",
     name: "plants",
-    parent_folder_id: "",
+    parent_folder_id: "1",
     project_id: "1",
     createdBy: "System",
     createdAt: "",
@@ -105,20 +105,20 @@ export const folders: FolderType[] = [
   },
   {
     id: "2.2",
-    name: "Plants",
+    name: "plants",
     parent_folder_id: "2",
     project_id: "1",
     createdBy: "System",
     createdAt: "",
-  }, {
+  },
+  {
     id: "3",
-    name: "Construction",
+    name: "construction",
     parent_folder_id: "null",
     project_id: "1",
     createdBy: "System",
     createdAt: ""
   },
-
   {
     id: "3.1",
     name: "chronogram",

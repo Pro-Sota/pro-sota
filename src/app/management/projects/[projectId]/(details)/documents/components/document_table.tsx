@@ -1,5 +1,6 @@
 import { Download, EyeClosed, EyeIcon, FileText, Folder, MoreVertical } from "lucide-react";
 import { FolderType, DocumentType } from "../types";
+import { capitalize, removeCharacters } from "@/app/lib/library";
 
 interface DocumentTableViewProps {
   folders: FolderType[];
@@ -14,7 +15,7 @@ export default function DocumentTableView({
 
   if (isEmpty) {
     return (
-      <div className="flex h-full flex-col items-center justify-center py-10 mt-4 text-center">
+      <div className="flex h-screen flex-col items-center justify-center py-10 mt-4 text-center">
         <FileText className="h-8 w-8 text-gray-300" />
         <p className="mt-3 text-sm font-medium text-gray-900">
           Nenhum documento encontrado
@@ -51,7 +52,7 @@ export default function DocumentTableView({
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2 font-medium text-gray-900">
                   <Folder className="h-4 w-4 shrink-0 text-yellow-500" />
-                  <span className="truncate">{folder.name}</span>
+                  <span className="truncate">{removeCharacters(capitalize(folder.name))}</span>
                 </div>
               </td>
 

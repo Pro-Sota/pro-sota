@@ -1,5 +1,5 @@
 import KpiCard from "./components/kpi_card";
-import GanttChart from "@/components/gantt";
+import GanttChart from "@/app/components/gantt";
 
 const kpis = [
   { title: "Progress", value: "30" },

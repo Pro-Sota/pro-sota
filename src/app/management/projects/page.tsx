@@ -11,9 +11,9 @@ import {
   SearchIcon,
   X,
 } from "lucide-react";
-import ProjectTableView from "@/components/project_table_view";
-import ProjectGridView from "@/components/project_grid_view";
-import ProjectMapView from "@/components/project_map_view";
+import ProjectTableView from "@/app/components/project_table_view";
+import ProjectGridView from "@/app/components/project_grid_view";
+import ProjectMapView from "@/app/components/project_map_view";
 import { projects } from "./data"
 
 

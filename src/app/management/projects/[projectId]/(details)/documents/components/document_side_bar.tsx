@@ -62,14 +62,7 @@ export default function DocumentSidebar({
       href: `${base}/recents`,
       onSelect: () => onSelected("recent"),
       icon: Clock,
-    },
-    {
-      id: "favorites",
-      name: "Favoritos",
-      href: `${base}/favorites`,
-      onSelect: () => onSelected("favourites"),
-      icon: Star,
-    },
+    }
   ];
 
   const foldersItem: FolderItemType[] = [
