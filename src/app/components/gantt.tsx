@@ -38,7 +38,7 @@ function getPhaseColor(phase: string) {
 
 export default function Page() {
   return (
-    <div className="w-full p-6 space-y-6 text-gray-700">
+    <div className="w-full py-6 space-y-6 text-gray-700">
       <h1 className="text-2xl font-bold">Chronograma</h1>
 
       {/* Timeline Header */}

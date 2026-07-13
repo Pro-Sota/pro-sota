@@ -51,7 +51,7 @@ const tasks = [
 
 export default function Overview() {
   return (
-    <div className="space-y-10 px-4 md:px-8 w-full min-w-0 py-4">
+    <div className="space-y-10 px-4 w-full min-w-0 py-4 mt-4">
       {/* KPI Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 w-full min-w-0">
         {kpis.map((kpi) => (

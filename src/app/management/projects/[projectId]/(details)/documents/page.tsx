@@ -20,7 +20,6 @@ export default function ProjectDocument({ params, searchParams
   const [selected, setSelected] = useState("all-files");
   const [view, setView] = useState<"list" | "grid">("list");
 
-
   const getFolder = (folder:string) => {
     return folders.find ((f) => f.name === folder)
   }

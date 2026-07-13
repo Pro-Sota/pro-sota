@@ -23,7 +23,7 @@ export default async function ProjectLayout({
 
   return (
     <div className="flex flex-col h-screen overflow-x-hidden">
-      <nav className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4">
+      <nav className="sticky top-0 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4">
         <Link
           href="/management/projects"
           className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-black"

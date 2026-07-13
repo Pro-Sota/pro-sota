@@ -1,6 +1,7 @@
 import { Download, EyeClosed, EyeIcon, FileText, Folder, MoreVertical } from "lucide-react";
 import { FolderType, DocumentType } from "../types";
 import { capitalize, removeCharacters } from "@/app/lib/library";
+import EmptyFolder from "./empty_folder";
 
 interface DocumentTableViewProps {
   folders: FolderType[];
@@ -14,17 +15,9 @@ export default function DocumentTableView({
   const isEmpty = folders.length === 0 && documents.length === 0;
 
   if (isEmpty) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center py-10 mt-4 text-center">
-        <FileText className="h-8 w-8 text-gray-300" />
-        <p className="mt-3 text-sm font-medium text-gray-900">
-          Nenhum documento encontrado
-        </p>
-        <p className="mt-1 text-sm text-gray-500">
-          Tente pesquisar por outro termo.
-        </p>
-      </div>
-    );
+    return <div className="flex h-full w-full flex-col">
+      <EmptyFolder /> 
+    </div>
   }
 
   return (
@@ -32,12 +25,12 @@ export default function DocumentTableView({
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
-            <th className="px-4 py-3">Nome</th>
-            <th className="px-4 py-3">Categoria</th>
-            <th className="px-4 py-3">Criado por</th>
-            <th className="px-4 py-3">Tamanho</th>
-            <th className="px-4 py-3">
-              <span className="sr-only">Ações</span>
+            <th className="w-[45%] px-4 py-3">Nome</th>
+            <th className="w-[15%] px-4 py-3">Tipo</th>
+            <th className="w-[15%] px-4 py-3">Criado por</th>
+            <th className="w-[15%] px-4 py-3">Data de criação</th>
+            <th className="px-4 py-3 text-right">
+              <span className="sr-only">Acções</span>
             </th>
           </tr>
         </thead>
@@ -69,10 +62,12 @@ export default function DocumentTableView({
               <td className="px-4 py-3 text-gray-600">
                 {folder.createdAt ?? "-"}
               </td>
-              <td className="px-4 py-3 text-gray-600">
-                -
+
+              <td className="px-4 py-3">
+                <div className="flex justify-end gap-2">
+                  ...
+                </div>
               </td>
-             
             </tr>
           ))}
 
@@ -96,10 +91,13 @@ export default function DocumentTableView({
               </td>
 
               <td className="px-4 py-3 text-gray-600">
+                {doc.createdBy}
+              </td>
+              <td className="px-4 py-3 text-gray-600">
                 {doc.uploadedAt}
               </td>
 
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 flex justify-left">
                 <div className="flex items-center justify-end gap-1">
                   <button
                     type="button"

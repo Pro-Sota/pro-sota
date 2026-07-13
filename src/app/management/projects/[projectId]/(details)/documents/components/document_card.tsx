@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { DocumentType } from "../types";
+import { FaFile, FaFilePdf, FaFileWord } from "react-icons/fa";
+import { IoIosDocument } from "react-icons/io";
 
 export default function DocumentCard({
     document,
@@ -10,27 +12,22 @@ export default function DocumentCard({
     const getDocumentLogo = (name: string) => {
         const fileName = name.toLowerCase();
 
-        if (fileName.endsWith(".pdf")) return "/images/logos/pdf.jpg";
-        if (fileName.endsWith(".docx")) return "/images/logos/word.jpg";
+        if (fileName.endsWith(".pdf")) return <FaFilePdf className="h-10 w-10 text-slate-600 transition-transform duration-300 group-hover:scale-110" />
+            ;
+        if (fileName.endsWith(".docx")) return <FaFileWord className="h-10 w-10 text-slate-600 transition-transform duration-300 group-hover:scale-110" />;
 
-        return "/images/logos/document.png";
+        return <IoIosDocument className="h-10 w-10 text-slate-600 transition-transform duration-300 group-hover:scale-110" />;
     };
 
     return (
-        <div className="group relative overflow-hidden mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl">
+        <div className="group relative flex h-[270px] w-[300px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl">
             {/* Background Accent */}
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-400" />
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-500 to-yellow-600" />
 
             {/* Icon */}
-            <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-xl bg-blue-50 transition-colors group-hover:bg-blue-100">
-                <Image
-                    src={getDocumentLogo(document.name)}
-                    alt={document.name}
-                    width={60}
-                    height={60}
-                    className="object-contain"
-                    quality={100}
-                />
+            <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-xl bg-slate-50 transition-colors group-hover:bg-slate-100">
+                {getDocumentLogo(document.name)}
+
             </div>
 
             {/* Document Name */}
@@ -39,15 +36,14 @@ export default function DocumentCard({
             </h3>
 
             {/* Actions */}
-            <div className=" flex gap-3">
+            <div className="mt-auto flex gap-3">
                 <Link
                     href={document.name}
                     download
-                    className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white transition hover:bg-blue-700"
+                    className="flex-1 rounded-lg bg-slate-600 px-4 py-2 text-center text-sm font-medium text-white transition hover:bg-slate-700"
                 >
                     Download
                 </Link>
-
                 <Link
                     href={document.name}
                     target="_blank"
