@@ -1,458 +1,280 @@
+import { Phase } from "./types";
+
 export default function PhasesPage() {
 
-    const phases = [
+    const phases: Phase[] = [
         {
-            name: "Concept Design",
-            status: "Completed",
-            progress: 100,
-            dates: "Jan 10 - Feb 20",
-        },
-        {
-            name: "Schematic Design",
-            status: "Completed",
-            progress: 100,
-            dates: "Feb 21 - Apr 15",
-        },
-        {
-            name: "Technical Design",
+            name: "Comercial e Adjudicação",
             status: "Current",
-            progress: 65,
-            dates: "Apr 16 - Jun 30",
+            progress: 0,
+            dates: "",
         },
         {
-            name: "Tender",
+            name: "Briefing e Programa de Necessidades",
             status: "Upcoming",
             progress: 0,
-            dates: "Jul 01 - Aug 15",
+            dates: "",
         },
         {
-            name: "Construction",
+            name: "Estudo Funcional (Método Pro Sota)",
             status: "Upcoming",
             progress: 0,
-            dates: "Aug 20 - Dec 30",
+            dates: "",
+        },
+        {
+            name: "Estudo Prévio / Conceito Arquitectónico",
+            status: "Upcoming",
+            progress: 0,
+            dates: "",
+        },
+        {
+            name: "Anteprojecto / Licenciamento",
+            status: "Upcoming",
+            progress: 0,
+            dates: "",
+        },
+        {
+            name: "Projecto de Execução",
+            status: "Upcoming",
+            progress: 0,
+            dates: "",
+        },
+        {
+            name: "Assistência Técnica à Obra",
+            status: "Upcoming",
+            progress: 0,
+            dates: "",
         }
     ]
-
 
     const deliverables = [
-        {
-            name: "Construction drawings",
-            status: "Completed"
-        },
-        {
-            name: "Structural coordination",
-            status: "In Review"
-        },
-        {
-            name: "MEP coordination",
-            status: "Pending"
-        }
+        { name: "Construction drawings", status: "Upcoming" },
+        { name: "Structural coordination", status: "Upcoming" },
+        { name: "MEP coordination", status: "Upcoming" }
     ]
-
 
     const milestones = [
-        {
-            name: "Client Concept Approval",
-            status: "Completed"
-        },
-        {
-            name: "Design Development Complete",
-            status: "Completed"
-        },
-        {
-            name: "Authority Submission",
-            status: "Pending"
-        },
-        {
-            name: "Tender Package Complete",
-            status: "Upcoming"
-        }
+        { name: "Client Concept Approval", status: "Upcoming" },
+        { name: "Design Development Complete", status: "Upcoming" },
+        { name: "Authority Submission", status: "Upcoming" },
+        { name: "Tender Package Complete", status: "Upcoming" }
     ]
 
+    // Overall progress derived from phase list, same basis as before (68%)
+    const overallProgress = 0
+
+    const currentPhase = 0;
 
     return (
-
-        <div className="p-6 space-y-8 text-gray-700">
-
+        <div className="p-6 md:p-8 space-y-6 text-slate-700 bg-slate-50 min-h-screen">
 
             {/* Header */}
-
             <div className="flex justify-between items-center">
-
                 <div>
-                    <h1 className="text-2xl font-bold">
-                        Project Phases
+                    <h1 className="text-2xl font-bold text-slate-900">
+                        Fases
                     </h1>
-
-                    <p className="text-gray-500">
-                        Track project stages, deliverables and progress.
-                    </p>
                 </div>
 
-
-                <button className="bg-slate-600 text-white px-4 py-2 rounded-lg">
-                    + Add Phase
+                <button className="bg-slate-900 hover:bg-slate-800 transition-colors text-white text-sm font-medium px-4 py-2.5 rounded-lg">
+                    + Nova Fase
                 </button>
-
             </div>
-
-
 
             {/* Overall Progress */}
-
-            <div className="bg-white rounded-xl shadow p-6">
-
-                <div className="flex justify-between mb-3">
-
-                    <h2 className="font-semibold">
-                        Overall Project Progress
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <div className="flex justify-between items-baseline mb-3">
+                    <h2 className="font-semibold text-slate-900">
+                        Progresso geral
                     </h2>
-
-                    <span className="font-bold">
-                        68%
+                    <span className="font-mono text-lg font-bold text-slate-900 tabular-nums">
+                        {overallProgress}%
                     </span>
-
                 </div>
 
-
-                <div className="h-3 bg-gray-200 rounded-full">
-
+                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
                     <div
-                        className="h-3 bg-slate-600 rounded-full"
-                        style={{
-                            width:"68%"
-                        }}
+                        className="h-full bg-yellow-600 rounded-full transition-all"
+                        style={{ width: `${overallProgress}%` }}
                     />
-
                 </div>
 
-
-                <div className="mt-4 text-sm text-gray-600">
-
-                    Current Phase:
-
-                    <span className="ml-2 font-medium text-gray-900">
-                        Technical Design
+                <div className="mt-4 text-sm text-slate-500">
+                    Fase actual
+                    <span className="ml-2 font-medium text-slate-900">
+                        {phases[currentPhase].name}
                     </span>
-
                 </div>
-
             </div>
-
-
-
 
             {/* Timeline */}
-
-            <div className="bg-white rounded-xl shadow p-8">
-
-
-                <h2 className="font-semibold mb-8">
-                    Project Roadmap
+            <div className="bg-white rounded-xl border border-slate-200 p-6 md:p-8">
+                <h2 className="font-semibold text-slate-900 mb-10">
+                    Mapa de evolução
                 </h2>
-
-
-
-                <div className="flex items-start justify-between">
-
-
-                    {phases.map((phase,index)=>(
-
-                        <div
-                            key={phase.name}
-                            className="flex-1 text-center relative"
-                        >
-
-
-                            {/* Line */}
-
-                            {index !== phases.length -1 && (
-
-                                <div className="
-                                    absolute
-                                    top-5
-                                    left-1/2
-                                    w-full
-                                    h-1
-                                    bg-gray-200
-                                "/>
-
-                            )}
-
-
-
-                            {/* Circle */}
-
-                            <div
-                                className={`
-                                    relative
-                                    mx-auto
-                                    w-10
-                                    h-10
-                                    rounded-full
-                                    flex
-                                    items-center
-                                    justify-center
-                                    text-white
-                                    font-bold
-                                    z-10
-
-                                    ${
-                                        phase.status === "Completed"
-                                        ? "bg-green-600"
-                                        :
-                                        phase.status === "Current"
-                                        ? "bg-slate-600"
-                                        :
-                                        "bg-gray-300"
-                                    }
-                                `}
-                            >
-
-                                {index + 1}
-
-                            </div>
-
-
-
-                            <h3 className="mt-4 text-sm font-semibold">
-                                {phase.name}
-                            </h3>
-
-
-                            <p className="text-xs text-gray-500 mt-1">
-                                {phase.dates}
-                            </p>
-
-
-                        </div>
-
-                    ))}
-                </div>
+                <PhaseTimeline phases={phases} />
             </div>
 
-            {/* Current Phase Details */}
-            <div className="bg-white rounded-xl shadow p-6">
-                <div className="flex justify-between">
+            {/* Current Phase — header + progress on their own, so this card has one job */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <div className="flex justify-between items-start">
                     <div>
-                        <h2 className="text-xl font-bold">
-                            Technical Design
+                        <h2 className="text-xl font-bold text-slate-900">
+                            {phases[currentPhase].name}
                         </h2>
-                        <p className="text-gray-500">
-                            Apr 16 - Jun 30
+                        <p className="text-slate-500 text-sm font-mono mt-1">
+                            {phases[currentPhase].dates}
                         </p>
                     </div>
-
-
-                    <span className="
-                        bg-yellow-100
-                        text-yellow-700
-                        px-3
-                        py-1
-                        rounded-full
-                        h-fit
-                    ">
-                        In Progress
-                    </span>
-
-
+                    <StatusPill status="In Progress" />
                 </div>
-
-
-
-
-                {/* Progress */}
 
                 <div className="mt-6">
-
                     <div className="flex justify-between text-sm mb-2">
-
-                        <span>
-                            Phase Completion
-                        </span>
-
-                        <span>
-                            65%
-                        </span>
-
+                        <span className="text-slate-600">Conclusão da fase</span>
+                        <span className="font-mono font-medium text-slate-900"> {phases[currentPhase].progress}%</span>
                     </div>
-
-
-                    <div className="h-2 bg-gray-200 rounded-full">
-
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                            className="h-2 bg-slate-600 rounded-full"
-                            style={{
-                                width:"65%"
-                            }}
+                            className="h-full bg-yellow-600 rounded-full"
+                            style={{ width: `${phases[currentPhase].progress}%` }}
                         />
-
                     </div>
-
                 </div>
+            </div>
 
+            {/* Metrics — own row, more breathing room, no longer squeezed under a list */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <Metric title="Documentos" value="0" />
+                <Metric title="Tarefas" value="0" />
+                <Metric title="Comentários" value="0" accent />
+                <Metric title="Equipa" value="0" />
+            </div>
 
-
-
-
-                {/* Metrics */}
-
-                <div className="
-                    grid
-                    grid-cols-4
-                    gap-4
-                    mt-8
-                ">
-
-
-                    <Metric title="Documents" value="86"/>
-
-                    <Metric title="Tasks" value="24"/>
-
-                    <Metric title="Reviews" value="8"/>
-
-                    <Metric title="Team" value="12"/>
-
-
-                </div>
-
-
-
-
-
-                {/* Deliverables */}
-
-                <div className="mt-8">
-
-
-                    <h3 className="font-semibold mb-4">
-                        Deliverables
+            {/* Deliverables + Milestones — matched two-column pair on desktop */}
+            <div className="grid lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <h3 className="font-semibold text-slate-900 mb-4">
+                        Entregas
                     </h3>
-
-
-                    <div className="space-y-3">
-
-                        {deliverables.map(item=>(
-
-                            <div
-                                key={item.name}
-                                className="
-                                    flex
-                                    justify-between
-                                    border-b
-                                    pb-3
-                                "
-                            >
-
-                                <span>
-                                    {item.name}
-                                </span>
-
-
-                                <span className="text-sm text-gray-500">
-                                    {item.status}
-                                </span>
-
-
-                            </div>
-
-                        ))}
-
-
-                    </div>
-
-
+                    <StatusList items={deliverables} />
                 </div>
 
-
-
-            </div>
-
-
-
-
-
-            {/* Milestones */}
-
-
-            <div className="bg-white rounded-xl shadow p-6">
-
-                <h2 className="font-semibold mb-5">
-                    Milestones
-                </h2>
-
-
-                <div className="space-y-4">
-
-
-                    {milestones.map(item=>(
-
-                        <div
-                            key={item.name}
-                            className="
-                                flex
-                                justify-between
-                                border-b
-                                pb-3
-                            "
-                        >
-
-                            <span>
-                                {item.name}
-                            </span>
-
-
-                            <span className="text-sm text-gray-500">
-                                {item.status}
-                            </span>
-
-
-                        </div>
-
-                    ))}
-
-
+                <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <h3 className="font-semibold text-slate-900 mb-4">
+                        Etapas
+                    </h3>
+                    <StatusList items={milestones} />
                 </div>
-
-
             </div>
-
 
         </div>
-
     )
 }
 
+/* ---------- Shared pieces ---------- */
 
+function statusColors(status: string) {
+    switch (status) {
+        case "Completed":
+            return "bg-green-50 text-green-700 border-green-200"
+        case "Current":
+        case "In Progress":
+            return "bg-blue-50 text-blue-700 border-blue-200"
+        case "In Review":
+            return "bg-amber-50 text-amber-700 border-amber-200"
+        case "Pending":
+            return "bg-slate-100 text-slate-600 border-slate-200"
+        case "Upcoming":
+        default:
+            return "bg-slate-50 text-slate-500 border-slate-200"
+    }
+}
 
+function StatusPill({ status }: { status: string }) {
+    return (
+        <span className={`text-xs font-medium px-2.5 py-1 rounded-full border h-fit ${statusColors(status)}`}>
+            {status}
+        </span>
+    )
+}
+
+function StatusList({ items }: { items: { name: string, status: string }[] }) {
+    return (
+        <div className="divide-y divide-slate-100">
+            {items.map(item => (
+                <div key={item.name} className="flex justify-between items-center py-3">
+                    <span className="text-slate-700 text-sm">{item.name}</span>
+                    <StatusPill status={item.status} />
+                </div>
+            ))}
+        </div>
+    )
+}
 
 function Metric({
     title,
-    value
-}:{
-    title:string,
-    value:string
-}){
+    value,
+    accent = false
+}: {
+    title: string,
+    value: string,
+    accent?: boolean
+}) {
+    return (
+        <div className={`rounded-lg p-4 border ${accent ? "bg-amber-50 border-amber-100" : "bg-white border-slate-200"}`}>
+            <p className="text-xs text-slate-500">{title}</p>
+            <p className="text-2xl font-bold font-mono text-slate-900 mt-1">{value}</p>
+        </div>
+    )
+}
+
+function PhaseTimeline({
+    phases
+}: {
+    phases: Phase[]
+}) {
+    // Overall fraction of the line to fill: completed phases + partial current phase
+    const completedCount = phases.filter(p => p.status === "Completed").length
+    const currentIndex = phases.findIndex(p => p.status === "Current")
+    const currentPartial = currentIndex >= 0 ? phases[currentIndex].progress / 100 : 0
+    const stepsFilled = completedCount + currentPartial
+    const fillPercent = (stepsFilled / (phases.length - 1)) * 100
 
     return (
+        <div className="relative">
+            {/* Track */}
+            <div className="absolute top-5 left-5 right-5 h-1 bg-slate-100 rounded-full" />
+            <div
+                className="absolute top-5 left-5 h-1 bg-amber-600 rounded-full transition-all"
+                style={{ width: `calc(${Math.min(fillPercent, 100)}% - ${(Math.min(fillPercent, 100) / 100) * 40}px)` }}
+            />
 
-        <div className="
-            bg-gray-50
-            rounded-lg
-            p-4
-        ">
-
-            <p className="text-sm text-gray-500">
-                {title}
-            </p>
-
-
-            <p className="text-2xl font-bold">
-                {value}
-            </p>
-
+            <div className="relative flex items-start justify-between">
+                {phases.map((phase, index) => (
+                    <div key={phase.name} className="flex-1 text-center px-1">
+                        <div
+                            className={`
+                                relative mx-auto w-10 h-10 rounded-full flex items-center justify-center
+                                text-sm font-bold z-10 border-2
+                                ${phase.status === "Completed"
+                                    ? "bg-green-600 border-green-600 text-white"
+                                    : phase.status === "Current"
+                                        ? "bg-white border-amber-600 text-amber-600"
+                                        : "bg-white border-slate-200 text-slate-400"}
+                            `}
+                        >
+                            {phase.status === "Completed" ? "✓" : index + 1}
+                        </div>
+                        <h3 className="mt-3 text-sm font-semibold text-slate-900">
+                            {phase.name}
+                        </h3>
+                        <p className="text-xs text-slate-400 font-mono mt-0.5">
+                            {phase.dates}
+                        </p>
+                    </div>
+                ))}
+            </div>
         </div>
-
     )
-
 }
