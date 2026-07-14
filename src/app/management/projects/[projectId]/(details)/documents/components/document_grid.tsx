@@ -15,20 +15,26 @@ export default function DocumentGridView({
   const isEmpty = folders.length === 0 && documents.length === 0;
 
   if (isEmpty) {
-    return <div className="flex h-full w-full flex-col">
-      <EmptyFolder /> {/* flex-1 fills the rest */}
-    </div>
+    return (
+      <div className="flex h-full w-full flex-col">
+        <EmptyFolder />
+      </div>
+    );
   }
 
   return (
     <div className="mx-4">
-      <div className="grid auto-rows-fr grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {folders.map((folder) => (
-          <FolderCard key={folder.id} folder={folder} />
+          <div key={folder.id} className="h-64 w-64">
+            <FolderCard folder={folder} />
+          </div>
         ))}
 
         {documents.map((doc) => (
-          <DocumentCard key={doc.id} document={doc} />
+          <div key={doc.id} className="h-64 w-64">
+            <DocumentCard document={doc} />
+          </div>
         ))}
       </div>
     </div>

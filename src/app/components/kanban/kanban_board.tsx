@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { GripVertical, Trash2, X, AlertTriangle, Calendar, Search, Plus } from 'lucide-react';
 import { Task, Column, ColumnId } from './types';
 
 const COLUMNS: Column[] = [
@@ -46,6 +47,10 @@ function isOverdue(dueDate?: string) {
 function formatDueDate(dueDate: string) {
     return new Date(dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+// shared focus style for icon-only buttons
+const ICON_BTN =
+    'rounded-lg p-1.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1';
 
 export default function KanbanBoard() {
     const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
@@ -264,215 +269,255 @@ export default function KanbanBoard() {
         );
     };
 
+    const totalMatches = tasks.filter(matchesSearch).length;
+    const isSearching = searchQuery.trim().length > 0;
+
     return (
         <>
-            <div className="min-h-screen bg-slate-100 py-10 pl-6 pr-2">
-                <div className="w-full pl-2">
+            <div className="min-h-screen bg-slate-100 py-10 px-6">
+                <div className="w-full">
                     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                         <h1 className="text-4xl font-bold tracking-tight text-slate-800">Tarefas</h1>
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search tasks, members, labels..."
-                            className="w-full max-w-xs rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-gray-700 outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
-                        />
-                    </div>
 
-                    <div className="flex items-start gap-6 overflow-x-auto pb-6 justify-start">
-                        {columns.map((column) => {
-                            const columnTasks = tasks.filter((t) => t.columnId === column.id && matchesSearch(t));
-                            return (
-                                <div
-                                    key={column.id}
-                                    onDragOver={(e) => { e.preventDefault(); setDragOverColumnId(column.id); }}
-                                    onDragLeave={() => setDragOverColumnId((prev) => (prev === column.id ? null : prev))}
-                                    onDrop={(e) => handleColumnDropArea(e, column.id)}
-                                    className={`w-80 flex-shrink-0 rounded-2xl border bg-white p-4 shadow-lg min-h-[500px] flex flex-col transition ${
-                                        dragOverColumnId === column.id ? 'border-gray-400 ring-2 ring-gray-200' : 'border-slate-200'
-                                    }`}
-                                >
-                                    {/* Column Header */}
-                                    <div className="mb-4 flex items-center justify-between gap-2 border-b border-slate-200 pb-4">
-                                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                                            <span
-                                                draggable
-                                                onDragStart={(e) => handleColumnDragStart(e, column.id)}
-                                                className="cursor-grab select-none text-slate-300 hover:text-slate-500 active:cursor-grabbing"
-                                                title="Drag to reorder list"
-                                            >
-                                                ⠿
-                                            </span>
-
-                                            {editingColumnId === column.id ? (
-                                                <input
-                                                    autoFocus
-                                                    value={columnTitleInput}
-                                                    onChange={(e) => setColumnTitleInput(e.target.value)}
-                                                    onBlur={commitColumnTitle}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') commitColumnTitle();
-                                                        if (e.key === 'Escape') setEditingColumnId(null);
-                                                    }}
-                                                    className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-700 font-semibold outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
-                                                />
-                                            ) : (
-                                                <h2
-                                                    onClick={() => startEditingColumn(column)}
-                                                    className="cursor-text truncate font-semibold text-slate-800 hover:text-gray-600"
-                                                    title="Click to rename"
-                                                >
-                                                    {column.title}
-                                                </h2>
-                                            )}
-                                        </div>
-
-                                        <div className="flex flex-shrink-0 items-center gap-2">
-                                            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-                                                {columnTasks.length}
-                                            </span>
-                                            <button
-                                                onClick={() => handleDeleteColumn(column.id)}
-                                                className="rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
-                                                title="Delete list"
-                                            >
-                                                🗑
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Cards */}
-                                    <div className="flex-1 space-y-3 overflow-y-auto overflow-x-visible pr-1 pt-1">
-                                        {columnTasks.length === 0 && (
-                                            <p className="rounded-xl border border-dashed border-slate-200 py-6 text-center text-xs text-slate-400">
-                                                Sem tarefas
-                                            </p>
-                                        )}
-
-                                        {columnTasks.map((task) => (
-                                            <div
-                                                key={task.id}
-                                                draggable
-                                                onDragStart={(e) => handleTaskDragStart(e, task.id)}
-                                                onDragOver={(e) => e.preventDefault()}
-                                                onDrop={(e) => handleTaskDrop(e, task.id, column.id)}
-                                                onClick={() => setSelectedTaskId(task.id)}
-                                                className="group relative z-0 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 p-3 transition-all duration-200 hover:-translate-y-1 hover:z-10 hover:border-gray-400 hover:bg-white hover:shadow-md active:cursor-grabbing"
-                                            >
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <h3 className="text-sm font-semibold text-slate-800">{task.title}</h3>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
-                                                        className="flex-shrink-0 rounded p-1 text-slate-300 opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-500"
-                                                        title="Delete task"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </div>
-
-                                                {task.description && (
-                                                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                                                        {task.description}
-                                                    </p>
-                                                )}
-
-                                                {(task.labels ?? []).length > 0 && (
-                                                    <div className="mt-2 flex flex-wrap gap-1">
-                                                        {task.labels!.map((labelName) => {
-                                                            const label = LABELS.find((l) => l.name === labelName);
-                                                            return (
-                                                                <span
-                                                                    key={labelName}
-                                                                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${label?.classes ?? 'bg-slate-100 text-slate-600'}`}
-                                                                >
-                                                                    {labelName}
-                                                                </span>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-
-                                                <div className="mt-2 flex items-center justify-between">
-                                                    {task.dueDate ? (
-                                                        <span className={`text-[11px] font-medium ${isOverdue(task.dueDate) ? 'text-red-500' : 'text-slate-400'}`}>
-                                                            {isOverdue(task.dueDate) ? '⚠ ' : '📅 '}
-                                                            {formatDueDate(task.dueDate)}
-                                                        </span>
-                                                    ) : <span />}
-
-                                                    {(task.members ?? []).length > 0 && (
-                                                        <div className="flex -space-x-2">
-                                                            {task.members!.slice(0, 3).map((member) => (
-                                                                <span
-                                                                    key={member}
-                                                                    title={member}
-                                                                    className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white ring-2 ring-slate-50 ${avatarColor(member)}`}
-                                                                >
-                                                                    {initials(member)}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Add Task */}
-                                    <div className="mt-5 flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={taskInputs[column.id] ?? ''}
-                                            onChange={(e) => setTaskInputs((prev) => ({ ...prev, [column.id]: e.target.value }))}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleAddTask(column.id)}
-                                            placeholder="Nova tarefa..."
-                                            className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
-                                        />
-                                        <button
-                                            onClick={() => handleAddTask(column.id)}
-                                            className="rounded-xl bg-gray-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-600 hover:shadow-md"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        <div className="w-80 flex-shrink-0">
-                            {isAddingList ? (
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-                                    <input
-                                        autoFocus
-                                        type="text"
-                                        value={listInput}
-                                        onChange={(e) => setListInput(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAddColumn()}
-                                        placeholder="List name..."
-                                        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-gray-700 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
-                                    />
-                                    <div className="mt-2 flex gap-2">
-                                        <button onClick={handleAddColumn} className="rounded-xl bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600">
-                                            Adicionar lista
-                                        </button>
-                                        <button
-                                            onClick={() => { setIsAddingList(false); setListInput(''); }}
-                                            className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100"
-                                        >
-                                            Cancelar
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
+                        <div className="relative w-full max-w-xs">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search tasks, members, labels..."
+                                className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-gray-700 outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                            />
+                            {isSearching && (
                                 <button
-                                    onClick={() => setIsAddingList(true)}
-                                    className="w-full rounded-2xl border-2 border-dashed border-slate-300 p-4 text-sm font-semibold text-slate-500 hover:border-gray-400 hover:text-gray-600 hover:bg-white transition"
+                                    onClick={() => setSearchQuery('')}
+                                    aria-label="Clear search"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                                 >
-                                    + Nova lista
+                                    <X size={14} />
                                 </button>
                             )}
                         </div>
                     </div>
+
+                    {isSearching && totalMatches === 0 ? (
+                        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white/50 py-16 text-center">
+                            <Search className="text-slate-300" size={28} strokeWidth={1.5} />
+                            <p className="text-sm text-slate-500">Sem resultados para "{searchQuery}"</p>
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="text-sm font-medium text-gray-600 underline hover:text-gray-800"
+                            >
+                                Limpar pesquisa
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-start gap-6 overflow-x-auto pb-6 justify-start">
+                            {columns.map((column) => {
+                                const columnTasks = tasks.filter((t) => t.columnId === column.id && matchesSearch(t));
+                                return (
+                                    <div
+                                        key={column.id}
+                                        onDragOver={(e) => { e.preventDefault(); setDragOverColumnId(column.id); }}
+                                        onDragLeave={() => setDragOverColumnId((prev) => (prev === column.id ? null : prev))}
+                                        onDrop={(e) => handleColumnDropArea(e, column.id)}
+                                        className={`w-80 flex-shrink-0 rounded-2xl border bg-white p-4 shadow-lg min-h-[500px] flex flex-col transition ${
+                                            dragOverColumnId === column.id ? 'border-gray-400 ring-2 ring-gray-200' : 'border-slate-200'
+                                        }`}
+                                    >
+                                        {/* Column Header */}
+                                        <div className="mb-4 flex items-center justify-between gap-2 border-b border-slate-200 pb-4">
+                                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                                                <span
+                                                    draggable
+                                                    onDragStart={(e) => handleColumnDragStart(e, column.id)}
+                                                    className="cursor-grab select-none text-slate-300 hover:text-slate-500 active:cursor-grabbing"
+                                                    title="Drag to reorder list"
+                                                >
+                                                    <GripVertical size={16} />
+                                                </span>
+
+                                                {editingColumnId === column.id ? (
+                                                    <input
+                                                        autoFocus
+                                                        value={columnTitleInput}
+                                                        onChange={(e) => setColumnTitleInput(e.target.value)}
+                                                        onBlur={commitColumnTitle}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') commitColumnTitle();
+                                                            if (e.key === 'Escape') setEditingColumnId(null);
+                                                        }}
+                                                        className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-700 font-semibold outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                                                    />
+                                                ) : (
+                                                    <h2
+                                                        onClick={() => startEditingColumn(column)}
+                                                        className="cursor-text truncate font-semibold text-slate-800 hover:text-gray-600"
+                                                        title="Click to rename"
+                                                    >
+                                                        {column.title}
+                                                    </h2>
+                                                )}
+                                            </div>
+
+                                            <div className="flex flex-shrink-0 items-center gap-2">
+                                                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                                                    {columnTasks.length}
+                                                </span>
+                                                <button
+                                                    onClick={() => handleDeleteColumn(column.id)}
+                                                    aria-label="Delete list"
+                                                    title="Delete list"
+                                                    className={`${ICON_BTN} text-slate-400 hover:bg-red-50 hover:text-red-500`}
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Cards */}
+                                        <div className="flex-1 space-y-3 overflow-y-auto overflow-x-visible pr-1 pt-1">
+                                            {columnTasks.length === 0 && (
+                                                <p className="rounded-xl border border-dashed border-slate-200 py-6 text-center text-xs text-slate-400">
+                                                    Sem tarefas
+                                                </p>
+                                            )}
+
+                                            {columnTasks.map((task) => (
+                                                <div
+                                                    key={task.id}
+                                                    draggable
+                                                    onDragStart={(e) => handleTaskDragStart(e, task.id)}
+                                                    onDragOver={(e) => e.preventDefault()}
+                                                    onDrop={(e) => handleTaskDrop(e, task.id, column.id)}
+                                                    onClick={() => setSelectedTaskId(task.id)}
+                                                    className="group relative z-0 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 p-3 transition-all duration-200 hover:-translate-y-1 hover:z-10 hover:border-gray-400 hover:bg-white hover:shadow-md active:cursor-grabbing"
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <h3 className="text-sm font-semibold text-slate-800">{task.title}</h3>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
+                                                            aria-label="Delete task"
+                                                            title="Delete task"
+                                                            className={`${ICON_BTN} flex-shrink-0 text-slate-300 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500`}
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+
+                                                    {task.description && (
+                                                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                                                            {task.description}
+                                                        </p>
+                                                    )}
+
+                                                    {(task.labels ?? []).length > 0 && (
+                                                        <div className="mt-2 flex flex-wrap gap-1">
+                                                            {task.labels!.map((labelName) => {
+                                                                const label = LABELS.find((l) => l.name === labelName);
+                                                                return (
+                                                                    <span
+                                                                        key={labelName}
+                                                                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${label?.classes ?? 'bg-slate-100 text-slate-600'}`}
+                                                                    >
+                                                                        {labelName}
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="mt-2 flex items-center justify-between">
+                                                        {task.dueDate ? (
+                                                            <span
+                                                                className={`inline-flex items-center gap-1 text-[11px] font-medium ${
+                                                                    isOverdue(task.dueDate) ? 'text-red-500' : 'text-slate-400'
+                                                                }`}
+                                                            >
+                                                                {isOverdue(task.dueDate) ? (
+                                                                    <AlertTriangle size={11} />
+                                                                ) : (
+                                                                    <Calendar size={11} />
+                                                                )}
+                                                                {formatDueDate(task.dueDate)}
+                                                            </span>
+                                                        ) : <span />}
+
+                                                        {(task.members ?? []).length > 0 && (
+                                                            <div className="flex -space-x-2">
+                                                                {task.members!.slice(0, 3).map((member) => (
+                                                                    <span
+                                                                        key={member}
+                                                                        title={member}
+                                                                        className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white ring-2 ring-slate-50 ${avatarColor(member)}`}
+                                                                    >
+                                                                        {initials(member)}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Add Task */}
+                                        <div className="mt-5 flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={taskInputs[column.id] ?? ''}
+                                                onChange={(e) => setTaskInputs((prev) => ({ ...prev, [column.id]: e.target.value }))}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleAddTask(column.id)}
+                                                placeholder="Nova tarefa..."
+                                                className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                                            />
+                                            <button
+                                                onClick={() => handleAddTask(column.id)}
+                                                className="rounded-xl bg-gray-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-600 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1"
+                                            >
+                                                Add
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            <div className="w-80 flex-shrink-0">
+                                {isAddingList ? (
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            value={listInput}
+                                            onChange={(e) => setListInput(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleAddColumn()}
+                                            placeholder="List name..."
+                                            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-gray-700 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                                        />
+                                        <div className="mt-2 flex gap-2">
+                                            <button onClick={handleAddColumn} className="rounded-xl bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600">
+                                                Adicionar lista
+                                            </button>
+                                            <button
+                                                onClick={() => { setIsAddingList(false); setListInput(''); }}
+                                                className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setIsAddingList(true)}
+                                        className="flex w-full items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-slate-300 p-4 text-sm font-semibold text-slate-500 hover:border-gray-400 hover:text-gray-600 hover:bg-white transition"
+                                    >
+                                        <Plus size={16} />
+                                        Nova lista
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -507,22 +552,24 @@ export default function KanbanBoard() {
                             <div className="flex flex-shrink-0 items-center gap-1">
                                 <button
                                     onClick={() => handleDeleteTask(selectedTask.id)}
-                                    className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                                    aria-label="Delete task"
                                     title="Delete task"
+                                    className={`${ICON_BTN} text-slate-400 hover:bg-red-50 hover:text-red-500`}
                                 >
-                                    🗑
+                                    <Trash2 size={16} />
                                 </button>
                                 <button
                                     onClick={() => setSelectedTaskId(null)}
-                                    className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                                    aria-label="Close"
+                                    className={`${ICON_BTN} text-gray-400 hover:bg-gray-100 hover:text-gray-700`}
                                 >
-                                    ✕
+                                    <X size={16} />
                                 </button>
                             </div>
                         </div>
 
                         <div className="space-y-6 p-6">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Estado</p>
                                     <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 ring-1 ring-gray-200">
@@ -549,7 +596,7 @@ export default function KanbanBoard() {
                                             <button
                                                 key={label.name}
                                                 onClick={() => toggleLabel(label.name)}
-                                                className={`rounded-full px-3 py-1 text-xs font-medium ring-1 transition ${
+                                                className={`rounded-full px-3 py-1 text-xs font-medium ring-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 ${
                                                     active ? `${label.classes} ring-transparent` : 'bg-white text-gray-400 ring-gray-200 hover:text-gray-600'
                                                 }`}
                                             >
@@ -583,7 +630,9 @@ export default function KanbanBoard() {
                                             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium text-white ${avatarColor(member)}`}
                                         >
                                             {member}
-                                            <button onClick={() => removeMember(member)} className="text-white/70 hover:text-white">✕</button>
+                                            <button onClick={() => removeMember(member)} aria-label={`Remove ${member}`} className="text-white/70 hover:text-white">
+                                                <X size={12} />
+                                            </button>
                                         </span>
                                     ))}
                                 </div>
@@ -595,7 +644,7 @@ export default function KanbanBoard() {
                                         placeholder="Member name"
                                         className="flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
                                     />
-                                    <button onClick={addMember} className="rounded-xl bg-gray-700 px-4 text-sm font-semibold text-white transition hover:bg-gray-600">
+                                    <button onClick={addMember} className="rounded-xl bg-gray-700 px-4 text-sm font-semibold text-white transition hover:bg-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1">
                                         Add
                                     </button>
                                 </div>
@@ -604,7 +653,7 @@ export default function KanbanBoard() {
                             <div className="flex justify-end border-t border-gray-100 pt-5">
                                 <button
                                     onClick={() => setSelectedTaskId(null)}
-                                    className="rounded-xl bg-gray-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-gray-600"
+                                    className="rounded-xl bg-gray-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1"
                                 >
                                     Fechar
                                 </button>

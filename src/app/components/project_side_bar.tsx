@@ -18,24 +18,24 @@ export default function ProjectNavbar({
       href: `/management/projects/${projectId}/overview`,
     },
      {
-      name: "Phases",
+      name: "Fases",
       href: `/management/projects/${projectId}/phases`,
     },
      {
-      name: "Tasks",
+      name: "Tarefas",
       href: `/management/projects/${projectId}/tasks`,
     },
     {
-      name: "Documents",
+      name: "Documentos",
       href: `/management/projects/${projectId}/documents`,
     },
   
     {
-      name: "Approvals and reviews",
+      name: "Aprovações e Comentários",
       href: `/management/projects/${projectId}/approvals-and-reviews`,
     },
     {
-      name: "Team",
+      name: "Equipa",
       href: `/management/projects/${projectId}/team`,
     },
   ];

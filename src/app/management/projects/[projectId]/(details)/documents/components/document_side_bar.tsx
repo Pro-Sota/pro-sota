@@ -32,9 +32,9 @@ export default function DocumentSidebar({
 
   const [expandedFolder, setExpandedFolder] = useState<string | null>(null);
 
-  const handleFolderToggle = (id: string) => {
-    setExpandedFolder((prev) => (prev === id ? null : id));
-  };
+const handleFolderToggle = (id: string) => {
+  setExpandedFolder((prev) => (prev === id ? prev : id));
+};
 
   const handleFolderSelect = (id: string, href: string) => {
     onSelected(id);
