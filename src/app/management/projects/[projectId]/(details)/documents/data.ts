@@ -17,7 +17,7 @@ export const mockDocuments: DocumentType[] = [
     category: "Dwg",
     createdBy: "João Pereira",
     uploadedAt: "08 Jun 2026",
-    folder_id: "1",
+    folder_id: "1.2",
     document_type: ".dwg",
     revision_id: ""
   },
@@ -37,7 +37,7 @@ export const mockDocuments: DocumentType[] = [
     category: "Xlsx",
     createdBy: "Ana Silva",
     uploadedAt: "28 Mai 2026",
-    folder_id: "2",
+    folder_id: "2.2",
     document_type: ".xlsx",
     revision_id: ""
   },
