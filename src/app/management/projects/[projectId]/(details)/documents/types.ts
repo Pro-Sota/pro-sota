@@ -1,3 +1,4 @@
+import { LucideIcon } from "lucide-react";
 
 export type DocumentType = {
     id: string;
@@ -14,6 +15,7 @@ export type FolderType = {
     id: string;
     name: string;
     parent_folder_id:string;
+    path:string;
     project_id: string;
     createdBy: string;
     createdAt: string;
@@ -23,7 +25,6 @@ export interface FolderItemType {
     id:string;
     name: string;
     href: string;
-    onSelect: (value:string) => void;
-    icon?: any;
+    icon: LucideIcon;
     children?: FolderItemType[];
 }

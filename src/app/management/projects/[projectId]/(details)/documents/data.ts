@@ -47,7 +47,7 @@ export const mockDocuments: DocumentType[] = [
     category: "Docx",
     createdBy: "Carlos Mendes",
     uploadedAt: "20 Mai 2026",
-    folder_id: "3",
+    folder_id: "3.2",
     document_type: ".docx",
     revision_id: ""
   },
@@ -56,116 +56,130 @@ export const mockDocuments: DocumentType[] = [
 export const folders: FolderType[] = [
   {
     id: "1",
-    name: "architecture",
+    name: "Arquitectura",
     parent_folder_id: "null",
     project_id: "1",
     createdBy: "System",
-    createdAt: "20 Mai 2026"
+    createdAt: "20 Mai 2026",
+    path: "/architecture"
   },
   {
     id: "1.2",
-    name: "studies",
+    name: "Estudos",
     parent_folder_id: "1",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/architecture/studies"
   },
   {
     id: "1.3",
-    name: "plants",
+    name: "Plantas",
     parent_folder_id: "1",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/architecture/plants"
   },
   {
     id: "1.4",
-    name: "renders",
+    name: "Renders",
     parent_folder_id: "1",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/architecture/renders"
   },
 
   {
     id: "2",
-    name: "engineering",
+    name: "Engenharia",
     parent_folder_id: "null",
     project_id: "1",
     createdBy: "System",
-    createdAt: "20 Mai 2026"
+    createdAt: "20 Mai 2026",
+    path: "/engineering"
   },
   {
     id: "2.1",
-    name: "memory-calculation",
+    name: "Memória de Cálculo",
     parent_folder_id: "2",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/engineering/memory-calculation"
   },
   {
     id: "2.2",
-    name: "plants",
+    name: "Plantas",
     parent_folder_id: "2",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/engineering/plants"
   },
   {
     id: "3",
-    name: "construction",
+    name: "Construção",
     parent_folder_id: "null",
     project_id: "1",
     createdBy: "System",
-    createdAt: "20 Mai 2026"
+    createdAt: "20 Mai 2026",
+    path: "/construction"
   },
   {
     id: "3.1",
-    name: "chronogram",
+    name: "Cronograma",
     parent_folder_id: "3",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/construction/chronogram"
   },
   {
     id: "3.2",
-    name: "work-plan",
+    name: "Plano de obra",
     parent_folder_id: "3",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/construction/work-plan"
   },
   {
     id: "3.3",
-    name: "daily-work-report",
+    name: "Relatório diário de obra",
     parent_folder_id: "3",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/construction/daily-work-report"
   },
   {
     id: "3.4",
-    name: "photographic-report",
+    name: "Relatório fotográfico",
     parent_folder_id: "3",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/construction/photographic-report"
   },
   {
     id: "3.5",
-    name: "requisition",
+    name: "Requisição",
     parent_folder_id: "3",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/construction/requisition"
   },
   {
     id: "4",
-    name: "inspection",
+    name: "Fiscalização",
     parent_folder_id: "null",
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/inspection"
   },
   {
     id: "5",
@@ -174,5 +188,6 @@ export const folders: FolderType[] = [
     project_id: "1",
     createdBy: "System",
     createdAt: "20 Mai 2026",
+    path: "/budget"
   },
 ];

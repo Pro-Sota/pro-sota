@@ -5,14 +5,26 @@ import { Grid, List } from "lucide-react";
 
 import CreateFolderDialog from "./create_folder_dialog";
 import UploadDocument from "./upload_document";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 export default function DocumentToolbar({
   view,
-  setViewAction,
 }: {
   view: "list" | "grid";
-  setViewAction: (view: "list" | "grid") => void;
 }) {
+
+   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function setView(newView: "grid" | "list") {
+    const params = new URLSearchParams(searchParams);
+
+    params.set("view", newView);
+
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
 
   return (
     <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-300 bg-white px-4 py-2">
@@ -24,7 +36,7 @@ export default function DocumentToolbar({
 
       <div className="flex items-center gap-2">
         <button
-          onClick={() => setViewAction("list")}
+          onClick={() => setView("list")}
           className={`flex items-center gap-1 rounded px-3 py-1 text-sm transition cursor-pointer ${view === "list"
             ? "bg-slate-500 text-white"
             : "text-gray-600 hover:bg-gray-200"
@@ -35,7 +47,7 @@ export default function DocumentToolbar({
         </button>
 
         <button
-          onClick={() => setViewAction("grid")}
+          onClick={() => setView("grid")}
           className={`flex items-center gap-1 rounded px-3 py-1 text-sm transition cursor-pointer ${view === "grid"
             ? "bg-slate-500 text-white"
             : "text-gray-600 hover:bg-gray-200"

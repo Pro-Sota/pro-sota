@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { UserPlus, Settings, BarChart3, ArrowLeft } from "lucide-react";
+import { UserPlus, Settings} from "lucide-react";
 
 type Role =
-    | "project manager"
+    | "project-manager"
+    | "coordenador"
     | "architect"
     | "engineer"
     | "partner"
@@ -27,7 +28,8 @@ type TeamCardProps = {
 };
 
 const roleLabels: Record<Role, string> = {
-    "project manager": "Gestor do projecto",
+    "project-manager": "Gestor do projecto",
+    coordenador: "Coordenador",
     architect: "Arquitecto",
     engineer: "Engenheiro",
     partner:"Parceiros"
@@ -47,7 +49,7 @@ export default function Team() {
             id: "1",
             name: "João Silva",
             image: "/images/profile.png",
-            role: "project manager",
+            role: "project-manager",
             status: "disponível",
             tasks: []
         },
@@ -88,8 +90,13 @@ export default function Team() {
     const sections: { title: string; role: Role }[] = [
         {
             title: "Gestor do projecto",
-            role: "project manager",
+            role: "project-manager",
         },
+        {
+            title: "Coordenador",
+            role: "coordenador",
+        },
+
         {
             title: "Arquitectos",
             role: "architect",

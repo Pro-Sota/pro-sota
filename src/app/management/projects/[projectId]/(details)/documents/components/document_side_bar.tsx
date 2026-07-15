@@ -1,9 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Clock,
-  Star,
   File,
   Archive,
   Folder,
@@ -16,82 +15,70 @@ import {
 
 import { FolderItemType } from "../types";
 import FolderItem from "./folder_item";
-import { useState } from "react";
+import { useMemo } from "react";
 interface ProjectSidebarProps {
   projectId: string;
-  onSelected: (value: string) => void;
-  selected: string;
+  view: string;
 }
 
 
 export default function DocumentSidebar({
   projectId,
-  selected,
-  onSelected,
+  view,
 }: ProjectSidebarProps) {
 
-  const [expandedFolder, setExpandedFolder] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
 
-const handleFolderToggle = (id: string) => {
-  setExpandedFolder((prev) => (prev === id ? prev : id));
-};
-
-  const handleFolderSelect = (id: string, href: string) => {
-    onSelected(id);
-    window.history.replaceState({}, "", href);
+  const handleSelect = (href: string) => {
+    router.push(href);
   };
-
-  const handleSelect = (id: string, href: string) => {
-    onSelected(id);
-    window.history.replaceState({}, "", href);
-  }
 
   const base = `/management/projects/${projectId}/documents`;
 
-  const menuItems = [
+  const getHref = (path: string) => {
+    return `${base}/${path}?view=${view}`;
+  };
+
+  const menuItems = useMemo(() => [
     {
       id: "all-files",
       name: "Todos os documentos",
-      href: `${base}/all-files`,
-      onSelect: () => onSelected("all-files"),
+      href: getHref("all-files"),
       icon: File,
     },
     {
       id: "recents",
       name: "Recentes",
-      href: `${base}/recents`,
-      onSelect: () => onSelected("recent"),
+      href: getHref("recents"),
       icon: Clock,
     }
-  ];
+  ], [projectId, view]);
 
-  const foldersItem: FolderItemType[] = [
+
+  const foldersItem: FolderItemType[] = useMemo(() => [
     {
       id: "architecture",
       name: "Arquitectura",
-      href: `${base}/architecture`,
-      onSelect: () => onSelected("architecture"),
+      href: `${base}/architecture?view=${view}`,
       icon: DraftingCompass,
       children: [
         {
           id: "studies",
           name: "Estudos",
-          href: `${base}/architecture/studies`,
-          onSelect: () => onSelected("studies"),
+          href: `${base}/architecture/studies?view=${view}`,
           icon: Folder,
         },
         {
           id: "plants",
           name: "Plantas",
-          href: `${base}/architecture/plants`,
-          onSelect: () => onSelected("plants"),
+          href: `${base}/architecture/plants?view=${view}`,
           icon: Folder,
         },
         {
           id: "renders",
           name: "Renders",
-          href: `${base}/architecture/renders`,
-          onSelect: () => onSelected("renders"),
+          href: `${base}/architecture/renders?view=${view}`,
           icon: Folder,
         },
       ],
@@ -99,26 +86,22 @@ const handleFolderToggle = (id: string) => {
     {
       id: "engineering",
       name: "Engenharia",
-      href: `${base}/engineering`,
+      href: `${base}/engineering?view=${view}`,
       icon: Building2,
-      onSelect: () => onSelected("engineering"),
       children: [
         {
           id: "memory-calculation",
           name: "Memória de Cálculo",
           href:
-            `${base}/engineering/calculation-memory`,
+            `${base}/engineering/memory-calculation?view=${view}`,
           icon: Folder,
-          onSelect: () => onSelected("calculation-memory"),
 
         },
         {
           id: "plants",
           name: "Plantas",
           href:
-            `${base}/engineering/plants`,
-          onSelect: () => onSelected("plants"),
-
+            `${base}/engineering/plants?view=${view}`,
           icon: Folder,
         },
       ],
@@ -126,49 +109,42 @@ const handleFolderToggle = (id: string) => {
     {
       id: "construction",
       name: "Construção",
-      href: `${base}/construction`,
+      href: `${base}/construction?view=${view}`,
       icon: HardHat,
-      onSelect: () => onSelected("construction"),
       children: [
         {
           id: "chronogram",
           name: "Cronograma",
           href:
-            `${base}/construction/chronogram`,
-          onSelect: () => onSelected("chronogram"),
-
+            `${base}/construction/chronogram?view=${view}`,
           icon: Folder,
         },
         {
           id: "work-plan",
           name: "Plano de obra",
           href:
-            `${base}/construction/work-plan`,
-          onSelect: () => onSelected("work-plan"),
+            `${base}/construction/work-plan?view=${view}`,
           icon: Folder,
         },
         {
           id: "daily-work-report",
           name: "Relatório diário de obra",
           href:
-            `${base}/construction/daily-work-report`,
-          onSelect: () => onSelected("daily-work-report"),
+            `${base}/construction/daily-work-report?view=${view}`,
           icon: Folder,
         },
         {
           id: "photographic-report",
           name: "Relatório Fotográfico",
           href:
-            `${base}/construction/photographic-report`,
-          onSelect: () => onSelected("photographic-report"),
+            `${base}/construction/photographic-report?view=${view}`,
           icon: Folder,
         },
         {
           id: "requisition",
           name: "Requisição",
           href:
-            `${base}/construction/requisition`,
-          onSelect: () => onSelected("requisition"),
+            `${base}/construction/requisition?view=${view}`,
           icon: Folder,
         },
       ],
@@ -176,38 +152,48 @@ const handleFolderToggle = (id: string) => {
     {
       id: "inspection",
       name: "Fiscalização",
-      href: `${base}/inspection`,
+      href: `${base}/inspection?view=${view}`,
       icon: FileCheck,
-      onSelect: () => onSelected("inspection"),
       children: [],
     },
     {
       id: "budget",
       name: "Orçamento",
-      href: `${base}/budget`,
+      href: `${base}/budget?view=${view}`,
       icon: ChartColumn,
-      onSelect: () => onSelected("budget"),
       children: [],
     },
-  ];
+  ], [projectId, view]);
 
-  const bottomItems = [
+  const bottomItems = useMemo(() => [
     {
       id: "archive",
       name: "Archive",
-      href: `${base}/archive`,
-      onSelect: () => onSelected("archive"),
+      href: `${base}/archive?view=${view}`,
       icon: Archive,
     },
-  ];
+  ], [projectId, view]);
 
-  const linkClass = (id: string, href: string) => `
+  const linkClass = (href: string, id: string) => `
   flex items-center rounded-md p-2 transition-colors cursor-pointer
-  ${selected === id
+  ${isActive(href)
       ? "bg-slate-500 text-white"
       : "text-gray-800 hover:bg-gray-200"
     }
 `;
+
+
+
+  const isExpanded = (folder: FolderItemType) => {
+    const folderPath = folder.href.split("?")[0];
+    return pathname.startsWith(folderPath);
+  };
+
+  const isActive = (href: string) => {
+    const path = href.split("?")[0];
+
+    return pathname === path;
+  };
 
   return (
     <aside
@@ -227,8 +213,8 @@ const handleFolderToggle = (id: string) => {
             ({ id, name, href, icon: Icon }) => (
               <li key={href}>
                 <button
-                  className={linkClass(id, href)}
-                  onClick={() => handleSelect(id, href)}
+                  className={linkClass(href, id)}
+                  onClick={() => handleSelect(href)}
                 >
                   <Icon className="mr-2 h-4 w-4" />
                   {name}
@@ -244,18 +230,15 @@ const handleFolderToggle = (id: string) => {
         </p>
 
         <ul className="space-y-1">
-          <ul className="space-y-1">
-            {foldersItem.map((folder) => (
-              <FolderItem
-                key={folder.id}
-                folder={folder}
-                selected={selected}
-                expanded={expandedFolder === folder.id}
-                onToggle={() => handleFolderToggle(folder.id)}
-                onSelected={handleFolderSelect}
-              />
-            ))}
-          </ul>
+          {foldersItem.map((folder) => (
+            <FolderItem
+              key={folder.id}
+              folder={folder}
+              expanded={isExpanded(folder)}
+              isExpanded={isExpanded}
+              onSelected={handleSelect}
+            />
+          ))}
         </ul>
       </nav>
 
@@ -266,8 +249,8 @@ const handleFolderToggle = (id: string) => {
           {bottomItems.map(({ id, name, href, icon: Icon }) => (
             <li key={id}>
               <button
-                className={linkClass(id, href)}
-                onClick={() => handleSelect(id, href)}
+                className={linkClass(href, id)}
+                onClick={() => handleSelect(href)}
               >
                 <Icon className="mr-2 h-4 w-4" />
                 {name}

@@ -3,10 +3,10 @@ import { Folder } from "lucide-react";
 import { FolderType } from "../types";
 import { capitalize, removeCharacters } from "@/app/lib/library";
 
-export default function FolderCard({ folder }: { folder: FolderType }) {
+export default function FolderCard({ folder, view }: { folder: FolderType, view:string }) {
     return (
         <Link
-            href={`/management/projects/${folder.project_id}/documents/folder/${folder.id}`}
+            href={`/management/projects/${folder.project_id}/documents/folder/${folder.id}?view=${view}`}
 className="group relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl">            {/* Background Accent */}
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-500 to-yellow-600" />
 
@@ -17,7 +17,7 @@ className="group relative flex h-full w-full flex-col overflow-hidden rounded-2x
 
             {/* Folder Name */}
             <h3 className="line-clamp-2 min-h-[3.5rem] text-sm font-semibold text-slate-800">
-                {removeCharacters(capitalize(folder.name))}
+                {capitalize(folder.name)}
             </h3>
 
             {/* Hover Arrow */}

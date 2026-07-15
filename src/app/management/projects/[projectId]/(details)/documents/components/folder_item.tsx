@@ -3,31 +3,33 @@
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { FolderItemType } from "../types";
 
+import { usePathname } from "next/navigation";
+
 interface FolderItemProps {
   folder: FolderItemType;
-  selected: string;
   expanded: boolean;
-  onToggle: () => void;
-  onSelected: (value: string, href: string) => void;
+  onSelected: (href: string) => void;
+  isExpanded: (folder: FolderItemType) => boolean;
 }
+
 
 export default function FolderItem({
   folder,
-  selected,
   expanded,
-  onToggle,
   onSelected,
+  isExpanded,
 }: FolderItemProps) {
   const hasChildren =
     folder.children && folder.children.length > 0;
 
-const handleClick = () => {
-  onSelected(folder.id, folder.href);
+  const pathname = usePathname();
 
-  if (hasChildren) {
-    onToggle();
-  }
-};
+  const handleClick = () => {
+    onSelected(folder.href);
+  };
+
+  const isActive = (href: string) =>
+    pathname === href.split("?")[0];
 
   return (
     <li>
@@ -36,10 +38,9 @@ const handleClick = () => {
         onClick={handleClick}
         className={`
           flex w-full cursor-pointer items-center rounded-md p-2 transition-colors
-          ${
-            selected === folder.id
-              ? "bg-slate-500 text-white"
-              : "text-gray-800 hover:bg-gray-200"
+          ${isActive(folder.href)
+            ? "bg-slate-500 text-white"
+            : "text-gray-800 hover:bg-gray-200"
           }
         `}
       >
@@ -61,9 +62,8 @@ const handleClick = () => {
             <FolderItem
               key={child.id}
               folder={child}
-              selected={selected}
-              expanded={false}
-              onToggle={() => {}}
+              expanded={isExpanded(child)}
+              isExpanded={isExpanded}
               onSelected={onSelected}
             />
           ))}
