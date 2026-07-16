@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { UserPlus, Settings} from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type Role =
     | "project-manager"
@@ -43,6 +44,7 @@ const statusStyles: Record<Status, { dot: string; label: string }> = {
 
 export default function Team() {
     const [manageRolesOpen, setManageRolesOpen] = useState(false);
+    const router = useRouter();
 
     const members: Profile[] = [
         {
@@ -114,7 +116,7 @@ export default function Team() {
     const maxTasks = Math.max(1, ...members.map((m) => m.tasks.length));
 
     const handleViewProfile = (profile: Profile) => {
-        console.log("Ver perfil:", profile.id);
+        router.push(`/management/team/profile/${profile.id}`)
     };
 
     return (

@@ -108,7 +108,7 @@ export default function PhasesPage({
     )
 
     return (
-        <div className="p-6 md:p-8 space-y-6 text-slate-700 bg-slate-50 min-h-screen">
+        <div className="p-8 md:p-8 space-y-6 text-slate-700 bg-slate-50 min-h-screen">
 
             {/* Header — primary action matches a fixed methodology: drill into
                 the selected phase, rather than adding an arbitrary new one. */}

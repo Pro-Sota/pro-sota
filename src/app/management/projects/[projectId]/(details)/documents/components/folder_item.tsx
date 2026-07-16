@@ -12,7 +12,6 @@ interface FolderItemProps {
   isExpanded: (folder: FolderItemType) => boolean;
 }
 
-
 export default function FolderItem({
   folder,
   expanded,

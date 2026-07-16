@@ -274,10 +274,10 @@ export default function KanbanBoard() {
 
     return (
         <>
-            <div className="min-h-screen bg-slate-100 py-10 px-6">
+            <div className="min-h-screen bg-slate-100 p-8">
                 <div className="w-full">
                     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                        <h1 className="text-4xl font-bold tracking-tight text-slate-800">Tarefas</h1>
+                        <h1 className="font-bold tracking-tight text-slate-900 text-2xl">Tarefas</h1>
 
                         <div className="relative w-full max-w-xs">
                             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
