@@ -158,7 +158,7 @@ export default function RegisterForm() {
               type="submit"
               disabled={loading}
               aria-busy={loading}
-              className="w-full rounded-lg bg-slate-800 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg bg-slate-800 py-2 text-sm  cursor-pointer font-medium text-white transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500/40 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "A criar conta…" : "Criar conta"}
             </button>

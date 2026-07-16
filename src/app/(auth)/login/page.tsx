@@ -123,7 +123,7 @@ export default function LoginForm() {
               type="submit"
               disabled={loading}
               aria-busy={loading}
-              className="w-full rounded-lg bg-slate-800 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg bg-slate-800 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-500/40 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "A fazer o login…" : "Entrar"}
             </button>
