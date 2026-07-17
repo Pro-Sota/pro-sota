@@ -1,6 +1,6 @@
 "use client";
 
-import type { Project } from "@/app/management/projects/page";
+import type { Project } from "../management/projects/types";
 
 export default function ProjectMapView({
   projects,

@@ -1,17 +1,27 @@
 "use client";
 
+import { useState } from "react";
 import DashboardMenu from "@/app/components/management_menu";
 
 export default function Layout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <div className="flex min-h-screen bg-white overflow-hidden">
-      <DashboardMenu />
+  const [collapsed, setCollapsed] = useState(false);
 
-      <div className="flex-1 min-w-0 overflow-y-auto">
+  return (
+    <div className="min-h-screen bg-white">
+      <DashboardMenu 
+        collapsed={collapsed} 
+        setCollapsedAction={setCollapsed}
+      />
+
+      <main
+        className={`min-h-screen overflow-auto transition-all duration-300 ${
+          collapsed ? "ml-20" : "ml-64"
+        }`}
+      >
         {children}
-      </div>
+      </main>
     </div>
   );
 }

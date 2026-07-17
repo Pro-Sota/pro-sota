@@ -195,6 +195,8 @@ export default function DocumentSidebar({
     return pathname === path;
   };
 
+  
+
   return (
     <aside
       className="

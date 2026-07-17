@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import DocumentGridView from "../components/document_grid";
 import DocumentSidebar from "../components/document_side_bar";
 import DocumentTableView from "../components/document_table";
@@ -14,6 +15,12 @@ export default async function DocumentPage({ params, searchParams }
 
     const { projectId, folder } = await params;
     const { view } = await searchParams;
+
+    if (!folder) {
+        redirect(
+            `/management/projects/${projectId}/documents/all-files?view=${view ?? "list"}`
+        );
+    }
 
     const currentView = view === "grid" ? "grid" : "list";
 

@@ -10,7 +10,6 @@ import {
     Folder,
     Handshake,
     HomeIcon,
-    LogOut,
     LucideIcon,
     MessageCircle,
     Settings,
@@ -20,6 +19,7 @@ import {
     UsersRound,
     WalletCards,
 } from "lucide-react";
+import LogoutButton from "../(auth)/logout/page";
 
 type SidebarItemProps = {
     item: {
@@ -30,6 +30,12 @@ type SidebarItemProps = {
     active: boolean;
     expanded: boolean;
 };
+
+type Props = {
+  collapsed: boolean;
+  setCollapsedAction: (value: boolean) => void;
+};
+
 
 const topItems = [
     {
@@ -61,13 +67,11 @@ const menuItems = [
 
 const bottomItems = [
     { name: "Definições", href: "/management/settings", icon: Settings },
-    { name: "Logout", href: "/management/log-out", icon: LogOut },
 ];
 
-export default function ManagementMenu() {
+export default function ManagementMenu({collapsed, setCollapsedAction}:Props) {
     const pathname = usePathname();
 
-    const [collapsed, setCollapsed] = useState(false);
     const [hovered, setHovered] = useState(false);
 
     // Sidebar expands if it's not collapsed OR when hovering while collapsed
@@ -82,7 +86,7 @@ export default function ManagementMenu() {
         <nav
             onMouseEnter={() => collapsed && setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            className={`h-screen bg-neutral-900 border-r border-neutral-800 flex flex-col transition-all duration-300 ${expanded ? "w-64" : "w-20"
+            className={`z-100 h-screen fixed bg-neutral-900 border-r overflow-y-auto border-neutral-800 flex flex-col transition-all duration-300 ${expanded ? "w-64" : "w-20"
                 }`}
         >
             {/* Header */}
@@ -101,7 +105,7 @@ export default function ManagementMenu() {
                 )}
 
                 <button
-                    onClick={() => setCollapsed((prev) => !prev)}
+                    onClick={() => setCollapsedAction(!collapsed)}
                     className="rounded-md p-2 text-gray-400 hover:bg-neutral-800 hover:text-white transition"
                 >
                     <Sidebar size={18} />
@@ -132,7 +136,7 @@ export default function ManagementMenu() {
             <div className="flex-1 px-3 py-6 space-y-1">
                 {menuItems.map((item) => (
                     <SidebarItem
-                        key={item.href}
+                        key={item.href}                                                                                                                             
                         item={item}
                         active={isActiveRoute(item.href)}
                         expanded={expanded}
@@ -150,6 +154,7 @@ export default function ManagementMenu() {
                         expanded={expanded}
                     />
                 ))}
+                <LogoutButton expanded={expanded} />
             </div>
         </nav>
     );

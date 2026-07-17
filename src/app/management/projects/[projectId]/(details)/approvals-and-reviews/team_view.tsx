@@ -5,6 +5,10 @@ import { Check, X, Eye, Plus, FileText, Inbox } from 'lucide-react';
 import ActionButton from './components/action_button';
 import StatusBadge from './components/status_badge';
 import SummaryCard from './components/summary_card';
+import { INITIAL_SUBMISSIONS } from './data';
+
+
+
 
 
 export default function ApprovalsAndReviewsPage() {
@@ -37,23 +41,32 @@ export default function ApprovalsAndReviewsPage() {
         }
     }, [submissions, activeFilter]);
 
+    const timeoutRef = useRef(null);
+
     const showToast = (message) => {
         setToast(message);
-        setTimeout(() => setToast(null), 3000);
+
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+
+        timeoutRef.current = setTimeout(() => {
+            setToast(null);
+        }, 3000);
     };
 
-    const toggleFilter = (filter:string) => {
+    const toggleFilter = (filter: string) => {
         setActiveFilter((current) => (current === filter ? 'all' : filter));
     };
 
-    const handleQuickApprove = (id:number) => {
+    const handleQuickApprove = (id: number) => {
         const target = submissions.find((s) => s.id === id);
         if (!target || target.status === 'Approved') return;
         setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status: 'Approved' } : s)));
         showToast(`Approved "${target.title}"`);
     };
 
-    const handleQuickReject = (id:number) => {
+    const handleQuickReject = (id: number) => {
         const target = submissions.find((s) => s.id === id);
         if (!target || target.status === 'Rejected') return;
         if (!window.confirm(`Reject "${target.title}"?`)) return;
@@ -170,7 +183,7 @@ export default function ApprovalsAndReviewsPage() {
                                                             tone="red"
                                                         />
                                                     )}
-                                                    <ActionButton onClick={() => {}} icon={Eye} label="Ver" tone="blue" />
+                                                    <ActionButton onClick={() => { }} icon={Eye} label="Ver" tone="blue" />
                                                 </div>
                                             </td>
                                         </tr>

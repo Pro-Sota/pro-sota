@@ -25,6 +25,9 @@ const tasks: Task[] = [
   { id: "5", name: "Elevations", phase: "Schematic Design", start: 14, duration: 8, progress: 30 },
   { id: "6", name: "Structural Design", phase: "Design Development", start: 22, duration: 12, progress: 10 },
   { id: "7", name: "MEP Coordination", phase: "Design Development", start: 24, duration: 10, progress: 5 },
+  { id: "8", name: "MEP Coordination", phase: "Design Development", start: 24, duration: 10, progress: 5 },
+  { id: "9", name: "MEP Coordination", phase: "Design Development", start: 24, duration: 10, progress: 5 },
+  { id: "10", name: "MEP Coordination", phase: "Design Development", start: 24, duration: 10, progress: 5 },
 ];
 
 const milestones: Milestone[] = [
@@ -34,14 +37,22 @@ const milestones: Milestone[] = [
 ];
 
 const DAY_WIDTH = 28;
-const LABEL_WIDTH = 200;
+const LABEL_WIDTH = 300;
 const ROW_HEIGHT = 44; // px, matches h-11 on task rows
+
+// Header is split into two stacked rows (month band + day numbers). Both the
+// timeline column and the sticky label column reference these same
+// constants, so their heights are guaranteed to line up pixel-for-pixel —
+// no more relying on matching padding classes across two different trees.
+const MONTH_ROW_HEIGHT = 24;
+const DAY_ROW_HEIGHT = 20;
+const HEADER_HEIGHT = MONTH_ROW_HEIGHT + DAY_ROW_HEIGHT;
 
 const BASE_DATE = new Date(2026, 0, 1);
 
 const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
 const MONTH_SHORT = [
@@ -116,14 +127,13 @@ const CHART_HEIGHT = tasks.length * ROW_HEIGHT;
 
 export default function Page() {
   const todayPosition = getTodayOffset();
+  const todayVisible = todayPosition >= 0 && todayPosition <= TIMELINE_WIDTH;
 
   return (
-    <div className="w-full py-6 space-y-6 text-gray-700">
-      <h1 className="text-2xl font-bold">Cronograma</h1>
-
+    <div className="w-full py-4 space-y-6 text-gray-700">
       {/* Legend — generated from the same color config the chart uses,
           so it can never drift out of sync with what's actually drawn. */}
-      <div className="flex flex-wrap gap-5 text-xs text-slate-500">
+    {/*  <div className="flex flex-wrap gap-5 text-xs text-slate-500">
         {Object.entries(PHASE_COLORS).map(([phase, color]) => (
           <span key={phase} className="flex items-center gap-1.5">
             <span className={`w-2.5 h-2.5 rounded ${color.bar}`} />
@@ -142,58 +152,58 @@ export default function Page() {
             {color.label}
           </span>
         ))}
-      </div>
+      </div> */}
 
-      <div className="border border-slate-200 rounded-xl overflow-hidden">
+      <div className=" rounded-xl overflow-hidden bg-white ">
         <div className="overflow-x-auto">
-          <div style={{ width: LABEL_WIDTH + TIMELINE_WIDTH }}>
+          <div className="flex" style={{ width: LABEL_WIDTH + TIMELINE_WIDTH }}>
 
-            {/* Header */}
-            <div className="flex sticky top-0 z-30 bg-white border-b">
+            {/* LEFT COLUMN — sticky task labels. This is now a fully
+                separate column (not an absolutely-positioned overlay tied
+                to a magic-number offset), so nothing from the timeline can
+                ever render over it, regardless of z-index or math drift. */}
+            <div
+              className="shrink-0 sticky left-0 z-40 bg-white border-r border-slate-200 shadow-[2px_0_4px_rgba(0,0,0,0.06)]"
+              style={{ width: LABEL_WIDTH }}
+            >
               <div
-                className="shrink-0 sticky left-0 z-50 bg-white border-r border-slate-200 flex items-center px-3"
-                style={{ width: LABEL_WIDTH }}
+                className="flex items-center px-3 border-b overflow-y-auto"
+                style={{ height: HEADER_HEIGHT }}
               >
-                <span className="text-xs font-medium">Tarefa</span>
+                <span className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
+                  Tarefas
+                </span>
               </div>
 
-              <div>
-                <div className="flex border-b">
-                  {monthSegments.map((seg, i) => (
-                    <div
-                      key={i}
-                      className="text-xs text-center py-1 border-r"
-                      style={{ width: seg.days * DAY_WIDTH }}
-                    >
-                      {seg.label}
-                    </div>
-                  ))}
+              {tasks.map((task, i) => (
+                <div
+                  key={task.id}
+                  className={`flex items-center px-3 border-b border-slate-100 ${
+                    i % 2 === 1 ? "bg-slate-50/40" : ""
+                  }`}
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700">
+                      {task.name}
+                    </span>
+                  </div>
                 </div>
-
-                <div className="flex">
-                  {days.map((d, i) => (
-                    <div
-                      key={i}
-                      className="text-[10px] text-center py-1"
-                      style={{ width: DAY_WIDTH }}
-                    >
-                      {d.getDate()}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
 
-            {/* Rows + overlays — milestones and weekend shading are drawn
-                ONCE here, spanning the full chart height, instead of being
-                redrawn (and re-labeled) inside every task row. */}
-            <div className="relative">
+            {/* RIGHT COLUMN — the timeline. `overflow-hidden` physically
+                clips every line, bar, and label drawn inside it to this
+                column's own bounds, so none of it can bleed into the
+                label column above, no matter what. */}
+            <div className="relative overflow-hidden" style={{ width: TIMELINE_WIDTH }}>
 
-              {/* Weekend shading, behind everything */}
-              <div
-                className="absolute top-0 pointer-events-none z-0"
-                style={{ left: LABEL_WIDTH, width: TIMELINE_WIDTH, height: CHART_HEIGHT }}
-              >
+              {/* Weekend shading, milestone lines and the today line span
+                  the full column height (header + body) via inset-0, but
+                  sit at z-0/z-10 — below the header and rows (z-20), which
+                  are opaque, so they only show where they should: behind
+                  the grid, not behind the header text. */}
+              <div className="absolute inset-0 pointer-events-none z-0">
                 {days.map((d, i) => {
                   const isWeekend = d.getDay() === 0 || d.getDay() === 6;
                   if (!isWeekend) return null;
@@ -207,11 +217,7 @@ export default function Page() {
                 })}
               </div>
 
-              {/* Milestone lines, spanning full height, drawn once */}
-              <div
-                className="absolute top-0 pointer-events-none z-10"
-                style={{ left: LABEL_WIDTH, width: TIMELINE_WIDTH, height: CHART_HEIGHT }}
-              >
+              <div className="absolute inset-0 pointer-events-none z-0">
                 {milestones.map((m) => (
                   <div
                     key={m.name}
@@ -221,15 +227,46 @@ export default function Page() {
                 ))}
               </div>
 
-              {/* Milestone labels, shown once at the top of the chart */}
-              <div
-                className="absolute -top-5 pointer-events-none z-20"
-                style={{ left: LABEL_WIDTH, width: TIMELINE_WIDTH, height: 0 }}
-              >
+              {todayVisible && (
+                <div
+                  className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-10 pointer-events-none"
+                  style={{ left: todayPosition }}
+                />
+              )}
+
+              {/* Header */}
+              <div className="relative z-20 bg-white border-b">
+                <div className="flex border-b" style={{ height: MONTH_ROW_HEIGHT }}>
+                  {monthSegments.map((seg, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-center text-xs border-r"
+                      style={{ width: seg.days * DAY_WIDTH }}
+                    >
+                      {seg.label}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex" style={{ height: DAY_ROW_HEIGHT }}>
+                  {days.map((d, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-center text-[10px]"
+                      style={{ width: DAY_WIDTH }}
+                    >
+                      {d.getDate()}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Milestone labels — floats just under the header, above
+                  the rows; still confined by the column's overflow-hidden. */}
+              <div className="relative z-20 pointer-events-none" style={{ height: 0 }}>
                 {milestones.map((m) => (
                   <span
                     key={m.name}
-                    className="absolute left-2 whitespace-nowrap text-[10px] bg-white border rounded px-1 shadow-sm"
+                    className="absolute top-1 whitespace-nowrap text-[10px] bg-white border rounded px-1 shadow-sm"
                     style={{ left: m.day * DAY_WIDTH + 2 }}
                     title={`${m.name} — ${formatDate(addDays(BASE_DATE, m.day))}`}
                   >
@@ -238,16 +275,10 @@ export default function Page() {
                 ))}
               </div>
 
-              {/* Today line, spanning full height, drawn once */}
-              {todayPosition >= 0 && todayPosition <= TIMELINE_WIDTH && (
-                <div
-                  className="absolute top-0 w-[2px] bg-red-500 z-10 pointer-events-none"
-                  style={{ left: LABEL_WIDTH + todayPosition, height: CHART_HEIGHT }}
-                />
-              )}
-
-              {/* Task rows */}
-              <div className="relative divide-y bg-white z-20">
+              {/* Rows — transparent background now, so weekend shading and
+                  milestone lines actually show through instead of being
+                  painted over (they were being hidden before). */}
+              <div className="relative z-20">
                 {tasks.map((task) => {
                   const barLeft = task.start * DAY_WIDTH;
                   const barWidth = task.duration * DAY_WIDTH;
@@ -257,38 +288,32 @@ export default function Page() {
                   const endDate = addDays(BASE_DATE, task.start + task.duration);
 
                   return (
-                    <div key={task.id} className="flex items-center h-11 relative">
+                    <div
+                      key={task.id}
+                      className="relative border-b border-slate-100"
+                      style={{ height: ROW_HEIGHT }}
+                    >
+                      {/* Grid lines */}
                       <div
-                        className="shrink-0 sticky left-0 z-30 bg-white border-r flex items-center px-3"
-                        style={{ width: LABEL_WIDTH }}
+                        className="absolute inset-0"
+                        style={{
+                          backgroundImage:
+                            "linear-gradient(to right, rgba(148,163,184,0.15) 1px, transparent 1px)",
+                          backgroundSize: `${DAY_WIDTH}px 100%`,
+                        }}
+                      />
+
+                      {/* Task bar, colored by phase, with a progress-fill
+                          overlay inside it. */}
+                      <div
+                        className={`absolute top-1/2 -translate-y-1/2 h-5 rounded border ${phaseColor.bar} ${phaseColor.border} bg-opacity-30 overflow-hidden`}
+                        style={{ left: barLeft, width: barWidth }}
+                        title={`${task.name} · ${task.progress}% · ${formatDate(startDate)} – ${formatDate(endDate)}`}
                       >
-                        <span className="text-sm font-medium">{task.name}</span>
-                      </div>
-
-                      <div className="relative h-full" style={{ width: TIMELINE_WIDTH }}>
-                        {/* Grid lines */}
                         <div
-                          className="absolute inset-0"
-                          style={{
-                            backgroundImage:
-                              "linear-gradient(to right, rgba(148,163,184,0.15) 1px, transparent 1px)",
-                            backgroundSize: `${DAY_WIDTH}px 100%`,
-                          }}
+                          className={`h-full ${phaseColor.bar}`}
+                          style={{ width: progressWidth }}
                         />
-
-                        {/* Task bar — correctly positioned/sized at the task's
-                            actual date range and colored by phase, with a
-                            progress-fill overlay inside it. */}
-                        <div
-                          className={`absolute top-1/2 -translate-y-1/2 h-5 rounded border ${phaseColor.bar} ${phaseColor.border} bg-opacity-30 overflow-hidden`}
-                          style={{ left: barLeft, width: barWidth }}
-                          title={`${task.name} · ${task.progress}% · ${formatDate(startDate)} – ${formatDate(endDate)}`}
-                        >
-                          <div
-                            className={`h-full ${phaseColor.bar}`}
-                            style={{ width: progressWidth }}
-                          />
-                        </div>
                       </div>
                     </div>
                   );

@@ -17,19 +17,18 @@ export default function ProjectNavbar({
       name: "Overview",
       href: `/management/projects/${projectId}/overview`,
     },
-     {
+    {
       name: "Fases",
       href: `/management/projects/${projectId}/phases`,
     },
-     {
+    {
       name: "Tarefas",
       href: `/management/projects/${projectId}/tasks`,
     },
     {
       name: "Documentos",
-      href: `/management/projects/${projectId}/documents`,
+      href: `/management/projects/${projectId}/documents/all-files?view=list`,
     },
-  
     {
       name: "Aprovações e Comentários",
       href: `/management/projects/${projectId}/approvals-and-reviews`,
@@ -40,8 +39,15 @@ export default function ProjectNavbar({
     },
   ];
 
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => {
+    if (href.includes("/documents")) {
+      return pathname.startsWith(
+        `/management/projects/${projectId}/documents`
+      );
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
     <nav className="shrink-0 border-b border-gray-200 px-4">
@@ -53,17 +59,15 @@ export default function ProjectNavbar({
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative block whitespace-nowrap px-3 py-3 text-sm font-medium transition-colors ${
-                  active
+                className={`relative block whitespace-nowrap px-3 py-3 text-sm font-medium transition-colors ${active
                     ? "text-gray-900"
                     : "text-gray-500 hover:text-gray-900"
-                }`}
+                  }`}
               >
                 {item.name}
                 <span
-                  className={`absolute inset-x-0 -bottom-px h-0.5 rounded-full transition-colors ${
-                    active ? "bg-gray-900" : "bg-transparent"
-                  }`}
+                  className={`absolute inset-x-0 -bottom-px h-0.5 rounded-full transition-colors ${active ? "bg-gray-900" : "bg-transparent"
+                    }`}
                 />
               </Link>
             </li>
