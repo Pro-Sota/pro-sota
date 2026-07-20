@@ -77,16 +77,9 @@ export default function PhasesPage({
     // Each item now belongs to a phase, so the lists can be scoped instead
     // of floating unattached to the process they belong to.
     const deliverables: StatusItem[] = [
-        { name: "Construction drawings", status: "Upcoming", phaseName: "Projecto de Execução" },
-        { name: "Structural coordination", status: "Upcoming", phaseName: "Projecto de Execução" },
-        { name: "MEP coordination", status: "Upcoming", phaseName: "Projecto de Execução" }
     ]
 
     const milestones: StatusItem[] = [
-        { name: "Client Concept Approval", status: "Upcoming", phaseName: "Estudo Prévio / Conceito Arquitectónico" },
-        { name: "Design Development Complete", status: "Upcoming", phaseName: "Anteprojecto / Licenciamento" },
-        { name: "Authority Submission", status: "Upcoming", phaseName: "Anteprojecto / Licenciamento" },
-        { name: "Tender Package Complete", status: "Upcoming", phaseName: "Projecto de Execução" }
     ]
 
     const currentIndex = Math.max(0, phases.findIndex(p => p.status === "Current"))

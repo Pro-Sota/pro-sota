@@ -6,8 +6,8 @@ import { kpis } from "./types"
 
 // NOTE: budget currency is currently assumed — verify against the real
 // project currency (e.g. Kz vs USD) and adjust the locale/currency code below.
-const CURRENCY = "USD";
-const CURRENCY_LOCALE = "en-US";
+const CURRENCY = "AOA";
+const CURRENCY_LOCALE = "pt-AO";
 
 function formatCurrency(valueInThousands: number): string {
   return new Intl.NumberFormat(CURRENCY_LOCALE, {
@@ -18,9 +18,13 @@ function formatCurrency(valueInThousands: number): string {
 }
 
 function formatCompactCurrency(value: number): string {
-  // e.g. 45000 -> "$45k" — same basis the original file used, just centralized
-  return `${new Intl.NumberFormat(CURRENCY_LOCALE, { style: "currency", currency: CURRENCY, maximumFractionDigits: 0 }).format(0).replace(/[\d.,]/g, "")}${(value / 1000).toFixed(0)}k`
-}
+    return new Intl.NumberFormat(CURRENCY_LOCALE, {
+      style: "currency",
+      currency: CURRENCY,
+      notation: "compact",
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
 
 function isOverdue(dateStr: string): boolean {
   if (!dateStr) return false
@@ -159,6 +163,8 @@ export default function Overview() {
 }
 
 // ---- Local presentational components ----
+
+
 
 function SectionCard({
   title,

@@ -6,7 +6,6 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
     Bell,
-    CalendarCheck,
     Folder,
     Handshake,
     HomeIcon,
@@ -19,7 +18,9 @@ import {
     UsersRound,
     WalletCards,
 } from "lucide-react";
+
 import LogoutButton from "../(auth)/logout/page";
+import { createClient } from "../lib/supabase/client";
 
 type SidebarItemProps = {
     item: {
@@ -37,26 +38,8 @@ type Props = {
 };
 
 
-const topItems = [
-    {
-        name: "Meu perfil",
-        href: "/management/profile",
-        icon: User,
-    },
-    {
-        name: "Minhas tarefas",
-        href: "/management/my-tasks",
-        icon: CalendarCheck,
-    },
-    {
-        name: "Notificações",
-        href: "/management/notifications",
-        icon: Bell,
-    },
-];
-
 const menuItems = [
-    { name: "Overview", href: "/management", icon: HomeIcon },
+    { name: "Dashboard", href: "/management", icon: HomeIcon },
     { name: "Projectos", href: "/management/projects", icon: Folder },
     { name: "Messages", href: "/management/messages", icon: MessageCircle },
     { name: "Clientes", href: "/management/clients", icon: Users },
@@ -66,7 +49,18 @@ const menuItems = [
 ];
 
 const bottomItems = [
+     {
+        name: "Meu perfil",
+        href: "/management/profile",
+        icon: User,
+    },
+    {
+        name: "Notificações",
+        href: "/management/notifications",
+        icon: Bell,
+    },
     { name: "Definições", href: "/management/settings", icon: Settings },
+
 ];
 
 export default function ManagementMenu({collapsed, setCollapsedAction}:Props) {
@@ -103,33 +97,12 @@ export default function ManagementMenu({collapsed, setCollapsedAction}:Props) {
                         priority
                     />
                 )}
-
                 <button
                     onClick={() => setCollapsedAction(!collapsed)}
                     className="rounded-md p-2 text-gray-400 hover:bg-neutral-800 hover:text-white transition"
                 >
                     <Sidebar size={18} />
                 </button>
-            </div>
-
-            {/* Personal */}
-            <div className="px-3 py-4 border-b border-neutral-800">
-                {expanded && (
-                    <p className="text-xs uppercase text-neutral-500 px-3 mb-2">
-                        Personal
-                    </p>
-                )}
-
-                <div className="space-y-1">
-                    {topItems.map((item) => (
-                        <SidebarItem
-                            key={item.href}
-                            item={item}
-                            active={isActiveRoute(item.href)}
-                            expanded={expanded}
-                        />
-                    ))}
-                </div>
             </div>
 
             {/* Main Menu */}

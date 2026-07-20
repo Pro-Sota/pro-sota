@@ -26,12 +26,11 @@ import {
 ------------------------------------------------------------------------- */
 
 const SECTIONS = [
-  { id: "info", label: "Project Information", icon: Building2 },
-  { id: "location", label: "Location", icon: MapPin },
-  { id: "timeline", label: "Timeline", icon: CalendarDays },
-  { id: "team", label: "Team", icon: Users },
-  { id: "financial", label: "Financial", icon: Wallet },
-  { id: "attachments", label: "Attachments", icon: Paperclip },
+  { id: "info", label: "Informação do projecto", icon: Building2 },
+  { id: "location", label: "Localização", icon: MapPin },
+  { id: "timeline", label: "Cronograma", icon: CalendarDays },
+  { id: "team", label: "Equipa", icon: Users },
+  { id: "financial", label: "Finança", icon: Wallet },
 ] as const;
 
 const STATUS_STYLES: Record<string, string> = {
@@ -138,13 +137,13 @@ export default function NewProjectPage() {
     <div className="min-h-screen bg-[#F7F7F5]">
       <form onSubmit={handleSubmit} className="mx-auto max-w-6xl px-4 py-10 lg:px-8">
         {/* ================= Title block ================= */}
-        <div className="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-[#1B3A5C] px-6 py-3 text-white">
-            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-blue-100">
+        <div className="mb-8 overflow-hidden rounded-md border border-slate-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-800 px-6 py-3 text-white">
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-yellow-500">
               <Building2 className="h-4 w-4" />
-              New Project
+              Novo Projecto
             </div>
-            <div className="font-mono text-xs text-blue-100">
+            <div className="font-mono text-xs text-yellow-500">
               {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
             </div>
           </div>
@@ -152,324 +151,228 @@ export default function NewProjectPage() {
           <div className="grid gap-6 p-6 md:grid-cols-[1.6fr_1fr]">
             <div>
               <label className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Project Name
+                Nome do projecto
               </label>
               <input
                 name="name"
                 value={form.name}
                 onChange={handleChange}
                 required
-                placeholder="e.g. Miradouro da Ilha Residential Complex"
+                placeholder="e.g. Miradouro da Ilha Complexo Residencial "
                 className="mt-1 w-full border-b-2 border-slate-200 bg-transparent pb-2 text-2xl font-semibold text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#1B3A5C]"
               />
-            </div>
-
-            <div className="flex flex-col justify-between gap-4">
-              <div>
-                <label className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Status
-                </label>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  {Object.keys(STATUS_STYLES).map((s) => (
-                    <button
-                      type="button"
-                      key={s}
-                      onClick={() => setForm((prev) => ({ ...prev, status: s }))}
-                      className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset transition ${
-                        form.status === s
-                          ? STATUS_STYLES[s]
-                          : "bg-white text-slate-400 ring-slate-200 hover:text-slate-600"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Progress
-                </label>
-                <div className="mt-1.5 flex items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-[#E8871E] transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                  <span className="font-mono text-xs text-slate-500">{progress}%</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-          {/* ================= Stepper nav ================= */}
-          <nav className="hidden lg:block">
-            <div className="sticky top-8 space-y-1 rounded-2xl border border-slate-200 bg-white p-3">
-              {SECTIONS.map((s, i) => {
-                const Icon = s.icon;
-                const active = activeSection === s.id;
-                return (
-                  <button
-                    type="button"
-                    key={s.id}
-                    onClick={() => scrollToSection(s.id)}
-                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                      active
-                        ? "bg-[#1B3A5C] text-white"
-                        : "text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-[11px] ${
-                        active ? "bg-white/20" : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {i + 1}
-                    </span>
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{s.label}</span>
-                  </button>
-                );
-              })}
+
+        {/* ================= Sections ================= */}
+        <div className="space-y-6">
+          <SectionCard
+            id="info"
+            refCb={(el) => (sectionRefs.current.info = el)}
+            icon={Building2}
+            title="Informação do projecto"
+            description="O necessário — o que é este projecto e para quem é."
+          >
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="Cliente" required>
+                <input
+                  name="client"
+                  value={form.client}
+                  onChange={handleChange}
+                  required
+                  className={inputStyle}
+                  placeholder="Cliente ou nome da empresa"
+                />
+              </Field>
+
+              <Field label="Tipo de projecto">
+                <Select name="projectType" value={form.projectType} onChange={handleChange}>
+                  <option value="">Tipo..</option>
+                  <option>Residencial</option>
+                  <option>Comercial</option>
+                  <option>Industrial</option>
+                  <option>Interior Desigin</option>
+                  <option>Planeamento Urbano</option>
+                  <option>Renovação</option>
+                </Select>
+              </Field>
+
+              <div className="md:col-span-2">
+                <Field label="Descrição">
+                  <textarea
+                    rows={4}
+                    name="description"
+                    value={form.description}
+                    onChange={handleChange}
+                    placeholder="Escopo, objectivos, e qualquer contexto que vale apontar..."
+                    className={inputStyle}
+                  />
+                </Field>
+              </div>
             </div>
-          </nav>
+          </SectionCard>
 
-          {/* ================= Sections ================= */}
-          <div className="space-y-6">
-            <SectionCard
-              id="info"
-              refCb={(el) => (sectionRefs.current.info = el)}
-              icon={Building2}
-              title="Project Information"
-              description="The basics — what this project is and who it's for."
-            >
-              <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Client" required>
+          <SectionCard
+            id="location"
+            refCb={(el) => (sectionRefs.current.location = el)}
+            icon={MapPin}
+            title="Localização"
+            description="O lugar onde o trabalho será feito."
+          >
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="País">
+                <input
+                  name="country"
+                  value={form.country}
+                  onChange={handleChange}
+                  className={inputStyle}
+                />
+              </Field>
+              <Field label="Província" required>
+                <input
+                  name="province"
+                  value={form.province}
+                  onChange={handleChange}
+                  className={inputStyle}
+                />
+              </Field>
+              <Field label="Município" required>
+                <input
+                  name="municipality"
+                  value={form.municipality}
+                  onChange={handleChange}
+                  className={inputStyle}
+                />
+              </Field>
+              <Field label="Rua" required>
+                <input
+                  name="address"
+                  value={form.address}
+                  onChange={handleChange}
+                  className={inputStyle}
+                />
+              </Field>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            id="timeline"
+            refCb={(el) => (sectionRefs.current.timeline = el)}
+            icon={CalendarDays}
+            title="Cronologia"
+            description="Datas chaves para planejamento e relatório."
+          >
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="Data de inicio" required>
+                <input
+                  type="date"
+                  name="startDate"
+                  value={form.startDate}
+                  onChange={handleChange}
+                  className={`${inputStyle} font-mono`}
+                />
+              </Field>
+              <Field label="Data de término" required>
+                <input
+                  type="date"
+                  name="endDate"
+                  value={form.endDate}
+                  onChange={handleChange}
+                  className={`${inputStyle} font-mono`}
+                />
+              </Field>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            id="team"
+            refCb={(el) => (sectionRefs.current.team = el)}
+            icon={Users}
+            title="Equipa para o projecto"
+            description="Quem é o responsavel para a entrega deste projecto."
+          >
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="Gestor do projecto" required>
+                <input
+                  name="projectManager"
+                  value={form.projectManager}
+                  onChange={handleChange}
+                  className={inputStyle}
+                />
+              </Field>
+              <Field label="Membros da equipa">
+                <input
+                  name="teamMembers"
+                  placeholder="John, Sarah, Mike..."
+                  value={form.teamMembers}
+                  onChange={handleChange}
+                  className={inputStyle}
+                />
+              </Field>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            id="financial"
+            refCb={(el) => (sectionRefs.current.financial = el)}
+            icon={Wallet}
+            title="Finanças"
+            description="Orçamento e numéros do contracto."
+          >
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="Estimativa de orçamento" required>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-mono text-sm text-slate-400">
+                    Kz
+                  </span>
                   <input
-                    name="client"
-                    value={form.client}
+                    type="number"
+                    name="budget"
+                    value={form.budget}
                     onChange={handleChange}
-                    required
-                    className={inputStyle}
-                    placeholder="Client or company name"
+                    className={`${inputStyle} pl-10 font-mono`}
+                    placeholder="0.00"
                   />
-                </Field>
-
-                <Field label="Project Type">
-                  <Select name="projectType" value={form.projectType} onChange={handleChange}>
-                    <option value="">Select type</option>
-                    <option>Residential</option>
-                    <option>Commercial</option>
-                    <option>Industrial</option>
-                    <option>Interior Design</option>
-                    <option>Landscape</option>
-                    <option>Urban Planning</option>
-                    <option>Renovation</option>
-                  </Select>
-                </Field>
-
-                <div className="md:col-span-2">
-                  <Field label="Description">
-                    <textarea
-                      rows={4}
-                      name="description"
-                      value={form.description}
-                      onChange={handleChange}
-                      placeholder="Scope, objectives, and any context worth noting..."
-                      className={inputStyle}
-                    />
-                  </Field>
                 </div>
-              </div>
-            </SectionCard>
+              </Field>
+              <Field label="Valor de contracto">
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-mono text-sm text-slate-400">
+                    Kz
+                  </span>
+                  <input
+                    type="number"
+                    name="contractValue"
+                    value={form.contractValue}
+                    onChange={handleChange}
+                    className={`${inputStyle} pl-10 font-mono`}
+                    placeholder="0.00"
+                  />
+                </div>
+              </Field>
+            </div>
+          </SectionCard>
 
-            <SectionCard
-              id="location"
-              refCb={(el) => (sectionRefs.current.location = el)}
-              icon={MapPin}
-              title="Location"
-              description="Where the work is happening."
-            >
-              <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Country">
-                  <input
-                    name="country"
-                    value={form.country}
-                    onChange={handleChange}
-                    className={inputStyle}
-                  />
-                </Field>
-                <Field label="Province" required>
-                  <input
-                    name="province"
-                    value={form.province}
-                    onChange={handleChange}
-                    className={inputStyle}
-                  />
-                </Field>
-                <Field label="Municipality" required>
-                  <input
-                    name="municipality"
-                    value={form.municipality}
-                    onChange={handleChange}
-                    className={inputStyle}
-                  />
-                </Field>
-                <Field label="Address" required>
-                  <input
-                    name="address"
-                    value={form.address}
-                    onChange={handleChange}
-                    className={inputStyle}
-                  />
-                </Field>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              id="timeline"
-              refCb={(el) => (sectionRefs.current.timeline = el)}
-              icon={CalendarDays}
-              title="Timeline"
-              description="Key dates for planning and reporting."
-            >
-              <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Start Date" required>
-                  <input
-                    type="date"
-                    name="startDate"
-                    value={form.startDate}
-                    onChange={handleChange}
-                    className={`${inputStyle} font-mono`}
-                  />
-                </Field>
-                <Field label="End Date" required>
-                  <input
-                    type="date"
-                    name="endDate"
-                    value={form.endDate}
-                    onChange={handleChange}
-                    className={`${inputStyle} font-mono`}
-                  />
-                </Field>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              id="team"
-              refCb={(el) => (sectionRefs.current.team = el)}
-              icon={Users}
-              title="Team Assignment"
-              description="Who's responsible for delivering this project."
-            >
-              <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Project Manager" required>
-                  <input
-                    name="projectManager"
-                    value={form.projectManager}
-                    onChange={handleChange}
-                    className={inputStyle}
-                  />
-                </Field>
-                <Field label="Team Members">
-                  <input
-                    name="teamMembers"
-                    placeholder="John, Sarah, Mike..."
-                    value={form.teamMembers}
-                    onChange={handleChange}
-                    className={inputStyle}
-                  />
-                </Field>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              id="financial"
-              refCb={(el) => (sectionRefs.current.financial = el)}
-              icon={Wallet}
-              title="Financial"
-              description="Budget and contract figures, in Kwanza."
-            >
-              <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Estimated Budget" required>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-mono text-sm text-slate-400">
-                      Kz
-                    </span>
-                    <input
-                      type="number"
-                      name="budget"
-                      value={form.budget}
-                      onChange={handleChange}
-                      className={`${inputStyle} pl-10 font-mono`}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </Field>
-                <Field label="Contract Value">
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-mono text-sm text-slate-400">
-                      Kz
-                    </span>
-                    <input
-                      type="number"
-                      name="contractValue"
-                      value={form.contractValue}
-                      onChange={handleChange}
-                      className={`${inputStyle} pl-10 font-mono`}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </Field>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              id="attachments"
-              refCb={(el) => (sectionRefs.current.attachments = el)}
-              icon={Paperclip}
-              title="Attachments"
-              description="Drawings and supporting documents."
-            >
-              <div className="grid gap-5 md:grid-cols-2">
-                <FileDropzone
-                  label="Drawings"
-                  files={form.drawings}
-                  onAdd={(files) => addFiles("drawings", files)}
-                  onRemove={(i) => removeFile("drawings", i)}
-                />
-                <FileDropzone
-                  label="Documents"
-                  files={form.documents}
-                  onAdd={(files) => addFiles("documents", files)}
-                  onRemove={(i) => removeFile("documents", i)}
-                />
-              </div>
-            </SectionCard>
-
-            {/* ================= Actions ================= */}
-            <div className="sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-6 py-4 shadow-lg shadow-slate-900/5 backdrop-blur">
-              <span className="hidden text-sm text-slate-500 sm:block">
-                <span className="font-mono font-medium text-slate-700">{progress}%</span> of required fields complete
-              </span>
-              <div className="ml-auto flex gap-3">
-                <button
-                  type="button"
-                  className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-[#1B3A5C] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#16304C]"
-                >
-                  Create Project
-                </button>
-              </div>
+          {/* ================= Actions ================= */}
+          <div className="sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-6 py-4 shadow-lg shadow-slate-900/5 backdrop-blur">
+            <span className="hidden text-sm text-slate-500 sm:block">
+              <span className="font-mono font-medium text-slate-700">{progress}%</span> dos campos obrigatório completo.
+            </span>
+            <div className="ml-auto flex gap-3">
+              <button
+                type="button"
+                className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointerx"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="rounded-lg bg-slate-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 cursor-pointer"
+              >
+                Criar Projecto
+              </button>
             </div>
           </div>
         </div>
@@ -581,11 +484,10 @@ function FileDropzone({
           setDragging(false);
           onAdd(e.dataTransfer.files);
         }}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-6 text-center transition ${
-          dragging
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-6 text-center transition ${dragging
             ? "border-[#1B3A5C] bg-[#1B3A5C]/5"
             : "border-slate-200 bg-slate-50 hover:border-slate-300"
-        }`}
+          }`}
       >
         <UploadCloud className="mb-1.5 h-5 w-5 text-slate-400" />
         <p className="text-xs text-slate-500">
