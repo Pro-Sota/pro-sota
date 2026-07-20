@@ -9,7 +9,8 @@ import { useEffect } from "react";
 import Image from "next/image";
 
 export default function LoginForm() {
-  const supabase = useMemo(() => createClient(), []); const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,16 +24,20 @@ export default function LoginForm() {
     setLoading(true);
     if (loading) return;
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("email: " + email + " password: " + password)
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log(data);
+      console.log(error);
       if (error) throw error;
 
       router.push("/management");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
+      console.log(err);
     } finally {
       setLoading(false);
     }
@@ -53,9 +58,7 @@ export default function LoginForm() {
             />
           </div>
           <div className="mb-8 text-start">
-            <h1 className="text-xl font-semibold text-slate-900">
-              Login
-            </h1>
+            <h1 className="text-xl font-semibold text-slate-900">Login</h1>
             <p className="mt-1 text-sm text-slate-500">
               Insere o teu email e palavra-passe para continuar
             </p>
@@ -130,5 +133,6 @@ export default function LoginForm() {
           </form>
         </div>
       </div>
-    </div>)
-};
+    </div>
+  );
+}
