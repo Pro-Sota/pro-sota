@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { Suspense, useRef, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
@@ -14,8 +14,7 @@ import {
 import ProjectTableView from "@/app/components/project_table_view";
 import ProjectGridView from "@/app/components/project_grid_view";
 import ProjectMapView from "@/app/components/project_map_view";
-import { projects } from "./data"
-
+import { projects } from "./data";
 
 const filters = [
   { value: "todos", label: "Todos" },
@@ -24,19 +23,26 @@ const filters = [
   { value: "em-observacao", label: "Em observação" },
 ] as const;
 
-export default function ProjectsPage() {
+const views = [
+  { value: "grid", label: "ver em grade", icon: Grid2X2Icon },
+  { value: "list", label: "ver em lista", icon: ListIcon },
+  { value: "map", label: "ver em mapa", icon: MapIcon },
+] as const;
 
+function ProjectsPageInner() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-  const [isActive, setIsActive] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+
   const filter = searchParams.get("filter") ?? "todos";
   const viewMode =
     (searchParams.get("view") as "grid" | "list" | "map") ?? "grid";
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const clearButtonRef = useRef<HTMLButtonElement>(null);
 
   const updateSearchParams = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -52,92 +58,100 @@ export default function ProjectsPage() {
 
     router.replace(`${pathname}?${params.toString()}`);
   };
+
   useEffect(() => {
-    if (isOpen) {
+    if (isSearchOpen) {
       inputRef.current?.focus();
     }
-  }, [isOpen]);
-  const handleOpen = () => {
-    setIsOpen(!isOpen);
+  }, [isSearchOpen]);
+
+  const closeSearch = () => {
+    setSearchTerm("");
+    setIsSearchOpen(false);
   };
 
-  const handleActive = () => {
-    setIsActive(!isActive);
-  }
-
-  const filteredProjects = projects.filter((project) => {
-    const matchesSearch = project.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-
-    const matchesFilter =
-      filter === "todos" || project.status === filter;
-
-    return matchesSearch && matchesFilter;
-  });
+  const filteredProjects = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return projects.filter((project) => {
+      const matchesSearch = project.name.toLowerCase().includes(term);
+      const matchesFilter = filter === "todos" || project.status === filter;
+      return matchesSearch && matchesFilter;
+    });
+  }, [searchTerm, filter]);
 
   const buttonClass =
-    "h-8 px-4 text-gray-400 flex text-sm items-center justify-centertext-sm rounded hover:border-gray-500 border border-gray=200f transition-colors duration-300 cursor-pointer";
+    "h-8 px-4 text-gray-400 flex items-center justify-center text-sm rounded hover:border-gray-500 border border-gray-200 transition-colors duration-300 cursor-pointer";
 
   return (
-    <div className="flex flex-col  text-black px-8 pt-2 ">
+    <div className="flex flex-col text-black px-8 pt-2">
       <div>
-
-        { /* new project button */}
+        {/* new project button */}
         <div className="flex flex-row items-center justify-between mb-4">
           <h1 className="text-2xl text-black font-medium">Projectos</h1>
           <Link href="/management/projects/new-project">
-            <button className=" bg-gray-200 text-gray-700 text-sm rounded-sm hover:border-gray-500 border border-transparent flex items-center justify-center cursor-pointer px-2 py-1 gap-2" onClick={handleActive}>
+            <button
+              type="button"
+              className="bg-gray-200 text-gray-700 text-sm rounded-sm hover:border-gray-500 border border-transparent flex items-center justify-center cursor-pointer px-2 py-1 gap-2"
+            >
               <Plus className="h-4 w-4" /> New Project
             </button>
           </Link>
         </div>
 
         <div className="flex flex-row items-center justify-between mb-4">
-          { /* search bar */}
+          {/* search bar */}
           <div className="flex flex-row items-center gap-3">
-            {isOpen ? (
-              <div className="relative ">
+            {isSearchOpen ? (
+              <div className="relative">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                 <input
                   ref={inputRef}
                   type="text"
                   placeholder="Pesquisar projectos..."
+                  aria-label="Pesquisar projectos"
                   className="h-8 w-72 bg-gray-200 text-gray-700 pl-10 pr-10 border border-gray-300 rounded"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  onBlur={() => {
+                  onBlur={(e) => {
+                    // Don't close if focus is moving to the clear button
+                    if (e.relatedTarget === clearButtonRef.current) return;
                     if (!searchTerm.trim()) {
-                      setIsOpen(false);
+                      setIsSearchOpen(false);
                     }
                   }}
                 />
 
-                {  /* filter buttons */}
                 <button
-                  onClick={() => {
-                    setSearchTerm("");
-                    setIsOpen(false);
-                  }}
+                  ref={clearButtonRef}
+                  type="button"
+                  aria-label="Limpar pesquisa"
+                  onClick={closeSearch}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black"
                 >
                   <X className="h-4 w-4" />
                 </button>
-
               </div>
             ) : (
               <button
-                onClick={() => setIsOpen(true)}
+                type="button"
+                aria-label="Abrir pesquisa"
+                onClick={() => setIsSearchOpen(true)}
                 className="h-8 w-10 bg-gray-200 text-gray-700 rounded hover:border-gray-500 border border-transparent flex items-center justify-center cursor-pointer"
               >
                 <SearchIcon className="h-5 w-5" />
               </button>
             )}
 
+            {/* filter buttons */}
             {filters.map((f) => (
               <button
                 key={f.value}
-                className={buttonClass + (filter === f.value ? " !border-black !text-black" : "")}
+                type="button"
+                aria-pressed={filter === f.value}
+                className={
+                  buttonClass +
+                  (filter === f.value ? " !border-black !text-black" : "")
+                }
                 onClick={() => updateSearchParams("filter", f.value)}
               >
                 {f.label}
@@ -147,17 +161,47 @@ export default function ProjectsPage() {
 
           {/* view filter */}
           <div className="flex flex-row items-center gap-4">
-            <button onClick={() => updateSearchParams("view", "grid")} className="cursor-pointer" title="ver em grade" > <Grid2X2Icon className="w-4 h-4" /> </button>
-            <button onClick={() => updateSearchParams("view", "list")} className="cursor-pointer" title="ver em lista" > <ListIcon className="w-4 h-4" /> </button>
-            <button onClick={() => updateSearchParams("view", "map")} className="cursor-pointer" title="ver em mapa"   > <MapIcon className="w-4 h-4" /> </button>
+            {views.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                aria-label={label}
+                aria-pressed={viewMode === value}
+                onClick={() => updateSearchParams("view", value)}
+                className={
+                  "cursor-pointer p-1 rounded transition-colors " +
+                  (viewMode === value
+                    ? "text-black"
+                    : "text-gray-400 hover:text-gray-600")
+                }
+                title={label}
+              >
+                <Icon className="w-4 h-4" />
+              </button>
+            ))}
           </div>
-
         </div>
       </div>
 
-      {viewMode === "grid" && (<ProjectGridView projects={filteredProjects} />)}
-      {viewMode === "list" && (<ProjectTableView projects={filteredProjects} />)}
-      {viewMode === "map" && (<ProjectMapView projects={filteredProjects} />)}
+      {filteredProjects.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-gray-400 text-sm">
+          Nenhum projecto encontrado.
+        </div>
+      ) : (
+        <>
+          {viewMode === "grid" && <ProjectGridView projects={filteredProjects} />}
+          {viewMode === "list" && <ProjectTableView projects={filteredProjects} />}
+          {viewMode === "map" && <ProjectMapView projects={filteredProjects} />}
+        </>
+      )}
     </div>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProjectsPageInner />
+    </Suspense>
   );
 }

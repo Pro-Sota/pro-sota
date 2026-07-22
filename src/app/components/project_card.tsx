@@ -1,27 +1,54 @@
 "use client";
 
 import Image from "next/image";
-import { Project } from "../management/projects/types";
 import { useRouter } from "next/navigation";
-import { capitalize, removeCharacters } from "../lib/library";
+import type { Project, Status } from "../management/projects/types";
+
+const statusLabels: Record<Status, string> = {
+  "em-curso": "Em curso",
+  concluido: "Concluído",
+  "em-observacao": "Em observação",
+};
 
 export default function ProjectCard({ project }: { project: Project }) {
-    const router = useRouter();
-    return (
-        <div
-            onClick={() => router.push(`/management/projects/${project.id}`)}
+  const router = useRouter();
 
-            className="flex flex-col bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 cursor-pointer">
-            <Image src="/images/arch.jpg" alt="Project Image" width={400} height={300} className="object-cover w-full" />
-            <div className="p-4 text-sm text-gray-600" >
-                <h2 className="text-lg text-gray-900 font-semibold">{removeCharacters(capitalize(project.name))}</h2>
-                <div className="flex justify-between items-center ">
-                    <p>Status: {removeCharacters(capitalize(project.status))} </p>
-                    <p>Progress: {project.progress}% </p>
-                </div>
-                <p>Client: {project.client}</p>
-                <p>Location: {project.location}</p>
-            </div>
+  const goToProject = () => {
+    router.push(`/management/projects/${project.id}`);
+  };
+
+  return (
+    <div
+      onClick={goToProject}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          goToProject();
+        }
+      }}
+      tabIndex={0}
+      role="link"
+      aria-label={`Ver detalhes do projecto ${project.name}`}
+      className="flex flex-col bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-800"
+    >
+      <Image
+        src={project.image || "/images/arch.jpg"}
+        alt={`Imagem do projecto ${project.name}`}
+        width={400}
+        height={300}
+        className="object-cover w-full h-48"
+      />
+      <div className="p-4 text-sm text-gray-600">
+        <h2 className="text-lg text-gray-900 font-semibold line-clamp-1">
+          {project.name}
+        </h2>
+        <div className="flex justify-between items-center">
+          <p>Estado: {statusLabels[project.status]}</p>
+          <p>Progresso: {project.progress}%</p>
         </div>
-    );
+        <p>Cliente: {project.client || "—"}</p>
+        <p>Localização: {project.location || "—"}</p>
+      </div>
+    </div>
+  );
 }

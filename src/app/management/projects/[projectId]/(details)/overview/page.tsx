@@ -4,8 +4,7 @@ import { risks, upcomingMilestones, recentActivity, rfis, approvals, submittals,
 import { StatusPill } from "./components/status_pill";
 import { kpis } from "./types"
 
-// NOTE: budget currency is currently assumed — verify against the real
-// project currency (e.g. Kz vs USD) and adjust the locale/currency code below.
+
 const CURRENCY = "AOA";
 const CURRENCY_LOCALE = "pt-AO";
 
