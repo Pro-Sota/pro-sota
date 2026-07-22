@@ -62,10 +62,10 @@ export default function TeamPage() {
   ];
 
   const stats = [
-    { title: "Employees", value: 42, icon: Users },
-    { title: "Architects", value: 14, icon: Building2 },
-    { title: "Engineers", value: 9, icon: HardHat },
-    { title: "Available", value: 18, icon: Briefcase },
+    { title: "Colaboradores", value: 42, icon: Users },
+    { title: "Arquitectos", value: 14, icon: Building2 },
+    { title: "Engenheiros", value: 9, icon: HardHat },
+    { title: "Disponíveis", value: 18, icon: Briefcase },
   ];
 
   const statusStyles: Record<string, string> = {
@@ -89,16 +89,16 @@ export default function TeamPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
-              Team
+              Pro-Sota Team
             </h1>
             <p className="mt-1 text-slate-500">
-              Manage architects, engineers and company employees.
+              Gerir arquitectos, engenheiro e colaboradores da empresa.
             </p>
           </div>
 
-          <button className="flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 active:bg-slate-950">
+          <button className="cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 active:bg-slate-950">
             <Plus size={16} />
-            Add Employee
+            Add Colaborador
           </button>
         </div>
 
@@ -137,13 +137,13 @@ export default function TeamPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <select className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-slate-400">
-              <option>All Departments</option>
-              <option>Architecture</option>
-              <option>Engineering</option>
-              <option>Construction</option>
+            <select className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-slate-400">
+              <option>Todos os departamentos</option>
+              <option>Arquitectura</option>
+              <option>Engenharia</option>
+              <option>Construção</option>
               <option>IT</option>
-              <option>HR</option>
+              <option>Recursos humanos</option>
             </select>
 
             <div className="flex overflow-hidden rounded-lg border border-slate-200">
@@ -151,7 +151,7 @@ export default function TeamPage() {
                 onClick={() => setView("grid")}
                 aria-label="Grid view"
                 aria-pressed={view === "grid"}
-                className={`p-2.5 transition ${
+                className={`p-2.5 transition cursor-pointer ${
                   view === "grid"
                     ? "bg-slate-900 text-white"
                     : "bg-white text-slate-500 hover:bg-slate-50"
@@ -164,7 +164,7 @@ export default function TeamPage() {
                 onClick={() => setView("list")}
                 aria-label="List view"
                 aria-pressed={view === "list"}
-                className={`p-2.5 border-l border-slate-200 transition ${
+                className={`cursor-pointer p-2.5 border-l border-slate-200 transition ${
                   view === "list"
                     ? "bg-slate-900 text-white"
                     : "bg-white text-slate-500 hover:bg-slate-50"

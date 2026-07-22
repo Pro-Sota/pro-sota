@@ -1,16 +1,16 @@
 export const kpis = [
-  { title: "Progress", value: "30" },
-  { title: "Days remaining", value: "30" },
-  { title: "Budget used", value: "$120k" },
-  { title: "Open issues", value: "10" },
-  { title: "Completed tasks", value: "100 / 200" },
-  { title: "Pending approvals", value: "7" },
+  { title: "Progresso", value: "30" },
+  { title: "Dias restantes", value: "30" },
+  { title: "Orçamento usado", value: "$120k" },
+  { title: "Questões abertas", value: "10" },
+  { title: "Tarefas concluídas", value: "100 / 200" },
+  { title: "Aprovações pendentes", value: "7" },
 ];
 
 export type Status =
-  | "Completed"
-  | "Answered"
-  | "Open"
-  | "Overdue"
-  | "Pending"
-  | "For review";
+  | "Concluído"
+  | "Respondido"
+  | "Aberto"
+  | "Atrasado"
+  | "Pendente"
+  | "Para revisão";

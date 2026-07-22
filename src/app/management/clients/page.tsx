@@ -17,8 +17,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-type ClientType = "Company" | "Individual";
-type ClientStatus = "Active" | "Pending" | "Inactive";
+type ClientType = "Empresa" | "Particular";
+type ClientStatus = "Activo" | "Pending" | "Inactivo";
 
 interface Client {
   id: string;
@@ -35,27 +35,27 @@ const CLIENTS: Client[] = [
   {
     id: "c1",
     name: "ABC Construction",
-    type: "Company",
+    type: "Empresa",
     projects: 4,
     phone: "+244 923 000 000",
     email: "geral@abcconstruction.ao",
-    status: "Active",
+    status: "Activo",
     outstanding: 4200000,
   },
   {
     id: "c2",
     name: "Maria Fernandes",
-    type: "Individual",
+    type: "Particular",
     projects: 1,
     phone: "+244 923 111 111",
     email: "maria.fernandes@gmail.com",
-    status: "Active",
+    status: "Activo",
     outstanding: 350000,
   },
   {
     id: "c3",
     name: "Kianda Logística",
-    type: "Company",
+    type: "Empresa",
     projects: 2,
     phone: "+244 923 222 222",
     email: "contacto@kianda.ao",
@@ -65,29 +65,29 @@ const CLIENTS: Client[] = [
   {
     id: "c4",
     name: "João Baptista",
-    type: "Individual",
+    type: "Particular",
     projects: 0,
     phone: "+244 923 333 333",
     email: "joao.baptista@outlook.com",
-    status: "Inactive",
+    status: "Inactivo",
     outstanding: 0,
   },
   {
     id: "c5",
     name: "Girassol Retail Group",
-    type: "Company",
+    type: "Empresa",
     projects: 6,
     phone: "+244 923 444 444",
     email: "financeiro@girassolretail.ao",
-    status: "Active",
+    status: "Activo",
     outstanding: 9600000,
   },
 ];
 
 const STATUS_STYLES: Record<ClientStatus, string> = {
-  Active: "bg-green-100 text-green-700",
+  Activo: "bg-green-100 text-green-700",
   Pending: "bg-amber-100 text-amber-700",
-  Inactive: "bg-gray-100 text-gray-600",
+  Inactivo: "bg-gray-100 text-gray-600",
 };
 
 const currency = (value: number) =>
@@ -118,7 +118,7 @@ export default function ClientsPage() {
   }, [query, statusFilter]);
 
   const totalOutstanding = CLIENTS.reduce((sum, c) => sum + c.outstanding, 0);
-  const companies = CLIENTS.filter((c) => c.type === "Company").length;
+  const companies = CLIENTS.filter((c) => c.type === "Empresa").length;
   const activeProjects = CLIENTS.reduce((sum, c) => sum + c.projects, 0);
 
   return (
@@ -126,21 +126,21 @@ export default function ClientsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
-          <p className="text-gray-500">Manage clients, contacts, and projects.</p>
+          <h1 className="text-3xl font-bold text-gray-900">Clientes</h1>
+          <p className="text-gray-500">Gerir clientes, contactos and projectos.</p>
         </div>
 
-        <button className="flex items-center justify-center gap-2 rounded-lg bg-black px-4 py-2 text-white transition hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+        <button className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-white transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
           <Plus size={18} />
-          New Client
+          Novo Cliente
         </button>
       </div>
 
       {/* Statistics */}
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={<Users size={22} />} title="Total Clients" value={String(CLIENTS.length)} />
-        <StatCard icon={<Building2 size={22} />} title="Companies" value={String(companies)} />
-        <StatCard icon={<Briefcase size={22} />} title="Active Projects" value={String(activeProjects)} />
+        <StatCard icon={<Users size={22} />} title="Total Clientes" value={String(CLIENTS.length)} />
+        <StatCard icon={<Building2 size={22} />} title="Empresas" value={String(companies)} />
+        <StatCard icon={<Briefcase size={22} />} title="Projectos Activos" value={String(activeProjects)} />
         <StatCard icon={<Wallet size={22} />} title="Outstanding" value={currency(totalOutstanding)} />
       </div>
 
@@ -151,7 +151,7 @@ export default function ClientsPage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name, email, or phone..."
+            placeholder="Procurar por nome, email, ou número de telefone..."
             aria-label="Search clients"
             className="w-full rounded-lg border py-2 pl-10 pr-9 outline-none focus:ring-2 focus:ring-black"
           />
@@ -173,7 +173,7 @@ export default function ClientsPage() {
             className="flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-black lg:w-auto"
           >
             <Filter size={18} />
-            Filters
+            Filtros
             {statusFilter !== "All" && (
               <span className="rounded-full bg-black px-1.5 text-xs text-white">1</span>
             )}
@@ -182,12 +182,12 @@ export default function ClientsPage() {
 
           {filtersOpen && (
             <div className="absolute right-0 z-10 mt-2 w-48 rounded-lg border bg-white p-2 shadow-lg">
-              <p className="px-2 pb-1 pt-1 text-xs font-medium uppercase text-gray-400">Status</p>
+              <p className="px-2 pb-1 pt-1 text-xs font-medium uppercase text-gray-400">Estados</p>
               {(["All", "Active", "Pending", "Inactive"] as const).map((s) => (
                 <button
                   key={s}
                   onClick={() => {
-                    setStatusFilter(s);
+                    setStatusFilter(s as ClientStatus);
                     setFiltersOpen(false);
                   }}
                   className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-100 ${
@@ -203,13 +203,13 @@ export default function ClientsPage() {
 
         <button className="flex items-center justify-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-black">
           <Download size={18} />
-          Export
+          Exportar
         </button>
       </div>
 
       {/* Results count */}
       <p className="mt-4 text-sm text-gray-500">
-        {filtered.length} of {CLIENTS.length} clients
+        {filtered.length} of {CLIENTS.length} clientes
       </p>
 
       {/* Table (desktop) */}
@@ -343,9 +343,9 @@ function ClientRow({
 
         {menuOpen && (
           <div className="absolute right-6 z-10 mt-1 w-36 rounded-lg border bg-white py-1 text-left shadow-lg">
-            <button className="block w-full px-3 py-2 text-sm hover:bg-gray-50">View profile</button>
-            <button className="block w-full px-3 py-2 text-sm hover:bg-gray-50">Edit client</button>
-            <button className="block w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50">Remove</button>
+            <button className="block w-full px-3 py-2 text-sm hover:bg-gray-50">Ver perfil</button>
+            <button className="block w-full px-3 py-2 text-sm hover:bg-gray-50">Editar cliente</button>
+            <button className="block w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50">Remover</button>
           </div>
         )}
       </td>
@@ -381,8 +381,8 @@ function ClientCard({ client }: { client: Client }) {
       </div>
 
       <div className="mt-3 flex items-center justify-between border-t pt-3 text-sm">
-        <span className="text-gray-500">{client.projects} projects</span>
-        <button className="font-medium hover:underline">View</button>
+        <span className="text-gray-500">{client.projects} projectos</span>
+        <button className="font-medium hover:underline">Ver</button>
       </div>
     </div>
   );
@@ -392,10 +392,10 @@ function EmptyState({ onReset }: { onReset: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
       <Users size={28} className="text-gray-300" />
-      <p className="font-medium text-gray-900">No clients match your search</p>
-      <p className="text-sm text-gray-500">Try a different name, email, or clear your filters.</p>
-      <button onClick={onReset} className="mt-2 text-sm font-medium underline">
-        Clear search and filters
+      <p className="font-medium text-gray-900">Nenhum cliente corresponde a tua pesquisa</p>
+      <p className="text-sm text-gray-500">Tenta um nome diferente, email ou limpa os filtres.</p>
+      <button onClick={onReset} className="mt-2 text-sm font-medium underline cursor-pointer">
+        Limpar pesquisa e filtros
       </button>
     </div>
   );
