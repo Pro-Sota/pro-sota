@@ -255,6 +255,7 @@ function ProgressBar({
     <div
       className="h-2 bg-slate-100 rounded-full overflow-hidden"
       role="progressbar"
+      aria-label={`Progress: ${clamped}%`}
       aria-valuenow={clamped}
       aria-valuemin={0}
       aria-valuemax={100}
