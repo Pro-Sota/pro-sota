@@ -1,12 +1,12 @@
+import { StatCard } from "@/app/components/StatCard";
 import {
   Search,
   Plus,
-  Building2,
   CheckCircle2,
   Clock,
   Boxes,
-  Star,
   ArrowUpRight,
+  Building2Icon,
 } from "lucide-react";
 
 const tokens = {
@@ -27,13 +27,24 @@ const tokens = {
   amberBg: "#F3E6C9",
 };
 
-const statusStyles = {
+type SupplierStatus = "Ativo" | "Em Análise";
+
+type Supplier = {
+  name: string;
+  category: string;
+  location: string;
+  rating: number;
+  projects: number;
+  status: SupplierStatus;
+};
+
+const statusStyles: Record<SupplierStatus, { bg: string; text: string }> = {
   Ativo: { bg: tokens.oliveBg, text: tokens.olive },
   "Em Análise": { bg: tokens.amberBg, text: tokens.amber },
 };
 
 export default function SuppliersPage() {
-  const suppliers = [
+  const suppliers: Supplier[] = [
     {
       name: "ABC Materials Ltd.",
       category: "Materiais de Construção",
@@ -61,7 +72,7 @@ export default function SuppliersPage() {
   ];
 
   const summary = [
-    { label: "Total de fornecedores", value: 245, icon: Building2 },
+    { label: "Total de fornecedores", value: 245, icon: Building2Icon },
     { label: "Ativos", value: 198, icon: CheckCircle2 },
     { label: "Em análise", value: 12, icon: Clock },
     { label: "Projetos vinculados", value: 67, icon: Boxes },
@@ -78,13 +89,13 @@ export default function SuppliersPage() {
 
   return (
     <div
-      className="min-h-screen p-6 md:p-10 bg-slate-100 font-serif"
+      className="min-h-screen p-6 md:p-10"
     >
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-medium font-serif" >
+            <h1 className="text-3xl font-bold text-gray-900" >
               Gestão de fornecedores
             </h1>
             <p className="mt-1 text-sm text-gray-500">
@@ -103,24 +114,7 @@ export default function SuppliersPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {summary.map(({ label, value, icon: Icon }) => (
-            <div
-              key={label}
-              className="rounded-2xl p-5 border border-gray-300 bg-white"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wide text-gray-500">
-                  {label}
-                </p>
-                <div
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-300"
-                >
-                  <Icon size={16} />
-                </div>
-              </div>
-              <h2 className="mt-3 text-3xl font-serif" >
-                {value}
-              </h2>
-            </div>
+            <StatCard key={label} icon={<Icon />} title={label} value={`${value}`} />
           ))}
         </div>
 
@@ -160,14 +154,14 @@ export default function SuppliersPage() {
         </div>
 
         {/* Supplier Table */}
-        <div className="overflow-hidden rounded-2xl" style={{ background: tokens.card, border: `1px solid ${tokens.line}` }}>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${tokens.line}` }}>
+      <div className="overflow-hidden rounded-2xl bg-white border border-gray-100">
+          <table className="w-full">
+            <thead className="border-b bg-gray-50">
+              <tr className="text-left text-sm text-gray-600">
                 {["Fornecedor", "Categoria", "Localização", "Avaliação", "Projetos", "Status", "Ação"].map((h) => (
                   <th
                     key={h}
-                    className="p-4 text-xs font-medium uppercase tracking-wide"
+                    className="px-6 py-4 font-medium"
                     style={{ color: tokens.stone }}
                   >
                     {h}
@@ -186,11 +180,11 @@ export default function SuppliersPage() {
                     style={{ borderTop: index === 0 ? "none" : `1px solid ${tokens.line}` }}
                   >
                     <td className="p-4 font-medium">{supplier.name}</td>
-                    <td className="p-4" style={{ color: tokens.stone }}>{supplier.category}</td>
-                    <td className="p-4" style={{ color: tokens.stone }}>{supplier.location}</td>
-                    <td className="p-4"><Stars count={supplier.rating} /></td>
-                    <td className="p-4">{supplier.projects}</td>
-                    <td className="p-4">
+                    <td className="p-4 font-medium" style={{ color: tokens.stone }}>{supplier.category}</td>
+                    <td className="p-4 font-medium" style={{ color: tokens.stone }}>{supplier.location}</td>
+                    <td className="p-4 font-medium"><Stars count={supplier.rating} /></td>
+                    <td className="p-4 font-medium">{supplier.projects}</td>
+                    <td className="p-4 font-medium">
                       <span
                         className="rounded-full px-3 py-1 text-xs font-medium"
                         style={{ background: s.bg, color: s.text }}
@@ -198,7 +192,7 @@ export default function SuppliersPage() {
                         {supplier.status}
                       </span>
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 font-medium">
                       <button
                         className="flex items-center gap-1 text-sm font-medium"
                         style={{ color: tokens.bronze }}

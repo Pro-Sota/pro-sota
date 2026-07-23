@@ -43,10 +43,10 @@ console.log("Documents available: " +
 
 
   return (
-    <div className="mx-4 w-full overflow-hidden rounded-lg border border-gray-200">
+    <div className="mx-8 w-full overflow-hidden rounded-lg border border-gray-200 bg-white">
       <table className="w-full text-left text-sm">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
+          <tr className="border-b border-gray-200 text-xs font-medium uppercase tracking-wide text-gray-500">
             <th className="w-[45%] px-4 py-3">Nome</th>
             <th className="w-[15%] px-4 py-3">Tipo</th>
             <th className="w-[15%] px-4 py-3">Criado por</th>

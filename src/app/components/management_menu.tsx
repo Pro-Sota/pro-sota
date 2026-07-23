@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 
 import LogoutButton from "../(auth)/logout/page";
-import { createClient } from "../lib/supabase/client";
 
 type SidebarItemProps = {
     item: {
@@ -33,10 +32,9 @@ type SidebarItemProps = {
 };
 
 type Props = {
-  collapsed: boolean;
-  setCollapsedAction: (value: boolean) => void;
+    collapsed: boolean;
+    setCollapsedAction: (value: boolean) => void;
 };
-
 
 const menuItems = [
     { name: "Dashboard", href: "/management", icon: HomeIcon },
@@ -44,12 +42,12 @@ const menuItems = [
     { name: "Messages", href: "/management/messages", icon: MessageCircle },
     { name: "Clientes", href: "/management/clients", icon: Users },
     { name: "Sota Team", href: "/management/team", icon: UsersRound },
-    { name: "Finanças", href: "/management/finances", icon: WalletCards },
+    { name: "Equipamentos", href: "/management/equipments", icon: WalletCards },
     { name: "Fornecedores", href: "/management/suppliers", icon: Handshake },
 ];
 
 const bottomItems = [
-     {
+    {
         name: "Meu perfil",
         href: "/management/profile",
         icon: User,
@@ -63,7 +61,7 @@ const bottomItems = [
 
 ];
 
-export default function ManagementMenu({collapsed, setCollapsedAction}:Props) {
+export default function ManagementMenu({ collapsed, setCollapsedAction }: Props) {
     const pathname = usePathname();
 
     const [hovered, setHovered] = useState(false);
@@ -109,7 +107,7 @@ export default function ManagementMenu({collapsed, setCollapsedAction}:Props) {
             <div className="flex-1 px-3 py-6 space-y-1">
                 {menuItems.map((item) => (
                     <SidebarItem
-                        key={item.href}                                                                                                                             
+                        key={item.href}
                         item={item}
                         active={isActiveRoute(item.href)}
                         expanded={expanded}

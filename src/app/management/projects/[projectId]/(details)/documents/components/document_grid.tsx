@@ -27,8 +27,8 @@ export default function DocumentGridView({
   }
 
   return (
-    <div className="mx-4">
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="mx-8 pb-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ">
         {folders.map((folder) => (
           <div key={folder.id} className="h-64 w-64">
             <FolderCard folder={folder} view={view} />

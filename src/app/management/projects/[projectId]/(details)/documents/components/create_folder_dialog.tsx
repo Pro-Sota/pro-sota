@@ -8,13 +8,13 @@ export default function CreateFolderDialog() {
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [error, setError] = useState("");
-    const dialogRef = useRef(null);
-    const nameInputRef = useRef(null);
+    const dialogRef = useRef<HTMLDivElement | null>(null);
+    const nameInputRef = useRef<HTMLInputElement | null>(null);
 
     // Close on Escape
     useEffect(() => {
         if (!open) return;
-        const handleKeyDown = (e) => {
+        const handleKeyDown = (e: { key: string; }) => {
             if (e.key === "Escape") handleClose();
         };
         document.addEventListener("keydown", handleKeyDown);
@@ -36,11 +36,11 @@ export default function CreateFolderDialog() {
         setError("");
     }
 
-    function handleOverlayClick(e) {
+    function handleOverlayClick(e: { target: any; currentTarget: any; }) {
         if (e.target === e.currentTarget) handleClose();
     }
 
-    function handleSubmit(e) {
+    function handleSubmit(e: { preventDefault: () => void; }) {
         e.preventDefault();
         if (!name.trim()) {
             setError("Folder name is required.");
@@ -59,7 +59,7 @@ export default function CreateFolderDialog() {
             <button
                 onClick={() => setOpen(true)}
 
-                className="flex items-center gap-2 rounded bg-slate-500 px-3 py-1 text-sm text-white hover:bg-slate-600 cursor-pointer transition"
+                className="flex items-center gap-2 rounded bg-slate-500 px-3 py-2 text-sm text-white hover:bg-slate-600 cursor-pointer transition"
             >
                 <FolderPlus className="h-4 w-4" />
                 Criar pasta

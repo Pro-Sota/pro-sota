@@ -14,6 +14,7 @@ import {
   Phone,
   MoreVertical,
 } from "lucide-react";
+import { StatCard } from "@/app/components/StatCard";
 
 export default function TeamPage() {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -83,8 +84,8 @@ export default function TeamPage() {
       .toUpperCase();
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl p-6 md:p-10 space-y-8">
+    <div className="min-h-screen p-6 md:p-10">
+      <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -105,21 +106,7 @@ export default function TeamPage() {
         {/* Statistics */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat) => (
-            <div
-              key={stat.title}
-              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5"
-            >
-              <div>
-                <p className="text-sm text-slate-500">{stat.title}</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">
-                  {stat.value}
-                </p>
-              </div>
-
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100">
-                <stat.icon size={18} className="text-slate-600" />
-              </div>
-            </div>
+           <StatCard key={stat.title} icon={<stat.icon />} title={stat.title} value={`${stat.value}`} />
           ))}
         </div>
 

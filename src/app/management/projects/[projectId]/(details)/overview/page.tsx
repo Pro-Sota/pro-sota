@@ -50,7 +50,7 @@ export default function Overview() {
     <div className="space-y-10 p-12 w-full min-w-0">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 w-full min-w-0">
         {kpis.map((kpi) => (
-          <KpiCard key={kpi.title} title={kpi.title} value={kpi.value} />
+          <KpiCard icon={<kpi.icon size={22} />} key={kpi.title} title={kpi.title} value={kpi.value} />
         ))}
       </div>
 

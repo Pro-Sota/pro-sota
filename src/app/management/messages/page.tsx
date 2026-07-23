@@ -16,25 +16,25 @@ import {
 const conversations = [
   {
     id: 1,
-    name: "Riverside Office Complex",
-    last: "Updated structural drawings.",
-    time: "2m",
+    name: "Complexo de Escritórios Riverside",
+    last: "Desenhos estruturais atualizados.",
+    time: "2 min",
     unread: 3,
     online: true,
   },
   {
     id: 2,
     name: "Villa Aurora",
-    last: "Waiting for client approval.",
-    time: "18m",
+    last: "A aguardar aprovação do cliente.",
+    time: "18 min",
     unread: 0,
     online: false,
   },
   {
     id: 3,
     name: "Carlos Mendes",
-    last: "Can we schedule a meeting?",
-    time: "1h",
+    last: "Podemos agendar uma reunião?",
+    time: "1 h",
     unread: 1,
     online: true,
   },
@@ -46,21 +46,21 @@ const messages = [
     sender: "Maria",
     time: "09:15",
     mine: false,
-    text: "I've uploaded the revised floor plans.",
+    text: "Carreguei a versão revista das plantas.",
   },
   {
     id: 2,
-    sender: "You",
+    sender: "Você",
     time: "09:22",
     mine: true,
-    text: "Great. I'll review them this morning.",
+    text: "Ótimo. Vou analisá-las ainda esta manhã.",
   },
   {
     id: 3,
     sender: "Maria",
     time: "09:27",
     mine: false,
-    text: "Please pay special attention to the structural grid changes.",
+    text: "Preste especial atenção às alterações na malha estrutural.",
   },
 ];
 
@@ -70,58 +70,62 @@ export default function CommunicationPage() {
       {/* Sidebar */}
       <aside className="hidden w-80 shrink-0 flex-col border-r border-slate-200 lg:flex">
         <div className="border-b border-slate-200 p-5">
-          <h1 className="text-xl font-semibold tracking-tight">Messages</h1>
-
+          <h1 className="text-xl font-semibold tracking-tight">Mensagens</h1>
           <div className="relative mt-4">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
-              placeholder="Search..."
+              placeholder="Pesquisar..."
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {conversations.map((chat) => (
-            <button
-              key={chat.id}
-              className={`flex w-full items-center gap-3 border-b border-slate-100 p-4 text-left transition hover:bg-slate-50 ${
-                chat.id === 1 ? "bg-slate-100" : ""
-              }`}
-            >
-              <div className="relative shrink-0">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900">
-                  <Building2 className="h-5 w-5 text-white" />
+        <div >
+         <div className="mx-4 text-sm my-2">
+           <h1>{"Projects Message".toUpperCase()}</h1>
+         </div>
+          <div className="flex-1 overflow-y-auto">
+            {conversations.map((chat) => (
+              <button
+                key={chat.id}
+                className={`flex w-full items-center gap-3 border-b border-slate-100 p-4 text-left transition hover:bg-slate-50 ${chat.id === 1 ? "bg-slate-100" : ""
+                  }`}
+              >
+                <div className="relative shrink-0">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900">
+                    <Building2 className="h-5 w-5 text-white" />
+                  </div>
+
+                  {chat.online && (
+                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
+                  )}
                 </div>
 
-                {chat.online && (
-                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
-                )}
-              </div>
+                <div className="flex-1 overflow-hidden">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="truncate text-sm font-medium text-slate-900">
+                      {chat.name}
+                    </h3>
+                    <span className="shrink-0 text-xs text-slate-400">
+                      {chat.time}
+                    </span>
+                  </div>
 
-              <div className="flex-1 overflow-hidden">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="truncate text-sm font-medium text-slate-900">
-                    {chat.name}
-                  </h3>
-                  <span className="shrink-0 text-xs text-slate-400">
-                    {chat.time}
+                  <p className="truncate text-sm text-slate-500">
+                    {chat.last}
+                  </p>
+                </div>
+
+                {chat.unread > 0 && (
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs text-white">
+                    {chat.unread}
                   </span>
-                </div>
-
-                <p className="truncate text-sm text-slate-500">
-                  {chat.last}
-                </p>
-              </div>
-
-              {chat.unread > 0 && (
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs text-white">
-                  {chat.unread}
-                </span>
-              )}
-            </button>
-          ))}
+                )}
+              </button>
+            ))}
+          </div>
         </div>
+
       </aside>
 
       {/* Chat */}
@@ -130,9 +134,9 @@ export default function CommunicationPage() {
         <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div>
             <h2 className="font-semibold text-slate-900">
-              Riverside Office Complex
+              Complexo de Escritórios Riverside
             </h2>
-            <p className="text-sm text-slate-500">8 project members</p>
+            <p className="text-sm text-slate-500">8 membros da equipa</p>
           </div>
 
           <div className="flex gap-2">
@@ -153,16 +157,14 @@ export default function CommunicationPage() {
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${
-                message.mine ? "justify-end" : "justify-start"
-              }`}
+              className={`flex ${message.mine ? "justify-end" : "justify-start"
+                }`}
             >
               <div
-                className={`max-w-md rounded-2xl px-4 py-3 ${
-                  message.mine
+                className={`max-w-md rounded-2xl px-4 py-3 ${message.mine
                     ? "bg-slate-900 text-white"
                     : "border border-slate-200 bg-white text-slate-900"
-                }`}
+                  }`}
               >
                 {!message.mine && (
                   <p className="mb-1 text-xs font-semibold text-slate-500">
@@ -172,11 +174,7 @@ export default function CommunicationPage() {
 
                 <p className="text-sm leading-relaxed">{message.text}</p>
 
-                <p
-                  className={`mt-2 text-right text-xs ${
-                    message.mine ? "text-slate-400" : "text-slate-400"
-                  }`}
-                >
+                <p className="mt-2 text-right text-xs text-slate-400">
                   {message.time}
                 </p>
               </div>
@@ -193,7 +191,7 @@ export default function CommunicationPage() {
 
             <input
               className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-              placeholder="Write a message..."
+              placeholder="Escreva uma mensagem..."
             />
 
             <button className="shrink-0 rounded-lg bg-slate-900 p-3 text-white transition hover:bg-slate-800 active:bg-slate-950">
@@ -207,7 +205,7 @@ export default function CommunicationPage() {
       <aside className="hidden w-80 shrink-0 flex-col border-l border-slate-200 xl:flex">
         <div className="border-b border-slate-200 p-6">
           <h2 className="font-semibold text-slate-900">
-            Project Information
+            Informações do Projeto
           </h2>
         </div>
 
@@ -217,8 +215,8 @@ export default function CommunicationPage() {
               <Building2 className="text-slate-600" size={16} />
             </div>
             <div>
-              <p className="font-medium text-slate-900">Status</p>
-              <p className="text-slate-500">Construction</p>
+              <p className="font-medium text-slate-900">Estado</p>
+              <p className="text-slate-500">Em construção</p>
             </div>
           </div>
 
@@ -227,8 +225,8 @@ export default function CommunicationPage() {
               <Calendar className="text-slate-600" size={16} />
             </div>
             <div>
-              <p className="font-medium text-slate-900">Deadline</p>
-              <p className="text-slate-500">12 October 2026</p>
+              <p className="font-medium text-slate-900">Prazo</p>
+              <p className="text-slate-500">12 de outubro de 2026</p>
             </div>
           </div>
 
@@ -237,8 +235,8 @@ export default function CommunicationPage() {
               <Users className="text-slate-600" size={16} />
             </div>
             <div>
-              <p className="font-medium text-slate-900">Team</p>
-              <p className="text-slate-500">8 Members</p>
+              <p className="font-medium text-slate-900">Equipa</p>
+              <p className="text-slate-500">8 membros</p>
             </div>
           </div>
 
@@ -247,7 +245,7 @@ export default function CommunicationPage() {
               <FolderOpen className="text-slate-600" size={16} />
             </div>
             <div>
-              <p className="font-medium text-slate-900">Recent Files</p>
+              <p className="font-medium text-slate-900">Ficheiros Recentes</p>
               <p className="text-slate-500">FloorPlan_V5.pdf</p>
             </div>
           </div>

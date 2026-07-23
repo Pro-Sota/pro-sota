@@ -57,7 +57,7 @@ export default async function DocumentPage({ params, searchParams }
     return (
         <div className="flex flex-row w-full h-full overflow-hidden">
             <DocumentSidebar projectId={projectId} view={currentView} />
-            <main className=" flex-1 overflow-y-auto bg-white">
+            <main className=" flex-1 overflow-y-auto bg-gray-50">
                 <DocumentToolbar view={currentView} />
                 <div className="flex flex-1 text-center h-max w-full mt-4">
                     {currentView === "list" && <DocumentTableView documents={filteredDocuments} folders={filteredFolders} view={currentView} projectId={projectId} />}

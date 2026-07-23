@@ -1,10 +1,15 @@
-export default function KpiCard({ title, value }: { title: string, value: string }) {
+import { LucideIcon } from "lucide-react";
 
-    const hasPercentage = ["progress"].includes(title.toLowerCase())
-    return (
-        <div className="text-sm bg-white flex flex-col aspect-square w-full h-22 justify-center space-y-2 items-center p-2 shadow-md border border-gray-100 rounded-md text-black text-center">
-            <h2 className="font-semibold text-xl">{value} {hasPercentage && "%"}</h2>
-            <p className="font-medium text-gray-500">{title}</p>
-        </div>
-    );
+export default function KpiCard({ icon, title, value }: { icon: React.ReactNode, title: string, value: string }) {
+
+  const hasPercentage = ["progress"].includes(title.toLowerCase())
+  return (
+    <div className="rounded-xl border bg-white p-5">
+      <div className="flex items-center justify-between ">
+        <span className="rounded-lg bg-slate-100 p-2 text-slate-600">{icon}</span>
+      </div>
+      <p className="mt-5 text-sm text-gray-500">{title}</p>
+      <h2 className="mt-1 text-2xl font-bold">{value}</h2>
+    </div>
+  );
 }

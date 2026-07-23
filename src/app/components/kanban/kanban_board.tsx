@@ -274,7 +274,7 @@ export default function KanbanBoard() {
 
     return (
         <>
-            <div className="min-h-screen bg-slate-100 p-8">
+            <div className="min-h-screen p-8">
                 <div className="w-full">
                     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                         <h1 className="font-bold tracking-tight text-slate-900 text-2xl">Tarefas</h1>

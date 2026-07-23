@@ -31,7 +31,9 @@ const statusStyles = {
   Completed: { bg: tokens.oliveBg, text: tokens.olive },
   Planning: { bg: tokens.amberBg, text: tokens.amber },
   "In Progress": { bg: tokens.rustBg, text: tokens.rust },
-};
+} as const;
+
+type ProjectStatus = keyof typeof statusStyles;
 
 export default function ProfilePage() {
   const user = {
@@ -52,7 +54,7 @@ export default function ProfilePage() {
     { title: "Experiência", value: "7 anos" },
   ];
 
-  const projects = [
+  const projects: { name: string; status: ProjectStatus; deadline: string }[] = [
     { name: "Skyline Towers", status: "In Progress", deadline: "12 Aug 2026" },
     { name: "Green Villa", status: "Planning", deadline: "20 Sep 2026" },
     { name: "Business Center", status: "Completed", deadline: "15 Jun 2026" },
@@ -67,11 +69,8 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div
-      className="min-h-screen p-6 md:p-10 bg-slate-200"
-    >
+    <div className="min-h-screen p-6 md:p-10 bg-gray-50">
       <div className="mx-auto max-w-7xl space-y-8">
-
         {/* Header */}
         <section
           className="rounded-3xl p-8 shadow-sm bg-white"
@@ -79,9 +78,7 @@ export default function ProfilePage() {
           <div className="flex flex-col  gap-6 md:flex-row md:items-center md:justify-between">
 
             <div className="flex items-center gap-4">
-              <div
-                className="flex h-24 w-24 items-center justify-center rounded-2xl text-3xl font-semibold bg-gray-900 text-slate-200 font-serif"
-              >
+              <div className="flex h-24 w-24 items-center justify-center rounded-2xl text-3xl font-semibold bg-gray-900 text-slate-200 font-serif">
                 {user.name
                   .split(" ")
                   .map((n) => n[0])
@@ -89,20 +86,13 @@ export default function ProfilePage() {
                   .join("")
                   .toUpperCase()}
               </div>
-
               <div>
-                <p
-                  className="text-xs uppercase tracking-[0.2em] text-yellow-700"
-                >
+                <p className="text-xs uppercase tracking-[0.2em] text-yellow-700">
                   {user.company}
                 </p>
-
-                <h1
-                  className="mt-2 text-4xl font-medium font-serif"
-                >
+                <h1 className="mt-2 text-4xl font-medium font-serif">
                   {user.name}
                 </h1>
-
                 <p className="mt-1 text-sm text-gray-400">
                   {user.role}
                 </p>
@@ -176,7 +166,7 @@ export default function ProfilePage() {
 
               <button
                 className="rounded-lg px-4 py-2 text-sm transition bg-white text-gray-700  border border-transparent cursor-pointer hover:border-gray-400"
-               
+
               >
                 Ver todos
               </button>
@@ -198,7 +188,7 @@ export default function ProfilePage() {
                       </div>
 
                       <span
-                        className={ `rounded-full px-3 py-1 text-xs font-medium flex items-center border `}
+                        className={`rounded-full px-3 py-1 text-xs font-medium flex items-center border `}
                         style={{ color: s.text }}
                       >
                         {project.status}

@@ -35,7 +35,7 @@ export default async function ProjectLayout({
 
       <div className="flex flex-col h-screen overflow-hidden">
         <ProjectNavbar projectId={projectId} />
-        <main className="flex-1 h-max overflow-y-auto bg-white min-w-0">
+        <main className="flex-1 h-max overflow-y-auto bg-gray-50 min-w-0">
           {children}
         </main>
       </div>

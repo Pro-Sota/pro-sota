@@ -37,22 +37,22 @@ export default function FolderItem({
         onClick={handleClick}
         className={`
           flex w-full cursor-pointer items-center rounded-md p-2 transition-colors
-          ${isActive(folder.href)
-            ? "bg-slate-500 text-white"
-            : "text-gray-800 hover:bg-gray-200"
+          ${
+            isActive(folder.href)
+              ? "bg-slate-500 text-white"
+              : "text-gray-800 hover:bg-gray-200"
           }
         `}
       >
+        <folder.icon className="mr-2 h-4 w-4" />
+        {folder.name}
+
         {hasChildren &&
           (expanded ? (
-            <ChevronDown className="mr-1 h-4 w-4" />
+            <ChevronDown className="ml-auto h-4 w-4" />
           ) : (
-            <ChevronRight className="mr-1 h-4 w-4" />
+            <ChevronRight className="ml-auto h-4 w-4" />
           ))}
-
-        <folder.icon className="mr-2 h-4 w-4" />
-
-        {folder.name}
       </button>
 
       {expanded && hasChildren && (

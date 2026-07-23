@@ -175,7 +175,7 @@ export default function DocumentSidebar({
   ], [projectId, view]);
 
   const linkClass = (href: string, id: string) => `
-  flex items-center rounded-md p-2 transition-colors cursor-pointer
+  flex w-full items-center rounded-md p-2 transition-colors cursor-pointer
   ${isActive(href)
       ? "bg-slate-500 text-white"
       : "text-gray-800 hover:bg-gray-200"
@@ -202,7 +202,7 @@ export default function DocumentSidebar({
       className="
         flex h-full w-64 flex-shrink-0 flex-col
         border-r border-gray-300
-        px-4 py-2 text-sm
+        px-4 py-2 text-sm bg-white
       "
     >
       <nav className="flex-1">

@@ -1,63 +1,52 @@
 "use client";
 
-import { useState } from "react";
 import { Grid, List } from "lucide-react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import CreateFolderDialog from "./create_folder_dialog";
 import UploadDocument from "./upload_document";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+
+const viewOptions = [
+  { value: "list", label: "List", icon: List },
+  { value: "grid", label: "Grid", icon: Grid },
+] as const;
 
 export default function DocumentToolbar({
   view,
 }: {
   view: "list" | "grid";
 }) {
-
-   const router = useRouter();
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   function setView(newView: "grid" | "list") {
-    const params = new URLSearchParams(searchParams);
-
+    const params = new URLSearchParams(searchParams.toString());
     params.set("view", newView);
-
-    router.push(`${pathname}?${params.toString()}`);
+    router.replace(`${pathname}?${params.toString()}`);
   }
 
-
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-300 bg-white px-4 py-2">
-      <div className="flex items-center gap-2">
-        <UploadDocument />
+    <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white p-4">
         <CreateFolderDialog />
-      </div>
 
-
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setView("list")}
-          className={`flex items-center gap-1 rounded px-3 py-1 text-sm transition cursor-pointer ${view === "list"
-            ? "bg-slate-500 text-white"
-            : "text-gray-600 hover:bg-gray-200"
+      <div className="flex gap-2">
+        {viewOptions.map(({ value, label, icon: Icon }) => (
+          <button
+            key={value}
+            onClick={() => setView(value)}
+            aria-label={`Switch to ${label} view`}
+            className={`flex items-center gap-2 rounded bg-slate-500 px-3 py-2 text-sm text-white hover:bg-slate-600 cursor-pointer transition ${
+              view === value
+                ? "bg-slate-500 text-white"
+                : "text-gray-600 hover:bg-gray-200"
             }`}
-        >
-          <List className="h-4 w-4" />
-          List
-        </button>
-
-        <button
-          onClick={() => setView("grid")}
-          className={`flex items-center gap-1 rounded px-3 py-1 text-sm transition cursor-pointer ${view === "grid"
-            ? "bg-slate-500 text-white"
-            : "text-gray-600 hover:bg-gray-200"
-            }`}
-        >
-          <Grid className="h-4 w-4" />
-          Grid
-        </button>
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </button>
+        ))}
       </div>
     </div>
   );
 }
-
