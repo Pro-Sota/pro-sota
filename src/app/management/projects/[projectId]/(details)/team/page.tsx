@@ -46,48 +46,7 @@ export default function Team() {
     const [manageRolesOpen, setManageRolesOpen] = useState(false);
     const router = useRouter();
 
-    const members: Profile[] = [
-        {
-            id: "1",
-            name: "João Silva",
-            image: "/images/profile.png",
-            role: "project-manager",
-            status: "disponível",
-            tasks: []
-        },
-        {
-            id: "2",
-            name: "Maria Santos",
-            image: "/images/profile.png",
-            role: "architect",
-            status: "ocupado",
-            tasks: []
-        },
-        {
-            id: "3",
-            name: "Pedro Santos",
-            image: "/images/profile.png",
-            role: "engineer",
-            status: "disponível",
-            tasks: []
-        },
-        {
-            id: "4",
-            name: "Weza Sofia",
-            image: "/images/profile.png",
-            role: "architect",
-            status: "ausente",
-            tasks: []
-        },
-        {
-            id: "5",
-            name: "Lurdes Daniela",
-            image: "/images/profile.png",
-            role: "architect",
-            status: "disponível",
-            tasks: []
-        },
-    ];
+   const members: Profile[] = [];
 
     const sections: { title: string; role: Role }[] = [
         {

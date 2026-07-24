@@ -57,7 +57,6 @@ const STATUS = {
   },
 } as const;
 
-export const config = STATUS[status as keyof typeof STATUS];
 
 const phases: Phase[] = [
   {
@@ -112,8 +111,7 @@ export default function PhasesPage() {
   const milestones: StatusItem[] = [];
 
   const currentIndex = Math.max(
-    0,
-    phases.findIndex((p) => p.status === "Current"),
+    0, phases.findIndex((p) => p.status === "Current"),
   );
   const currentPhase = phases[currentIndex] as Phase | undefined;
   const overallProgress = computeOverallProgress(phases);
@@ -286,7 +284,7 @@ function StatusList({ items }: { items: StatusItem[] }) {
           className="flex justify-between items-center gap-3 py-3"
         >
           <span className="text-slate-700 text-sm">{item.name}</span>
-          <StatusPill status={item.status} />
+          <StatusPill label={item.name} color={STATUS[item.status].color} />
         </div>
       ))}
     </div>

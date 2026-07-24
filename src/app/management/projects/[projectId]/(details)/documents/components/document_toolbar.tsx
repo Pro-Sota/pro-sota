@@ -4,7 +4,6 @@ import { Grid, List } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import CreateFolderDialog from "./create_folder_dialog";
-import UploadDocument from "./upload_document";
 
 const viewOptions = [
   { value: "list", label: "List", icon: List },
@@ -28,7 +27,7 @@ export default function DocumentToolbar({
 
   return (
     <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white p-4">
-        <CreateFolderDialog />
+      <CreateFolderDialog />
 
       <div className="flex gap-2">
         {viewOptions.map(({ value, label, icon: Icon }) => (
@@ -36,11 +35,10 @@ export default function DocumentToolbar({
             key={value}
             onClick={() => setView(value)}
             aria-label={`Switch to ${label} view`}
-            className={`flex items-center gap-2 rounded bg-slate-500 px-3 py-2 text-sm text-white hover:bg-slate-600 cursor-pointer transition ${
-              view === value
-                ? "bg-slate-500 text-white"
-                : "text-gray-600 hover:bg-gray-200"
-            }`}
+            className={`flex cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm transition ${view === value
+                ? "bg-slate-500 text-white hover:bg-slate-600"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
           >
             <Icon className="h-4 w-4" />
             {label}

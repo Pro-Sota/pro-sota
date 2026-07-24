@@ -33,56 +33,7 @@ interface Client {
 }
 
 const CLIENTS: Client[] = [
-  {
-    id: "c1",
-    name: "ABC Construction",
-    type: "Empresa",
-    projects: 4,
-    phone: "+244 923 000 000",
-    email: "geral@abcconstruction.ao",
-    status: "Activo",
-    outstanding: 4200000,
-  },
-  {
-    id: "c2",
-    name: "Maria Fernandes",
-    type: "Particular",
-    projects: 1,
-    phone: "+244 923 111 111",
-    email: "maria.fernandes@gmail.com",
-    status: "Activo",
-    outstanding: 350000,
-  },
-  {
-    id: "c3",
-    name: "Kianda Logística",
-    type: "Empresa",
-    projects: 2,
-    phone: "+244 923 222 222",
-    email: "contacto@kianda.ao",
-    status: "Pending",
-    outstanding: 1850000,
-  },
-  {
-    id: "c4",
-    name: "João Baptista",
-    type: "Particular",
-    projects: 0,
-    phone: "+244 923 333 333",
-    email: "joao.baptista@outlook.com",
-    status: "Inactivo",
-    outstanding: 0,
-  },
-  {
-    id: "c5",
-    name: "Girassol Retail Group",
-    type: "Empresa",
-    projects: 6,
-    phone: "+244 923 444 444",
-    email: "financeiro@girassolretail.ao",
-    status: "Activo",
-    outstanding: 9600000,
-  },
+  
 ];
 
 const STATUS_STYLES: Record<ClientStatus, string> = {

@@ -1,12 +1,11 @@
 "use client";
-import { config } from "./page";
 
-export function StatusPill({ status }: { status: string; }) {
+export function StatusPill({label,  color }: { label:string; color:string }) {
   return (
     <span
-      className={`text-xs font-medium px-2.5 py-1 rounded-full border h-fit whitespace-nowrap ${config.color}`}
+      className={`text-xs font-medium px-2.5 py-1 rounded-full border h-fit whitespace-nowrap ${color}`}
     >
-      {config.label}
+      {label}
     </span>
   );
 }
