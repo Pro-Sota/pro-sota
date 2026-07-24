@@ -11,6 +11,7 @@ import {
   Users,
   Calendar,
   FolderOpen,
+  User,
 } from "lucide-react";
 
 import { useState } from "react";
