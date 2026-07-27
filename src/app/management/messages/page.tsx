@@ -16,16 +16,34 @@ import {
 
 import { useState } from "react";
 
-const projectConversations: [] = [
+const projectConversations: Chat[] = [
 
 ];
-const directConversations: [] = [
+const directConversations: Chat[] = [
 
 ];
 
-const messages: [] = [
+const messages: Message[] = [
 
 ];
+
+
+interface Chat {
+  id: string;
+  isOnline: boolean;
+  name: string;
+  time: string;
+  last: string;
+  unread: number;
+}
+
+interface Message {
+  id: string;
+  isMine: boolean;
+  sender: string;
+  text: string;
+  time: string;
+}
 
 export default function CommunicationPage() {
 
@@ -57,7 +75,7 @@ export default function CommunicationPage() {
           {projectConversations.map((chat) => (
             <button
               key={chat.id}
-              className={`flex w-full items-center gap-3 border-b border-slate-100 p-4 text-left transition hover:bg-slate-50 ${chat.id === 1 ? "bg-slate-100" : ""
+              className={`flex w-full items-center gap-3 border-b border-slate-100 p-4 text-left transition hover:bg-slate-50 ${chat.id === "1" ? "bg-slate-100" : ""
                 }`}
             >
               <div className="relative shrink-0">
@@ -65,7 +83,7 @@ export default function CommunicationPage() {
                   <Building2 className="h-5 w-5 text-white" />
                 </div>
 
-                {chat.online && (
+                {chat.isOnline && (
                   <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
                 )}
               </div>
@@ -103,7 +121,7 @@ export default function CommunicationPage() {
           {directConversations.map((chat) => (
             <button
               key={chat.id}
-              className={`flex w-full items-center gap-3 border-b border-slate-100 p-4 text-left transition hover:bg-slate-50 ${chat.id === 1 ? "bg-slate-100" : ""
+              className={`flex w-full items-center gap-3 border-b border-slate-100 p-4 text-left transition hover:bg-slate-50 ${chat.id === "1" ? "bg-slate-100" : ""
                 }`}
             >
               <div className="relative shrink-0">
@@ -111,7 +129,7 @@ export default function CommunicationPage() {
                   <User className="h-5 w-5 text-white" />
                 </div>
 
-                {chat.online && (
+                {chat.isOnline && (
                   <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
                 )}
               </div>
@@ -196,19 +214,20 @@ export default function CommunicationPage() {
             </div>
           ) : (
             <div className="flex-1 space-y-5 overflow-y-auto bg-slate-50 p-6">
+
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.mine ? "justify-end" : "justify-start"
+                  className={`flex ${message.isMine ? "justify-end" : "justify-start"
                     }`}
                 >
                   <div
-                    className={`max-w-md rounded-2xl px-4 py-3 ${message.mine
+                    className={`max-w-md rounded-2xl px-4 py-3 ${message.isMine
                       ? "bg-slate-900 text-white"
                       : "border border-slate-200 bg-white text-slate-900"
                       }`}
                   >
-                    {!message.mine && (
+                    {!message.isMine && (
                       <p className="mb-1 text-xs font-semibold text-slate-500">
                         {message.sender}
                       </p>

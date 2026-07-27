@@ -17,9 +17,13 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { StatCard } from "../../components/StatCard";
+import { useRouter } from "next/navigation";
+
 
 type ClientType = "Empresa" | "Particular";
 type ClientStatus = "Activo" | "Pending" | "Inactivo";
+
+
 
 interface Client {
   id: string;
@@ -56,6 +60,8 @@ export default function ClientsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
+  const router = useRouter();
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return CLIENTS.filter((c) => {
@@ -84,7 +90,9 @@ export default function ClientsPage() {
             <p className="text-gray-500">Gerir clientes, contactos and projectos.</p>
           </div>
 
-          <button className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-white transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+          <button 
+            onClick={() => router.push("/management/clients/create-client")}
+          className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-white transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
             <Plus size={18} />
             Novo Cliente
           </button>

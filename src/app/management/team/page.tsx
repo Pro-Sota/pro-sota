@@ -15,8 +15,10 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { StatCard } from "@/app/components/StatCard";
+import { useRouter } from "next/navigation";
 
 export default function TeamPage() {
+  const router = useRouter();
   const [view, setView] = useState<"grid" | "list">("grid");
 
   const employees: {
@@ -87,7 +89,9 @@ const stats = [
             </p>
           </div>
 
-          <button className="cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 active:bg-slate-950">
+          <button 
+            onClick={() => router.push("/management/team/create-member") }
+          className="cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 active:bg-slate-950">
             <Plus size={16} />
             Add Colaborador
           </button>

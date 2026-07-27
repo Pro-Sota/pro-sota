@@ -23,72 +23,19 @@ import {
 } from "lucide-react";
 import { createClient } from "@/app/lib/supabase/client";
 
-type TeamMember = {
-  id: string;
-  name: string;
-  email?: string;
-  avatarUrl?: string;
-  isCustom?: boolean; // true when typed manually instead of picked from Supabase
-};
+import { Database } from "@/app/lib/supabase/models";
+import { createProject } from "@/services/projects";
 
-type FormState = {
-  name: string;
-  client: string;
-  projectType: string;
-  description: string;
-  status: string;
-  country: string;
-  province: string;
-  municipality: string;
-  address: string;
-  startDate: string;
-  endDate: string;
-  projectManager: string;
-  teamMembers: TeamMember[];
-  budget: string; // raw digits only, formatted on display
-  contractValue: string; // raw digits only, formatted on display
-  drawings: File[];
-  documents: File[];
-};
 
-const REQUIRED_FOR_PROGRESS: (keyof FormState)[] = [
-  "name",
-  "client",
-  "projectType",
-  "province",
-  "municipality",
-  "address",
-  "startDate",
-  "endDate",
-  "projectManager",
-  "budget",
-];
+type Project = Database["public"]["Tables"]["projects"]["Row"];
+
+type TeamMember = Database["public"]["Tables"]["users"]["Row"];
+
 
 const DESCRIPTION_MAX = 500;
 
 export default function NewProjectPage() {
   const router = useRouter();
-  const supabase = createClient();
-
-  const [form, setForm] = useState<FormState>({
-    name: "",
-    client: "",
-    projectType: "",
-    description: "",
-    status: "Planning",
-    country: "Angola",
-    province: "",
-    municipality: "",
-    address: "",
-    startDate: "",
-    endDate: "",
-    projectManager: "",
-    teamMembers: [],
-    budget: "",
-    contractValue: "",
-    drawings: [],
-    documents: [],
-  });
 
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -151,6 +98,7 @@ export default function NewProjectPage() {
     setSubmitting(true);
     try {
       // Replace with your real create-project request.
+      const [data, error] = await createProject(form)
       await new Promise((resolve) => setTimeout(resolve, 1400));
       const fakeId = `PRJ-${Math.floor(Math.random() * 90000 + 10000)}`;
       setCreatedProjectId(fakeId);

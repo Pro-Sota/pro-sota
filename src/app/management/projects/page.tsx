@@ -88,13 +88,10 @@ function ProjectsPageInner() {
         {/* new project button */}
         <div className="flex flex-row items-center justify-between mb-4">
           <h1 className="text-2xl text-black font-medium">Projectos</h1>
-          <Link href="/management/projects/new-project">
-            <button
-              type="button"
-              className="bg-gray-200 text-gray-700 text-sm rounded-sm hover:border-gray-500 border border-transparent flex items-center justify-center cursor-pointer px-2 py-1 gap-2"
-            >
-              <Plus className="h-4 w-4" /> New Project
-            </button>
+          <Link href="/management/projects/create-project"
+            className="bg-gray-200 text-gray-700 text-sm rounded-sm hover:border-gray-500 border border-transparent flex items-center justify-center cursor-pointer px-2 py-1 gap-2"
+          >
+            <Plus className="h-4 w-4" /> New Project
           </Link>
         </div>
 
