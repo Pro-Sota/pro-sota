@@ -80,16 +80,16 @@ function ProjectsPageInner() {
   }, [searchTerm, filter]);
 
   const buttonClass =
-    "h-8 px-4 text-gray-400 flex items-center justify-center text-sm rounded hover:border-gray-500 border border-gray-200 transition-colors duration-300 cursor-pointer";
+    " p-2 text-gray-400 flex items-center justify-center text-sm rounded hover:border-gray-500 border border-gray-300 transition-colors duration-300 cursor-pointer";
 
   return (
-    <div className="flex flex-col text-black px-8 pt-2">
-      <div>
+    <div className="flex flex-col text-black px-8 bg-gray-50 h-screen">
+      <div className="flex flex-col gap-y-2">
         {/* new project button */}
-        <div className="flex flex-row items-center justify-between mb-4">
+        <div className="flex flex-row items-center justify-between h-[60px]">
           <h1 className="text-2xl text-black font-medium">Projectos</h1>
           <Link href="/management/projects/create-project"
-            className="bg-gray-200 text-gray-700 text-sm rounded-sm hover:border-gray-500 border border-transparent flex items-center justify-center cursor-pointer px-2 py-1 gap-2"
+            className="bg-white text-gray-700  shadow-md text-sm rounded-sm hover:border-gray-100 border border-transparent flex items-center justify-center cursor-pointer px-2 py-2 gap-2"
           >
             <Plus className="h-4 w-4" /> New Project
           </Link>
@@ -98,47 +98,54 @@ function ProjectsPageInner() {
         <div className="flex flex-row items-center justify-between mb-4">
           {/* search bar */}
           <div className="flex flex-row items-center gap-3">
-            {isSearchOpen ? (
-              <div className="relative">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Pesquisar projectos..."
-                  aria-label="Pesquisar projectos"
-                  className="h-8 w-72 bg-gray-200 text-gray-700 pl-10 pr-10 border border-gray-300 rounded"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onBlur={(e) => {
-                    // Don't close if focus is moving to the clear button
-                    if (e.relatedTarget === clearButtonRef.current) return;
-                    if (!searchTerm.trim()) {
-                      setIsSearchOpen(false);
-                    }
-                  }}
-                />
+            <div
+              className={`relative overflow-hidden transition-all duration-500 ease-in-out ${isSearchOpen ? "w-94 opacity-100" : "w-0 opacity-0"
+                }`}
+            >
+              <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
 
-                <button
-                  ref={clearButtonRef}
-                  type="button"
-                  aria-label="Limpar pesquisa"
-                  onClick={closeSearch}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Pesquisar projectos..."
+                aria-label="Pesquisar projectos"
+                className="w-full rounded border border-gray-300 bg-gray-100 p-2 pl-10 pr-10 text-gray-700 outline-none transition-colors duration-300 focus:border-gray-500"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                }}
+                onBlur={(e) => {
+                  if (e.relatedTarget === clearButtonRef.current) return;
+
+                  if (!searchTerm.trim()) {
+                    setIsSearchOpen(false);
+                  }
+                }}
+              />
+              <button
+                ref={clearButtonRef}
+                type="button"
+                aria-label="Limpar pesquisa"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={closeSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-black"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {!isSearchOpen && (
               <button
                 type="button"
                 aria-label="Abrir pesquisa"
-                onClick={() => setIsSearchOpen(true)}
-                className="h-8 w-10 bg-gray-200 text-gray-700 rounded hover:border-gray-500 border border-transparent flex items-center justify-center cursor-pointer"
+                onClick={() => {
+                  setIsSearchOpen(true);
+                  setTimeout(() => inputRef.current?.focus(), 50);
+                }}
+                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded bg-white shadow-sm p-2 text-gray-700 hover:border-gray-500"
               >
                 <SearchIcon className="h-5 w-5" />
               </button>
             )}
-
             {/* filter buttons */}
             {filters.map((f) => (
               <button

@@ -1,5 +1,6 @@
 import { Project } from "@/app/management/projects/types";
 import { createClient } from "../app/lib/supabase/client";
+import { ProjectFormState } from "@/app/management/projects/create-project/page";
 
 const supabase = createClient();
 
@@ -21,15 +22,21 @@ export async function getProject(projectId: string) {
   return data;
 }
 
-export async function createProject(project:Project){
-    const {data, error} = await supabase.from("projects")
+export async function createProject(project: ProjectFormState) {
+  const { data, error } = await supabase
+    .from("projects")
     .insert(project)
     .select()
-    .single()
+    .single();
 
-    if(error) throw error;
+  console.log("Supabase error:", error);
 
-    return data;
+  if (error) {
+    console.error(error);
+    throw new Error(error.message);
+  }
+
+  return data;
 }
 
 export async function getProjectsByUser(userId: string) {

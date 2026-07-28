@@ -9,7 +9,7 @@ export default function Layout({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       <DashboardMenu 
         collapsed={collapsed} 
         setCollapsedAction={setCollapsed}

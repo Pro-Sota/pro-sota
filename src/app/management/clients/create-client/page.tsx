@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
     User,
     Mail,
@@ -12,20 +12,39 @@ import {
 } from "lucide-react";
 import { Database } from "@/app/lib/supabase/models";
 
-type Client = Database["public"]["Tables"]["clients"]["Row"];
+type ClientInsert = Database["public"]["Tables"]["clients"]["Insert"];
 
-const INITIAL_STATE : Client = {
-    address: null,
-    city: null,
-    client_id: "",
-    company_name: null,
-    contact_person: null,
-    country: null,
-    created_at: null,
-    email: null,
-    notes: null,
-    phone_number: null,
-    updated_at: null
+// All fields the form actually reads/writes need a starting value, or the
+// related inputs/selects flip from "uncontrolled" to "controlled" the first
+// time they're touched (React warning + flaky behavior). The previous
+// version was missing status, preferred_contact_method, city, country, and
+// notes even though the form below uses all of them.
+const INITIAL_STATE: ClientInsert = {
+  client_type: "Individual",
+
+  name: "",
+  email: "",
+  phone: "",
+  address: "",
+  city: "",
+  country: "",
+  notes: "",
+
+  first_name: "",
+  last_name: "",
+
+  organization_name: "",
+  contact_person: "",
+
+  status: "Prospective",
+  preferred_contact_method: "Email",
+};
+
+// handleChange is reused both for real DOM change events (input/select/
+// textarea) and for the client-type toggle buttons, which fake an event.
+// This shape covers both without needing `any`.
+type FieldChangeEvent = {
+  target: { name: string; value: string };
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -34,73 +53,68 @@ const CLIENT_TYPE_LABELS = { Individual: "Individual", Company: "Empresa", Gover
 const STATUS_LABELS = { Active: "Ativo", Inactive: "Inativo", Prospective: "Potencial" };
 const CONTACT_METHOD_LABELS = { Email: "Email", Phone: "Telefone", WhatsApp: "WhatsApp" };
 
-const STATUS_STYLES = {
+const STATUS_STYLES: Record<string, string> = {
     Active: "bg-emerald-50 text-emerald-700",
     Inactive: "bg-slate-100 text-slate-600",
     Prospective: "bg-amber-50 text-amber-700",
 };
 
-const STATUS_DOT = {
+const STATUS_DOT: Record<string, string> = {
     Active: "bg-emerald-500",
     Inactive: "bg-slate-400",
     Prospective: "bg-amber-500",
 };
 
-const inputClass = (hasError:boolean) =>
+const inputClass = (hasError: boolean) =>
     `w-full rounded-lg border px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 ${hasError ? "border-red-400 bg-red-50" : "border-slate-200 bg-slate-50/60"
     }`;
 
 export default function CreateClient() {
-    const [client, setClient] = useState(INITIAL_STATE);
-    const [errors, setErrors] = useState({});
+    const [client, setClient] = useState<ClientInsert>(INITIAL_STATE);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
     const [success, setSuccess] = useState(false);
 
-    const isOrg = client.clientType === "Company" || client.clientType === "Government";
+    const isOrg = client.client_type === "Company" || client.client_type === "Government";
 
-    const handleChange = (e) => {
+    const handleChange = (e: FieldChangeEvent) => {
         const { name, value } = e.target;
         setClient((prev) => ({ ...prev, [name]: value }));
-
-        if (errors[name]) {
-            setErrors((prev) => {
-                const next = { ...prev };
-                delete next[name];
-                return next;
-            });
-        }
     };
 
     const validate = () => {
-        const next = {};
+        const next: Record<string, string> = {};
 
-        if (isOrg && !client.companyName.trim()) {
-            next.companyName = "O nome da empresa é obrigatório.";
+        if (isOrg && !client.organization_name?.trim()) {
+            next.organization_name = "O nome da empresa é obrigatório.";
         }
-        if (!isOrg && !client.fullName.trim()) {
-            next.fullName = "O nome completo é obrigatório.";
+        if (!isOrg && !client.first_name?.trim()) {
+            next.first_name = "O primeiro nome é obrigatório.";
         }
-        if (isOrg && !client.contactPerson.trim()) {
-            next.contactPerson = "A pessoa de contacto é obrigatória.";
+        if (!isOrg && !client.last_name?.trim()) {
+            next.last_name = "O último nome é obrigatório.";
         }
-        if (!client.email.trim()) {
+        if (isOrg && !client.contact_person?.trim()) {
+            next.contact_person = "A pessoa de contacto é obrigatória.";
+        }
+        if (!client.email?.trim()) {
             next.email = "O email é obrigatório.";
         } else if (!EMAIL_REGEX.test(client.email.trim())) {
             next.email = "Introduza um endereço de email válido.";
         }
         if (
-            (client.preferredContact === "Phone" || client.preferredContact === "WhatsApp") &&
-            !client.phone.trim()
+            (client.preferred_contact_method === "Phone" || client.preferred_contact_method === "WhatsApp") &&
+            !client.phone?.trim()
         ) {
-            next.phone = `O telefone é obrigatório quando o contacto preferido é ${CONTACT_METHOD_LABELS[client.preferredContact]}.`;
+            next.phone = `O telefone é obrigatório quando o contacto preferido é ${CONTACT_METHOD_LABELS[client.preferred_contact_method]}.`;
         }
 
         setErrors(next);
         return Object.keys(next).length === 0;
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setSubmitError("");
         setSuccess(false);
@@ -109,25 +123,31 @@ export default function CreateClient() {
 
         const payload = {
             ...client,
-            fullName: client.fullName.trim(),
-            companyName: client.companyName.trim(),
-            contactPerson: client.contactPerson.trim(),
-            email: client.email.trim().toLowerCase(),
-            phone: client.phone.trim(),
-            address: client.address.trim(),
-            city: client.city.trim(),
-            country: client.country.trim(),
-            notes: client.notes.trim(),
+            name: isOrg
+                ? client.organization_name?.trim()
+                : `${client.first_name?.trim() ?? ""} ${client.last_name?.trim() ?? ""}`.trim(),
+            organization_name: client.organization_name?.trim(),
+            contact_person: client.contact_person?.trim(),
+            email: client.email?.trim().toLowerCase(),
+            phone: client.phone?.trim(),
+            address: client.address?.trim(),
+            city: client.city?.trim(),
+            country: client.country?.trim(),
+            notes: client.notes?.trim(),
         };
 
         try {
             setSubmitting(true);
-            if (onSave) await onSave(payload);
+            // TODO: replace with the real request, e.g.
+            // const [data, error] = await createClient(payload);
+            // if (error) throw new Error(error.message ?? JSON.stringify(error));
+            await new Promise((resolve) => setTimeout(resolve, 800));
+
             setSuccess(true);
             setClient(INITIAL_STATE);
             setErrors({});
         } catch (err) {
-            setSubmitError(err?.message || "Ocorreu um erro ao guardar o cliente.");
+            setSubmitError("Ocorreu um erro ao guardar o cliente.");
         } finally {
             setSubmitting(false);
         }
@@ -152,7 +172,7 @@ export default function CreateClient() {
                         Cliente guardado com sucesso.
                     </div>
                 )}
-                
+
                 {submitError && (
                     <div className="mb-5 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                         <AlertCircle size={18} />
@@ -180,13 +200,13 @@ export default function CreateClient() {
                                         <button
                                             type="button"
                                             key={t}
-                                            onClick={() => handleChange({ target: { name: "clientType", value: t } })}
-                                            className={`rounded-md px-3.5 py-1.5 text-sm font-semibold transition ${client.clientType === t
-                                                    ? "bg-white text-slate-900 shadow-sm"
-                                                    : "text-slate-500 hover:text-slate-700"
+                                            onClick={() => handleChange({ target: { name: "client_type", value: t } })}
+                                            className={`rounded-md px-3.5 py-1.5 text-sm font-semibold transition ${client.client_type === t
+                                                ? "bg-white text-slate-900 shadow-sm"
+                                                : "text-slate-500 hover:text-slate-700"
                                                 }`}
                                         >
-                                            {CLIENT_TYPE_LABELS[t]}
+                                            {CLIENT_TYPE_LABELS[t as keyof typeof CLIENT_TYPE_LABELS]}
                                         </button>
                                     ))}
                                 </div>
@@ -200,13 +220,13 @@ export default function CreateClient() {
                                         </label>
                                         <input
                                             type="text"
-                                            name="companyName"
-                                            className={inputClass(errors.companyName)}
-                                            value={client.companyName}
+                                            name="organization_name"
+                                            className={inputClass(!!errors.organization_name)}
+                                            value={client.organization_name || ""}
                                             onChange={handleChange}
                                         />
-                                        {errors.companyName && (
-                                            <p className="mt-1.5 text-xs text-red-600">{errors.companyName}</p>
+                                        {errors.organization_name && (
+                                            <p className="mt-1.5 text-xs text-red-600">{errors.organization_name}</p>
                                         )}
                                     </div>
                                 ) : (
@@ -218,13 +238,13 @@ export default function CreateClient() {
                                             </label>
                                             <input
                                                 type="text"
-                                                name="fullName"
-                                                className={inputClass(errors.fullName)}
-                                                value={client.firstName}
+                                                name="first_name"
+                                                className={inputClass(!!errors.first_name)}
+                                                value={client.first_name || ""}
                                                 onChange={handleChange}
                                             />
-                                            {errors.fullName && (
-                                                <p className="mt-1.5 text-xs text-red-600">{errors.fullName}</p>
+                                            {errors.first_name && (
+                                                <p className="mt-1.5 text-xs text-red-600">{errors.first_name}</p>
                                             )}
                                         </div>
                                         <div>
@@ -233,13 +253,13 @@ export default function CreateClient() {
                                             </label>
                                             <input
                                                 type="text"
-                                                name="fullName"
-                                                className={inputClass(errors.fullName)}
-                                                value={client.lastName}
+                                                name="last_name"
+                                                className={inputClass(!!errors.last_name)}
+                                                value={client.last_name || ""}
                                                 onChange={handleChange}
                                             />
-                                            {errors.fullName && (
-                                                <p className="mt-1.5 text-xs text-red-600">{errors.fullName}</p>
+                                            {errors.last_name && (
+                                                <p className="mt-1.5 text-xs text-red-600">{errors.last_name}</p>
                                             )}
                                         </div>
 
@@ -253,13 +273,13 @@ export default function CreateClient() {
                                         </label>
                                         <input
                                             type="text"
-                                            name="contactPerson"
-                                            className={inputClass(errors.contactPerson)}
-                                            value={client.contactPerson}
+                                            name="contact_person"
+                                            className={inputClass(!!errors.contact_person)}
+                                            value={client.contact_person || ""}
                                             onChange={handleChange}
                                         />
-                                        {errors.contactPerson && (
-                                            <p className="mt-1.5 text-xs text-red-600">{errors.contactPerson}</p>
+                                        {errors.contact_person && (
+                                            <p className="mt-1.5 text-xs text-red-600">{errors.contact_person}</p>
                                         )}
                                     </div>
                                 )}
@@ -268,25 +288,25 @@ export default function CreateClient() {
                                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Estado</label>
                                     <select
                                         name="status"
-                                        value={client.status}
+                                        value={client.status || ""}
                                         onChange={handleChange}
                                         className={inputClass(false)}
                                     >
                                         {Object.keys(STATUS_LABELS).map((s) => (
-                                        <option key={s} value={s}>
-                                            {STATUS_LABELS[s]}
-                                        </option>
-                    ))}
+                                            <option key={s} value={s}>
+                                                {STATUS_LABELS[s as keyof typeof STATUS_LABELS]}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>
 
                             <div className="mt-4">
                                 <span
-                                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLES[client.status]}`}
+                                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLES[client.status ?? "Prospective"]}`}
                                 >
-                                    <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[client.status]}`} />
-                                    {STATUS_LABELS[client.status]}
+                                    <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[client.status ?? "Prospective"]}`} />
+                                    {STATUS_LABELS[(client.status ?? "Prospective") as keyof typeof STATUS_LABELS]}
                                 </span>
                             </div>
                         </div>
@@ -310,8 +330,8 @@ export default function CreateClient() {
                                     <input
                                         type="email"
                                         name="email"
-                                        className={inputClass(errors.email)}
-                                        value={client.email}
+                                        className={inputClass(!!errors.email)}
+                                        value={client.email || ""}
                                         onChange={handleChange}
                                     />
                                     {errors.email && <p className="mt-1.5 text-xs text-red-600">{errors.email}</p>}
@@ -322,8 +342,8 @@ export default function CreateClient() {
                                     <input
                                         type="tel"
                                         name="phone"
-                                        className={inputClass(errors.phone)}
-                                        value={client.phone}
+                                        className={inputClass(!!errors.phone)}
+                                        value={client.phone || ""}
                                         onChange={handleChange}
                                     />
                                     {errors.phone && <p className="mt-1.5 text-xs text-red-600">{errors.phone}</p>}
@@ -334,14 +354,14 @@ export default function CreateClient() {
                                         Método de Contacto Preferido
                                     </label>
                                     <select
-                                        name="preferredContact"
-                                        value={client.preferredContact}
+                                        name="preferred_contact_method"
+                                        value={client.preferred_contact_method || ""}
                                         onChange={handleChange}
                                         className={inputClass(false)}
                                     >
                                         {Object.keys(CONTACT_METHOD_LABELS).map((c) => (
                                             <option key={c} value={c}>
-                                                {CONTACT_METHOD_LABELS[c]}
+                                                {CONTACT_METHOD_LABELS[c as keyof typeof CONTACT_METHOD_LABELS]}
                                             </option>
                                         ))}
                                     </select>
@@ -367,7 +387,7 @@ export default function CreateClient() {
                                         type="text"
                                         name="address"
                                         className={inputClass(false)}
-                                        value={client.address}
+                                        value={client.address || ""}
                                         onChange={handleChange}
                                     />
                                 </div>
@@ -377,7 +397,7 @@ export default function CreateClient() {
                                         type="text"
                                         name="city"
                                         className={inputClass(false)}
-                                        value={client.city}
+                                        value={client.city || ""}
                                         onChange={handleChange}
                                     />
                                 </div>
@@ -387,7 +407,7 @@ export default function CreateClient() {
                                         type="text"
                                         name="country"
                                         className={inputClass(false)}
-                                        value={client.country}
+                                        value={client.country || ""}
                                         onChange={handleChange}
                                     />
                                 </div>
@@ -410,7 +430,7 @@ export default function CreateClient() {
                                 rows={4}
                                 placeholder="Alguma informação adicional sobre este cliente..."
                                 className={inputClass(false)}
-                                value={client.notes}
+                                value={client.notes || ""}
                                 onChange={handleChange}
                             />
                         </div>

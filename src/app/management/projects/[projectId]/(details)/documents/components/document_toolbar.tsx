@@ -26,7 +26,7 @@ export default function DocumentToolbar({
   }
 
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white p-4">
+    <div className="sticky top-0 z-10 h-[60px] flex items-center justify-between border-b bg-white p-4">
       <CreateFolderDialog />
 
       <div className="flex gap-2">
