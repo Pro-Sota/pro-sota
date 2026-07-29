@@ -8,7 +8,28 @@ import { ChevronDown, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 // Swap this block for your real `tasks` / `milestones` arrays.
 // ---------------------------------------------------------------------------
 
-const tasks = [
+type Phase = keyof typeof PHASE_COLORS;
+type MilestoneType = keyof typeof MILESTONE_COLORS;
+
+type Milestone = {
+  name: string;
+  day: number;
+  type: MilestoneType;
+};
+
+
+
+
+type Task = {
+  id: string;
+  name: string;
+  phase: Phase;
+  start: number;
+  duration: number;
+  progress: number;
+};
+
+const tasks: Task[] = [
   { id: "1", name: "Levantamento do Terreno", phase: "Concept Design", start: 1, duration: 5, progress: 100 },
   { id: "2", name: "Esboços Preliminares", phase: "Concept Design", start: 4, duration: 8, progress: 60 },
   { id: "3", name: "Aprovação do Cliente", phase: "Concept Design", start: 10, duration: 2, progress: 20 },
@@ -19,7 +40,7 @@ const tasks = [
   { id: "8", name: "Especificações Técnicas", phase: "Design Development", start: 30, duration: 6, progress: 0 },
 ];
 
-const milestones = [
+const milestones: Milestone[] = [
   { name: "Revisão do Cliente", day: 12, type: "review" },
   { name: "Revisão Interna", day: 14, type: "review" }, // close to the one above, on purpose
   { name: "Submissão à Câmara", day: 34, type: "submission" },
@@ -36,7 +57,7 @@ const HEADER_HEIGHT = MONTH_ROW_HEIGHT + DAY_ROW_HEIGHT;
 const LABEL_WIDTH = 260;
 const MILESTONE_LABEL_ROW_HEIGHT = 18;
 
-const ZOOM_LEVELS = { compact: 16, comfortable: 26 };
+const ZOOM_LEVELS = { compact: 16, comfortable: 26 } as const;
 
 const BASE_DATE = new Date(2026, 0, 1);
 
@@ -53,9 +74,12 @@ const PHASE_COLORS = {
   "Concept Design": { bar: "bg-blue-500", border: "border-blue-600", dot: "bg-blue-500" },
   "Schematic Design": { bar: "bg-green-500", border: "border-green-600", dot: "bg-green-500" },
   "Design Development": { bar: "bg-purple-500", border: "border-purple-600", dot: "bg-purple-500" },
-};
+} as const;
+
 const DEFAULT_PHASE_COLOR = { bar: "bg-gray-500", border: "border-gray-600", dot: "bg-gray-500" };
-function getPhaseColor(phase) {
+
+
+function getPhaseColor(phase: Phase) {
   return PHASE_COLORS[phase] ?? DEFAULT_PHASE_COLOR;
 }
 
@@ -63,23 +87,23 @@ const MILESTONE_COLORS = {
   review: { line: "bg-blue-400", label: "Revisão" },
   submission: { line: "bg-purple-400", label: "Submissão" },
   deadline: { line: "bg-red-400", label: "Prazo" },
-};
+} as const;
 
-function addDays(date, days) {
+function addDays(date: Date, days: number) {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
   return d;
 }
-function formatDate(date) {
+function formatDate(date: Date) {
   return `${date.getDate()} ${MONTH_SHORT[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 // ---------------------------------------------------------------------------
 
 export default function GanttChartDemo() {
-  const [zoom, setZoom] = useState("comfortable");
-  const [collapsedPhases, setCollapsedPhases] = useState({});
-  const [hoveredTask, setHoveredTask] = useState(null);
+  const [zoom, setZoom] = useState<keyof typeof ZOOM_LEVELS>("comfortable");
+  const [collapsedPhases, setCollapsedPhases] = useState<Record<string, boolean>>({});
+  const [hoveredTask, setHoveredTask] = useState<string | null>(null);
 
   const DAY_WIDTH = ZOOM_LEVELS[zoom];
 
@@ -102,24 +126,26 @@ export default function GanttChartDemo() {
         if (last && last.label === label) last.days += 1;
         else segments.push({ label, days: 1 });
         return segments;
-      }, []),
+      }, [] as { label: string; days: number }[]),
     [days]
   );
 
   // Group tasks by phase, preserving first-seen order.
   const phaseGroups = useMemo(() => {
-    const order = [];
-    const map = {};
+    const order: Phase[] = [];
+    const map: Partial<Record<Phase, Task[]>> = {};
     for (const t of tasks) {
       if (!map[t.phase]) {
         map[t.phase] = [];
         order.push(t.phase);
       }
-      map[t.phase].push(t);
+      map[t.phase]!.push(t);
     }
     return order.map((phase) => {
-      const items = map[phase];
-      const avgProgress = Math.round(items.reduce((s, t) => s + t.progress, 0) / items.length);
+      const items = map[phase] ?? [];
+      const avgProgress = items.length > 0
+        ? Math.round(items.reduce((s, t) => s + t.progress, 0) / items.length)
+        : 0;
       return { phase, items, avgProgress };
     });
   }, []);
@@ -128,7 +154,7 @@ export default function GanttChartDemo() {
   // so nearby milestones don't overlap illegibly.
   const milestoneRows = useMemo(() => {
     const sorted = [...milestones].sort((a, b) => a.day - b.day);
-    const rowEnds = []; // rightmost pixel occupied so far, per row
+    const rowEnds: number[] = []; // rightmost pixel occupied so far, per row
     return sorted.map((m) => {
       const left = m.day * DAY_WIDTH;
       const approxWidth = m.name.length * 6 + 16;
@@ -138,7 +164,10 @@ export default function GanttChartDemo() {
       return { ...m, row, left };
     });
   }, [DAY_WIDTH]);
-  const milestoneRowCount = Math.max(1, ...milestoneRows.map((m) => m.row + 1));
+
+  const milestoneRowCount = milestoneRows.length > 0
+    ? Math.max(...milestoneRows.map((m) => m.row + 1))
+    : 1;
 
   const todayPosition = useMemo(() => {
     const diff = Math.floor((new Date().getTime() - BASE_DATE.getTime()) / 86400000);
@@ -151,13 +180,13 @@ export default function GanttChartDemo() {
     0
   );
 
-  function togglePhase(phase) {
+  function togglePhase(phase: Phase) {
     setCollapsedPhases((prev) => ({ ...prev, [phase]: !prev[phase] }));
   }
 
   // Precompute the vertical offset of every row (task rows + phase header rows)
   // so the label column and timeline column line up exactly.
-  const rowOffsets = {};
+  const rowOffsets: Record<string, number> = {};
   {
     let y = 0;
     for (const g of phaseGroups) {
@@ -247,9 +276,8 @@ export default function GanttChartDemo() {
                     g.items.map((task, i) => (
                       <div
                         key={task.id}
-                        className={`flex items-center pl-7 pr-3 border-b border-slate-100 ${
-                          i % 2 === 1 ? "bg-slate-50/40" : ""
-                        } ${hoveredTask === task.id ? "bg-blue-50/60" : ""}`}
+                        className={`flex items-center pl-7 pr-3 border-b border-slate-100 ${i % 2 === 1 ? "bg-slate-50/40" : ""
+                          } ${hoveredTask === task.id ? "bg-blue-50/60" : ""}`}
                         style={{ height: ROW_HEIGHT }}
                         onMouseEnter={() => setHoveredTask(task.id)}
                         onMouseLeave={() => setHoveredTask(null)}

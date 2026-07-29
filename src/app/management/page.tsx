@@ -15,8 +15,10 @@ import {
   Upload,
   CalendarPlus,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
+
   const stats = [
     {
       title: "Projetos Ativos",
@@ -49,10 +51,10 @@ export default function Dashboard() {
   ];
 
   const quickActions = [
-    { label: "Novo Projeto", icon: Plus },
-    { label: "Adicionar Cliente", icon: UserPlus },
-    { label: "Carregar Documento", icon: Upload },
-    { label: "Agendar Reunião", icon: CalendarPlus },
+    { label: "Novo Projeto", icon: Plus, href:"/management/projects/create-project" },
+    { label: "Adicionar Cliente", icon: UserPlus, href:"/management/clients/create-client" },
+    { label: "Carregar Documento", icon: Upload, href:""},
+    { label: "Agendar Reunião", icon: CalendarPlus, href:""},
   ];
 
   const revenue = [
@@ -92,6 +94,9 @@ export default function Dashboard() {
     },
   ];
 
+  const router = useRouter();
+
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl space-y-8 p-6 md:p-10">
@@ -111,6 +116,7 @@ export default function Dashboard() {
           {quickActions.map((action) => (
             <button
               key={action.label}
+              onClick={() => router.push(action.href)}
               className="cursor-pointer flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
             >
               <action.icon size={16} className="text-slate-500" />
@@ -201,9 +207,8 @@ export default function Dashboard() {
               {deadlines.map((item) => (
                 <div key={item.title} className="flex items-start gap-3">
                   <CalendarDays
-                    className={`mt-0.5 h-4 w-4 shrink-0 ${
-                      item.urgent ? "text-slate-900" : "text-slate-400"
-                    }`}
+                    className={`mt-0.5 h-4 w-4 shrink-0 ${item.urgent ? "text-slate-900" : "text-slate-400"
+                      }`}
                   />
 
                   <div>
@@ -212,9 +217,8 @@ export default function Dashboard() {
                     </p>
                     <p className="text-sm text-slate-500">{item.project}</p>
                     <p
-                      className={`text-xs font-medium ${
-                        item.urgent ? "text-slate-900" : "text-slate-400"
-                      }`}
+                      className={`text-xs font-medium ${item.urgent ? "text-slate-900" : "text-slate-400"
+                        }`}
                     >
                       {item.date}
                     </p>
@@ -225,79 +229,31 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Financials + Workload */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-6 lg:col-span-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">
-                Receita
-              </h2>
-              <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                <Wallet size={14} className="text-slate-400" />
-                Últimos 6 meses
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="mb-5 text-base font-semibold text-slate-900">
+            Documentos Recentes
+          </h2>
+
+          <div className="space-y-1">
+            {[
+              "Planta Baixa.pdf",
+              "Layout Elétrico.dwg",
+              "Contrato do Projeto.pdf",
+              "Orçamento.xlsx",
+            ].map((doc) => (
+              <div
+                key={doc}
+                className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50"
+              >
+                <FileText size={16} className="shrink-0 text-slate-400" />
+                <span className="text-sm text-slate-700">{doc}</span>
               </div>
-            </div>
-
-            <div className="mt-8 flex h-36 items-end gap-3">
-              {revenue.map((month) => (
-                <div
-                  key={month.month}
-                  className="flex flex-1 flex-col items-center gap-2"
-                >
-                  <div className="flex h-28 w-full items-end">
-                    <div
-                      className={`w-full rounded-md transition ${
-                        month.month === "Jul"
-                          ? "bg-slate-900"
-                          : "bg-slate-200"
-                      }`}
-                      style={{ height: `${month.value}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-slate-400">
-                    {month.month}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-base font-semibold text-slate-900">
-              Carga da Equipa
-            </h2>
-
-            <div className="mt-6 flex h-2.5 overflow-hidden rounded-full bg-slate-100">
-              {workload.map((w) => (
-                <div
-                  key={w.label}
-                  className={w.style}
-                  style={{ width: `${(w.count / workloadTotal) * 100}%` }}
-                />
-              ))}
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {workload.map((w) => (
-                <div
-                  key={w.label}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${w.style}`} />
-                    <span className="text-slate-600">{w.label}</span>
-                  </div>
-                  <span className="font-medium text-slate-900">
-                    {w.count}
-                  </span>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Bottom Section */}
-        <div className="grid gap-4 lg:grid-cols-2">
+        {/* Financials + Workload */}
+        <div className="grid gap-4 lg:grid-cols-3">
           <div className="rounded-xl border border-slate-200 bg-white p-6">
             <h2 className="mb-5 text-base font-semibold text-slate-900">
               Atividade Recente
@@ -332,30 +288,40 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-
           <div className="rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="mb-5 text-base font-semibold text-slate-900">
-              Documentos Recentes
+            <h2 className="text-base font-semibold text-slate-900">
+              Carga da Equipa
             </h2>
 
-            <div className="space-y-1">
-              {[
-                "Planta Baixa.pdf",
-                "Layout Elétrico.dwg",
-                "Contrato do Projeto.pdf",
-                "Orçamento.xlsx",
-              ].map((doc) => (
+            <div className="mt-6 flex h-2.5 overflow-hidden rounded-full bg-slate-100">
+              {workload.map((w) => (
                 <div
-                  key={doc}
-                  className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50"
+                  key={w.label}
+                  className={w.style}
+                  style={{ width: `${(w.count / workloadTotal) * 100}%` }}
+                />
+              ))}
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {workload.map((w) => (
+                <div
+                  key={w.label}
+                  className="flex items-center justify-between text-sm"
                 >
-                  <FileText size={16} className="shrink-0 text-slate-400" />
-                  <span className="text-sm text-slate-700">{doc}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${w.style}`} />
+                    <span className="text-slate-600">{w.label}</span>
+                  </div>
+                  <span className="font-medium text-slate-900">
+                    {w.count}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

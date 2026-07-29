@@ -239,7 +239,7 @@ export default function NewProjectPage() {
 
           <Breadcrumb
             items={[
-              { label: "Gestão", href: "/management" },
+              { label: "Dashboard", href: "/management" },
               { label: "Projectos", href: "/management/projects" },
               { label: "Novo Projecto" },
             ]}
@@ -303,7 +303,7 @@ export default function NewProjectPage() {
                 </Field>
 
                 <Field label="Tipo de projecto">
-                  <Select name="type" value={form.type || ""} onChange={handleChange}>
+                  <Select name="type" value={form.type || ""} onChange={handleChange} className="appearance-none pr-10">
                     <option value="">Tipo..</option>
                     <option>Residencial</option>
                     <option>Comercial</option>
@@ -580,12 +580,21 @@ function Select({
   children,
   ...props
 }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div className="relative">
-      <select {...props} className={`${inputStyle} appearance-none pr-10`}>
+      <select {...props} className={`${inputStyle} appearance-none pr-10`}
+        onMouseDown={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onChange={(e) => {
+          setOpen(false);
+          props.onChange?.(e);
+        }}
+      >
         {children}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform duration-300 ${open ? "rotate-[180deg]" : ""}`} />
     </div>
   );
 }
@@ -785,7 +794,7 @@ function CancelConfirmDialog({
           <button
             type="button"
             onClick={onDiscard}
-            className="cursor-pointer rounded-lg bg-rose-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-600"
+            className="cursor-pointer rounded-lg bg-rose-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-600"
           >
             Descartar
           </button>

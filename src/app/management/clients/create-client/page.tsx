@@ -9,8 +9,13 @@ import {
     CheckCircle2,
     AlertCircle,
     Loader2,
+    ArrowLeft,
+    ChevronRight,
 } from "lucide-react";
 import { Database } from "@/app/lib/supabase/models";
+import { useRouter } from "next/navigation";
+
+import CancelConfirmDialog from "@/app/components/cancel_confirm_dialog";
 
 type ClientInsert = Database["public"]["Tables"]["clients"]["Insert"];
 
@@ -20,31 +25,31 @@ type ClientInsert = Database["public"]["Tables"]["clients"]["Insert"];
 // version was missing status, preferred_contact_method, city, country, and
 // notes even though the form below uses all of them.
 const INITIAL_STATE: ClientInsert = {
-  client_type: "Individual",
+    client_type: "Individual",
 
-  name: "",
-  email: "",
-  phone: "",
-  address: "",
-  city: "",
-  country: "",
-  notes: "",
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    country: "",
+    notes: "",
 
-  first_name: "",
-  last_name: "",
+    first_name: "",
+    last_name: "",
 
-  organization_name: "",
-  contact_person: "",
+    organization_name: "",
+    contact_person: "",
 
-  status: "Prospective",
-  preferred_contact_method: "Email",
+    status: "Prospective",
+    preferred_contact_method: "Email",
 };
 
 // handleChange is reused both for real DOM change events (input/select/
 // textarea) and for the client-type toggle buttons, which fake an event.
 // This shape covers both without needing `any`.
 type FieldChangeEvent = {
-  target: { name: string; value: string };
+    target: { name: string; value: string };
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -75,6 +80,10 @@ export default function CreateClient() {
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
     const [success, setSuccess] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+    const router = useRouter();
+
 
     const isOrg = client.client_type === "Company" || client.client_type === "Government";
 
@@ -82,6 +91,10 @@ export default function CreateClient() {
         const { name, value } = e.target;
         setClient((prev) => ({ ...prev, [name]: value }));
     };
+
+    function confirmCancel() {
+        router.push("/management/clients");
+    }
 
     const validate = () => {
         const next: Record<string, string> = {};
@@ -153,9 +166,65 @@ export default function CreateClient() {
         }
     };
 
+    function handleCancelClick() {
+        setShowCancelConfirm(true);
+    }
+
+
+    function Breadcrumb({
+        items,
+    }: {
+        items: { label: string; href?: string }[];
+    }) {
+        const router = useRouter();
+        return (
+            <nav className="flex items-center gap-1.5 text-sm text-slate-500">
+                {items.map((item, i) => {
+                    const isLast = i === items.length - 1;
+                    return (
+                        <span key={item.label} className="flex items-center gap-1.5">
+                            {item.href ? (
+                                <button
+                                    type="button"
+                                    onClick={() => router.push(item.href as string)}
+                                    className="cursor-pointer text-slate-500 transition hover:text-[#1B3A5C] hover:underline"
+                                >
+                                    {item.label}
+                                </button>
+                            ) : (
+                                <span className="font-medium text-slate-800">{item.label}</span>
+                            )}
+                            {!isLast && <ChevronRight className="h-3.5 w-3.5 text-slate-300" />}
+                        </span>
+                    );
+                })}
+            </nav>
+        );
+    }
+
     return (
         <div className="min-h-full bg-slate-50 px-5 py-12">
+
             <div className="mx-auto max-w-3xl">
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <button
+                        type="button"
+                        onClick={handleCancelClick}
+                        className="cursor-pointer inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Voltar
+                    </button>
+
+                    <Breadcrumb
+                        items={[
+                            { label: "Dashboard", href: "/management" },
+                            { label: "Clients", href: "/management/clients" },
+                            { label: "Novo Cliente" },
+                        ]}
+                    />
+                </div>
+                
                 <div className="mb-7">
                     <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">
                         Novo registo
@@ -460,7 +529,14 @@ export default function CreateClient() {
                         </button>
                     </div>
                 </form>
+
+                {showCancelConfirm && (
+                    <CancelConfirmDialog
+                        onKeepEditing={() => setShowCancelConfirm(false)}
+                        onDiscard={confirmCancel}
+                        title={""}
+                    />
+                )}
             </div>
-        </div>
-    );
+        </div>)
 }

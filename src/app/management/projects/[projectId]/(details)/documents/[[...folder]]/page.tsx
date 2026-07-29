@@ -12,7 +12,7 @@ export default async function DocumentPage({ params, searchParams }
         params: Promise<{ projectId: string, folder?: string[] }>
         searchParams: Promise<{ view?: string }>
     }) {
-
+        
     const { projectId, folder } = await params;
     const { view } = await searchParams;
 

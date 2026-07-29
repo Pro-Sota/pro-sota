@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Check, X, Eye, Plus, FileText, Inbox } from 'lucide-react';
 import ActionButton from './components/action_button';
 import StatusBadge from './components/status_badge';
+// StatusBadge's props type may come from a different module shape; coerce to a component type
+const StatusBadgeAny = StatusBadge as unknown as React.ComponentType<{ status: string }>;
 import SummaryCard from './components/summary_card';
 import { INITIAL_SUBMISSIONS } from './data';
 
@@ -13,7 +15,7 @@ import { INITIAL_SUBMISSIONS } from './data';
 
 export default function ApprovalsAndReviewsPage() {
     const [submissions, setSubmissions] = useState(INITIAL_SUBMISSIONS);
-    const [toast, setToast] = useState(null);
+    const [toast, setToast] = useState<string | null>(null);
     const [activeFilter, setActiveFilter] = useState('all');
 
     const counts = useMemo(
@@ -41,9 +43,9 @@ export default function ApprovalsAndReviewsPage() {
         }
     }, [submissions, activeFilter]);
 
-    const timeoutRef = useRef(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const showToast = (message) => {
+    const showToast = (message: string) => {
         setToast(message);
 
         if (timeoutRef.current) {
@@ -163,7 +165,7 @@ export default function ApprovalsAndReviewsPage() {
                                             <td className="p-4 text-gray-600">{item.submittedBy}</td>
                                             <td className="p-4 text-gray-600 whitespace-nowrap">{item.date}</td>
                                             <td className="p-4">
-                                                <StatusBadge status={item.status} />
+                                                <StatusBadgeAny status={item.status} />
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex justify-end gap-1">
@@ -208,7 +210,7 @@ export default function ApprovalsAndReviewsPage() {
                                         <span>{item.date}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <StatusBadge status={item.status} />
+                                        <StatusBadgeAny status={item.status} />
                                         <div className="flex gap-1">
                                             {item.status !== 'Approved' && (
                                                 <ActionButton

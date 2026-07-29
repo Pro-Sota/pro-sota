@@ -32,7 +32,7 @@ export default function ProjectCard({ project }: { project: Project }) {
       className="flex flex-col bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-800"
     >
       <Image
-        src={project.image || "/images/arch.jpg"}
+        src={"/images/arch.jpg"}
         alt={`Imagem do projecto ${project.name}`}
         width={400}
         height={300}

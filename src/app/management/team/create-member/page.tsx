@@ -7,8 +7,12 @@ import {
     CheckCircle2,
     AlertCircle,
     Loader2,
+    ChevronRight,
+    ArrowLeft,
 } from "lucide-react";
 import { Database } from "@/app/lib/supabase/models";
+import { useRouter } from "next/navigation";
+import CancelConfirmDialog from "@/app/components/cancel_confirm_dialog";
 
 type MemberInsert = Database["public"]["Tables"]["profiles"]["Insert"];
 
@@ -77,6 +81,7 @@ export default function CreateMember() {
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
     const [success, setSuccess] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
     const handleChange = (
         e: ChangeEvent<
@@ -91,6 +96,9 @@ export default function CreateMember() {
         }));
     };
 
+    function handleCancelClick() {
+        setShowCancelConfirm(true);
+    }
 
     const validate = () => {
         const next: Partial<Record<keyof MemberFormState, string>> = {};
@@ -135,7 +143,7 @@ export default function CreateMember() {
             bio: member.bio.trim() || null,
             department: member.department.trim() || null,
             hire_date: member.hire_date || null,
-            status:member.status,
+            status: member.status,
         };
 
 
@@ -169,9 +177,66 @@ export default function CreateMember() {
 
     const labelClass = "mb-1.5 block text-sm font-semibold text-slate-700";
 
+
+    function Breadcrumb({
+        items,
+    }: {
+        items: { label: string; href?: string }[];
+    }) {
+        const router = useRouter();
+        return (
+            <nav className="flex items-center gap-1.5 text-sm text-slate-500">
+                {items.map((item, i) => {
+                    const isLast = i === items.length - 1;
+                    return (
+                        <span key={item.label} className="flex items-center gap-1.5">
+                            {item.href ? (
+                                <button
+                                    type="button"
+                                    onClick={() => router.push(item.href as string)}
+                                    className="cursor-pointer text-slate-500 transition hover:text-[#1B3A5C] hover:underline"
+                                >
+                                    {item.label}
+                                </button>
+                            ) : (
+                                <span className="font-medium text-slate-800">{item.label}</span>
+                            )}
+                            {!isLast && <ChevronRight className="h-3.5 w-3.5 text-slate-300" />}
+                        </span>
+                    );
+                })}
+            </nav>
+        );
+    }
+
+    const router = useRouter();
+
+    function confirmCancel(): void {
+        router.push("/management/team")
+    }
+
     return (
         <div className="min-h-full bg-slate-50 px-5 py-12">
+
             <div className="mx-auto max-w-3xl space-y-6">
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <button
+                        type="button"
+                        onClick={handleCancelClick}
+                        className="cursor-pointer inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Voltar
+                    </button>
+
+                    <Breadcrumb
+                        items={[
+                            { label: "Dashboard", href: "/management" },
+                            { label: "Team", href: "/management/team" },
+                            { label: "Novo Membro" },
+                        ]}
+                    />
+                </div>
                 <div className="mb-7">
                     <p className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">
                         Novo membro
@@ -358,10 +423,7 @@ export default function CreateMember() {
                         </p>
                     </div>
 
-
                     <div className="grid gap-5 p-6 sm:grid-cols-2">
-
-
                         <div>
                             <label className="label">
                                 Departamento
@@ -374,7 +436,6 @@ export default function CreateMember() {
                                 className={inputClass(false)}
                             />
                         </div>
-
 
                         <div>
                             <label className="label">
@@ -389,7 +450,6 @@ export default function CreateMember() {
                                 className={inputClass(false)}
                             />
                         </div>
-
 
                         <div>
                             <label className="label">
@@ -421,13 +481,11 @@ export default function CreateMember() {
                             </select>
                         </div>
 
-
                         <div className="sm:col-span-2">
 
                             <label className="label">
                                 Biografia
                             </label>
-
 
                             <textarea
                                 name="bio"
@@ -439,13 +497,17 @@ export default function CreateMember() {
             "
                                 className={inputClass(false)}
                             />
-
                         </div>
-
-
                     </div>
-
                 </section>
+
+                {showCancelConfirm && (
+                    <CancelConfirmDialog
+                        onKeepEditing={() => setShowCancelConfirm(false)}
+                        onDiscard={confirmCancel}
+                        title={""}
+                    />
+                )}
             </div>
         </div>
     )
