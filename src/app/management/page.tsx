@@ -229,28 +229,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="mb-5 text-base font-semibold text-slate-900">
-            Documentos Recentes
-          </h2>
-
-          <div className="space-y-1">
-            {[
-              "Planta Baixa.pdf",
-              "Layout Elétrico.dwg",
-              "Contrato do Projeto.pdf",
-              "Orçamento.xlsx",
-            ].map((doc) => (
-              <div
-                key={doc}
-                className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50"
-              >
-                <FileText size={16} className="shrink-0 text-slate-400" />
-                <span className="text-sm text-slate-700">{doc}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        
 
         {/* Financials + Workload */}
         <div className="grid gap-4 lg:grid-cols-3">
@@ -320,6 +299,29 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="mb-5 text-base font-semibold text-slate-900">
+            Documentos Recentes
+          </h2>
+
+          <div className="space-y-1">
+            {[
+              "Planta Baixa.pdf",
+              "Layout Elétrico.dwg",
+              "Contrato do Projeto.pdf",
+              "Orçamento.xlsx",
+            ].map((doc) => (
+              <div
+                key={doc}
+                className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50"
+              >
+                <FileText size={16} className="shrink-0 text-slate-400" />
+                <span className="text-sm text-slate-700">{doc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
         </div>
 
       </div>
