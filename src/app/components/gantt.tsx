@@ -100,7 +100,7 @@ function formatDate(date: Date) {
 
 // ---------------------------------------------------------------------------
 
-export default function GanttChartDemo() {
+export default function GanttChartDemo({tasks}:{tasks: Task[]}) {
   const [zoom, setZoom] = useState<keyof typeof ZOOM_LEVELS>("comfortable");
   const [collapsedPhases, setCollapsedPhases] = useState<Record<string, boolean>>({});
   const [hoveredTask, setHoveredTask] = useState<string | null>(null);

@@ -1,29 +1,52 @@
 import KpiCard from "./components/kpi_card";
 import GanttChart from "@/app/components/gantt";
+import { CalendarDays, CircleAlert, Clock3Icon, Inbox, ListChecks, LucideIcon, TrendingUp, Wallet } from "lucide-react";
+
 import {
   risks,
   upcomingMilestones,
   recentActivity,
   rfis,
+  tasks,
   approvals,
   submittals,
   budgetByPhase,
 } from "./data";
 import { StatusPill } from "./components/status_pill";
-import { kpis } from "./types";
+import { BarChart3, AlertCircle } from "lucide-react";
+
+// Type definitions
+interface Risk {
+  text: string;
+  severity: "high" | "medium" | "low";
+}
+
+type Kpi = {
+  icon:LucideIcon;
+  title:string;
+  value:string;
+}
+
+const progress = [];
+const remainingDays = [];
+const budget = [];
+const openQuestions = [];
+const completedTasks = [];
+const pendingApprovals = []
+
+const maxTasks = 0;
+
+const kpis = [
+  { icon: TrendingUp, title: "Progresso", value: `${progress.length}` },
+  { icon: CalendarDays, title: "Dias restantes", value:` ${remainingDays.length}` },
+  // { icon: Wallet, title: "Orçamento usado", value: budget.length },
+  { icon: CircleAlert, title: "Questões abertas", value: `${openQuestions.length}` },
+  { icon: ListChecks, title: "Tarefas concluídas", value: `${completedTasks.length} / ${maxTasks}`} ,
+  { icon: Clock3Icon, title: "Aprovações pendentes", value: `${pendingApprovals.length}` },
+];
 
 const CURRENCY = "AOA";
 const CURRENCY_LOCALE = "pt-AO";
-
-function formatCurrency(valueInThousands: number): string {
-  return (
-    new Intl.NumberFormat(CURRENCY_LOCALE, {
-      style: "currency",
-      currency: CURRENCY,
-      maximumFractionDigits: 0,
-    }).format(valueInThousands * 1000) + ""
-  );
-}
 
 function formatCompactCurrency(value: number): string {
   return new Intl.NumberFormat(CURRENCY_LOCALE, {
@@ -45,28 +68,100 @@ function countOpen(items: { status: string }[]): number {
   return items.filter((i) => i.status !== "Respondido").length;
 }
 
+function KpiGrid() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 w-full min-w-0">
+      {kpis.length ? (
+        kpis.map((kpi) => {
+          // Create a component element from the icon reference
+          const IconComponent = kpi.icon;
+
+          return (
+            <KpiCard
+              key={kpi.title}
+              icon={<IconComponent size={22} />}
+              title={kpi.title}
+              value={kpi.value}
+            />
+          );
+        })
+      ) : (
+        <div className="col-span-full">
+          <KpiEmptyState />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Empty State Component for KPI Grid
+ * Shows when no KPI data is available
+ */
+
+function KpiEmptyState() {
+  return (
+    <div className="w-full rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-12">
+      <div className="flex flex-col items-center justify-center text-center space-y-4">
+        {/* Icon Container */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-blue-100 rounded-full blur-xl opacity-50" />
+          <div className="relative bg-white rounded-full p-4 border border-slate-200">
+            <BarChart3 size={32} className="text-slate-400" />
+          </div>
+        </div>
+
+        {/* Text Content */}
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold text-slate-900">
+            No KPIs Available
+          </h3>
+          <p className="text-sm text-slate-600 max-w-sm">
+            Dashboard metrics will appear here once project data is loaded.
+          </p>
+        </div>
+
+        {/* Help Text */}
+        <div className="flex items-center gap-2 mt-6 px-4 py-3 bg-blue-50 rounded-lg border border-blue-100">
+          <AlertCircle size={16} className="text-blue-600 flex-shrink-0" />
+          <p className="text-xs text-blue-700">
+            Connect your project data to see real-time KPIs
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function Overview() {
   return (
     <div className="space-y-10 p-12 w-full min-w-0">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 w-full min-w-0">
-        {kpis.map((kpi) => (
-          <KpiCard icon={<kpi.icon size={22} />} key={kpi.title} title={kpi.title} value={kpi.value} />
-        ))}
-      </div>
+     <KpiGrid />
 
       <SectionCard title="Cronograma">
         <div className="w-full min-w-0 overflow-hidden">
-          <GanttChart />
+          {tasks.length ? (
+            <GanttChart tasks={tasks} />
+          ) : (
+            <EmptyState title="Schedule" />
+          )}
         </div>
       </SectionCard>
 
-      {risks.length > 0 && <RisksBanner risks={risks} />}
+      <SectionCard title="Riscos do projecto">
+        {risks.length ? (
+          <RisksBanner risks={risks} />
+        ) : (
+          <EmptyState title="Riscos do projecto" />
+        )}
+      </SectionCard>
 
       <div className="grid lg:grid-cols-2 gap-6 w-full min-w-0">
         <SectionCard title="Próximas etapas">
           {upcomingMilestones.length > 0 ? (
             <div className="divide-y divide-slate-100">
-              {upcomingMilestones.map((m) => {
+              {upcomingMilestones.map((m: { name: string; date: string }) => {
                 const overdue = isOverdue(m.date);
 
                 return (
@@ -78,9 +173,7 @@ export default function Overview() {
 
                     <span
                       className={`text-sm font-mono ${
-                        overdue
-                          ? "text-red-600 font-medium"
-                          : "text-slate-500"
+                        overdue ? "text-red-600 font-medium" : "text-slate-500"
                       }`}
                     >
                       {m.date}
@@ -91,14 +184,14 @@ export default function Overview() {
               })}
             </div>
           ) : (
-            <EmptyState message="Sem etapas próximas." />
+            <EmptyState title="Próximas metas" />
           )}
         </SectionCard>
 
         <SectionCard title="Atividades recentes">
           {recentActivity.length > 0 ? (
             <div className="divide-y divide-slate-100">
-              {recentActivity.map((a) => (
+              {recentActivity.map((a: { who: string; time: string; text: string }) => (
                 <div key={`${a.who}-${a.time}`} className="py-3">
                   <p className="text-sm text-slate-700">{a.text}</p>
                   <p className="text-xs text-slate-400 mt-0.5">
@@ -108,20 +201,17 @@ export default function Overview() {
               ))}
             </div>
           ) : (
-            <EmptyState message="Sem atividade recente." />
+            <EmptyState title="Actividade recentes"  />
           )}
         </SectionCard>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 w-full min-w-0">
-        <SectionCard
-          title="RFIs"
-          subtitle={`${countOpen(rfis)} em aberto`}
-        >
+        <SectionCard title="Solicitação de informação" subtitle={`${countOpen(rfis)} em aberto`}>
           {rfis.length > 0 ? (
             <TrackerList items={rfis} />
           ) : (
-            <EmptyState message="Sem RFIs registrados." />
+            <EmptyState title="Solicitações de informação"  />
           )}
         </SectionCard>
 
@@ -132,7 +222,7 @@ export default function Overview() {
           {submittals.length > 0 ? (
             <TrackerList items={submittals} />
           ) : (
-            <EmptyState message="Sem submissões registradas." />
+            <EmptyState title="Submissões" />
           )}
         </SectionCard>
       </div>
@@ -141,7 +231,7 @@ export default function Overview() {
         <SectionCard title="Aprovações pendentes">
           {approvals.length > 0 ? (
             <div className="divide-y divide-slate-100">
-              {approvals.map((a) => {
+              {approvals.map((a: any) => {
                 const overdue = isOverdue(a.date);
 
                 return (
@@ -161,9 +251,7 @@ export default function Overview() {
 
                     <span
                       className={`text-sm font-mono shrink-0 ${
-                        overdue
-                          ? "text-red-600 font-medium"
-                          : "text-slate-500"
+                        overdue ? "text-red-600 font-medium" : "text-slate-500"
                       }`}
                     >
                       {a.date}
@@ -174,18 +262,18 @@ export default function Overview() {
               })}
             </div>
           ) : (
-            <EmptyState message="Sem aprovações pendentes." />
+            <EmptyState
+              title="Aprovações pendentes"
+            />
           )}
         </SectionCard>
 
         <SectionCard title="Orçamento por fase">
           {budgetByPhase.length > 0 ? (
             <div className="space-y-4">
-              {budgetByPhase.map((b) => {
+              {budgetByPhase.map((b: { phase: string; used: number; total: number }) => {
                 const pct =
-                  b.total > 0
-                    ? Math.round((b.used / b.total) * 100)
-                    : 0;
+                  b.total > 0 ? Math.round((b.used / b.total) * 100) : 0;
 
                 return (
                   <div key={b.phase}>
@@ -198,16 +286,13 @@ export default function Overview() {
                       </span>
                     </div>
 
-                    <ProgressBar
-                      percent={pct}
-                      overBudget={pct >= 100}
-                    />
+                    <ProgressBar percent={pct} overBudget={pct >= 100} />
                   </div>
                 );
               })}
             </div>
           ) : (
-            <EmptyState message="Sem dados de orçamento." />
+            <EmptyState title="Orçamento" />
           )}
         </SectionCard>
       </div>
@@ -238,8 +323,29 @@ function SectionCard({
   );
 }
 
-function EmptyState({ message }: { message: string }) {
-  return <p className="text-sm text-slate-400">{message}</p>;
+function EmptyState({
+  title,
+  message,
+}: {
+  title: string;
+  message?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-10 text-center">
+      <Inbox size={36} className="text-slate-300 mb-3" />
+
+      <h3 className="text-sm font-medium text-slate-700">
+        Sem {title.toLowerCase()}
+      </h3>
+
+      {message && <p className="mt-1 text-sm text-slate-400">{message}</p>}
+      {!message && (
+        <p className="mt-1 text-sm text-slate-400">
+          Os dados aparecerão aqui assim que estiverem disponíveis.
+        </p>
+      )}
+    </div>
+  );
 }
 
 function ProgressBar({
@@ -295,9 +401,7 @@ function TrackerList({
               {item.subject}
             </p>
 
-            <p className="text-xs text-slate-400 mt-0.5">
-              Prazo {item.due}
-            </p>
+            <p className="text-xs text-slate-400 mt-0.5">Prazo {item.due}</p>
           </div>
 
           <StatusPill status={item.status} />
@@ -307,38 +411,23 @@ function TrackerList({
   );
 }
 
-function RisksBanner({
-  risks,
-}: {
-  risks: {
-    text: string;
-    severity: "high" | "medium";
-  }[];
-}) {
+function RisksBanner({ risks }: { risks: Risk[] }) {
   return (
-    <div className="bg-red-50 border border-red-200 rounded-xl p-5 w-full min-w-0">
-      <h2 className="font-semibold text-red-800 mb-3 text-sm">
-        Requer atenção
-      </h2>
+    <div className="space-y-2">
+      {risks.map((risk, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-red-700"
+        >
+          <span
+            className={`w-2 h-2 rounded-full ${
+              risk.severity === "high" ? "bg-red-600" : "bg-amber-500"
+            }`}
+          />
 
-      <div className="space-y-2">
-        {risks.map((r, i) => (
-          <div
-            key={`${r.text}-${i}`}
-            className="flex items-center gap-2 text-sm text-red-700"
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                r.severity === "high"
-                  ? "bg-red-600"
-                  : "bg-amber-500"
-              }`}
-            />
-
-            {r.text}
-          </div>
-        ))}
-      </div>
+          {risk.text}
+        </div>
+      ))}
     </div>
   );
 }
