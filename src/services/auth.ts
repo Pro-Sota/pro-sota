@@ -180,6 +180,26 @@ export function onAuthStateChange(
 }
 
 
+export async function getAllUsers() {
+  try {
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*");
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return null;
+  }
+}
+
+
 export async function getProfile() {
   try {
     const supabase = createClient();
