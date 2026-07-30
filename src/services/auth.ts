@@ -178,3 +178,70 @@ export function onAuthStateChange(
 
   return supabase.auth.onAuthStateChange(callback);
 }
+
+
+export async function getProfile() {
+  try {
+    const supabase = createClient();
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) throw userError;
+
+    if (!user) {
+      throw new Error("No authenticated user");
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("profile_id", user.id)
+      .single();
+
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error("Get profile error:", error);
+    throw error;
+  }
+}
+
+export async function createProfile(
+  profile: Record<string, unknown>
+) {
+  try {
+    const supabase = createClient();
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) throw userError;
+
+    if (!user) {
+      throw new Error("No authenticated user");
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .insert({
+        id: user.id,
+        email: user.email,
+        ...profile,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error("Create profile error:", error);
+    throw error;
+  }
+}

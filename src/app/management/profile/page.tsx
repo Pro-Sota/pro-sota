@@ -1,3 +1,5 @@
+"use client"; 
+
 import {
   Mail,
   Phone,
@@ -6,7 +8,11 @@ import {
   Building2,
   Calendar,
   Pencil,
+  FolderOpen,
 } from "lucide-react";
+import { Database } from "../../../../models";
+import { getCurrentUser, getProfile } from "@/services/auth";
+import { useEffect, useState } from "react";
 
 const tokens = {
   ink: "#F1F5F9",       // slate-100 — primary text
@@ -35,75 +41,96 @@ const statusStyles = {
 
 type ProjectStatus = keyof typeof statusStyles;
 
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+
 export default function ProfilePage() {
-  const user = {
-    name: "Love Cabungula",
-    role: "Arquitecto Senior",
-    company: "Pro-Sota Ltd.",
-    email: "love.cabungula@example.com",
-    phone: "+244 923 567 890",
-    location: "Luanda, Angola",
-    joined: "January 2022",
-    avatar: "https://i.pravatar.cc/150?img=12",
+
+  const [user, setUser] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const profile = (await getProfile()) as Profile;
+        setUser(profile);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProfile();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500">Profile not found.</div>
+      </div>
+    );
+  }
+
+  // Format date helper
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "—";
+    return new Date(dateString).toLocaleDateString("pt-PT", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
-
+  
   const stats = [
-    { title: "Projectos Activos", value: 8 },
-    { title: "Conclu]ido", value: 24 },
-    { title: "Comentário pendentes", value: 5 },
-    { title: "Experiência", value: "7 anos" },
+    { title: "Projectos Activos", value: 0 },
+    { title: "Concluído", value: 0 },
+    { title: "Comentário pendentes", value: 0 },
+    { title: "Experiência", value: 0 },
   ];
 
-  const projects: { name: string; status: ProjectStatus; deadline: string }[] = [
-    { name: "Skyline Towers", status: "In Progress", deadline: "12 Aug 2026" },
-    { name: "Green Villa", status: "Planning", deadline: "20 Sep 2026" },
-    { name: "Business Center", status: "Completed", deadline: "15 Jun 2026" },
-  ];
+  const projects: { name: string; status: ProjectStatus; deadline: string }[] = [];
 
   const info = [
-    { icon: Mail, label: "Email", value: user.email },
-    { icon: Phone, label: "Phone", value: user.phone },
-    { icon: MapPin, label: "Location", value: user.location },
-    { icon: Building2, label: "Firm", value: user.company },
-    { icon: Calendar, label: "Joined", value: user.joined },
+    { icon: Mail, label: "Email", value: user.email || "—" },
+    { icon: Phone, label: "Telefone", value: user.phone_number || "—" },
+    { icon: Calendar, label: "Data de Adesão", value: formatDate(user.created_at) },
   ];
 
   return (
     <div className="min-h-screen p-6 md:p-10 bg-gray-50">
       <div className="mx-auto max-w-7xl space-y-8">
         {/* Header */}
-        <section
-          className="rounded-3xl p-8 shadow-sm bg-white"
-        >
-          <div className="flex flex-col  gap-6 md:flex-row md:items-center md:justify-between">
-
+        <section className="rounded-3xl p-8 shadow-sm bg-white">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-24 w-24 items-center justify-center rounded-2xl text-3xl font-semibold bg-gray-900 text-slate-200 font-serif">
-                {user.name
+                {(`${user.first_name || ""} ${user.last_name || ""}`)
                   .split(" ")
+                  .filter(Boolean)
                   .map((n) => n[0])
                   .slice(0, 2)
                   .join("")
                   .toUpperCase()}
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-yellow-700">
-                  {user.company}
-                </p>
                 <h1 className="mt-2 text-4xl font-medium font-serif">
-                  {user.name}
+                  {user.first_name} {user.last_name}
                 </h1>
                 <p className="mt-1 text-sm text-gray-400">
-                  {user.role}
+                  {user.department || "—"}
                 </p>
               </div>
             </div>
 
-            <button
-              className="cursor-pointer flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm text-slate-200 font-medium bg-gray-900 transition hover:opacity-90"
-            >
+            <button className="cursor-pointer flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm text-slate-200 font-medium bg-gray-900 transition hover:opacity-90">
               <Pencil size={16} />
-              Edit profile
+              Editar perfil
             </button>
           </div>
         </section>
@@ -115,7 +142,7 @@ export default function ProfilePage() {
               key={item.title}
               className="rounded-2xl p-6 transition hover:-translate-y-1 bg-white shadow-xs"
             >
-              <p className="text-xs uppercase tracking-widest text-gray-500" >
+              <p className="text-xs uppercase tracking-widest text-gray-500">
                 {item.title}
               </p>
               <h3 className="mt-4 text-4xl font-serif">
@@ -126,11 +153,8 @@ export default function ProfilePage() {
         </section>
 
         <div className="grid gap-6 xl:grid-cols-3">
-
           {/* Information */}
-          <section
-            className="rounded-3xl p-7 xl:col-span-1 bg-white"
-          >
+          <section className="rounded-3xl p-7 xl:col-span-1 bg-white">
             <h2 className="mb-8 text-xl font-serif">
               Informação pessoal
             </h2>
@@ -138,17 +162,15 @@ export default function ProfilePage() {
             <div className="grid gap-6">
               {info.map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex gap-4">
-                  <div
-                    className="flex h-10 w-10 items-center justify-center rounded-xl border"
-                  >
-                    <Icon size={18} className="text-slate-700" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-300">
+                    <Icon size={18} className="text-gray-700" />
                   </div>
 
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-gray-400" >
+                    <p className="text-xs uppercase tracking-wider text-gray-400">
                       {label}
                     </p>
-                    <p className="mt-1 text-sm font-medium">{value}</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">{value}</p>
                   </div>
                 </div>
               ))}
@@ -156,54 +178,67 @@ export default function ProfilePage() {
           </section>
 
           {/* Projects */}
-          <section
-            className="rounded-3xl p-7 xl:col-span-2 bg-white"
-          >
+          <section className="rounded-3xl p-7 xl:col-span-2 bg-white">
             <div className="mb-8 flex items-center justify-between">
-              <h2 className="text-xl" style={{ fontFamily: "Georgia, serif" }}>
+              <h2 className="text-xl font-serif">
                 Projectos atribuídos
               </h2>
 
-              <button
-                className="rounded-lg px-4 py-2 text-sm transition bg-white text-gray-700  border border-transparent cursor-pointer hover:border-gray-400"
-
-              >
+              <button className="rounded-lg px-4 py-2 text-sm transition bg-white text-gray-700 border border-gray-300 cursor-pointer hover:border-gray-400">
                 Ver todos
               </button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 ">
-              {projects.map((project) => {
-                const s = statusStyles[project.status];
-                return (
-                  <article
-                    key={project.name}
-                    className="rounded-2xl p-5 transition hover:shadow-md border border-gray-300"
-                  >
-                    <div className="flex justify-between">
-                      <div
-                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-600"
-                      >
-                        <Briefcase size={18} className="text-gray-200" />
+            {projects.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {projects.map((project) => {
+                  const s = statusStyles[project.status];
+                  return (
+                    <article
+                      key={project.name}
+                      className="rounded-2xl p-5 transition hover:shadow-md border border-gray-300"
+                    >
+                      <div className="flex justify-between">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200">
+                          <Briefcase size={18} className="text-gray-700" />
+                        </div>
+
+                        <span
+                          className="rounded-full px-3 py-1 text-xs font-medium flex items-center border"
+                          style={{
+                            color: s.text,
+                            backgroundColor: s.bg,
+                            borderColor: s.text,
+                          }}
+                        >
+                          {project.status}
+                        </span>
                       </div>
 
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium flex items-center border `}
-                        style={{ color: s.text }}
-                      >
-                        {project.status}
-                      </span>
-                    </div>
+                      <h3 className="mt-5 text-lg font-medium text-gray-900">
+                        {project.name}
+                      </h3>
 
-                    <h3 className="mt-5 text-lg font-medium">{project.name}</h3>
-
-                    <p className="mt-2 text-sm text-gray-400" >
-                      Deadline: {project.deadline}
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Prazo: {project.deadline}
+                      </p>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                  <FolderOpen size={24} className="text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">
+                  Sem projectos atribuídos
+                </h3>
+                <p className="mt-2 text-sm text-gray-500 max-w-xs">
+                  Nenhum projecto foi atribuído ainda. Os projectos aparecerão aqui quando forem adicionados.
+                </p>
+              </div>
+            )}
           </section>
         </div>
       </div>
