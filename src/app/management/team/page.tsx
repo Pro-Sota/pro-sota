@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Plus,
   Search,
@@ -16,50 +16,62 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/app/components/StatCard";
 import { useRouter } from "next/navigation";
+import { getAllUsers } from "@/services/auth";
+import { Database } from "@/app/lib/supabase/models";
+
+type Employee = Database["public"]["Tables"]["profiles"]["Row"];
 
 export default function TeamPage() {
   const router = useRouter();
   const [view, setView] = useState<"grid" | "list">("grid");
 
-  const employees: {
-    id: number;
-    name: string;
-    role: string;
-    department: string;
-    email: string;
-    phone: string;
-    projects: number;
-    status: string;
-  }[] = [];
+  const [teamSize, setTeamSize] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState<Employee[]>([])
 
-const stats = [
-  {
-    title: "Colaboradores",
-    value: employees.length,
-    icon: Users,
-  },
-  {
-    title: "Arquitectos",
-    value: employees.filter(
-      (employee) => employee.department === "Architecture"
-    ).length,
-    icon: Building2,
-  },
-  {
-    title: "Engenheiros",
-    value: employees.filter(
-      (employee) => employee.department === "Engineering"
-    ).length,
-    icon: HardHat,
-  },
-  {
-    title: "Disponíveis",
-    value: employees.filter(
-      (employee) => employee.status === "Available"
-    ).length,
-    icon: Briefcase,
-  },
-];
+  useEffect(() => {
+
+    async function loadTeam() {
+      try {
+        const team = (await getAllUsers()) as Employee[];
+        setEmployees(team);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadTeam();
+  }, []);
+
+
+  const stats = [
+    {
+      title: "Colaboradores",
+      value: employees.length,
+      icon: Users,
+    },
+    {
+      title: "Arquitectos",
+      value: employees.filter(
+        (employee) => employee.department === "Architecture"
+      ).length,
+      icon: Building2,
+    },
+    {
+      title: "Engenheiros",
+      value: employees.filter(
+        (employee) => employee.department === "Engineering"
+      ).length,
+      icon: HardHat,
+    },
+    {
+      title: "Disponíveis",
+      value: employees.filter(
+        (employee) => employee.status === "Active"
+      ).length,
+      icon: Briefcase,
+    },
+  ];
 
   const statusStyles: Record<string, string> = {
     Active: "bg-slate-900 text-white",
@@ -67,13 +79,29 @@ const stats = [
     Busy: "bg-slate-100 text-slate-500 border border-slate-300",
   };
 
-  const initials = (name: string) =>
-    name
+  const initials = (firstName: string, lastName: string) => {
+    const fullName = `${firstName} ${lastName}`;
+    return fullName
       .split(" ")
       .map((part) => part[0])
       .slice(0, 2)
       .join("")
       .toUpperCase();
+  };
+
+  const fullName = (firstName: string, lastName: string) => {
+    return `${firstName} ${lastName}`;
+  }
+
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="min-h-screen p-6 md:p-10">
@@ -89,9 +117,9 @@ const stats = [
             </p>
           </div>
 
-          <button 
-            onClick={() => router.push("/management/team/create-member") }
-          className="cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 active:bg-slate-950">
+          <button
+            onClick={() => router.push("/management/team/create-member")}
+            className="cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 active:bg-slate-950">
             <Plus size={16} />
             Add Colaborador
           </button>
@@ -188,20 +216,20 @@ const stats = [
             {employees.map((employee) =>
               view === "grid" ? (
                 <div
-                  key={employee.id}
+                  key={employee.profile_id}
                   className="group rounded-xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-sm"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-medium text-white">
-                        {initials(employee.name)}
+                        {initials(employee.first_name, employee.last_name)}
                       </div>
 
                       <div>
                         <h3 className="font-medium text-slate-900">
-                          {employee.name}
+                          {fullName(employee.first_name, employee.last_name)}
                         </h3>
-                        <p className="text-sm text-slate-500">{employee.role}</p>
+                        <p className="text-sm text-slate-500">{employee.department}</p>
                       </div>
                     </div>
 
@@ -224,7 +252,7 @@ const stats = [
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone size={14} className="text-slate-400" />
-                      {employee.phone}
+                      {employee.phone_number}
                     </div>
                   </div>
 
@@ -232,12 +260,12 @@ const stats = [
                     <div>
                       <p className="text-xs text-slate-400">Projects</p>
                       <p className="font-medium text-slate-900">
-                        {employee.projects}
+                        {[]}
                       </p>
                     </div>
 
                     <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[employee.status]
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[employee.status ?? ""]
                         }`}
                     >
                       {employee.status}
@@ -246,20 +274,20 @@ const stats = [
                 </div>
               ) : (
                 <div
-                  key={employee.id}
+                  key={employee.profile_id}
                   className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-medium text-white">
-                      {initials(employee.name)}
+                      {initials(employee.first_name, employee.last_name)}
                     </div>
 
                     <div>
                       <h3 className="font-medium text-slate-900">
-                        {employee.name}
+                        {fullName(employee.first_name, employee.last_name)}
                       </h3>
                       <p className="text-sm text-slate-500">
-                        {employee.role} · {employee.department}
+                        {employee.department} · {employee.department}
                       </p>
                     </div>
                   </div>
@@ -271,16 +299,16 @@ const stats = [
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone size={14} className="text-slate-400" />
-                      {employee.phone}
+                      {employee.phone_number}
                     </div>
                     <div className="text-slate-400">
                       <span className="font-medium text-slate-900">
-                        {employee.projects}
+                        {[]}
                       </span>{" "}
                       projects
                     </div>
                     <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[employee.status]
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[employee.status ?? ""]
                         }`}
                     >
                       {employee.status}
