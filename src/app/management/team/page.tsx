@@ -18,6 +18,7 @@ import { StatCard } from "@/app/components/StatCard";
 import { useRouter } from "next/navigation";
 import { getAllUsers } from "@/services/auth";
 import { Database } from "@/app/lib/supabase/models";
+import CustomSelect from "@/app/components/custom_select";
 
 type Employee = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -27,7 +28,9 @@ export default function TeamPage() {
 
   const [teamSize, setTeamSize] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [employees, setEmployees] = useState<Employee[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [search, setSearch] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
 
   useEffect(() => {
 
@@ -93,6 +96,21 @@ export default function TeamPage() {
     return `${firstName} ${lastName}`;
   }
 
+  const filteredEmployees = employees.filter((employee) => {
+    const searchTerm = search.toLowerCase();
+
+    const matchesSearch =
+      employee.first_name.toLowerCase().includes(searchTerm) ||
+      employee.last_name.toLowerCase().includes(searchTerm) ||
+      employee.email?.toLowerCase().includes(searchTerm) ||
+      employee.department?.toLowerCase().includes(searchTerm);
+
+    const matchesDepartment =
+      departmentFilter === "all" ||
+      employee.department === departmentFilter;
+
+    return matchesSearch && matchesDepartment;
+  });
 
   if (loading) {
     return (
@@ -110,7 +128,7 @@ export default function TeamPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
-              Pro-Sota Team
+              Team
             </h1>
             <p className="mt-1 text-slate-500">
               Gerir arquitectos, engenheiro e colaboradores da empresa.
@@ -140,20 +158,26 @@ export default function TeamPage() {
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
             />
             <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search employee..."
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <select className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-slate-400">
-              <option>Todos os departamentos</option>
-              <option>Arquitectura</option>
-              <option>Engenharia</option>
-              <option>Construção</option>
-              <option>IT</option>
-              <option>Recursos humanos</option>
-            </select>
+            <CustomSelect
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-slate-400"
+            >
+              <option value="all">Todos os departamentos</option>
+              <option value="Architecture">Arquitectura</option>
+              <option value="Engineering">Engenharia</option>
+              <option value="Construction">Construção</option>
+              <option value="IT">IT</option>
+              <option value="Human Resources">Recursos humanos</option>
+            </CustomSelect>
 
             <div className="flex overflow-hidden rounded-lg border border-slate-200">
               <button
@@ -184,7 +208,7 @@ export default function TeamPage() {
         </div>
 
         {/* Employees */}
-        {employees.length === 0 ? (
+        {filteredEmployees.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-8 py-20 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
               <Users className="h-8 w-8 text-slate-400" />
@@ -213,7 +237,7 @@ export default function TeamPage() {
                 : "space-y-3"
             }
           >
-            {employees.map((employee) =>
+            {filteredEmployees.map((employee) =>
               view === "grid" ? (
                 <div
                   key={employee.profile_id}

@@ -3,7 +3,7 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
-export default function Select({
+export default function CustomSelect({
     children,
     ...props
 }: React.SelectHTMLAttributes<HTMLSelectElement>) {
