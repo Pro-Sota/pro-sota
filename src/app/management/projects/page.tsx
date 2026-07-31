@@ -14,13 +14,14 @@ import {
 import ProjectTableView from "@/app/components/project_table_view";
 import ProjectGridView from "@/app/components/project_grid_view";
 import ProjectMapView from "@/app/components/project_map_view";
-import { projects } from "./data";
+import { Database } from "@/app/lib/supabase/models";
+import { getProjects } from "@/services/projects";
 
 const filters = [
-  { value: "todos", label: "Todos" },
-  { value: "em-curso", label: "Em curso" },
-  { value: "concluido", label: "Concluído" },
-  { value: "em-observacao", label: "Em observação" },
+  { value: "todos", label: "Todos", status: null },
+  { value: "em-curso", label: "Em curso", status: "Em Curso" },
+  { value: "concluido", label: "Concluído", status: "Concluído" },
+  { value: "em-observacao", label: "Em observação", status: "Em Observação" },
 ] as const;
 
 const views = [
@@ -29,9 +30,13 @@ const views = [
   { value: "map", label: "ver em mapa", icon: MapIcon },
 ] as const;
 
+type Project = Database["public"]["Tables"]["projects"]["Row"];
+
 function ProjectsPageInner() {
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([])
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,6 +65,20 @@ function ProjectsPageInner() {
   };
 
   useEffect(() => {
+    async function loadProjects() {
+
+      const data = await getProjects();
+
+      console.log("Returned:", data);
+
+      setProjects(data ?? []);
+    }
+
+    loadProjects();
+
+  }, []);
+
+  useEffect(() => {
     if (isSearchOpen) {
       inputRef.current?.focus();
     }
@@ -72,12 +91,18 @@ function ProjectsPageInner() {
 
   const filteredProjects = useMemo(() => {
     const term = searchTerm.toLowerCase();
+
     return projects.filter((project) => {
-      const matchesSearch = project.name.toLowerCase().includes(term);
-      const matchesFilter = filter === "todos" || project.status === filter;
+      const matchesSearch = project.title.toLowerCase().includes(term);
+      const selectedFilter = filters.find((f) => f.value === filter);
+
+      const matchesFilter =
+        filter === "todos" || project.status === selectedFilter?.status;
+
       return matchesSearch && matchesFilter;
     });
-  }, [searchTerm, filter]);
+
+  }, [projects, searchTerm, filter]);
 
   const buttonClass =
     " p-2 text-gray-400 flex items-center justify-center text-sm rounded hover:border-gray-500 border border-gray-300 transition-colors duration-300 cursor-pointer";
@@ -91,7 +116,7 @@ function ProjectsPageInner() {
           <Link href="/management/projects/create-project"
             className="bg-white text-gray-700  shadow-md text-sm rounded-sm hover:border-gray-100 border border-transparent flex items-center justify-center cursor-pointer px-2 py-2 gap-2"
           >
-            <Plus className="h-4 w-4" /> New Project
+            <Plus className="h-4 w-4" /> Novo Projecto
           </Link>
         </div>
 

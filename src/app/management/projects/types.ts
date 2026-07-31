@@ -14,4 +14,5 @@ export type Project = {
   status: Status;
   dueDate: string;
   location: string;
+  image:string;
 };

@@ -66,11 +66,10 @@ function EmptyState({ type, currentView, folderName }: EmptyStateProps) {
 
     return (
         <div
-            className={`flex flex-col items-center justify-center gap-4 ${
-                currentView === "grid"
-                    ? "min-h-[500px]"
-                    : "min-h-[400px]"
-            }`}
+            className={`flex flex-col items-center justify-center gap-4 ${currentView === "grid"
+                ? "min-h-[500px]"
+                : "min-h-[400px]"
+                }`}
         >
             <div className="rounded-lg bg-gray-100 p-6">
                 <Icon className="h-12 w-12 text-gray-400" strokeWidth={1.5} />

@@ -1,6 +1,8 @@
 "use client";
 
-import type { Project } from "../management/projects/types";
+import { Database } from "../lib/supabase/models";
+
+type Project = Database["public"]["Tables"]["projects"]["Row"];
 
 export default function ProjectMapView({
   projects,

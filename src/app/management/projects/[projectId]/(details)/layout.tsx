@@ -1,10 +1,12 @@
 import ProjectNavbar from "@/app/components/project_side_bar";
-import { ChevronLeft, MoveLeftIcon } from "lucide-react";
+import { Database } from "@/app/lib/supabase/models";
+import { getProject } from "@/services/projects";
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { projects } from "../../data";
-import { Status } from "../../types";
 
+
+type Project = Database["public"]["Tables"]["projects"]["Row"];
 
 export default async function ProjectLayout({
   children,
@@ -15,7 +17,7 @@ export default async function ProjectLayout({
 }) {
   const { projectId } = await params;
 
-  const project = projects.find((p) => p.id === Number(projectId));
+  const project = await getProject(projectId)
 
   if (!project) {
     notFound();

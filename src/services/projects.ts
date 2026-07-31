@@ -5,9 +5,19 @@ import { ProjectFormState } from "@/app/management/projects/create-project/page"
 const supabase = createClient();
 
 export async function getProjects() {
+  try {
+    const supabase = createClient();
+
     const { data, error } = await supabase.from("projects").select("*");
-    if (error) throw error;
+    if (error) throw new Error(error.message);
+
+    console.log("data: " + data)
     return data;
+
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 }
 
 export async function getProject(projectId: string) {

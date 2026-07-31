@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
     Check,
     X,
@@ -14,80 +14,118 @@ import {
     PenTool,
     Wrench,
     ClipboardCheck,
+    Edit,
+    Trash2,
+    RotateCcw,
 } from 'lucide-react';
 import clsx from 'clsx';
 
-type SubmissionStatus = 'Approved' | 'Changes Requested' | 'Under Review' | 'Rejected';
-type SubmissionType = 'Design' | 'Technical' | 'Client Approval';
+type SubmissionStatus = 'Aprovado' | 'Mudanças Solicitadas' | 'Em Revisão' | 'Rejeitado';
+type SubmissionType = 'Design' | 'Técnico' | 'Aprovação Cliente';
+type ToastType = 'success' | 'error' | 'info';
 
 type Submission = {
     id: number;
     title: string;
     submittedBy: string;
-    date: string; // display string
-    dueDate: string; // ISO, used for overdue logic
+    submittedDate: string; // ISO date
+    dueDate: string; // ISO date
     status: SubmissionStatus;
     type: SubmissionType;
+    description?: string;
 };
 
-// "Today" for overdue comparisons — the app's current date.
-const TODAY = new Date('2026-07-23');
+type Toast = {
+    id: string;
+    message: string;
+    type: ToastType;
+};
+
+type UndoState = {
+    action: 'delete' | 'status_change';
+    submission: Submission;
+    previousStatus?: SubmissionStatus;
+    timestamp: number;
+};
+
+// Get today's date dynamically
+const getToday = () => new Date();
 
 const INITIAL_SUBMISSIONS: Submission[] = [
     {
         id: 1,
-        title: 'Architectural Drawings - Revision 03',
+        title: 'Desenhos Arquitetónicos - Revisão 03',
         submittedBy: 'Carlos Mendes',
-        date: '10 Jul 2026',
+        submittedDate: '2026-07-10',
         dueDate: '2026-07-17',
-        status: 'Under Review',
+        status: 'Em Revisão',
         type: 'Design',
+        description: 'Conjunto completo de desenhos para aprovação inicial',
     },
     {
         id: 2,
-        title: 'Structural Package - Revision 02',
+        title: 'Pacote Estrutural - Revisão 02',
         submittedBy: 'Ana Silva',
-        date: '08 Jul 2026',
+        submittedDate: '2026-07-08',
         dueDate: '2026-07-15',
-        status: 'Changes Requested',
-        type: 'Technical',
+        status: 'Mudanças Solicitadas',
+        type: 'Técnico',
+        description: 'Cálculos estruturais e detalhes de reforço',
     },
     {
         id: 3,
-        title: 'Interior Materials Selection',
+        title: 'Seleção de Materiais Interiores',
         submittedBy: 'João Costa',
-        date: '05 Jul 2026',
+        submittedDate: '2026-07-05',
         dueDate: '2026-07-12',
-        status: 'Approved',
-        type: 'Client Approval',
+        status: 'Aprovado',
+        type: 'Aprovação Cliente',
+        description: 'Paleta de cores e acabamentos finais',
     },
     {
         id: 4,
-        title: 'Facade Cladding Detail Package — Zone B North Elevation',
+        title: 'Pacote Detalhe Revestimento Fachada — Elevação Norte Zona B',
         submittedBy: 'Mariana Lopes',
-        date: '02 Jul 2026',
+        submittedDate: '2026-07-02',
         dueDate: '2026-07-09',
-        status: 'Under Review',
-        type: 'Technical',
+        status: 'Em Revisão',
+        type: 'Técnico',
+        description: 'Especificações de revestimento e fixação',
     },
 ];
 
 const STATUS_STYLES: Record<SubmissionStatus, string> = {
-    Approved: 'bg-green-100 text-green-700',
-    'Changes Requested': 'bg-orange-100 text-orange-700',
-    'Under Review': 'bg-blue-100 text-blue-700',
-    Rejected: 'bg-red-100 text-red-700',
+    'Aprovado': 'bg-green-100 text-green-700',
+    'Mudanças Solicitadas': 'bg-orange-100 text-orange-700',
+    'Em Revisão': 'bg-blue-100 text-blue-700',
+    'Rejeitado': 'bg-red-100 text-red-700',
 };
 
 const TYPE_STYLES: Record<SubmissionType, { badge: string; icon: React.ComponentType<{ size?: number; strokeWidth?: number }> }> = {
-    Design: { badge: 'bg-purple-50 text-purple-700 border-purple-200', icon: PenTool },
-    Technical: { badge: 'bg-slate-100 text-slate-700 border-slate-200', icon: Wrench },
-    'Client Approval': { badge: 'bg-teal-50 text-teal-700 border-teal-200', icon: ClipboardCheck },
+    'Design': { badge: 'bg-purple-50 text-purple-700 border-purple-200', icon: PenTool },
+    'Técnico': { badge: 'bg-slate-100 text-slate-700 border-slate-200', icon: Wrench },
+    'Aprovação Cliente': { badge: 'bg-teal-50 text-teal-700 border-teal-200', icon: ClipboardCheck },
 };
 
+const STORAGE_KEY = 'approvals_submissions';
+const UNDO_STACK_KEY = 'approvals_undo_stack';
+
 function isOverdue(s: Submission) {
-    if (s.status !== 'Under Review' && s.status !== 'Changes Requested') return false;
-    return new Date(s.dueDate).getTime() < TODAY.getTime();
+    if (s.status !== 'Em Revisão' && s.status !== 'Mudanças Solicitadas') return false;
+    return new Date(s.dueDate).getTime() < getToday().getTime();
+}
+
+function daysOverdue(s: Submission) {
+    const diff = getToday().getTime() - new Date(s.dueDate).getTime();
+    return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
+}
+
+function formatDate(dateString: string, locale = 'pt-PT'): string {
+    return new Date(dateString + 'T00:00:00Z').toLocaleDateString(locale, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    });
 }
 
 function StatusBadge({ status }: { status: SubmissionStatus }) {
@@ -154,7 +192,7 @@ export function SummaryCard({
                     )}
                     aria-hidden="true"
                 >
-                    {active ? '● filtered' : 'filter →'}
+                    {active ? '● ativo' : 'filtro →'}
                 </span>
             </p>
 
@@ -169,23 +207,26 @@ type ActionButtonProps = {
     onClick?: React.MouseEventHandler<HTMLButtonElement>;
     icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
     label: string;
-    tone: 'green' | 'red' | 'blue';
+    tone: 'green' | 'red' | 'blue' | 'gray';
     showLabel?: boolean;
+    disabled?: boolean;
 };
 
-function ActionButton({ onClick, icon: Icon, label, tone, showLabel = true }: ActionButtonProps) {
+function ActionButton({ onClick, icon: Icon, label, tone, showLabel = true, disabled = false }: ActionButtonProps) {
     const tones = {
-        green: 'text-green-700 hover:bg-green-50 focus-visible:ring-green-500',
-        red: 'text-red-700 hover:bg-red-50 focus-visible:ring-red-500',
-        blue: 'text-blue-700 hover:bg-blue-50 focus-visible:ring-blue-500',
+        green: 'text-green-700 hover:bg-green-50 focus-visible:ring-green-500 disabled:text-green-400',
+        red: 'text-red-700 hover:bg-red-50 focus-visible:ring-red-500 disabled:text-red-400',
+        blue: 'text-blue-700 hover:bg-blue-50 focus-visible:ring-blue-500 disabled:text-blue-400',
+        gray: 'text-gray-600 hover:bg-gray-100 focus-visible:ring-gray-500 disabled:text-gray-400',
     };
     return (
         <button
             onClick={onClick}
+            disabled={disabled}
             aria-label={label}
             title={label}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium
-                transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${tones[tone]}`}
+                transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${tones[tone]} ${disabled ? 'cursor-not-allowed' : ''}`}
         >
             <Icon size={15} strokeWidth={2.25} />
             {showLabel && <span>{label}</span>}
@@ -193,7 +234,6 @@ function ActionButton({ onClick, icon: Icon, label, tone, showLabel = true }: Ac
     );
 }
 
-// Inline confirm swap — replaces a button with a Yes/Cancel pair instead of window.confirm().
 function ConfirmInline({
     label,
     onConfirm,
@@ -222,32 +262,82 @@ function ConfirmInline({
     );
 }
 
-function daysOverdue(s: Submission) {
-    const diff = TODAY.getTime() - new Date(s.dueDate).getTime();
-    return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
+function ToastNotification({ toast, onClose }: { toast: Toast; onClose: () => void }) {
+    const colors = {
+        success: 'bg-green-600',
+        error: 'bg-red-600',
+        info: 'bg-gray-900',
+    };
+
+    return (
+        <div className={`${colors[toast.type]} text-white px-5 py-3 rounded-xl shadow-2xl text-sm flex items-center justify-between gap-3`}>
+            <span>{toast.message}</span>
+            <button
+                onClick={onClose}
+                className="text-white/70 hover:text-white"
+                aria-label="Fechar notificação"
+            >
+                <X size={16} />
+            </button>
+        </div>
+    );
 }
 
-type SortKey = 'date' | 'title' | 'status';
+type SortKey = 'date' | 'title' | 'status' | 'submittedDate';
 
 export default function ApprovalsAndReviewsPage() {
     const [submissions, setSubmissions] = useState(INITIAL_SUBMISSIONS);
-    const [toast, setToast] = useState<string | null>(null);
+    const [toasts, setToasts] = useState<Toast[]>([]);
     const [activeFilter, setActiveFilter] = useState('all');
     const [query, setQuery] = useState('');
+    const [typeFilter, setTypeFilter] = useState<SubmissionType | 'all'>('all');
     const [sortKey, setSortKey] = useState<SortKey>('date');
     const [sortAsc, setSortAsc] = useState(false);
     const [pendingReject, setPendingReject] = useState<number | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<number | null>(null);
     const [detailItem, setDetailItem] = useState<Submission | null>(null);
+    const [editItem, setEditItem] = useState<Submission | null>(null);
     const [showNewModal, setShowNewModal] = useState(false);
     const [newTitle, setNewTitle] = useState('');
+    const [newDescription, setNewDescription] = useState('');
     const [newType, setNewType] = useState<SubmissionType>('Design');
     const [newSubmitter, setNewSubmitter] = useState('');
+    const [newDueDate, setNewDueDate] = useState('');
+    const [undoStack, setUndoStack] = useState<UndoState[]>([]);
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+    // Load from localStorage on mount
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                setSubmissions(JSON.parse(saved));
+            }
+            const savedUndo = localStorage.getItem(UNDO_STACK_KEY);
+            if (savedUndo) {
+                setUndoStack(JSON.parse(savedUndo));
+            }
+        } catch (e) {
+            console.error('Failed to load from localStorage', e);
+        }
+    }, []);
+
+    // Save to localStorage when submissions change
+    useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(submissions));
+    }, [submissions]);
+
+    // Save undo stack
+    useEffect(() => {
+        localStorage.setItem(UNDO_STACK_KEY, JSON.stringify(undoStack.slice(0, 10))); // Keep last 10
+    }, [undoStack]);
 
     const counts = useMemo(
         () => ({
-            pending: submissions.filter((s) => s.status === 'Under Review').length,
-            approved: submissions.filter((s) => s.status === 'Approved').length,
-            changesRequested: submissions.filter((s) => s.status === 'Changes Requested').length,
+            pending: submissions.filter((s) => s.status === 'Em Revisão').length,
+            approved: submissions.filter((s) => s.status === 'Aprovado').length,
+            changesRequested: submissions.filter((s) => s.status === 'Mudanças Solicitadas').length,
             overdue: submissions.filter(isOverdue).length,
         }),
         [submissions]
@@ -258,13 +348,13 @@ export default function ApprovalsAndReviewsPage() {
 
         switch (activeFilter) {
             case 'pending':
-                list = list.filter((s) => s.status === 'Under Review');
+                list = list.filter((s) => s.status === 'Em Revisão');
                 break;
             case 'approved':
-                list = list.filter((s) => s.status === 'Approved');
+                list = list.filter((s) => s.status === 'Aprovado');
                 break;
             case 'changesRequested':
-                list = list.filter((s) => s.status === 'Changes Requested');
+                list = list.filter((s) => s.status === 'Mudanças Solicitadas');
                 break;
             case 'overdue':
                 list = list.filter(isOverdue);
@@ -273,12 +363,17 @@ export default function ApprovalsAndReviewsPage() {
                 break;
         }
 
+        if (typeFilter !== 'all') {
+            list = list.filter((s) => s.type === typeFilter);
+        }
+
         if (query.trim()) {
             const q = query.trim().toLowerCase();
             list = list.filter(
                 (s) =>
                     s.title.toLowerCase().includes(q) ||
-                    s.submittedBy.toLowerCase().includes(q)
+                    s.submittedBy.toLowerCase().includes(q) ||
+                    (s.description?.toLowerCase().includes(q) ?? false)
             );
         }
 
@@ -286,6 +381,8 @@ export default function ApprovalsAndReviewsPage() {
             let cmp = 0;
             if (sortKey === 'date') {
                 cmp = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+            } else if (sortKey === 'submittedDate') {
+                cmp = new Date(a.submittedDate).getTime() - new Date(b.submittedDate).getTime();
             } else if (sortKey === 'title') {
                 cmp = a.title.localeCompare(b.title);
             } else if (sortKey === 'status') {
@@ -295,11 +392,14 @@ export default function ApprovalsAndReviewsPage() {
         });
 
         return sorted;
-    }, [submissions, activeFilter, query, sortKey, sortAsc]);
+    }, [submissions, activeFilter, query, typeFilter, sortKey, sortAsc]);
 
-    const showToast = (message: string) => {
-        setToast(message);
-        setTimeout(() => setToast(null), 3000);
+    const showToast = (message: string, type: ToastType = 'info') => {
+        const id = Date.now().toString();
+        setToasts((prev) => [...prev, { id, message, type }]);
+        setTimeout(() => {
+            setToasts((prev) => prev.filter((t) => t.id !== id));
+        }, 3000);
     };
 
     const toggleFilter = (filter: string) => {
@@ -319,67 +419,262 @@ export default function ApprovalsAndReviewsPage() {
 
     const handleQuickApprove = (id: number) => {
         const target = submissions.find((s) => s.id === id);
-        if (!target || target.status === 'Approved') return;
-        setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status: 'Approved' } : s)));
-        showToast(`Aprovado: "${target.title}"`);
+        if (!target || target.status === 'Aprovado') return;
+
+        setUndoStack((prev) => [
+            { action: 'status_change', submission: target, previousStatus: target.status, timestamp: Date.now() },
+            ...prev,
+        ]);
+
+        setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status: 'Aprovado' } : s)));
+        showToast(`✓ Aprovado: "${target.title}"`, 'success');
     };
 
     const handleQuickReject = (id: number) => {
         const target = submissions.find((s) => s.id === id);
-        if (!target || target.status === 'Rejected') return;
-        setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status: 'Rejected' } : s)));
-        showToast(`Rejeitado: "${target.title}"`);
+        if (!target || target.status === 'Rejeitado') return;
+
+        setUndoStack((prev) => [
+            { action: 'status_change', submission: target, previousStatus: target.status, timestamp: Date.now() },
+            ...prev,
+        ]);
+
+        setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status: 'Rejeitado' } : s)));
+        showToast(`✗ Rejeitado: "${target.title}"`, 'error');
         setPendingReject(null);
     };
 
-    const handleCreateSubmission = () => {
-        if (!newTitle.trim() || !newSubmitter.trim()) return;
-        const nextId = Math.max(0, ...submissions.map((s) => s.id)) + 1;
-        const dateStr = TODAY.toLocaleDateString('pt-PT', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        });
-        const due = new Date(TODAY);
-        due.setDate(due.getDate() + 7);
-        setSubmissions((prev) => [
-            {
-                id: nextId,
-                title: newTitle.trim(),
-                submittedBy: newSubmitter.trim(),
-                date: dateStr,
-                dueDate: due.toISOString().slice(0, 10),
-                status: 'Under Review',
-                type: newType,
-            },
+    const handleDelete = (id: number) => {
+        const target = submissions.find((s) => s.id === id);
+        if (!target) return;
+
+        setUndoStack((prev) => [
+            { action: 'delete', submission: target, timestamp: Date.now() },
             ...prev,
         ]);
-        showToast(`Nova submissão criada: "${newTitle.trim()}"`);
+
+        setSubmissions((prev) => prev.filter((s) => s.id !== id));
+        showToast(`Eliminado: "${target.title}"`, 'info');
+        setPendingDelete(null);
+        setDetailItem(null);
+    };
+
+    const handleUndo = () => {
+        if (undoStack.length === 0) return;
+
+        const [last, ...rest] = undoStack;
+
+        if (last.action === 'delete') {
+            setSubmissions((prev) => [last.submission, ...prev]);
+            showToast(`Recuperado: "${last.submission.title}"`, 'success');
+        } else if (last.action === 'status_change' && last.previousStatus) {
+            setSubmissions((prev) =>
+                prev.map((s) => (s.id === last.submission.id ? { ...s, status: last.previousStatus! } : s))
+            );
+            showToast(`Desfeito: "${last.submission.title}" → ${last.previousStatus}`, 'info');
+        }
+
+        setUndoStack(rest);
+    };
+
+    const handleChangeStatus = (id: number, newStatus: SubmissionStatus) => {
+        const target = submissions.find((s) => s.id === id);
+        if (!target) return;
+
+        setUndoStack((prev) => [
+            { action: 'status_change', submission: target, previousStatus: target.status, timestamp: Date.now() },
+            ...prev,
+        ]);
+
+        setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status: newStatus } : s)));
+        showToast(`Estado alterado: "${target.title}" → ${newStatus}`, 'info');
+    };
+
+    const handleBulkApprove = () => {
+        if (selectedIds.size === 0) return;
+        let approved = 0;
+        setSubmissions((prev) =>
+            prev.map((s) => {
+                if (selectedIds.has(s.id) && s.status !== 'Aprovado') {
+                    approved++;
+                    return { ...s, status: 'Aprovado' };
+                }
+                return s;
+            })
+        );
+        showToast(`${approved} submissão(ões) aprovada(s)`, 'success');
+        setSelectedIds(new Set());
+        setSelectMode(false);
+    };
+
+    const handleBulkReject = () => {
+        if (selectedIds.size === 0) return;
+        let rejected = 0;
+        setSubmissions((prev) =>
+            prev.map((s) => {
+                if (selectedIds.has(s.id) && s.status !== 'Rejeitado') {
+                    rejected++;
+                    return { ...s, status: 'Rejeitado' };
+                }
+                return s;
+            })
+        );
+        showToast(`${rejected} submissão(ões) rejeitada(s)`, 'error');
+        setSelectedIds(new Set());
+        setSelectMode(false);
+    };
+
+    const handleCreateOrUpdateSubmission = () => {
+        if (!newTitle.trim() || !newSubmitter.trim() || !newDueDate) return;
+
+        if (editItem) {
+            // Update existing
+            setSubmissions((prev) =>
+                prev.map((s) =>
+                    s.id === editItem.id
+                        ? {
+                            ...s,
+                            title: newTitle.trim(),
+                            submittedBy: newSubmitter.trim(),
+                            description: newDescription.trim(),
+                            type: newType,
+                            dueDate: newDueDate,
+                        }
+                        : s
+                )
+            );
+            showToast(`Atualizado: "${newTitle.trim()}"`, 'success');
+        } else {
+            // Create new
+            const nextId = Math.max(0, ...submissions.map((s) => s.id)) + 1;
+            const today = getToday().toISOString().slice(0, 10);
+            setSubmissions((prev) => [
+                {
+                    id: nextId,
+                    title: newTitle.trim(),
+                    submittedBy: newSubmitter.trim(),
+                    description: newDescription.trim(),
+                    submittedDate: today,
+                    dueDate: newDueDate,
+                    status: 'Em Revisão',
+                    type: newType,
+                },
+                ...prev,
+            ]);
+            showToast(`Nova submissão criada: "${newTitle.trim()}"`, 'success');
+        }
+
         setNewTitle('');
         setNewSubmitter('');
+        setNewDescription('');
         setNewType('Design');
+        setNewDueDate('');
+        setEditItem(null);
         setShowNewModal(false);
     };
 
+    const openEditModal = (submission: Submission) => {
+        setEditItem(submission);
+        setNewTitle(submission.title);
+        setNewSubmitter(submission.submittedBy);
+        setNewDescription(submission.description || '');
+        setNewType(submission.type);
+        setNewDueDate(submission.dueDate);
+        setShowNewModal(true);
+        setDetailItem(null);
+    };
+
+    const closeModals = () => {
+        setShowNewModal(false);
+        setDetailItem(null);
+        setEditItem(null);
+        setNewTitle('');
+        setNewSubmitter('');
+        setNewDescription('');
+        setNewType('Design');
+        setNewDueDate('');
+    };
+
+    // Handle Escape key
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                closeModals();
+            }
+        };
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, []);
+
     const sortLabel: Record<SortKey, string> = {
         date: 'Prazo',
+        submittedDate: 'Data Submissão',
         title: 'Documentos',
         status: 'Estado',
     };
 
+    const getSortIcon = (key: SortKey) => {
+        if (sortKey !== key) return '↕';
+        return sortAsc ? '↑' : '↓';
+    };
+
     return (
-        <div className="min-h-screen p-4 sm:p-6 space-y-6 text-gray-700">
+        <div className="min-h-screen p-4 sm:p-6 space-y-6 text-gray-700" role="main">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h1 className="text-2xl font-bold text-gray-900">Aprovações e Revisões</h1>
-                <button
-                    onClick={() => setShowNewModal(true)}
-                    className="inline-flex items-center justify-center gap-1.5 bg-slate-800 text-white px-4 py-2 rounded-lg
-                        hover:bg-slate-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
-                >
-                    <Plus size={16} strokeWidth={2.5} />
-                    Nova Submissão
-                </button>
+                <div className="flex items-center gap-2">
+                    {undoStack.length > 0 && (
+                        <button
+                            onClick={handleUndo}
+                            title={`Desfazer: ${undoStack[0].action === 'delete' ? 'restauração' : 'mudança de estado'}`}
+                            className="inline-flex items-center justify-center gap-1.5 bg-gray-200 text-gray-700 px-3 py-2 rounded-lg
+                                hover:bg-gray-300 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
+                        >
+                            <RotateCcw size={16} strokeWidth={2.5} />
+                            <span className="hidden sm:inline text-sm">Desfazer</span>
+                        </button>
+                    )}
+                    {selectMode && selectedIds.size > 0 && (
+                        <>
+                            <button
+                                onClick={handleBulkApprove}
+                                className="inline-flex items-center justify-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-lg
+                                    hover:bg-green-700 transition text-sm"
+                            >
+                                <Check size={16} />
+                                Aprovar {selectedIds.size}
+                            </button>
+                            <button
+                                onClick={handleBulkReject}
+                                className="inline-flex items-center justify-center gap-1.5 bg-red-600 text-white px-3 py-2 rounded-lg
+                                    hover:bg-red-700 transition text-sm"
+                            >
+                                <X size={16} />
+                                Rejeitar {selectedIds.size}
+                            </button>
+                        </>
+                    )}
+                    <button
+                        onClick={() => setSelectMode(!selectMode)}
+                        className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg transition text-sm ${
+                            selectMode
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                    >
+                        <Check size={16} />
+                        {selectMode ? 'Cancelar' : 'Selecionar'}
+                    </button>
+                    <button
+                        onClick={() => setShowNewModal(true)}
+                        className="inline-flex items-center justify-center gap-1.5 bg-slate-800 text-white px-4 py-2 rounded-lg
+                            hover:bg-slate-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+                    >
+                        <Plus size={16} strokeWidth={2.5} />
+                        Nova Submissão
+                    </button>
+                </div>
             </div>
 
             {/* Summary cards */}
@@ -398,7 +693,7 @@ export default function ApprovalsAndReviewsPage() {
                     onClick={() => toggleFilter('approved')}
                 />
                 <SummaryCard
-                    label="Pedidos de mudança"
+                    label="Mudanças"
                     value={counts.changesRequested}
                     valueClassName="text-orange-500"
                     active={activeFilter === 'changesRequested'}
@@ -416,8 +711,8 @@ export default function ApprovalsAndReviewsPage() {
             {/* Submissions panel */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <h2 className="font-semibold text-gray-900">Submissions</h2>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <h2 className="font-semibold text-gray-900">Submissões ({filteredSubmissions.length})</h2>
                         {activeFilter !== 'all' && (
                             <button
                                 onClick={() => setActiveFilter('all')}
@@ -428,7 +723,7 @@ export default function ApprovalsAndReviewsPage() {
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <div className="relative">
                             <Search
                                 size={14}
@@ -438,11 +733,21 @@ export default function ApprovalsAndReviewsPage() {
                                 type="text"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Procurar por título ou autor..."
-                                className="pl-8 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 w-56
+                                placeholder="Procurar..."
+                                className="pl-8 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 w-48
                                     focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                             />
                         </div>
+                        <select
+                            value={typeFilter}
+                            onChange={(e) => setTypeFilter(e.target.value as SubmissionType | 'all')}
+                            className="border border-gray-200 rounded-lg py-1.5 px-2 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                        >
+                            <option value="all">Todos os tipos</option>
+                            <option value="Design">Design</option>
+                            <option value="Técnico">Técnico</option>
+                            <option value="Aprovação Cliente">Aprovação Cliente</option>
+                        </select>
                         <div className="hidden sm:flex items-center gap-1 text-xs text-gray-500">
                             <ArrowUpDown size={13} />
                             <select
@@ -451,6 +756,7 @@ export default function ApprovalsAndReviewsPage() {
                                 className="border border-gray-200 rounded-lg py-1.5 px-2 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                             >
                                 <option value="date">Prazo</option>
+                                <option value="submittedDate">Data Submissão</option>
                                 <option value="title">Documentos</option>
                                 <option value="status">Estado</option>
                             </select>
@@ -477,26 +783,49 @@ export default function ApprovalsAndReviewsPage() {
                             <table className="w-full text-sm">
                                 <thead className="bg-gray-50 sticky top-0">
                                     <tr>
+                                        {selectMode && (
+                                            <th className="p-4 w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.size === filteredSubmissions.length}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedIds(new Set(filteredSubmissions.map((s) => s.id)));
+                                                        } else {
+                                                            setSelectedIds(new Set());
+                                                        }
+                                                    }}
+                                                    className="rounded border-gray-300"
+                                                />
+                                            </th>
+                                        )}
                                         <th className="text-left p-4 font-medium text-gray-500">
                                             <button
                                                 onClick={() => toggleSort('title')}
                                                 className="inline-flex items-center gap-1 hover:text-gray-700"
                                             >
                                                 Documentos
-                                                {sortKey === 'title' && (
-                                                    <ArrowUpDown size={12} />
-                                                )}
+                                                <span className="text-xs text-gray-400">{getSortIcon('title')}</span>
                                             </button>
                                         </th>
                                         <th className="text-left p-4 font-medium text-gray-500">Tipo</th>
                                         <th className="text-left p-4 font-medium text-gray-500">Submetido Por</th>
                                         <th className="text-left p-4 font-medium text-gray-500">
                                             <button
+                                                onClick={() => toggleSort('submittedDate')}
+                                                className="inline-flex items-center gap-1 hover:text-gray-700"
+                                            >
+                                                Submetido
+                                                <span className="text-xs text-gray-400">{getSortIcon('submittedDate')}</span>
+                                            </button>
+                                        </th>
+                                        <th className="text-left p-4 font-medium text-gray-500">
+                                            <button
                                                 onClick={() => toggleSort('date')}
                                                 className="inline-flex items-center gap-1 hover:text-gray-700"
                                             >
                                                 Prazo
-                                                {sortKey === 'date' && <ArrowUpDown size={12} />}
+                                                <span className="text-xs text-gray-400">{getSortIcon('date')}</span>
                                             </button>
                                         </th>
                                         <th className="text-left p-4 font-medium text-gray-500">
@@ -505,9 +834,7 @@ export default function ApprovalsAndReviewsPage() {
                                                 className="inline-flex items-center gap-1 hover:text-gray-700"
                                             >
                                                 Estado
-                                                {sortKey === 'status' && (
-                                                    <ArrowUpDown size={12} />
-                                                )}
+                                                <span className="text-xs text-gray-400">{getSortIcon('status')}</span>
                                             </button>
                                         </th>
                                         <th className="text-right p-4 font-medium text-gray-500">Acções</th>
@@ -518,6 +845,24 @@ export default function ApprovalsAndReviewsPage() {
                                         const overdue = isOverdue(item);
                                         return (
                                             <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                                                {selectMode && (
+                                                    <td className="p-4 w-10">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedIds.has(item.id)}
+                                                            onChange={(e) => {
+                                                                const newSet = new Set(selectedIds);
+                                                                if (e.target.checked) {
+                                                                    newSet.add(item.id);
+                                                                } else {
+                                                                    newSet.delete(item.id);
+                                                                }
+                                                                setSelectedIds(newSet);
+                                                            }}
+                                                            className="rounded border-gray-300"
+                                                        />
+                                                    </td>
+                                                )}
                                                 <td className="p-4 font-medium text-gray-900 max-w-xs">
                                                     <button
                                                         onClick={() => setDetailItem(item)}
@@ -530,15 +875,19 @@ export default function ApprovalsAndReviewsPage() {
                                                     <TypeBadge type={item.type} />
                                                 </td>
                                                 <td className="p-4 text-gray-600">{item.submittedBy}</td>
+                                                <td className="p-4 text-gray-600 whitespace-nowrap text-xs">
+                                                    {formatDate(item.submittedDate)}
+                                                </td>
                                                 <td className="p-4 text-gray-600 whitespace-nowrap">
                                                     <div className="flex items-center gap-1.5">
-                                                        {item.date}
+                                                        {formatDate(item.dueDate)}
                                                         {overdue && (
                                                             <span
                                                                 title={`${daysOverdue(item)} dia(s) fora de prazo`}
-                                                                className="inline-flex items-center gap-0.5 text-red-600"
+                                                                className="inline-flex items-center gap-0.5 text-red-600 text-xs font-medium"
                                                             >
                                                                 <AlertTriangle size={12} strokeWidth={2.5} />
+                                                                {daysOverdue(item)}d
                                                             </span>
                                                         )}
                                                     </div>
@@ -550,14 +899,22 @@ export default function ApprovalsAndReviewsPage() {
                                                     {pendingReject === item.id ? (
                                                         <div className="flex justify-end">
                                                             <ConfirmInline
-                                                                label={`Rejeitar?`}
+                                                                label="Rejeitar?"
                                                                 onConfirm={() => handleQuickReject(item.id)}
                                                                 onCancel={() => setPendingReject(null)}
                                                             />
                                                         </div>
+                                                    ) : pendingDelete === item.id ? (
+                                                        <div className="flex justify-end">
+                                                            <ConfirmInline
+                                                                label="Eliminar?"
+                                                                onConfirm={() => handleDelete(item.id)}
+                                                                onCancel={() => setPendingDelete(null)}
+                                                            />
+                                                        </div>
                                                     ) : (
                                                         <div className="flex justify-end gap-1">
-                                                            {item.status !== 'Approved' && (
+                                                            {item.status !== 'Aprovado' && (
                                                                 <ActionButton
                                                                     onClick={() => handleQuickApprove(item.id)}
                                                                     icon={Check}
@@ -566,7 +923,7 @@ export default function ApprovalsAndReviewsPage() {
                                                                     showLabel={false}
                                                                 />
                                                             )}
-                                                            {item.status !== 'Rejected' && (
+                                                            {item.status !== 'Rejeitado' && (
                                                                 <ActionButton
                                                                     onClick={() => setPendingReject(item.id)}
                                                                     icon={X}
@@ -575,6 +932,20 @@ export default function ApprovalsAndReviewsPage() {
                                                                     showLabel={false}
                                                                 />
                                                             )}
+                                                            <ActionButton
+                                                                onClick={() => openEditModal(item)}
+                                                                icon={Edit}
+                                                                label="Editar"
+                                                                tone="gray"
+                                                                showLabel={false}
+                                                            />
+                                                            <ActionButton
+                                                                onClick={() => setPendingDelete(item.id)}
+                                                                icon={Trash2}
+                                                                label="Eliminar"
+                                                                tone="red"
+                                                                showLabel={false}
+                                                            />
                                                             <ActionButton
                                                                 onClick={() => setDetailItem(item)}
                                                                 icon={Eye}
@@ -598,6 +969,24 @@ export default function ApprovalsAndReviewsPage() {
                                 const overdue = isOverdue(item);
                                 return (
                                     <div key={item.id} className="p-4 space-y-3">
+                                        {selectMode && (
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(item.id)}
+                                                    onChange={(e) => {
+                                                        const newSet = new Set(selectedIds);
+                                                        if (e.target.checked) {
+                                                            newSet.add(item.id);
+                                                        } else {
+                                                            newSet.delete(item.id);
+                                                        }
+                                                        setSelectedIds(newSet);
+                                                    }}
+                                                    className="rounded border-gray-300"
+                                                />
+                                            </div>
+                                        )}
                                         <button
                                             onClick={() => setDetailItem(item)}
                                             className="flex items-start gap-2 text-left w-full"
@@ -613,13 +1002,11 @@ export default function ApprovalsAndReviewsPage() {
                                         <div className="flex items-center justify-between text-xs text-gray-500">
                                             <span>{item.submittedBy}</span>
                                             <span className="inline-flex items-center gap-1">
-                                                {item.date}
+                                                {formatDate(item.dueDate)}
                                                 {overdue && (
-                                                    <AlertTriangle
-                                                        size={12}
-                                                        strokeWidth={2.5}
-                                                        className="text-red-600"
-                                                    />
+                                                    <span className="text-red-600 font-medium">
+                                                        {daysOverdue(item)}d
+                                                    </span>
                                                 )}
                                             </span>
                                         </div>
@@ -631,9 +1018,15 @@ export default function ApprovalsAndReviewsPage() {
                                                     onConfirm={() => handleQuickReject(item.id)}
                                                     onCancel={() => setPendingReject(null)}
                                                 />
+                                            ) : pendingDelete === item.id ? (
+                                                <ConfirmInline
+                                                    label="Eliminar?"
+                                                    onConfirm={() => handleDelete(item.id)}
+                                                    onCancel={() => setPendingDelete(null)}
+                                                />
                                             ) : (
                                                 <div className="flex gap-1">
-                                                    {item.status !== 'Approved' && (
+                                                    {item.status !== 'Aprovado' && (
                                                         <ActionButton
                                                             onClick={() => handleQuickApprove(item.id)}
                                                             icon={Check}
@@ -642,7 +1035,7 @@ export default function ApprovalsAndReviewsPage() {
                                                             showLabel={false}
                                                         />
                                                     )}
-                                                    {item.status !== 'Rejected' && (
+                                                    {item.status !== 'Rejeitado' && (
                                                         <ActionButton
                                                             onClick={() => setPendingReject(item.id)}
                                                             icon={X}
@@ -651,6 +1044,13 @@ export default function ApprovalsAndReviewsPage() {
                                                             showLabel={false}
                                                         />
                                                     )}
+                                                    <ActionButton
+                                                        onClick={() => openEditModal(item)}
+                                                        icon={Edit}
+                                                        label="Editar"
+                                                        tone="gray"
+                                                        showLabel={false}
+                                                    />
                                                     <ActionButton
                                                         onClick={() => setDetailItem(item)}
                                                         icon={Eye}
@@ -674,6 +1074,8 @@ export default function ApprovalsAndReviewsPage() {
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
                     onClick={() => setDetailItem(null)}
+                    role="dialog"
+                    aria-modal="true"
                 >
                     <div
                         className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4"
@@ -693,28 +1095,37 @@ export default function ApprovalsAndReviewsPage() {
                             <TypeBadge type={detailItem.type} />
                             <StatusBadge status={detailItem.status} />
                             {isOverdue(detailItem) && (
-                                <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600">
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded">
                                     <AlertTriangle size={12} strokeWidth={2.5} />
                                     {daysOverdue(detailItem)} dia(s) fora de prazo
                                 </span>
                             )}
                         </div>
-                        <dl className="text-sm text-gray-600 space-y-1.5">
+
+                        {detailItem.description && (
+                            <div className="p-3 bg-gray-50 rounded-lg">
+                                <p className="text-xs text-gray-500 font-medium mb-1">Descrição</p>
+                                <p className="text-sm text-gray-700">{detailItem.description}</p>
+                            </div>
+                        )}
+
+                        <dl className="text-sm text-gray-600 space-y-1.5 border-t pt-4">
                             <div className="flex justify-between">
                                 <dt className="text-gray-400">Submetido por</dt>
                                 <dd className="font-medium text-gray-900">{detailItem.submittedBy}</dd>
                             </div>
                             <div className="flex justify-between">
-                                <dt className="text-gray-400">Data</dt>
-                                <dd className="font-medium text-gray-900">{detailItem.date}</dd>
+                                <dt className="text-gray-400">Data de submissão</dt>
+                                <dd className="font-medium text-gray-900">{formatDate(detailItem.submittedDate)}</dd>
                             </div>
                             <div className="flex justify-between">
                                 <dt className="text-gray-400">Prazo</dt>
-                                <dd className="font-medium text-gray-900">{detailItem.dueDate}</dd>
+                                <dd className="font-medium text-gray-900">{formatDate(detailItem.dueDate)}</dd>
                             </div>
                         </dl>
-                        <div className="flex justify-end gap-2 pt-2">
-                            {detailItem.status !== 'Approved' && (
+
+                        <div className="flex justify-end gap-2 pt-2 border-t flex-wrap">
+                            {detailItem.status !== 'Aprovado' && (
                                 <ActionButton
                                     onClick={() => {
                                         handleQuickApprove(detailItem.id);
@@ -725,7 +1136,7 @@ export default function ApprovalsAndReviewsPage() {
                                     tone="green"
                                 />
                             )}
-                            {detailItem.status !== 'Rejected' && (
+                            {detailItem.status !== 'Rejeitado' && (
                                 <ActionButton
                                     onClick={() => {
                                         setDetailItem(null);
@@ -736,25 +1147,44 @@ export default function ApprovalsAndReviewsPage() {
                                     tone="red"
                                 />
                             )}
+                            <ActionButton
+                                onClick={() => openEditModal(detailItem)}
+                                icon={Edit}
+                                label="Editar"
+                                tone="gray"
+                            />
+                            <ActionButton
+                                onClick={() => {
+                                    setDetailItem(null);
+                                    setPendingDelete(detailItem.id);
+                                }}
+                                icon={Trash2}
+                                label="Eliminar"
+                                tone="red"
+                            />
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* New submission modal */}
+            {/* New/Edit submission modal */}
             {showNewModal && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-                    onClick={() => setShowNewModal(false)}
+                    onClick={() => closeModals()}
+                    role="dialog"
+                    aria-modal="true"
                 >
                     <div
                         className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-start justify-between gap-3">
-                            <h3 className="text-lg font-semibold text-gray-900">Nova Submissão</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                {editItem ? 'Editar Submissão' : 'Nova Submissão'}
+                            </h3>
                             <button
-                                onClick={() => setShowNewModal(false)}
+                                onClick={() => closeModals()}
                                 aria-label="Fechar"
                                 className="text-gray-400 hover:text-gray-600 shrink-0"
                             >
@@ -786,6 +1216,18 @@ export default function ApprovalsAndReviewsPage() {
                                 />
                             </div>
                             <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                    Descrição (opcional)
+                                </label>
+                                <textarea
+                                    value={newDescription}
+                                    onChange={(e) => setNewDescription(e.target.value)}
+                                    placeholder="Detalhes adicionais..."
+                                    rows={3}
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 resize-none"
+                                />
+                            </div>
+                            <div>
                                 <label className="block text-xs font-medium text-gray-500 mb-1">Tipo</label>
                                 <select
                                     value={newType}
@@ -793,35 +1235,51 @@ export default function ApprovalsAndReviewsPage() {
                                     className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
                                 >
                                     <option value="Design">Design</option>
-                                    <option value="Technical">Technical</option>
-                                    <option value="Client Approval">Client Approval</option>
+                                    <option value="Técnico">Técnico</option>
+                                    <option value="Aprovação Cliente">Aprovação Cliente</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                    Prazo
+                                </label>
+                                <input
+                                    type="date"
+                                    value={newDueDate}
+                                    onChange={(e) => setNewDueDate(e.target.value)}
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                                />
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
                             <button
-                                onClick={() => setShowNewModal(false)}
+                                onClick={() => closeModals()}
                                 className="px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100"
                             >
                                 Cancelar
                             </button>
                             <button
-                                onClick={handleCreateSubmission}
-                                disabled={!newTitle.trim() || !newSubmitter.trim()}
+                                onClick={handleCreateOrUpdateSubmission}
+                                disabled={!newTitle.trim() || !newSubmitter.trim() || !newDueDate}
                                 className="px-4 py-2 text-sm font-medium text-white bg-slate-800 rounded-lg hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
-                                Criar Submissão
+                                {editItem ? 'Guardar Alterações' : 'Criar Submissão'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {toast && (
-                <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-gray-900 px-5 py-3 text-sm text-white shadow-2xl">
-                    {toast}
-                </div>
-            )}
+            {/* Toast notifications */}
+            <div className="fixed bottom-6 right-4 z-50 flex flex-col gap-2 max-w-sm">
+                {toasts.map((toast) => (
+                    <ToastNotification
+                        key={toast.id}
+                        toast={toast}
+                        onClose={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+                    />
+                ))}
+            </div>
         </div>
     );
 }

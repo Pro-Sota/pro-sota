@@ -1,5 +1,9 @@
+import { Database } from "../lib/supabase/models";
 import ProjectCard from "./project_card";
-import type { Project } from "../management/projects/types";
+
+
+
+type Project = Database["public"]["Tables"]["projects"]["Row"];
 
 export default function ProjectGridView({ projects }: { projects: Project[] }) {
   if (projects.length === 0) {
@@ -17,7 +21,7 @@ export default function ProjectGridView({ projects }: { projects: Project[] }) {
       className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 auto-rows-fr gap-4 border-t border-gray-300 pt-4"
     >
       {projects.map((project) => (
-        <li key={project.id} role="listitem">
+        <li key={project.project_id} role="listitem">
           <ProjectCard project={project} />
         </li>
       ))}
