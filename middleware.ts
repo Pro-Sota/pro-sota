@@ -5,9 +5,11 @@ export function middleware(request: NextRequest) {
 
   const isDev = process.env.NODE_ENV === "development";
 
-  const csp = [
+const csp = [
   "default-src 'self'",
-  `script-src 'self' '${isDev ? " 'unsafe-eval' 'unsafe-inline'"  : `nonce-${nonce}`}`,
+  isDev
+    ? "script-src 'self' 'unsafe-eval' 'unsafe-inline'"
+    : `script-src 'self' 'nonce-${nonce}'`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' https://fonts.gstatic.com",
