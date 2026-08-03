@@ -10,10 +10,10 @@ import {
   Pencil,
   FolderOpen,
 } from "lucide-react";
-import { Database } from "../../../../models";
 import { getCurrentUser, getProfile } from "@/services/auth";
 import { useEffect, useState } from "react";
 import Loader from "@/app/components/loader";
+import { Database } from "@/app/lib/supabase/models";
 
 const tokens = {
   ink: "#F1F5F9",       // slate-100 — primary text
