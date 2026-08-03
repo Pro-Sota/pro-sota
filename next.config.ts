@@ -37,6 +37,10 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=()",
   },
+  {
+    key: "Cross-Origin-Opener-Policy",
+    value: "same-origin",
+  },
 ];
 
 const nextConfig: NextConfig = {
@@ -45,7 +49,7 @@ const nextConfig: NextConfig = {
     unoptimized: true,
     qualities: [75, 100]
   },
-   turbopack: {
+  turbopack: {
     root: __dirname,
   },
   async headers() {
