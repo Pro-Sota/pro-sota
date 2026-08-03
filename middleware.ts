@@ -5,19 +5,19 @@ export function middleware(request: NextRequest) {
 
   const isDev = process.env.NODE_ENV === "development";
 
-const csp = [
-  "default-src 'self'",
-  isDev
-    ? "script-src 'self' 'unsafe-eval' 'unsafe-inline'"
-    : `script-src 'self' 'nonce-${nonce}'`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https:",
-  "font-src 'self' https://fonts.gstatic.com",
-  "connect-src 'self' https://xwmkjdemnoxixetzlhaz.supabase.co",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "frame-ancestors 'none'",
-].join("; ");
+  const csp = [
+    "default-src 'self'",
+    isDev
+      ? "script-src 'self' 'unsafe-eval' 'unsafe-inline'"
+      : `script-src 'self' 'nonce-${nonce}'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self' https://fonts.gstatic.com",
+    "connect-src 'self' https://xwmkjdemnoxixetzlhaz.supabase.co",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
 
   const response = NextResponse.next();
 
