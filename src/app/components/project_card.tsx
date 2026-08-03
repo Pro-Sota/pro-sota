@@ -31,7 +31,7 @@ export default function ProjectCard({ project }: { project: Project }) {
 
   const progress = Math.min(Math.max(project.progress ?? 0, 0), 100);
 
-  const clientName = project.clients?.name ?? null;
+  const clientName = project.client_id ?? null;
   const hasClient = Boolean(clientName);
   const hasLocation = Boolean(project.location?.trim());
 
