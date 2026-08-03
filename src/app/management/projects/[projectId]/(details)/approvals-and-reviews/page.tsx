@@ -19,6 +19,7 @@ import {
     RotateCcw,
 } from 'lucide-react';
 import clsx from 'clsx';
+import Loader from '@/app/components/loader';
 
 type SubmissionStatus = 'Aprovado' | 'Mudanças Solicitadas' | 'Em Revisão' | 'Rejeitado';
 type SubmissionType = 'Design' | 'Técnico' | 'Aprovação Cliente';
@@ -286,6 +287,7 @@ function ToastNotification({ toast, onClose }: { toast: Toast; onClose: () => vo
 type SortKey = 'date' | 'title' | 'status' | 'submittedDate';
 
 export default function ApprovalsAndReviewsPage() {
+    const [loading, setLoading] = useState(true);
     const [submissions, setSubmissions] = useState(INITIAL_SUBMISSIONS);
     const [toasts, setToasts] = useState<Toast[]>([]);
     const [activeFilter, setActiveFilter] = useState('all');
@@ -332,6 +334,14 @@ export default function ApprovalsAndReviewsPage() {
     useEffect(() => {
         localStorage.setItem(UNDO_STACK_KEY, JSON.stringify(undoStack.slice(0, 10))); // Keep last 10
     }, [undoStack]);
+
+    useEffect(() => {
+        // Simulate data loading
+        const timer = setTimeout(() => {
+            setLoading(false);
+        }, 1000);
+    }, []);
+
 
     const counts = useMemo(
         () => ({
@@ -618,6 +628,9 @@ export default function ApprovalsAndReviewsPage() {
         return sortAsc ? '↑' : '↓';
     };
 
+
+    if (loading) return (<Loader />);
+
     return (
         <div className="min-h-screen p-4 sm:p-6 space-y-6 text-gray-700" role="main">
             {/* Header */}
@@ -657,11 +670,10 @@ export default function ApprovalsAndReviewsPage() {
                     )}
                     <button
                         onClick={() => setSelectMode(!selectMode)}
-                        className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg transition text-sm ${
-                            selectMode
+                        className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg transition text-sm ${selectMode
                                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
+                            }`}
                     >
                         <Check size={16} />
                         {selectMode ? 'Cancelar' : 'Selecionar'}

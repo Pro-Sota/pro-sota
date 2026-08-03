@@ -8,8 +8,9 @@ import {
   Clock3,
   FileText,
 } from "lucide-react";
-import { JSX, useMemo, useState } from "react";
+import { JSX, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Loader from "@/app/components/loader";
 
 type NotificationType =
   | "revision"
@@ -91,6 +92,7 @@ export default function NotificationPage() {
 
   // Replace with your API data later
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [activeFilter, setActiveFilter] =
     useState<FilterValue>("all");
@@ -146,6 +148,16 @@ export default function NotificationPage() {
     // Update this route according to your app
     router.push(`/notifications/${notification.id}`);
   };
+
+
+  useEffect(() => {
+    // Simulate data loading
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
+
+  if (loading) return (<Loader />);
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">

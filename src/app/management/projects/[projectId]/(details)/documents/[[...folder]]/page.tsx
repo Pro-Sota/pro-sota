@@ -1,4 +1,6 @@
-import { redirect } from "next/navigation";
+"use client";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { FolderOpen, FileText, FolderPlus, Upload } from "lucide-react";
 
 import DocumentGridView from "../components/document_grid";
@@ -8,6 +10,7 @@ import DocumentToolbar from "../components/document_toolbar";
 
 import { folders, mockDocuments } from "../data";
 import { Database } from "@/app/lib/supabase/models";
+import Loader from "@/app/components/loader";
 
 type Folder = Database["public"]["Tables"]["folders"]["Row"];
 
@@ -37,7 +40,7 @@ function EmptyState({ type, currentView, folderName }: EmptyStateProps) {
             action: "Upload Documents",
             actionIcon: Upload,
         },
-        "recents": {
+        recents: {
             icon: FileText,
             title: "No recent documents",
             description: "Documents you access will appear here",
@@ -66,9 +69,7 @@ function EmptyState({ type, currentView, folderName }: EmptyStateProps) {
 
     return (
         <div
-            className={`flex flex-col items-center justify-center gap-4 ${currentView === "grid"
-                ? "min-h-[500px]"
-                : "min-h-[400px]"
+            className={`flex flex-col items-center justify-center gap-4 ${currentView === "grid" ? "min-h-[500px]" : "min-h-[400px]"
                 }`}
         >
             <div className="rounded-lg bg-gray-100 p-6">
@@ -94,25 +95,54 @@ function EmptyState({ type, currentView, folderName }: EmptyStateProps) {
     );
 }
 
-export default async function DocumentPage({
+export default function DocumentPage({
     params,
     searchParams,
 }: PageProps) {
-    const [{ projectId, folder }, { view }] = await Promise.all([
-        params,
-        searchParams,
-    ]);
+    const router = useRouter();
+    const [loading, setLoading] = useState(true);
+    const [projectId, setProjectId] = useState<string>("");
+    const [folder, setFolder] = useState<string[]>([]);
+    const [view, setView] = useState<string>("");
 
-    if (!folder?.length) {
-        redirect(
-            `/management/projects/${projectId}/documents/all-files?view=${view ?? "list"
-            }`
-        );
-    }
+    // Handle params and redirect logic
+    useEffect(() => {
+        const initializeComponent = async () => {
+            try {
+                const resolvedParams = await params;
+                const resolvedSearchParams = await searchParams;
+
+                setProjectId(resolvedParams.projectId);
+                setFolder(resolvedParams.folder || []);
+                setView(resolvedSearchParams.view || "list");
+
+                // Redirect if no folder specified
+                if (!resolvedParams.folder?.length) {
+                    router.push(
+                        `/management/projects/${resolvedParams.projectId}/documents/all-files?view=${resolvedSearchParams.view ?? "list"
+                        }`
+                    );
+                    return;
+                }
+
+
+            } catch (error) {
+                console.error("Error initializing component:", error);
+
+            }
+        };
+
+        initializeComponent();
+    }, [params, searchParams, router]);
+
+    useEffect(() => {
+        // Simulate data loading
+        const timer = setTimeout(() => {
+            setLoading(false);
+        }, 1000);
+    }, []);
 
     const currentView = view === "grid" ? "grid" : "list";
-
-    // Current route
     const selected = folder.join("/");
 
     // "all-files" is a virtual folder
@@ -145,12 +175,16 @@ export default async function DocumentPage({
             : [];
 
     // Check if content is empty
-    const isEmpty = filteredFolders.length === 0 && filteredDocuments.length === 0;
-    const hasOnlyFolders = filteredFolders.length > 0 && filteredDocuments.length === 0;
-    const hasOnlyDocuments = filteredFolders.length === 0 && filteredDocuments.length > 0;
+    const isEmpty =
+        filteredFolders.length === 0 && filteredDocuments.length === 0;
+    const hasOnlyFolders =
+        filteredFolders.length > 0 && filteredDocuments.length === 0;
+    const hasOnlyDocuments =
+        filteredFolders.length === 0 && filteredDocuments.length > 0;
 
     // Determine empty state type
-    let emptyStateType: "all-files" | "recents" | "empty-folder" | "no-documents" = "all-files";
+    let emptyStateType: "all-files" | "recents" | "empty-folder" | "no-documents" =
+        "all-files";
     if (isRecents) {
         emptyStateType = "recents";
     } else if (currentFolder && isEmpty) {
@@ -159,12 +193,11 @@ export default async function DocumentPage({
         emptyStateType = "no-documents";
     }
 
+    if (loading) return <Loader />;
+
     return (
         <div className="flex h-full w-full overflow-hidden">
-            <DocumentSidebar
-                projectId={projectId}
-                view={currentView}
-            />
+            <DocumentSidebar projectId={projectId} view={currentView} />
 
             <main className="flex-1 overflow-y-auto bg-gray-50">
                 <DocumentToolbar view={currentView} />

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { GripVertical, Trash2, X, AlertTriangle, Calendar, Search, Plus } from 'lucide-react';
 import { Task, Column, ColumnId } from './types';
+import Loader from '../loader';
 
 const COLUMNS: Column[] = [
     { id: 'todo', title: 'To Do' },
@@ -56,6 +57,7 @@ export default function KanbanBoard() {
     const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
     const [columns, setColumns] = useState<Column[]>(COLUMNS);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
@@ -120,6 +122,14 @@ export default function KanbanBoard() {
     const updateTask = (taskId: string, updates: Partial<Task>) => {
         setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
     };
+
+    useEffect(() => {
+        // Simulate data loading
+        const timer = setTimeout(() => {
+            setLoading(false);
+        }, 1000);
+    }, []);
+
 
     // ---- Columns ----
     const handleAddColumn = () => {
@@ -272,6 +282,9 @@ export default function KanbanBoard() {
     const totalMatches = tasks.filter(matchesSearch).length;
     const isSearching = searchQuery.trim().length > 0;
 
+    if (loading) return (<Loader />);
+
+
     return (
         <>
             <div className="min-h-screen p-8">
@@ -321,9 +334,8 @@ export default function KanbanBoard() {
                                         onDragOver={(e) => { e.preventDefault(); setDragOverColumnId(column.id); }}
                                         onDragLeave={() => setDragOverColumnId((prev) => (prev === column.id ? null : prev))}
                                         onDrop={(e) => handleColumnDropArea(e, column.id)}
-                                        className={`w-80 flex-shrink-0 rounded-2xl border bg-white p-4 shadow-lg min-h-[500px] flex flex-col transition ${
-                                            dragOverColumnId === column.id ? 'border-gray-400 ring-2 ring-gray-200' : 'border-slate-200'
-                                        }`}
+                                        className={`w-80 flex-shrink-0 rounded-2xl border bg-white p-4 shadow-lg min-h-[500px] flex flex-col transition ${dragOverColumnId === column.id ? 'border-gray-400 ring-2 ring-gray-200' : 'border-slate-200'
+                                            }`}
                                     >
                                         {/* Column Header */}
                                         <div className="mb-4 flex items-center justify-between gap-2 border-b border-slate-200 pb-4">
@@ -430,9 +442,8 @@ export default function KanbanBoard() {
                                                     <div className="mt-2 flex items-center justify-between">
                                                         {task.dueDate ? (
                                                             <span
-                                                                className={`inline-flex items-center gap-1 text-[11px] font-medium ${
-                                                                    isOverdue(task.dueDate) ? 'text-red-500' : 'text-slate-400'
-                                                                }`}
+                                                                className={`inline-flex items-center gap-1 text-[11px] font-medium ${isOverdue(task.dueDate) ? 'text-red-500' : 'text-slate-400'
+                                                                    }`}
                                                             >
                                                                 {isOverdue(task.dueDate) ? (
                                                                     <AlertTriangle size={11} />
@@ -596,9 +607,8 @@ export default function KanbanBoard() {
                                             <button
                                                 key={label.name}
                                                 onClick={() => toggleLabel(label.name)}
-                                                className={`rounded-full px-3 py-1 text-xs font-medium ring-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 ${
-                                                    active ? `${label.classes} ring-transparent` : 'bg-white text-gray-400 ring-gray-200 hover:text-gray-600'
-                                                }`}
+                                                className={`rounded-full px-3 py-1 text-xs font-medium ring-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 ${active ? `${label.classes} ring-transparent` : 'bg-white text-gray-400 ring-gray-200 hover:text-gray-600'
+                                                    }`}
                                             >
                                                 {label.name}
                                             </button>

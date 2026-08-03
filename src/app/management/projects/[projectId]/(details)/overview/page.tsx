@@ -1,3 +1,4 @@
+"use client";
 import KpiCard from "./components/kpi_card";
 import GanttChart from "@/app/components/gantt";
 import {
@@ -23,6 +24,8 @@ import {
   budgetByPhase,
 } from "./data";
 import { StatusPill } from "./components/status_pill";
+import { useEffect, useState } from "react";
+import Loader from "@/app/components/loader";
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -307,9 +310,8 @@ function ProgressBar({ percent, overBudget = false }: ProgressBarProps) {
       aria-valuemax={100}
     >
       <div
-        className={`h-full rounded-full ${
-          overBudget ? "bg-red-500" : "bg-blue-700"
-        }`}
+        className={`h-full rounded-full ${overBudget ? "bg-red-500" : "bg-blue-700"
+          }`}
         style={{ width: `${clamped}%` }}
       />
     </div>
@@ -363,9 +365,8 @@ function RisksBanner({ risks }: RisksBannerProps) {
           className="flex items-center gap-3 rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-red-700"
         >
           <span
-            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-              risk.severity === "high" ? "bg-red-600" : "bg-amber-500"
-            }`}
+            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${risk.severity === "high" ? "bg-red-600" : "bg-amber-500"
+              }`}
             aria-label={`Severidade: ${risk.severity}`}
           />
           <span className="text-sm">{risk.text}</span>
@@ -380,6 +381,17 @@ function RisksBanner({ risks }: RisksBannerProps) {
 // ============================================================================
 
 export default function Overview() {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate data loading
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
+
+  if (loading) return (<Loader />)
+
   return (
     <div className="space-y-10 p-12 w-full min-w-0">
       {/* KPI Grid */}
@@ -421,9 +433,8 @@ export default function Overview() {
                   >
                     <span className="text-sm text-slate-700">{m.name}</span>
                     <span
-                      className={`text-sm font-mono whitespace-nowrap ${
-                        overdue ? "text-red-600 font-medium" : "text-slate-500"
-                      }`}
+                      className={`text-sm font-mono whitespace-nowrap ${overdue ? "text-red-600 font-medium" : "text-slate-500"
+                        }`}
                     >
                       {m.date}
                       {overdue ? ` · ${LABELS.overdue}` : ""}
@@ -504,9 +515,8 @@ export default function Overview() {
                       </p>
                     </div>
                     <span
-                      className={`text-sm font-mono shrink-0 whitespace-nowrap ${
-                        overdue ? "text-red-600 font-medium" : "text-slate-500"
-                      }`}
+                      className={`text-sm font-mono shrink-0 whitespace-nowrap ${overdue ? "text-red-600 font-medium" : "text-slate-500"
+                        }`}
                     >
                       {a.date}
                       {overdue ? ` · ${LABELS.overdue}` : ""}

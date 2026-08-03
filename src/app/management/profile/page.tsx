@@ -1,4 +1,4 @@
-"use client"; 
+"use client";
 
 import {
   Mail,
@@ -13,6 +13,7 @@ import {
 import { Database } from "../../../../models";
 import { getCurrentUser, getProfile } from "@/services/auth";
 import { useEffect, useState } from "react";
+import Loader from "@/app/components/loader";
 
 const tokens = {
   ink: "#F1F5F9",       // slate-100 — primary text
@@ -54,20 +55,16 @@ export default function ProfilePage() {
         const profile = (await getProfile()) as Profile;
         setUser(profile);
       } finally {
-        setLoading(false);
+        const timer = setTimeout(() => {
+          setLoading(false);
+        }, 1000);
       }
     }
 
     loadProfile();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    );
-  }
+  if (loading) return (<Loader />);
 
   if (!user) {
     return (
@@ -86,7 +83,7 @@ export default function ProfilePage() {
       day: "numeric",
     });
   };
-  
+
   const stats = [
     { title: "Projectos Activos", value: 0 },
     { title: "Concluído", value: 0 },
@@ -101,6 +98,8 @@ export default function ProfilePage() {
     { icon: Phone, label: "Telefone", value: user.phone_number || "—" },
     { icon: Calendar, label: "Data de Adesão", value: formatDate(user.created_at) },
   ];
+
+
 
   return (
     <div className="min-h-screen p-6 md:p-10 bg-gray-50">

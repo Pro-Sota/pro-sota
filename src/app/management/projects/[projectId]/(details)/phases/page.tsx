@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Phase } from "./types";
 import { PhaseTimeline } from "./PhaseTimeline";
 import { Metric } from "./Metric";
@@ -8,6 +8,7 @@ import { StatusPill } from "./StatusPill";
 import { EmptyState } from "./EmptyState";
 import { ProgressBar } from "./ProgressBar";
 import { Card } from "./Card";
+import Loader from "@/app/components/loader";
 
 type StatusValue =
   | "Completed"
@@ -106,6 +107,7 @@ const phases: Phase[] = [
 export default function PhasesPage() {
   // Each item now belongs to a phase, so the lists can be scoped instead
   // of floating unattached to the process they belong to.
+  const [loading, setLoading] = useState(true);
   const deliverables: StatusItem[] = [];
 
   const milestones: StatusItem[] = [];
@@ -146,6 +148,16 @@ export default function PhasesPage() {
   }
 
   const config = STATUS[status as keyof typeof STATUS];
+
+  useEffect(() => {
+    // Simulate data loading
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
+
+  if (loading) return (<Loader />);
+
 
   return (
     <div className="p-8 md:p-8 space-y-6 text-slate-700 min-h-screen">

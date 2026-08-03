@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { UserPlus, Settings} from "lucide-react";
 import { useRouter } from "next/navigation";
+import Loader from "@/app/components/loader";
 
 type Role =
     | "project-manager"
@@ -44,6 +45,7 @@ const statusStyles: Record<Status, { dot: string; label: string }> = {
 
 export default function Team() {
     const [manageRolesOpen, setManageRolesOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
     const router = useRouter();
 
    const members: Profile[] = [];
@@ -77,6 +79,15 @@ export default function Team() {
     const handleViewProfile = (profile: Profile) => {
         router.push(`/management/team/profile/${profile.id}`)
     };
+
+      useEffect(() => {
+        // Simulate data loading
+        const timer = setTimeout(() => {
+          setLoading(false);
+        }, 1000);
+      }, []);
+
+      if (loading) return (<Loader />);
 
     return (
         <div className="h-full mx-auto max-w-7xl px-6 my-8 pb-12">
