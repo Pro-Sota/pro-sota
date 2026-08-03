@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Plus,
   Search,
@@ -18,12 +18,11 @@ import {
 } from "lucide-react";
 import { StatCard } from "../../components/StatCard";
 import { useRouter } from "next/navigation";
+import Loader from "@/app/components/loader";
 
 
 type ClientType = "Empresa" | "Particular";
 type ClientStatus = "Activo" | "Pending" | "Inactivo";
-
-
 
 interface Client {
   id: string;
@@ -37,7 +36,7 @@ interface Client {
 }
 
 const CLIENTS: Client[] = [
-  
+
 ];
 
 const STATUS_STYLES: Record<ClientStatus, string> = {
@@ -54,13 +53,23 @@ const currency = (value: number) =>
       notation: "compact",
     }).format(value)}`;
 
+
 export default function ClientsPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | ClientStatus>("All");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const router = useRouter();
+
+
+  useEffect(() => {
+
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -79,6 +88,8 @@ export default function ClientsPage() {
   const companies = CLIENTS.filter((c) => c.type === "Empresa").length;
   const activeProjects = CLIENTS.reduce((sum, c) => sum + c.projects, 0);
 
+  if (loading) return (<Loader />);
+
   return (
     <div className="min-h-screen p-6 md:p-10">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -90,9 +101,9 @@ export default function ClientsPage() {
             <p className="text-gray-500">Gerir clientes, contactos and projectos.</p>
           </div>
 
-          <button 
+          <button
             onClick={() => router.push("/management/clients/create-client")}
-          className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-white transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
+            className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-white transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2">
             <Plus size={18} />
             Novo Cliente
           </button>

@@ -1,5 +1,6 @@
 "use client";
 
+import Loader from "@/app/components/loader";
 import { StatCard } from "@/app/components/StatCard";
 import {
   Search,
@@ -15,7 +16,7 @@ import {
   SearchX,
   Building2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const tokens = {
   ink: "#0F172A",
@@ -57,6 +58,7 @@ export default function SuppliersPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | SupplierStatus>("All");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const suppliers: Supplier[] = [];
 
@@ -83,6 +85,12 @@ export default function SuppliersPage() {
     },
   ];
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return suppliers.filter((c) => {
@@ -95,6 +103,8 @@ export default function SuppliersPage() {
       return matchesQuery && matchesStatus;
     });
   }, [query, statusFilter]);
+
+  if (loading) return (<Loader />);
 
   return (
     <div className="min-h-screen p-6 md:p-10">

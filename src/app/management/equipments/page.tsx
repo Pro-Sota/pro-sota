@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Plus,
   Search,
@@ -10,6 +10,7 @@ import {
   Package,
   Users
 } from "lucide-react";
+import Loader from "@/app/components/loader";
 
 type Activity = {
 
@@ -38,6 +39,7 @@ export default function EquipmentPage() {
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
+  const [loading, setLoading] = useState(true);
 
   const assets: Asset[] = [
 
@@ -86,6 +88,15 @@ export default function EquipmentPage() {
       a.status === statusFilter;
     return matchesQuery && matchesStatus;
   });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
+
+
+  if (loading) return (<Loader />);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-gray-900 md:p-10">

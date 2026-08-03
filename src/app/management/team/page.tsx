@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { getAllUsers } from "@/services/auth";
 import { Database } from "@/app/lib/supabase/models";
 import CustomSelect from "@/app/components/custom_select";
+import Loader from "@/app/components/loader";
 
 type Employee = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -39,7 +40,9 @@ export default function TeamPage() {
         const team = (await getAllUsers()) as Employee[];
         setEmployees(team);
       } finally {
-        setLoading(false);
+         const timer = setTimeout(() => {
+          setLoading(false);
+        }, 1000);
       }
     }
 
@@ -112,13 +115,7 @@ export default function TeamPage() {
     return matchesSearch && matchesDepartment;
   });
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    );
-  }
+  if (loading) return (<Loader />);
 
 
   return (

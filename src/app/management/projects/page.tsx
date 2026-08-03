@@ -16,6 +16,7 @@ import ProjectGridView from "@/app/components/project_grid_view";
 import ProjectMapView from "@/app/components/project_map_view";
 import { Database } from "@/app/lib/supabase/models";
 import { getProjects } from "@/services/projects";
+import Loader from "@/app/components/loader";
 
 const filters = [
   { value: "todos", label: "Todos", status: null },
@@ -37,6 +38,7 @@ function ProjectsPageInner() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,6 +74,10 @@ function ProjectsPageInner() {
       console.log("Returned:", data);
 
       setProjects(data ?? []);
+
+       const timer = setTimeout(() => {
+          setLoading(false);
+        }, 1000);
     }
 
     loadProjects();
@@ -106,6 +112,9 @@ function ProjectsPageInner() {
 
   const buttonClass =
     " p-2 text-gray-400 flex items-center justify-center text-sm rounded hover:border-gray-500 border border-gray-300 transition-colors duration-300 cursor-pointer";
+
+
+  if (loading) return (<Loader />);
 
   return (
     <div className="flex flex-col text-black px-8 bg-gray-50 h-screen">

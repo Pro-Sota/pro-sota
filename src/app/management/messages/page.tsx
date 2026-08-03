@@ -1,5 +1,6 @@
 "use client";
 
+import Loader from "@/app/components/loader";
 import {
   Search,
   Send,
@@ -17,7 +18,7 @@ import {
   Plus,
 } from "lucide-react";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const projectConversations: Chat[] = [];
 const directConversations: Chat[] = [];
@@ -99,19 +100,17 @@ function ChatItem({ chat, isSelected, onSelect, icon }: ChatItemProps) {
   return (
     <button
       onClick={() => onSelect(chat.id)}
-      className={`w-full transition-all duration-200 ${
-        isSelected
+      className={`w-full transition-all duration-200 ${isSelected
           ? "bg-slate-100 border-l-2 border-l-slate-900"
           : "border-l-2 border-l-transparent hover:bg-slate-50"
-      }`}
+        }`}
     >
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Avatar */}
         <div className="relative shrink-0">
           <div
-            className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-              isSelected ? "bg-slate-900" : "bg-slate-200"
-            }`}
+            className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${isSelected ? "bg-slate-900" : "bg-slate-200"
+              }`}
           >
             <div className={isSelected ? "text-white" : "text-slate-600"}>
               {icon}
@@ -170,7 +169,7 @@ function ChatSection({
 
   const [isExpanded, setIsExpanded] = useState(true);
   const unreadCount = countUnreadMessages(chats);
-  
+
   return (
     <div className="border-b border-slate-100 last:border-b-0">
       <button
@@ -192,9 +191,8 @@ function ChatSection({
           )}
           <ChevronDown
             size={18}
-            className={`text-slate-400 transition-transform duration-200 ${
-              isExpanded ? "" : "-rotate-90"
-            }`}
+            className={`text-slate-400 transition-transform duration-200 ${isExpanded ? "" : "-rotate-90"
+              }`}
           />
         </div>
       </button>
@@ -303,6 +301,7 @@ function InfoCard({ icon, label, value }: InfoCardProps) {
 export default function CommunicationPage() {
   const [selectedChatId, setSelectedChatId] = useState<string>("");
   const [messageInput, setMessageInput] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const handleSendMessage = () => {
     if (messageInput.trim()) {
@@ -310,6 +309,16 @@ export default function CommunicationPage() {
       setMessageInput("");
     }
   };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
+
+
+
+  if (loading) return <Loader />;
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white text-slate-900">
@@ -367,33 +376,30 @@ export default function CommunicationPage() {
           {/* Action Buttons */}
           <div className="flex gap-2 shrink-0">
             <button
-              className={`rounded-lg border p-2.5 transition-colors ${
-                selectedChatId
+              className={`rounded-lg border p-2.5 transition-colors ${selectedChatId
                   ? "border-slate-200 text-slate-600 hover:bg-slate-50"
                   : "border-slate-200 text-slate-400 cursor-not-allowed"
-              }`}
+                }`}
               disabled={!selectedChatId}
               title="Chamada"
             >
               <Phone size={17} />
             </button>
             <button
-              className={`rounded-lg border p-2.5 transition-colors ${
-                selectedChatId
+              className={`rounded-lg border p-2.5 transition-colors ${selectedChatId
                   ? "border-slate-200 text-slate-600 hover:bg-slate-50"
                   : "border-slate-200 text-slate-400 cursor-not-allowed"
-              }`}
+                }`}
               disabled={!selectedChatId}
               title="Vídeo"
             >
               <Video size={17} />
             </button>
             <button
-              className={`rounded-lg border p-2.5 transition-colors ${
-                selectedChatId
+              className={`rounded-lg border p-2.5 transition-colors ${selectedChatId
                   ? "border-slate-200 text-slate-600 hover:bg-slate-50"
                   : "border-slate-200 text-slate-400 cursor-not-allowed"
-              }`}
+                }`}
               disabled={!selectedChatId}
               title="Mais opções"
             >
@@ -411,16 +417,14 @@ export default function CommunicationPage() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${
-                    message.isMine ? "justify-end" : "justify-start"
-                  }`}
+                  className={`flex ${message.isMine ? "justify-end" : "justify-start"
+                    }`}
                 >
                   <div
-                    className={`max-w-md rounded-2xl px-4 py-3 animation-fade-in ${
-                      message.isMine
+                    className={`max-w-md rounded-2xl px-4 py-3 animation-fade-in ${message.isMine
                         ? "bg-slate-900 text-white"
                         : "border border-slate-200 bg-white text-slate-900"
-                    }`}
+                      }`}
                   >
                     {!message.isMine && (
                       <p className="mb-1.5 text-xs font-semibold text-slate-500">
@@ -433,9 +437,8 @@ export default function CommunicationPage() {
                     </p>
 
                     <p
-                      className={`mt-2 text-right text-xs ${
-                        message.isMine ? "text-slate-300" : "text-slate-400"
-                      }`}
+                      className={`mt-2 text-right text-xs ${message.isMine ? "text-slate-300" : "text-slate-400"
+                        }`}
                     >
                       {message.time}
                     </p>
@@ -472,11 +475,10 @@ export default function CommunicationPage() {
             />
 
             <button
-              className={`shrink-0 rounded-lg p-3 text-white transition ${
-                selectedChatId
+              className={`shrink-0 rounded-lg p-3 text-white transition ${selectedChatId
                   ? "bg-slate-900 hover:bg-slate-800 active:bg-slate-950"
                   : "bg-slate-400 cursor-not-allowed"
-              }`}
+                }`}
               onClick={handleSendMessage}
               disabled={!selectedChatId}
               title="Enviar"
