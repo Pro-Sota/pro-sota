@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { UserPlus, Settings} from "lucide-react";
+import { UserPlus, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Loader from "@/app/components/loader";
 
@@ -34,7 +34,7 @@ const roleLabels: Record<Role, string> = {
     coordenador: "Coordenador",
     architect: "Arquitecto",
     engineer: "Engenheiro",
-    partner:"Parceiros"
+    partner: "Parceiros"
 };
 
 const statusStyles: Record<Status, { dot: string; label: string }> = {
@@ -48,7 +48,7 @@ export default function Team() {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-   const members: Profile[] = [];
+    const members: Profile[] = [];
 
     const sections: { title: string; role: Role }[] = [
         {
@@ -80,14 +80,14 @@ export default function Team() {
         router.push(`/management/team/profile/${profile.id}`)
     };
 
-      useEffect(() => {
+    useEffect(() => {
         // Simulate data loading
         const timer = setTimeout(() => {
-          setLoading(false);
+            setLoading(false);
         }, 1000);
-      }, []);
+    }, []);
 
-      if (loading) return (<Loader />);
+    if (loading) return (<Loader />);
 
     return (
         <div className="h-full mx-auto max-w-7xl px-6 my-8 pb-12">
@@ -101,7 +101,7 @@ export default function Team() {
                         <Settings size={18} />
                         Gerir funções
                     </button>
-                    
+
                     <button
                         className="inline-flex items-center gap-2 rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-500 cursor-pointer"
                     >

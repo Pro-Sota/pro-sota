@@ -1,6 +1,8 @@
 "use client";
 
 import { getAllUsers } from "@/services/auth";
+import { Metadata } from 'next';
+
 import {
   Briefcase,
   Users,
@@ -39,8 +41,6 @@ function EmptyState({
     </div>
   );
 }
-
-
 
 export default function Dashboard() {
 
