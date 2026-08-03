@@ -21,6 +21,8 @@ export function SummaryPanel({
     .filter(Boolean)
     .join(", ");
 
+  const teamMembers = [];
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -43,12 +45,12 @@ export function SummaryPanel({
           label="Duração"
           value={duration && !duration.invalid ? (duration.label as string) : "—"}
         />
-        <SummaryRow label="Gestor" value={form.projectManagerId || "—"} />
+        <SummaryRow label="Gestor" value={"—"} />
         <SummaryRow
           label="Equipa"
           value={
-            form.teamMembers.length > 0
-              ? `${form.teamMembers.length} membro${form.teamMembers.length !== 1 ? "s" : ""}`
+            teamMembers.length > 0
+              ? `${teamMembers.length} membro${teamMembers.length !== 1 ? "s" : ""}`
               : "—"
           }
         />

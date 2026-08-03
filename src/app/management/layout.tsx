@@ -4,7 +4,12 @@ import DashboardLayout from "./dashboard_layout";
 export const metadata: Metadata = {
   title: {
     template: "%s | ProSota",
-    default: "Management Dashboard | ProSota",
+    default: "Dashboard | ProSota",
+  },
+  description: "ProSota Management Dashboard",
+  openGraph: {
+    title: "ProSota Management Dashboard", 
+    description: "ProSota Management Dashboard",
   },
 };
 

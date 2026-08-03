@@ -3,19 +3,19 @@ import { NextRequest, NextResponse } from "next/server";
 export function middleware(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
 
+  const isDev = process.env.NODE_ENV === "development";
+
   const csp = [
-    "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
-    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
-    "img-src 'self' data: https:",
-    "font-src 'self' https://fonts.gstatic.com",
-    "connect-src 'self'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "frame-ancestors 'none'",
-    "form-action 'self'",
-    "upgrade-insecure-requests",
-  ].join("; ");
+  "default-src 'self'",
+  `script-src 'self' '${isDev ? " 'unsafe-eval' 'unsafe-inline'"  : `nonce-${nonce}`}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https:",
+  "font-src 'self' https://fonts.gstatic.com",
+  "connect-src 'self' https://xwmkjdemnoxixetzlhaz.supabase.co",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
 
   const response = NextResponse.next();
 

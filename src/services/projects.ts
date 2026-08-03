@@ -42,8 +42,11 @@ export async function createProject(project: ProjectFormState) {
   console.log("Supabase error:", error);
 
   if (error) {
-    console.error(error);
-    throw new Error(error.message);
+    console.error("Create project error:", JSON.stringify(error, null, 2));
+
+    throw new Error(
+      error.message || "Failed to create project"
+    );
   }
 
   return data;

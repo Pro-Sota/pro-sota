@@ -19,6 +19,7 @@ export function CurrencyInput({
       </span>
       <input
         type="text"
+        name="budget"
         inputMode="numeric"
         value={display}
         onChange={(e) => onChangeAction(e.target.value)}

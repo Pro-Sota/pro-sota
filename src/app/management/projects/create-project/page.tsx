@@ -37,16 +37,12 @@ type TeamMember = Database["public"]["Tables"]["profiles"]["Row"];
 // Keeping them typed separately makes it clear they need to be mapped
 // onto real columns/relations before the payload is sent to the backend.
 
-export type ProjectFormState = ProjectInsert & {
-  projectManagerId: string;
-  teamMembers: SelectableTeamMember[];
-};
+export type ProjectFormState = ProjectInsert;
 
 type SelectableTeamMember = TeamMember & { isCustom?: boolean };
 
 const initialProject: ProjectFormState = {
   budget: null,
-  client_id: null,
   created_at: null,
   created_by: null,
   description: "",
@@ -54,7 +50,6 @@ const initialProject: ProjectFormState = {
   estimated_cost: null,
   location: null,
   project_code: "",
-  project_id: "",
   start_date: null,
   status: null,
   title: "",
@@ -70,8 +65,6 @@ const initialProject: ProjectFormState = {
   municipality: "",
   state_province: null,
 
-  projectManagerId: "",
-  teamMembers: [],
 };
 
 const DESCRIPTION_MAX = 500;
@@ -81,7 +74,6 @@ const DESCRIPTION_MAX = 500;
 // in this form, so progress could never reach 100%.)
 const REQUIRED_FOR_PROGRESS = [
   "title",
-  "client_id",
   "type",
   "municipality",
   "address_line_1",
@@ -92,6 +84,44 @@ const REQUIRED_FOR_PROGRESS = [
 
 const inputStyle =
   "w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#1B3A5C] focus:ring-2 focus:ring-[#1B3A5C]/10";
+
+// Helper function to prepare project data for backend submission
+function prepareProjectPayload(form: ProjectFormState): ProjectFormState & { 
+} {
+  return {
+    // Required project information
+    title: form.title.trim(),
+    type: form.type || null,
+    description: form.description?.trim(),
+    
+    // Location details
+    country: form.country?.trim() || null,
+    state_province: form.state_province?.trim() || null,
+    municipality: form.municipality.trim(),
+    address_line_1: form.address_line_1?.trim() || null,
+    address_line_2: form.address_line_2?.trim() || null,
+    city: form.city?.trim() || null,
+    latitude: form.latitude,
+    longitude: form.longitude,
+    
+    // Timeline
+    start_date: form.start_date,
+    end_date: form.end_date,
+    
+    // Financial
+    budget: form.budget,
+    estimated_cost: form.estimated_cost || form.budget, // Use budget as estimate if not set
+    
+    // Metadata
+    project_code: form.project_code || "",
+    status: form.status || "planning",
+    urgency: form.urgency || null,
+    location: form.location,
+    created_at: form.created_at,
+    created_by: form.created_by,
+    updated_at: form.updated_at,
+  };
+}
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -158,15 +188,50 @@ export default function NewProjectPage() {
   // A form can be 100% "filled" but still invalid (e.g. end date before
   // start date), so completeness has to factor that in too.
   const isComplete = progress === 100 && !(duration && duration.invalid);
-
+const cleanUuid = (value?: string) =>
+  value && value.trim() !== "" ? value : null;
   async function submitProject() {
     setSubmitting(true);
 
     try {
-      const [data, error] = await createProject(form);
+      // Build the complete project payload with all fields
+      const payload: ProjectInsert = {
+        title: form.title.trim(),
+
+        type: form.type,
+        description: form.description?.trim() || null,
+
+        client_id: cleanUuid(form.client_id || undefined),
+
+        country: form.country?.trim() || null,
+        state_province: form.state_province?.trim() || null,
+        municipality: form.municipality.trim(),
+        address_line_1: form.address_line_1?.trim() || null,
+        address_line_2: form.address_line_2?.trim() || null,
+        city: form.city?.trim() || null,
+
+        latitude: form.latitude,
+        longitude: form.longitude,
+
+        start_date: form.start_date,
+        end_date: form.end_date,
+
+        budget: form.budget,
+        estimated_cost: form.estimated_cost ?? form.budget,
+
+        status: form.status || "planning",
+        urgency: form.urgency ?? null,
+
+        location: form.location ?? null,
+
+        created_by: form.created_by ?? null,
+        project_code: ""
+      };
+
+      const [data, error] = await createProject(payload);
 
       if (error) {
-        console.error(error);
+        console.error("Project creation error:", error);
         throw new Error(error.message ?? JSON.stringify(error));
       }
 
@@ -174,7 +239,8 @@ export default function NewProjectPage() {
       setSubmitted(true);
 
     } catch (err) {
-      console.error(err);
+      console.error("Submit failed:", err);
+      // TODO: Add error notification/toast to user
     } finally {
       setSubmitting(false);
     }
@@ -193,6 +259,7 @@ export default function NewProjectPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isComplete || submitting) return;
+    console.log("Project payload:", prepareProjectPayload(form));
     submitProject();
   }
 
@@ -264,7 +331,7 @@ export default function NewProjectPage() {
 
           <div className="grid gap-6 p-6 md:grid-cols-[1.6fr_1fr]">
             <div>
-              <label className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-400" htmlFor="title">
                 Nome do projecto
               </label>
               <input
@@ -291,18 +358,17 @@ export default function NewProjectPage() {
               description="O necessário — o que é este projecto e para quem é."
             >
               <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Cliente" required>
+                <Field label="Cliente" for="client_id">
                   <input
                     name="client_id"
                     value={form.client_id || ""}
                     onChange={handleChange}
-                    required
                     className={inputStyle}
                     placeholder="Cliente ou nome da empresa"
                   />
                 </Field>
 
-                <Field label="Tipo de projecto">
+                <Field label="Tipo de projecto" for="type" required>
                   <Select name="type" value={form.type || ""} onChange={handleChange} className="appearance-none pr-10">
                     <option value="">Tipo..</option>
                     <option>Residencial</option>
@@ -317,6 +383,7 @@ export default function NewProjectPage() {
                 <div className="md:col-span-2">
                   <Field
                     label="Descrição"
+                    for="description"
                     trailing={
                       <span
                         className={`text-xs font-mono ${(form.description ?? "").length >= DESCRIPTION_MAX
@@ -350,15 +417,16 @@ export default function NewProjectPage() {
               description="O lugar onde o trabalho será feito."
             >
               <div className="grid gap-5 md:grid-cols-2">
-                <Field label="País">
+                <Field label="País" for="country">
                   <input
                     name="country"
+                    autoComplete="country-name"
                     value={form.country || ""}
                     onChange={handleChange}
                     className={inputStyle}
                   />
                 </Field>
-                <Field label="Província" required>
+                <Field label="Província" for="state_province" required>
                   <input
                     name="state_province"
                     value={form.state_province || ""}
@@ -366,7 +434,7 @@ export default function NewProjectPage() {
                     className={inputStyle}
                   />
                 </Field>
-                <Field label="Município" required>
+                <Field label="Município" for="municipality" required>
                   <input
                     name="municipality"
                     value={form.municipality}
@@ -374,7 +442,7 @@ export default function NewProjectPage() {
                     className={inputStyle}
                   />
                 </Field>
-                <Field label="Rua" required>
+                <Field label="Rua" for="address_line_1"  required>
                   <input
                     name="address_line_1"
                     value={form.address_line_1 || ""}
@@ -393,7 +461,7 @@ export default function NewProjectPage() {
               description="Datas chaves para planejamento e relatório."
             >
               <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Data de inicio" required>
+                <Field label="Data de inicio" for="start_date" required>
                   <input
                     type="date"
                     name="start_date"
@@ -402,7 +470,7 @@ export default function NewProjectPage() {
                     className={`${inputStyle} font-mono`}
                   />
                 </Field>
-                <Field label="Data de término" required>
+                <Field label="Data de término" for="end_date" required>
                   <input
                     type="date"
                     name="end_date"
@@ -441,18 +509,18 @@ export default function NewProjectPage() {
               description="Quem é o responsavel para a entrega deste projecto."
             >
               <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Gestor do projecto" required>
+                <Field label="Gestor do projecto" required for="projectManagerId">
                   <input
                     name="projectManagerId"
-                    value={form.projectManagerId}
+                    value={""}
                     onChange={handleChange}
                     className={inputStyle}
                   />
                 </Field>
 
-                <Field label="Membros da equipa">
+                <Field label="Membros da equipa" for="team_members">
                   <TeamMemberSelector
-                    members={form.teamMembers}
+                    members={[]}
                     onChange={(teamMembers) =>
                       setForm((prev) => ({ ...prev, teamMembers }))
                     }
@@ -469,7 +537,7 @@ export default function NewProjectPage() {
               description="Orçamento e numéros do contracto."
             >
               <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Estimativa de orçamento" required>
+                <Field label="Estimativa de orçamento" for="budget" required>
                   <CurrencyInput
                     value={form.budget?.toString() || "0"}
                     onChangeAction={(v) => handleCurrencyChange("budget", v)}
@@ -682,6 +750,7 @@ function TeamMemberSelector({
         <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           value={query}
+          name="teamMemberSearch"
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
