@@ -1,6 +1,7 @@
 "use client";
 
 import Loader from "@/app/components/loader";
+import NewConversationModal from "@/app/components/new_message_modal";
 import {
   Search,
   Send,
@@ -101,8 +102,8 @@ function ChatItem({ chat, isSelected, onSelect, icon }: ChatItemProps) {
     <button
       onClick={() => onSelect(chat.id)}
       className={`w-full transition-all duration-200 ${isSelected
-          ? "bg-slate-100 border-l-2 border-l-slate-900"
-          : "border-l-2 border-l-transparent hover:bg-slate-50"
+        ? "bg-slate-100 border-l-2 border-l-slate-900"
+        : "border-l-2 border-l-transparent hover:bg-slate-50"
         }`}
     >
       <div className="flex items-center gap-3 px-4 py-3">
@@ -227,7 +228,7 @@ function ChatSection({
 /**
  * Empty Message State
  */
-function EmptyMessageState() {
+function EmptyMessageState({ onNewMessage }: { onNewMessage: (show: boolean) => void }) {
   return (
     <div className="flex h-full flex-col items-center justify-center text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
@@ -242,7 +243,9 @@ function EmptyMessageState() {
         {LABELS.startConversation}
       </p>
 
-      <button className="mt-6 flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 transition-colors">
+      <button
+        onClick={() => onNewMessage(true)}
+        className="mt-6 flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 transition-colors">
         <Plus size={16} />
         {LABELS.newMessage}
       </button>
@@ -302,6 +305,7 @@ export default function CommunicationPage() {
   const [selectedChatId, setSelectedChatId] = useState<string>("");
   const [messageInput, setMessageInput] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showNewConversationModal, setShowNewConversationModal] = useState(false);
 
   const handleSendMessage = () => {
     if (messageInput.trim()) {
@@ -314,8 +318,9 @@ export default function CommunicationPage() {
     const timer = setTimeout(() => {
       setLoading(false);
     }, 1000);
-  }, []);
 
+    return () => clearTimeout(timer);
+  }, []);
 
 
   if (loading) return <Loader />;
@@ -377,8 +382,8 @@ export default function CommunicationPage() {
           <div className="flex gap-2 shrink-0">
             <button
               className={`rounded-lg border p-2.5 transition-colors ${selectedChatId
-                  ? "border-slate-200 text-slate-600 hover:bg-slate-50"
-                  : "border-slate-200 text-slate-400 cursor-not-allowed"
+                ? "border-slate-200 text-slate-600 hover:bg-slate-50"
+                : "border-slate-200 text-slate-400 cursor-not-allowed"
                 }`}
               disabled={!selectedChatId}
               title="Chamada"
@@ -387,8 +392,8 @@ export default function CommunicationPage() {
             </button>
             <button
               className={`rounded-lg border p-2.5 transition-colors ${selectedChatId
-                  ? "border-slate-200 text-slate-600 hover:bg-slate-50"
-                  : "border-slate-200 text-slate-400 cursor-not-allowed"
+                ? "border-slate-200 text-slate-600 hover:bg-slate-50"
+                : "border-slate-200 text-slate-400 cursor-not-allowed"
                 }`}
               disabled={!selectedChatId}
               title="Vídeo"
@@ -397,8 +402,8 @@ export default function CommunicationPage() {
             </button>
             <button
               className={`rounded-lg border p-2.5 transition-colors ${selectedChatId
-                  ? "border-slate-200 text-slate-600 hover:bg-slate-50"
-                  : "border-slate-200 text-slate-400 cursor-not-allowed"
+                ? "border-slate-200 text-slate-600 hover:bg-slate-50"
+                : "border-slate-200 text-slate-400 cursor-not-allowed"
                 }`}
               disabled={!selectedChatId}
               title="Mais opções"
@@ -411,7 +416,7 @@ export default function CommunicationPage() {
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto bg-slate-50/50 p-6">
           {messages.length === 0 ? (
-            <EmptyMessageState />
+            <EmptyMessageState onNewMessage={setShowNewConversationModal} />
           ) : (
             <div className="space-y-5">
               {messages.map((message) => (
@@ -422,8 +427,8 @@ export default function CommunicationPage() {
                 >
                   <div
                     className={`max-w-md rounded-2xl px-4 py-3 animation-fade-in ${message.isMine
-                        ? "bg-slate-900 text-white"
-                        : "border border-slate-200 bg-white text-slate-900"
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-200 bg-white text-slate-900"
                       }`}
                   >
                     {!message.isMine && (
@@ -476,8 +481,8 @@ export default function CommunicationPage() {
 
             <button
               className={`shrink-0 rounded-lg p-3 text-white transition ${selectedChatId
-                  ? "bg-slate-900 hover:bg-slate-800 active:bg-slate-950"
-                  : "bg-slate-400 cursor-not-allowed"
+                ? "bg-slate-900 hover:bg-slate-800 active:bg-slate-950"
+                : "bg-slate-400 cursor-not-allowed"
                 }`}
               onClick={handleSendMessage}
               disabled={!selectedChatId}
@@ -487,6 +492,8 @@ export default function CommunicationPage() {
             </button>
           </div>
         </div>
+        <NewConversationModal open={showNewConversationModal} onClose={() => setShowNewConversationModal(false)} />
+
       </main>
 
       {/* ========== SIDEBAR - RIGHT (Project Info) ========== */}
@@ -552,6 +559,7 @@ export default function CommunicationPage() {
                   </div>
                 ))}
               </div>
+
             </div>
           </div>
         ) : (
