@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-
+  const nonce = crypto.randomUUID();
   const isDev = process.env.NODE_ENV === "development";
 
   const csp = [
@@ -18,7 +17,7 @@ export function middleware(request: NextRequest) {
     "base-uri 'self'",
     "frame-ancestors 'none'",
   ].join("; ");
-  
+
   const response = NextResponse.next();
 
   response.headers.set(
