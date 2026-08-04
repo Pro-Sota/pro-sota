@@ -16,6 +16,7 @@ import {
   SearchX,
   Building2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 const tokens = {
@@ -55,6 +56,8 @@ const statusStyles: Record<SupplierStatus, string> = {
 };
 
 export default function SuppliersPage() {
+
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | SupplierStatus>("All");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -89,6 +92,8 @@ export default function SuppliersPage() {
     const timer = setTimeout(() => {
       setLoading(false);
     }, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const filtered = useMemo(() => {
@@ -121,6 +126,7 @@ export default function SuppliersPage() {
           </div>
 
           <button
+            onClick={() => router.push("/management/suppliers/new")}
             className="flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition hover:opacity-90 bg-slate-900 text-gray-50 cursor-pointer"
           >
             <Plus size={16} />

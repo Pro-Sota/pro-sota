@@ -41,8 +41,19 @@ export default function EquipmentPage() {
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [loading, setLoading] = useState(true);
 
-  const assets: Asset[] = [
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  const [newEquipment, setNewEquipment] = useState({
+    id: "",
+    name: "",
+    category: "",
+    location: "",
+    holder: "",
+    status: "Disponível" as EquipmentStatus,
+    returnDate: "",
+  });
+
+  const assets: Asset[] = [
   ];
 
   const stats = [
@@ -95,8 +106,27 @@ export default function EquipmentPage() {
     }, 1000);
   }, []);
 
+  const handleSaveEquipment = () => {
+    console.log(newEquipment);
+
+    // Save to API here
+
+    setIsAddModalOpen(false);
+
+    setNewEquipment({
+      id: "",
+      name: "",
+      category: "",
+      location: "",
+      holder: "",
+      status: "Disponível",
+      returnDate: "",
+    });
+  };
+
 
   if (loading) return (<Loader />);
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 text-gray-900 md:p-10">
@@ -111,7 +141,9 @@ export default function EquipmentPage() {
               Acompanhe materiais e ferramentas da obra, saiba onde estão e quem é o responsável por cada item.
             </p>
           </div>
-          <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800">
             <Plus size={16} />
             Registar Material
           </button>
@@ -249,6 +281,171 @@ export default function EquipmentPage() {
               )}
             </tbody>
           </table>
+          {isAddModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b px-6 py-4">
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      Registar Material
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Adicione um novo equipamento ao inventário.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="rounded-md p-2 hover:bg-gray-100"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Body */}
+                <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Código
+                    </label>
+                    <input
+                      className="w-full rounded-lg border px-3 py-2"
+                      value={newEquipment.id}
+                      onChange={(e) =>
+                        setNewEquipment({
+                          ...newEquipment,
+                          id: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Nome
+                    </label>
+                    <input
+                      className="w-full rounded-lg border px-3 py-2"
+                      value={newEquipment.name}
+                      onChange={(e) =>
+                        setNewEquipment({
+                          ...newEquipment,
+                          name: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Categoria
+                    </label>
+                    <input
+                      className="w-full rounded-lg border px-3 py-2"
+                      placeholder="Ferramenta, EPI..."
+                      value={newEquipment.category}
+                      onChange={(e) =>
+                        setNewEquipment({
+                          ...newEquipment,
+                          category: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Localização
+                    </label>
+                    <input
+                      className="w-full rounded-lg border px-3 py-2"
+                      value={newEquipment.location}
+                      onChange={(e) =>
+                        setNewEquipment({
+                          ...newEquipment,
+                          location: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Responsável
+                    </label>
+                    <input
+                      className="w-full rounded-lg border px-3 py-2"
+                      value={newEquipment.holder}
+                      onChange={(e) =>
+                        setNewEquipment({
+                          ...newEquipment,
+                          holder: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Estado
+                    </label>
+                    <select
+                      className="w-full rounded-lg border px-3 py-2"
+                      value={newEquipment.status}
+                      onChange={(e) =>
+                        setNewEquipment({
+                          ...newEquipment,
+                          status: e.target.value as EquipmentStatus,
+                        })
+                      }
+                    >
+                      <option>Disponível</option>
+                      <option>Em Utilização</option>
+                      <option>Atrasado</option>
+                      <option>Em Falta</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm font-medium">
+                      Data Prevista de Devolução
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full rounded-lg border px-3 py-2"
+                      value={newEquipment.returnDate}
+                      onChange={(e) =>
+                        setNewEquipment({
+                          ...newEquipment,
+                          returnDate: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end gap-3 border-t px-6 py-4">
+                  <button
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    onClick={handleSaveEquipment}
+                    className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-800"
+                  >
+                    Registar Material
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Recent activity */}

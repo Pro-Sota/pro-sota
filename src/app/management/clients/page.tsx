@@ -15,6 +15,8 @@ import {
   Phone,
   X,
   ChevronDown,
+  Kanban,
+  KanbanSquare,
 } from "lucide-react";
 import { StatCard } from "../../components/StatCard";
 import { useRouter } from "next/navigation";
@@ -32,7 +34,6 @@ interface Client {
   phone: string;
   email: string;
   status: ClientStatus;
-  outstanding: number;
 }
 
 const CLIENTS: Client[] = [
@@ -84,7 +85,7 @@ export default function ClientsPage() {
     });
   }, [query, statusFilter]);
 
-  const totalOutstanding = CLIENTS.reduce((sum, c) => sum + c.outstanding, 0);
+  const completedProjects = CLIENTS.filter((p) => p.status === "Activo").length;
   const companies = CLIENTS.filter((c) => c.type === "Empresa").length;
   const activeProjects = CLIENTS.reduce((sum, c) => sum + c.projects, 0);
 
@@ -114,7 +115,7 @@ export default function ClientsPage() {
           <StatCard icon={<Users size={22} />} title="Total Clientes" value={String(CLIENTS.length)} />
           <StatCard icon={<Building2 size={22} />} title="Empresas" value={String(companies)} />
           <StatCard icon={<Briefcase size={22} />} title="Projectos Activos" value={String(activeProjects)} />
-          <StatCard icon={<Wallet size={22} />} title="Outstanding" value={currency(totalOutstanding)} />
+          <StatCard icon={<KanbanSquare size={22} />} title="Projectos Concluídos" value={String(completedProjects)} />
         </div>
 
         {/* Toolbar */}
