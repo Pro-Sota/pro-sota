@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
     "base-uri 'self'",
     "frame-ancestors 'none'",
   ].join("; ");
-
+  
   const response = NextResponse.next();
 
   response.headers.set(
