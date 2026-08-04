@@ -54,10 +54,9 @@ export async function createProject(project: ProjectFormState) {
 
 export async function getProjectsByUser(userId: string) {
   const { data, error } = await supabase
-    .from("projects")
+    .from("user_projects")
     .select("*")
-    .eq("created_by", userId)
-    .order("created_at", { ascending: false });
+    .eq("profile_id", userId);
 
   if (error) throw error;
 

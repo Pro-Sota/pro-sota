@@ -3,17 +3,17 @@
 import {
   Mail,
   Phone,
-  MapPin,
   Briefcase,
-  Building2,
   Calendar,
   Pencil,
   FolderOpen,
 } from "lucide-react";
-import { getCurrentUser, getProfile } from "@/services/auth";
+import { getProfile } from "@/services/auth";
+import { getProjectsByUser } from "@/services/projects";
 import { useEffect, useState } from "react";
 import Loader from "@/app/components/loader";
 import { Database } from "@/app/lib/supabase/models";
+import { useRouter } from "next/navigation";
 
 const tokens = {
   ink: "#F1F5F9",       // slate-100 — primary text
@@ -43,17 +43,24 @@ const statusStyles = {
 type ProjectStatus = keyof typeof statusStyles;
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type Project = Database["public"]["Tables"]["projects"]["Row"];
 
 export default function ProfilePage() {
 
+  const router = useRouter();
+
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userProjects, setUserProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     async function loadProfile() {
       try {
         const profile = (await getProfile()) as Profile;
         setUser(profile);
+
+        const projects = (await getProjectsByUser(profile.profile_id)) as Project[];
+        setUserProjects(projects);
       } finally {
         const timer = setTimeout(() => {
           setLoading(false);
@@ -91,15 +98,13 @@ export default function ProfilePage() {
     { title: "Experiência", value: 0 },
   ];
 
-  const projects: { name: string; status: ProjectStatus; deadline: string }[] = [];
+  const projects: Project[] = userProjects;
 
   const info = [
     { icon: Mail, label: "Email", value: user.email || "—" },
     { icon: Phone, label: "Telefone", value: user.phone_number || "—" },
     { icon: Calendar, label: "Data de Adesão", value: formatDate(user.created_at) },
   ];
-
-
 
   return (
     <div className="min-h-screen p-6 md:p-10 bg-gray-50">
@@ -127,7 +132,10 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <button className="cursor-pointer flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm text-slate-200 font-medium bg-gray-900 transition hover:opacity-90">
+            <button
+              onClick={() => router.push("/management/profile/edit")}
+              className="cursor-pointer flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm text-slate-200 font-medium bg-gray-900 transition hover:opacity-90"
+            >
               <Pencil size={16} />
               Editar perfil
             </button>
@@ -189,12 +197,12 @@ export default function ProfilePage() {
             </div>
 
             {projects.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div key={projects.map((p) => p.title).join(",")} className="grid gap-4 md:grid-cols-2">
                 {projects.map((project) => {
-                  const s = statusStyles[project.status];
+                  const s = statusStyles[project.status as ProjectStatus] || { bg: tokens.slate700, text: tokens.slate700 };
                   return (
                     <article
-                      key={project.name}
+                      key={project.project_id}
                       className="rounded-2xl p-5 transition hover:shadow-md border border-gray-300"
                     >
                       <div className="flex justify-between">
@@ -215,11 +223,11 @@ export default function ProfilePage() {
                       </div>
 
                       <h3 className="mt-5 text-lg font-medium text-gray-900">
-                        {project.name}
+                        {project.title}
                       </h3>
 
                       <p className="mt-2 text-sm text-gray-500">
-                        Prazo: {project.deadline}
+                        Prazo: {project.end_date ? formatDate(project.end_date) : "—"}
                       </p>
                     </article>
                   );
