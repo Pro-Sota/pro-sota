@@ -127,10 +127,8 @@ export default function NewConversationModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md p-4">
             <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl overflow-hidden">
-
                 {/* Header */}
                 <div className="relative overflow-hidden bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 px-8 py-8">
-
                     <div className="absolute inset-0 opacity-10">
                         <div className="absolute top-0 right-0 w-96 h-96 bg-slate-400 rounded-full blur-3xl" />
                     </div>
