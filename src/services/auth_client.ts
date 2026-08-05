@@ -1,4 +1,4 @@
-import { createClient } from "../app/lib/supabase/client";
+import { createClient } from "@/app/lib/supabase/client";
 
 export async function signIn(email: string, password: string) {
   try {
@@ -170,6 +170,7 @@ export async function isAuthenticated() {
 }
 
 import { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
 export function onAuthStateChange(
   callback: (event: AuthChangeEvent, session: Session | null) => void
@@ -180,45 +181,14 @@ export function onAuthStateChange(
 }
 
 
-export async function getAllUsers() {
+
+export async function getProfileById(profileId: string) {
   try {
     const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*");
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    return null;
-  }
-}
-
-
-export async function getProfile() {
-  try {
-    const supabase = createClient();
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) throw userError;
-
-    if (!user) {
-      throw new Error("No authenticated user");
-    }
-
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
-      .eq("profile_id", user.id)
+      .eq("profile_id", profileId)
       .single();
 
     if (error) throw error;

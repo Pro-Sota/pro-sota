@@ -1,12 +1,6 @@
 import ProjectNavbar from "@/app/components/project_side_bar";
-import { Database } from "@/app/lib/supabase/models";
-import { getProject } from "@/services/projects";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-
-
-type Project = Database["public"]["Tables"]["projects"]["Row"];
 
 export default async function ProjectLayout({
   children,
@@ -16,12 +10,6 @@ export default async function ProjectLayout({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-
-  const project = await getProject(projectId)
-
-  if (!project) {
-    notFound();
-  }
 
   return (
     <div className="flex flex-col h-screen overflow-x-hidden">

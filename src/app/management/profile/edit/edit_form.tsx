@@ -5,19 +5,18 @@ import {
   User,
   Mail,
   Phone,
- Building2,
+  Building2,
   Save,
   ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 
 import Loader from "@/app/components/loader";
-import { getProfile } from "@/services/auth";
 import { Database } from "@/app/lib/supabase/models";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
-export default function EditProfilePage() {
+export default function EditForm({ profile }: { profile: Profile | null }) {
   const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
@@ -29,26 +28,17 @@ export default function EditProfilePage() {
   });
 
   useEffect(() => {
-    async function loadProfile() {
-      try {
-        const profile = (await getProfile()) as Profile;
-
-        if (profile) {
-          setForm({
-            first_name: profile.first_name ?? "",
-            last_name: profile.last_name ?? "",
-            email: profile.email ?? "",
-            phone_number: profile.phone_number ?? "",
-            department: profile.department ?? "",
-          });
-        }
-      } finally {
-        setLoading(false);
-      }
+    if (profile) {
+      setForm({
+        first_name: profile.first_name ?? "",
+        last_name: profile.last_name ?? "",
+        email: profile.email ?? "",
+        phone_number: profile.phone_number ?? "",
+        department: profile.department ?? "",
+      });
     }
-
-    loadProfile();
-  }, []);
+    setLoading(false);
+  }, [profile]);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement>
@@ -80,7 +70,7 @@ export default function EditProfilePage() {
 
             <div>
               <Link
-                href="/profile"
+                href="/management/profile"
                 className="mb-4 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
               >
                 <ArrowLeft size={16} />

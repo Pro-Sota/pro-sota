@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { FolderOpen, FileText, FolderPlus, Upload } from "lucide-react";
+import { FolderOpen, FileText, Upload } from "lucide-react";
 
 import DocumentGridView from "../components/document_grid";
 import DocumentSidebar from "../components/document_side_bar";
@@ -10,21 +10,9 @@ import DocumentToolbar from "../components/document_toolbar";
 
 import { folders, mockDocuments } from "../data";
 import { Database } from "@/app/lib/supabase/models";
-import Loader from "@/app/components/loader";
 
-type Folder = Database["public"]["Tables"]["folders"]["Row"];
+import { useParams, useSearchParams } from "next/navigation";
 
-type PageProps = {
-    params: Promise<{
-        projectId: string;
-        folder?: string[];
-    }>;
-    searchParams: Promise<{
-        view?: string;
-    }>;
-};
-
-// Empty State Component
 interface EmptyStateProps {
     type: "all-files" | "recents" | "empty-folder" | "no-documents";
     currentView: "grid" | "list";
@@ -95,52 +83,17 @@ function EmptyState({ type, currentView, folderName }: EmptyStateProps) {
     );
 }
 
-export default function DocumentPage({
-    params,
-    searchParams,
-}: PageProps) {
+export default function DocumentPage() {
     const router = useRouter();
-    const [loading, setLoading] = useState(true);
-    const [projectId, setProjectId] = useState<string>("");
-    const [folder, setFolder] = useState<string[]>([]);
-    const [view, setView] = useState<string>("");
+
+    const params = useParams();
+    const searchParams = useSearchParams();
+
+    const projectId = params.projectId as string;
+    const folder = (params.folder as string[]) ?? [];
+    const view = searchParams.get("view") ?? "list";
 
     // Handle params and redirect logic
-    useEffect(() => {
-        const initializeComponent = async () => {
-            try {
-                const resolvedParams = await params;
-                const resolvedSearchParams = await searchParams;
-
-                setProjectId(resolvedParams.projectId);
-                setFolder(resolvedParams.folder || []);
-                setView(resolvedSearchParams.view || "list");
-
-                // Redirect if no folder specified
-                if (!resolvedParams.folder?.length) {
-                    router.push(
-                        `/management/projects/${resolvedParams.projectId}/documents/all-files?view=${resolvedSearchParams.view ?? "list"
-                        }`
-                    );
-                    return;
-                }
-
-
-            } catch (error) {
-                console.error("Error initializing component:", error);
-
-            }
-        };
-
-        initializeComponent();
-    }, [params, searchParams, router]);
-
-    useEffect(() => {
-        // Simulate data loading
-        const timer = setTimeout(() => {
-            setLoading(false);
-        }, 1000);
-    }, []);
 
     const currentView = view === "grid" ? "grid" : "list";
     const selected = folder.join("/");
@@ -193,15 +146,11 @@ export default function DocumentPage({
         emptyStateType = "no-documents";
     }
 
-    if (loading) return <Loader />;
-
     return (
         <div className="flex h-full w-full overflow-hidden">
             <DocumentSidebar projectId={projectId} view={currentView} />
-
             <main className="flex-1 overflow-y-auto bg-gray-50">
                 <DocumentToolbar view={currentView} />
-
                 <div className="mt-4 flex h-max w-full flex-1 px-4">
                     {isEmpty ? (
                         <div className="w-full">

@@ -1,26 +1,13 @@
-import { Project } from "@/app/management/projects/types";
+import { Database } from "@/app/lib/supabase/models";
 import { createClient } from "../app/lib/supabase/client";
 import { ProjectFormState } from "@/app/management/projects/create-project/page";
 
+type Project = Database["public"]["Tables"]["projects"]["Row"];
+
+
 const supabase = createClient();
 
-export async function getProjects() {
-  try {
-    const supabase = createClient();
-
-    const { data, error } = await supabase.from("projects").select("*");
-    if (error) throw new Error(error.message);
-
-    console.log("data: " + data)
-    return data;
-
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
-}
-
-export async function getProject(projectId: string) {
+export async function getProjectById(projectId: string) {
   const { data, error } = await supabase
     .from("projects")
     .select("*")
@@ -63,22 +50,41 @@ export async function getProjectsByUser(userId: string) {
   return data;
 }
 
-export async function getProjectMembers(projectId: string) {
+type UserProjectResult = {
+  projects: Project | null;
+};
+
+export async function getUserProjects(
+  userId: string
+): Promise<Project[]> {
+  const { data, error } = await supabase
+    .from("user_projects")
+    .select(`
+      projects (*)
+    `)
+    .eq("profile_id", userId);
+
+  if (error) throw error;
+
+  return (data as unknown as UserProjectResult[])
+    .flatMap((row) => (row.projects ? [row.projects] : []));
+}
+
+export async function getProjectMembers(profileID: string) {
   const { data, error } = await supabase
     .from("project_members")
     .select(`
       project_role,
-      users (
-        user_id,
+      profiles (
+        profile_id,
         first_name,
         last_name,
         avatar_url
       )
     `)
-    .eq("project_id", projectId);
+    .eq("profile_id", profileID);
 
   if (error) throw error;
-
   return data;
 }
 
