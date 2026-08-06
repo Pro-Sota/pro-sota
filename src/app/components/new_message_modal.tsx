@@ -1,3 +1,4 @@
+"use client";
 import {
     Search,
     X,
@@ -8,6 +9,9 @@ import {
 import { useState, useCallback, useEffect } from "react";
 import { Database } from "../lib/supabase/models";
 import { createClient } from "../lib/supabase/client";
+import {
+    createConversationAction,
+} from "@/app/actions/message"
 
 interface NewConversationModalProps {
     open: boolean;
@@ -107,11 +111,13 @@ export default function NewConversationModal({
         [searchUsers]
     );
 
-    const handleStartConversation = () => {
-        if (selectedUserId) {
-            onStartConversation?.(selectedUserId);
-            handleClose();
-        }
+    const handleStartConversation = async () => {
+        if (!selectedUserId) return;
+
+        const conversationId = await createConversationAction(selectedUserId);
+
+        onStartConversation?.(conversationId);
+        handleClose();
     };
 
     const handleClose = () => {
@@ -218,20 +224,18 @@ export default function NewConversationModal({
                                 onClick={() =>
                                     setSelectedUserId(user.profile_id)
                                 }
-                                className={`w-full px-8 py-4 text-left border-b border-slate-100 transition ${
-                                    selectedUserId === user.profile_id
-                                        ? "bg-slate-100"
-                                        : "hover:bg-slate-50"
-                                }`}
+                                className={`w-full px-8 py-4 text-left border-b border-slate-100 transition ${selectedUserId === user.profile_id
+                                    ? "bg-slate-100"
+                                    : "hover:bg-slate-50"
+                                    }`}
                             >
                                 <div className="flex items-center gap-4">
                                     <div className="relative">
                                         <div
-                                            className={`h-14 w-14 flex items-center justify-center rounded-full text-white font-semibold ${
-                                                selectedUserId === user.profile_id
-                                                    ? "bg-gradient-to-br from-slate-700 to-slate-900 ring-2 ring-slate-300"
-                                                    : "bg-gradient-to-br from-slate-400 to-slate-500"
-                                            }`}
+                                            className={`h-14 w-14 flex items-center justify-center rounded-full text-white font-semibold ${selectedUserId === user.profile_id
+                                                ? "bg-gradient-to-br from-slate-700 to-slate-900 ring-2 ring-slate-300"
+                                                : "bg-gradient-to-br from-slate-400 to-slate-500"
+                                                }`}
                                         >
                                             {user.first_name?.[0]}
                                             {user.last_name?.[0]}

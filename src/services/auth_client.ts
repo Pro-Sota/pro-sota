@@ -18,6 +18,7 @@ export async function signIn(email: string, password: string) {
   }
 }
 
+
 export async function signUp(
   email: string,
   password: string
@@ -38,6 +39,7 @@ export async function signUp(
     throw error;
   }
 }
+
 
 export async function updateUserProfile(
   metadata: Record<string, unknown>

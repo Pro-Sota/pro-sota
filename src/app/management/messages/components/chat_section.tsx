@@ -1,89 +1,90 @@
+"use client";
+
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import ChatItem from "./chat_item";
+import { ConversationWithDetails } from "./chat_item"; // better move this to a shared types file
 
-interface Chat {
-    id: string;
-    isOnline: boolean;
-    name: string;
-    time: string;
-    last: string;
-    unread: number;
+interface ChatSectionProps {
+  title: string;
+  chats: ConversationWithDetails[];
+  icon: React.ReactNode;
+  selectedChatId?: string;
 }
 
-interface props {
-    title: string;
-    chats: Chat[];
-    icon: React.ReactNode;
-    onSelectChat: (id: string) => void;
-    selectedChatId: string;
-}
 export default function ChatSection({
-    title,
-    chats,
-    icon,
-    onSelectChat,
-    selectedChatId,
-}: props) {
+  title,
+  chats,
+  icon,
+  selectedChatId,
+}: ChatSectionProps) {
+  const router = useRouter();
+  const [isExpanded, setIsExpanded] = useState(true);
 
+  const unreadCount = chats.reduce(
+    (total, chat) => total + chat.unreadCount,
+    0
+  );
 
-    function countUnreadMessages(chats: Chat[]): number {
-        return chats.reduce((sum, chat) => sum + chat.unread, 0);
-    }
+  const handleSelectChat = (chatId: string) => {
+    router.push(`/messages/${chatId}`);
+  };
 
-    const [isExpanded, setIsExpanded] = useState(true);
-    const unreadCount = countUnreadMessages(chats);
+  return (
+    <section className="border-b border-slate-100 last:border-b-0">
+      <button
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-slate-50"
+        aria-expanded={isExpanded}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-slate-600">{icon}</span>
 
-    return (
-        <div className="border-b border-slate-100 last:border-b-0">
-            <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-            >
-                <div className="flex items-center gap-2">
-                    <span className="text-slate-600 shrink-0">{icon}</span>
-                    <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-                    <span className="ml-auto mr-2 text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                        {chats.length}
-                    </span>
-                </div>
-                <div className="flex items-center gap-2">
-                    {unreadCount > 0 && (
-                        <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
-                            {unreadCount}
-                        </span>
-                    )}
-                    <ChevronDown
-                        size={18}
-                        className={`text-slate-400 transition-transform duration-200 ${isExpanded ? "" : "-rotate-90"
-                            }`}
-                    />
-                </div>
-            </button>
+          <h2 className="text-sm font-semibold text-slate-900">
+            {title}
+          </h2>
 
-            {/* Chat List */}
-            {isExpanded && chats.length > 0 && (
-                <div className="bg-slate-50/50">
-                    {chats.map((chat) => (
-                        <ChatItem
-                            key={chat.id}
-                            chat={chat}
-                            isSelected={chat.id === selectedChatId}
-                            onSelect={onSelectChat}
-                            icon={icon}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* Empty State */}
-            {isExpanded && chats.length === 0 && (
-                <div className="px-4 py-6 text-center">
-                    <p className="text-xs text-slate-500">
-                        Nenhuma conversa para exibir
-                    </p>
-                </div>
-            )}
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+            {chats.length}
+          </span>
         </div>
-    );
+
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-600">
+              {unreadCount}
+            </span>
+          )}
+
+          <ChevronDown
+            size={18}
+            className={`text-slate-400 transition-transform duration-200 ${
+              isExpanded ? "" : "-rotate-90"
+            }`}
+          />
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="bg-slate-50/50">
+          {chats.length > 0 ? (
+            chats.map((chat) => (
+              <ChatItem
+                key={chat.id}
+                chat={chat}
+                icon={icon}
+                isSelected={chat.id === selectedChatId}
+                onSelect={handleSelectChat}
+              />
+            ))
+          ) : (
+            <div className="px-4 py-6 text-center text-xs text-slate-500">
+              Nenhuma conversa para exibir
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }

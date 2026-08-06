@@ -28,26 +28,6 @@ export default function MessageHeader({selectedChatId} : props) {
                 : "border-slate-200 text-slate-400 cursor-not-allowed"
                 }`}
               disabled={!selectedChatId}
-              title="Chamada"
-            >
-              <Phone size={17} />
-            </button>
-            <button
-              className={`rounded-lg border p-2.5 transition-colors ${selectedChatId
-                ? "border-slate-200 text-slate-600 hover:bg-slate-50"
-                : "border-slate-200 text-slate-400 cursor-not-allowed"
-                }`}
-              disabled={!selectedChatId}
-              title="Vídeo"
-            >
-              <Video size={17} />
-            </button>
-            <button
-              className={`rounded-lg border p-2.5 transition-colors ${selectedChatId
-                ? "border-slate-200 text-slate-600 hover:bg-slate-50"
-                : "border-slate-200 text-slate-400 cursor-not-allowed"
-                }`}
-              disabled={!selectedChatId}
               title="Mais opções"
             >
               <MoreVertical size={17} />
