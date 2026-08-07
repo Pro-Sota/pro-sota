@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Roboto, Roboto_Mono, DM_Sans, DM_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -50,7 +51,10 @@ export default function RootLayout({
       className={cn("h-full", "antialiased", dmSans.variable, dmMono.variable, "font-sans", inter.variable)}
     >
  
-      <body className="min-h-full flex flex-col overflow-x-hidden">{children}</body>
+      <body className="min-h-full flex flex-col overflow-x-hidden">
+        {children}
+        <Analytics />
+      </body>
 
     </html>
 
