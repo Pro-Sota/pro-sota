@@ -1,12 +1,12 @@
 import PhaseDetailPage from "./phase_detail";
 
-export default function PhaseDetail() {
-        
+import { getPhase } from "@/services/phases";
+
+export default async function PhaseDetail({ params }: { params: Promise<{ projectId: string, phaseId: string }> }) {
+  const { phaseId } = await params;
+  const phase = await getPhase(phaseId);
+
   return (
-    <PhaseDetailPage
-      params={{
-        phaseId: "",
-      }}
-    />
+    <PhaseDetailPage phase={phase} />
   );
 }

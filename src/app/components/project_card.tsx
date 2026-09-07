@@ -68,7 +68,7 @@ export default function ProjectCard({ project }: { project: Project }) {
         group block
         bg-white rounded-xl shadow-sm border border-gray-200
         hover:shadow-lg hover:border-gray-300 transition-all duration-300
-        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900
+        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#002950] focus:ring-offset-gray-100
         overflow-hidden
       "
     >
