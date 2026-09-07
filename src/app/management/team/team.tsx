@@ -72,7 +72,7 @@ export default function TeamPage({ team }: { team: Profile[] }) {
     ];
 
     const statusStyles: Record<string, string> = {
-        Active: "bg-slate-900 text-white",
+        Active: "text-[#002950] font-bold border border-[#BD9655]",
         Available: "bg-slate-200 text-slate-700",
         Busy: "bg-slate-100 text-slate-500 border border-slate-300",
     };
@@ -196,7 +196,7 @@ export default function TeamPage({ team }: { team: Profile[] }) {
                 {/* Employees */}
                 {filteredEmployees.length === 0 ? (
                     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-8 py-20 text-center">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#002950] text-[#BD9655]">
                             <Users className="h-8 w-8 text-slate-400" />
                         </div>
 
@@ -231,7 +231,7 @@ export default function TeamPage({ team }: { team: Profile[] }) {
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-3">
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-medium text-white">
+                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#BD9655] text-sm font-medium text-[#002950] font-bold">
                                                 {initials(employee.first_name, employee.last_name)}
                                             </div>
 
@@ -275,7 +275,7 @@ export default function TeamPage({ team }: { team: Profile[] }) {
                                         </div>
 
                                         <span
-                                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[employee.status ?? ""]
+                                            className={`rounded-full px-2.5 py-1 text-xs  ${statusStyles[employee.status ?? ""]
                                                 }`}
                                         >
                                             {employee.status}

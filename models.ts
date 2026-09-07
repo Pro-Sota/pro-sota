@@ -817,6 +817,54 @@ export type Database = {
           },
         ]
       }
+      Suppliers: {
+        Row: {
+          address_line_1: string | null
+          address_line_2: string | null
+          category: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          person_of_contact: string | null
+          phone_number: string | null
+          projects: number | null
+          rating: number | null
+          status: string | null
+          supplier_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          address_line_1?: string | null
+          address_line_2?: string | null
+          category?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          person_of_contact?: string | null
+          phone_number?: string | null
+          projects?: number | null
+          rating?: number | null
+          status?: string | null
+          supplier_id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          address_line_1?: string | null
+          address_line_2?: string | null
+          category?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          person_of_contact?: string | null
+          phone_number?: string | null
+          projects?: number | null
+          rating?: number | null
+          status?: string | null
+          supplier_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           actual_hours: number | null

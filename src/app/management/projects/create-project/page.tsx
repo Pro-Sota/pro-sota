@@ -207,19 +207,7 @@ export default function NewProjectPage() {
               onChange={handleFormChange}
               sectionRefs={sectionRefs}
             />
-
-            <TeamSection
-              form={form}
-              onChange={handleFormChange}
-              sectionRefs={sectionRefs}
-            />
-
-            <FinancialSection
-              form={form}
-              onChange={handleFormChange}
-              sectionRefs={sectionRefs}
-            />
-
+          
             {/* Error message */}
             {formError && (
               <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">

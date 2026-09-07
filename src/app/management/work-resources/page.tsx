@@ -14,7 +14,7 @@ import Loader from "@/app/components/loader";
 import CustomSelect from "@/app/components/custom_select";
 
 type Activity = {
-  id:string;
+  id: string;
 }
 
 type EquipmentStatus =
@@ -199,17 +199,22 @@ export default function EquipmentPage() {
         </div>
 
         {/* Assets table */}
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <table className="w-full border-collapse text-sm">
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+          <table className="min-w-[1600px] w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+              <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500 overflow-x-auto">
                 <th className="px-5 py-3">Código</th>
                 <th className="px-5 py-3">Material</th>
                 <th className="px-5 py-3">Categoria</th>
                 <th className="px-5 py-3">Localização</th>
                 <th className="px-5 py-3">Responsável</th>
                 <th className="px-5 py-3">Estado</th>
-                <th className="px-5 py-3">Data de Devolução</th>
+                <th className="px-5 py-3">Marca</th>
+                <th className="px-5 py-3">Modelo</th>
+                <th className="px-5 py-3">Data de aquisição</th>
+                <th className="px-5 py-3">Ultima manutenção</th>
+                <th className="px-5 py-3">Próxima manutenção</th>
+                <th className="px-5 py-3">Valor de substituição</th>
                 <th className="px-5 py-3 text-right">{""}</th>
               </tr>
             </thead>
@@ -264,23 +269,20 @@ export default function EquipmentPage() {
                 </tr>
               ))}
 
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-5 py-14">
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <Package className="mb-3 h-10 w-10 text-gray-300" />
-                      <p className="text-sm font-medium text-gray-700">
-                        Nenhum material registado
-                      </p>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Registe o primeiro material para começar a gerir o inventário.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+
+          {filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center text-center py-20">
+              <Package className="mb-3 h-10 w-10 text-gray-300" />
+              <p className="text-sm font-medium text-gray-700">
+                Nenhum material registado
+              </p>
+              <p className="mt-1 text-sm text-gray-500">
+                Registe o primeiro material para começar a gerir o inventário.
+              </p>
+            </div>
+          )}
           {isAddModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
               <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">

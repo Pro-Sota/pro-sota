@@ -1,5 +1,6 @@
 "use client";
 import { StatCard } from "@/app/components/StatCard";
+import { Database } from "@/app/lib/supabase/models";
 import {
   Search,
   Plus,
@@ -58,18 +59,7 @@ type Document = {
   status: "valido" | "expirando" | "expirado";
 };
 
-type Supplier = {
-  name: string;
-  category: string;
-  location: string;
-  rating: number;
-  ratingCriteria: RatingCriteria[];
-  projects: number;
-  status: SupplierStatus;
-  documents: Document[];
-  contact?: string;
-  email?: string;
-};
+type Supplier = Database["public"]["Tables"]["Suppliers"]["Row"];
 
 const statusStyles: Record<SupplierStatus, string> = {
   Activo: "bg-green-100 text-green-700",
@@ -117,7 +107,8 @@ export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]})
     },
     {
       label: "Projetos vinculados",
-      value: suppliers.reduce((sum, s) => sum + s.projects, 0),
+      value: suppliers.reduce((sum, s) => sum + s.projects
+      , 0),
       icon: Boxes,
     },
   ];
@@ -156,7 +147,7 @@ export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]})
 
           <button
             onClick={() => router.push("/management/suppliers/new")}
-            className="flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition hover:opacity-90 bg-slate-900 text-gray-50 cursor-pointer"
+            className="flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition hover:opacity-90 bg-[#BD9655] text-[#002950] cursor-pointer"
           >
             <Plus size={16} />
             Adicionar fornecedor

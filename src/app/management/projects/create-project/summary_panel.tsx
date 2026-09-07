@@ -43,11 +43,7 @@ export function SummaryPanel({
     return () => observer.disconnect();
   }, []);
 
-  const currencyFormatter = new Intl.NumberFormat("pt-PT");
-  const budgetDisplay = form.budget
-    ? `Kz ${currencyFormatter.format(Number(form.budget))}`
-    : "—";
-
+ 
   const location = [form.municipality, form.state_province]
     .filter(Boolean)
     .join(", ");
@@ -166,26 +162,6 @@ export function SummaryPanel({
               }
               filled={!!(duration && !duration.invalid)}
             />
-            <SummaryRow label="Gestor" value={"—"} filled={false} />
-            <SummaryRow
-              label="Equipa"
-              value={
-                teamMembers.length > 0
-                  ? `${teamMembers.length} membro${teamMembers.length !== 1 ? "s" : ""}`
-                  : "—"
-              }
-              filled={teamMembers.length > 0}
-            />
-
-            {/* Budget section with border */}
-            <div className="border-t border-slate-100 pt-3.5">
-              <SummaryRow
-                label="Orçamento"
-                value={budgetDisplay}
-                emphasize
-                filled={!!form.budget}
-              />
-            </div>
           </dl>
 
           {/* Footer note */}

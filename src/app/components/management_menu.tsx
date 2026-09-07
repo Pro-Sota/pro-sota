@@ -177,14 +177,14 @@ function SidebarItem({
             } ${
                 active
                     ? "bg-[#BD9655] border-l-4 border-yellow text-[#002950] font-medium"
-                    : "text-gray-300 hover:text-[#BD9655] font-medium"
+                    : "text-gray-600 hover:text-[#BD9655] font-medium"
             }`}
         >
             <Icon
                 className={`h-5 w-5 flex-shrink-0 transition-colors ${
                     active
                         ? "text-current"
-                        : "text-gray-400 group-hover:text-[#BD9655]"
+                        : "text-gray-600 group-hover:text-[#BD9655]"
                 }`}
             />
 

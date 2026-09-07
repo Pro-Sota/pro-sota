@@ -26,7 +26,7 @@ export default function LogoutButton() {
                 return;
             }
 
-            router.replace("/");
+            router.replace("/login");
             router.refresh();
         } catch (error) {
             console.error("Unexpected logout error:", error);

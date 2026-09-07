@@ -2,14 +2,9 @@ import SuppliersClientPage from "./suppliers_client_page";
 
 type SupplierStatus = "Activo" | "Inactivo" | "Em Análise";
 
-type Supplier = {
-  name: string;
-  category: string;
-  location: string;
-  rating: number;
-  projects: number;
-  status: SupplierStatus;
-};
+import {Database} from "@/app/lib/supabase/models";
+
+type Supplier = Database["public"]["Tables"]["Suppliers"]["Row"];
 
 export default async function SuppliersPage() {
 
