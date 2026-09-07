@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Roboto, Roboto_Mono, DM_Sans, DM_Mono, Inter } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Roboto,
+  Roboto_Mono,
+  DM_Sans,
+  DM_Mono,
+  Inter,
+} from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,14 +33,14 @@ const robotoMono = Roboto_Mono({
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
-  subsets:["latin"],
+  subsets: ["latin"],
 });
 
 const dmMono = DM_Mono({
   variable: "--font-dm-mono",
-  weight:"400",
-  subsets:["latin"],
-})
+  weight: "400",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -47,13 +55,18 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("h-full", "antialiased", dmSans.variable, dmMono.variable, "font-sans", inter.variable)}
+      className={cn(
+        "h-full",
+        "antialiased",
+        dmSans.variable,
+        dmMono.variable,
+        "font-sans",
+        inter.variable,
+      )}
     >
- 
-      <body className="min-h-full flex flex-col overflow-x-hidden">{children}</body>
-
+      <body className="min-h-full flex flex-col overflow-x-hidden">
+        {children}
+      </body>
     </html>
-
   );
 }
-

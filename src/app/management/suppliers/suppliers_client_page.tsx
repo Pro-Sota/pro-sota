@@ -1,6 +1,4 @@
 "use client";
-
-import Loader from "@/app/components/loader";
 import { StatCard } from "@/app/components/StatCard";
 import {
   Search,
@@ -15,9 +13,14 @@ import {
   Filter,
   SearchX,
   Building2,
+  FileUp,
+  AlertCircle,
+  Download,
+  Trash2,
+  Award,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 const tokens = {
   ink: "#0F172A",
@@ -39,13 +42,33 @@ const tokens = {
 
 type SupplierStatus = "Activo" | "Inactivo" | "Em Análise";
 
+type RatingCriteria = {
+  label: string;
+  score: number; // 1-5
+  weight: number; // percentage weight
+};
+
+type Document = {
+  id: string;
+  name: string;
+  type: "proposta" | "contrato" | "factura" | "ficha_tecnica" | "certificado" | "garantia" | "conformidade" | "licenca" | "seguro" | "outro";
+  uploadDate: string;
+  expiryDate?: string;
+  uploader: string;
+  status: "valido" | "expirando" | "expirado";
+};
+
 type Supplier = {
   name: string;
   category: string;
   location: string;
   rating: number;
+  ratingCriteria: RatingCriteria[];
   projects: number;
   status: SupplierStatus;
+  documents: Document[];
+  contact?: string;
+  email?: string;
 };
 
 const statusStyles: Record<SupplierStatus, string> = {
@@ -54,13 +77,27 @@ const statusStyles: Record<SupplierStatus, string> = {
   Inactivo: "bg-gray-100 text-gray-600",
 };
 
+const documentTypes = {
+  proposta: "Proposta Comercial",
+  contrato: "Contrato/Acordo-Quadro",
+  factura: "Factura",
+  ficha_tecnica: "Ficha Técnica",
+  certificado: "Certificado de Qualidade",
+  garantia: "Garantia",
+  conformidade: "Declaração de Conformidade",
+  licenca: "Licença/Alvará",
+  seguro: "Seguro",
+  outro: "Outro",
+};
+
 export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]}) {
 
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | SupplierStatus>("All");
   const [filtersOpen, setFiltersOpen] = useState(false);
-
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const summary = [
     {
@@ -97,6 +134,11 @@ export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]})
       return matchesQuery && matchesStatus;
     });
   }, [query, statusFilter]);
+
+  const handleViewSupplier = (supplier: Supplier) => {
+    setSelectedSupplier(supplier);
+    setDetailsOpen(true);
+  };
 
   return (
     <div className="min-h-screen p-6 md:p-10">
@@ -253,6 +295,7 @@ export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]})
                   <SupplierRow
                     key={supplier.name}
                     supplier={supplier}
+                    onView={handleViewSupplier}
                   />
                 ))
               )}
@@ -260,6 +303,14 @@ export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]})
           </table>
         </div>
       </div>
+
+      {/* Supplier Details Modal */}
+      {detailsOpen && selectedSupplier && (
+        <SupplierDetailsModal
+          supplier={selectedSupplier}
+          onClose={() => setDetailsOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -350,11 +401,33 @@ function StatusBadge({ status }: { status: SupplierStatus }) {
   );
 }
 
+function DocumentStatusBadge({ status }: { status: "valido" | "expirando" | "expirado" }) {
+  const styles = {
+    valido: "bg-green-50 text-green-700 border border-green-200",
+    expirando: "bg-amber-50 text-amber-700 border border-amber-200",
+    expirado: "bg-red-50 text-red-700 border border-red-200",
+  };
+
+  const labels = {
+    valido: "Válido",
+    expirando: "Expira em breve",
+    expirado: "Expirado",
+  };
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${styles[status]}`}>
+      {status === "expirado" && <AlertCircle size={12} />}
+      {labels[status]}
+    </span>
+  );
+}
 
 function SupplierRow({
   supplier,
+  onView,
 }: {
   supplier: Supplier;
+  onView: (supplier: Supplier) => void;
 }) {
   return (
     <tr className="border-b last:border-0 hover:bg-gray-50">
@@ -373,6 +446,7 @@ function SupplierRow({
       </td>
       <td className="p-4 font-medium">
         <button
+          onClick={() => onView(supplier)}
           className="cursor-pointer flex items-center gap-1 text-sm font-medium hover:underline underline-offset-3"
         >
           Ver
@@ -380,5 +454,163 @@ function SupplierRow({
         </button>
       </td>
     </tr>
+  );
+}
+
+interface SupplierDetailsModalProps {
+  supplier: Supplier;
+  onClose: () => void;
+}
+
+function SupplierDetailsModal({ supplier, onClose }: SupplierDetailsModalProps) {
+  const [documents, setDocuments] = useState<Document[]>(supplier.documents || []);
+  const expiredDocs = documents.filter(d => d.status === "expirado").length;
+  const expiringDocs = documents.filter(d => d.status === "expirando").length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-lg">
+        {/* Modal Header */}
+        <div className="sticky top-0 border-b bg-gray-50 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Avatar name={supplier.name} />
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">{supplier.name}</h2>
+              <p className="text-xs text-gray-500">{supplier.category} • {supplier.location}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 hover:bg-gray-200"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="space-y-6 p-6">
+          {/* Status & Contact */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase">Status</p>
+              <div className="mt-2">
+                <StatusBadge status={supplier.status} />
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase">Contacto</p>
+              <p className="mt-2 text-sm text-gray-900 font-medium">{supplier.contact || "Não definido"}</p>
+              {supplier.email && <p className="text-xs text-gray-500">{supplier.email}</p>}
+            </div>
+          </div>
+
+          {/* Rating Breakdown */}
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Award size={18} />
+                Avaliação Objectiva
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-gray-900">{supplier.rating.toFixed(1)}</span>
+                <span className="text-slate-700">
+                  {"★".repeat(supplier.rating)}
+                  <span style={{ color: tokens.line }}>{"★".repeat(5 - supplier.rating)}</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {supplier.ratingCriteria.map((criterion, idx) => (
+                <div key={idx} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">{criterion.label}</span>
+                    <span className="font-medium text-gray-900">{criterion.score}/5</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                    <div
+                      className="h-full bg-slate-900 transition-all"
+                      style={{ width: `${(criterion.score / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Documents Section */}
+          <div>
+            <h3 className="mb-4 font-semibold text-gray-900 flex items-center gap-2">
+              <FileUp size={18} />
+              Documentação ({documents.length})
+            </h3>
+
+            {(expiredDocs > 0 || expiringDocs > 0) && (
+              <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                <p className="text-xs text-amber-900">
+                  {expiredDocs > 0 && <span className="font-medium">{expiredDocs} documento(s) expirado(s)</span>}
+                  {expiredDocs > 0 && expiringDocs > 0 && <span> • </span>}
+                  {expiringDocs > 0 && <span className="font-medium">{expiringDocs} expira em breve</span>}
+                </p>
+              </div>
+            )}
+
+            <button className="mb-4 w-full rounded-lg border-2 border-dashed border-gray-300 py-6 text-center hover:border-gray-400 hover:bg-gray-50 transition">
+              <FileUp size={24} className="mx-auto mb-2 text-gray-400" />
+              <p className="text-sm font-medium text-gray-700">Carregar novo documento</p>
+              <p className="text-xs text-gray-500">ou arrastar ficheiro aqui</p>
+            </button>
+
+            {documents.length > 0 ? (
+              <div className="space-y-2">
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 hover:bg-gray-100 transition"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm">{doc.name}</p>
+                      <div className="mt-1 flex flex-col gap-1 text-xs text-gray-500">
+                        <span>{documentTypes[doc.type]}</span>
+                        <span>Carregado por {doc.uploader} • {doc.uploadDate}</span>
+                        {doc.expiryDate && (
+                          <span className="text-gray-600">Validade: {doc.expiryDate}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      <DocumentStatusBadge status={doc.status} />
+                      <div className="flex gap-1">
+                        <button className="p-2 rounded-lg hover:bg-gray-200 transition">
+                          <Download size={16} className="text-gray-600" />
+                        </button>
+                        <button className="p-2 rounded-lg hover:bg-red-100 transition">
+                          <Trash2 size={16} className="text-gray-400 hover:text-red-600" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-sm text-gray-500 py-6">Nenhum documento carregado</p>
+            )}
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="border-t bg-gray-50 px-6 py-4 flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="rounded-lg px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+          >
+            Fechar
+          </button>
+          <button className="rounded-lg px-4 py-2 text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 transition">
+            Editar fornecedor
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

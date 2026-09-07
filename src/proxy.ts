@@ -9,7 +9,11 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+
+    loginUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
+
+    return NextResponse.redirect(loginUrl);
   }
 
   return response;

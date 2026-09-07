@@ -7,47 +7,40 @@ import {
     Check,
 } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
-import { Database } from "../lib/supabase/models";
-import { createClient } from "../lib/supabase/client";
 import {
     createConversationAction,
+    getMessageRecipientsAction,
 } from "@/app/actions/message"
+import { useRouter } from "next/navigation";
+import type { Recipient } from "@/services/messages";
 
 interface NewConversationModalProps {
     open: boolean;
     onClose: () => void;
-    onStartConversation?: (userId: string) => void;
+    onStartConversation?: (conversationId: string) => void;
 }
-
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 export default function NewConversationModal({
     open,
     onClose,
     onStartConversation,
 }: NewConversationModalProps) {
-    const [users, setUsers] = useState<Profile[]>([]);
+    const router = useRouter();
+    const [users, setUsers] = useState<Recipient[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
-    const [searchResults, setSearchResults] = useState<Profile[]>([]);
+    const [searchResults, setSearchResults] = useState<Recipient[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-
-    const supabase = createClient();
 
     const loadUsers = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
 
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("*");
-
-            if (error) throw error;
-
-            setUsers(data || []);
-            setSearchResults(data || []);
+            const recipients = await getMessageRecipientsAction();
+            setUsers(recipients);
+            setSearchResults(recipients);
         } catch (err) {
             setError(
                 err instanceof Error
@@ -57,7 +50,7 @@ export default function NewConversationModal({
         } finally {
             setLoading(false);
         }
-    }, [supabase]);
+    }, []);
 
     useEffect(() => {
         if (open) loadUsers();
@@ -74,11 +67,8 @@ export default function NewConversationModal({
             }
 
             const filtered = users.filter((user) => {
-                const fullName =
-                    `${user.first_name} ${user.last_name}`.toLowerCase();
-
-                const department =
-                    user.department?.toLowerCase() || "";
+                const fullName = user.name.toLowerCase();
+                const department = user.department?.toLowerCase() || "";
 
                 return (
                     fullName.includes(term) ||
@@ -102,11 +92,7 @@ export default function NewConversationModal({
 
             setSearchQuery(query);
 
-            const timeout = setTimeout(() => {
-                searchUsers(query);
-            }, 300);
-
-            return () => clearTimeout(timeout);
+            searchUsers(query);
         },
         [searchUsers]
     );
@@ -114,10 +100,18 @@ export default function NewConversationModal({
     const handleStartConversation = async () => {
         if (!selectedUserId) return;
 
-        const conversationId = await createConversationAction(selectedUserId);
-
-        onStartConversation?.(conversationId);
-        handleClose();
+        try {
+            setLoading(true);
+            const conversationId = await createConversationAction(selectedUserId);
+            onStartConversation?.(conversationId);
+            handleClose();
+            router.push(`/management/messages/${conversationId}`);
+            router.refresh();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Falha ao iniciar conversa");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleClose = () => {
@@ -220,11 +214,11 @@ export default function NewConversationModal({
                         !error &&
                         searchResults.map((user) => (
                             <button
-                                key={user.profile_id}
+                                key={user.profileId}
                                 onClick={() =>
-                                    setSelectedUserId(user.profile_id)
+                                    setSelectedUserId(user.profileId)
                                 }
-                                className={`w-full px-8 py-4 text-left border-b border-slate-100 transition ${selectedUserId === user.profile_id
+                                className={`w-full px-8 py-4 text-left border-b border-slate-100 transition ${selectedUserId === user.profileId
                                     ? "bg-slate-100"
                                     : "hover:bg-slate-50"
                                     }`}
@@ -232,30 +226,29 @@ export default function NewConversationModal({
                                 <div className="flex items-center gap-4">
                                     <div className="relative">
                                         <div
-                                            className={`h-14 w-14 flex items-center justify-center rounded-full text-white font-semibold ${selectedUserId === user.profile_id
+                                            className={`h-14 w-14 flex items-center justify-center rounded-full text-white font-semibold ${selectedUserId === user.profileId
                                                 ? "bg-gradient-to-br from-slate-700 to-slate-900 ring-2 ring-slate-300"
                                                 : "bg-gradient-to-br from-slate-400 to-slate-500"
                                                 }`}
                                         >
-                                            {user.first_name?.[0]}
-                                            {user.last_name?.[0]}
+                                            {user.name.split(" ").map((part) => part[0]).join("")}
                                         </div>
 
-                                        {user.status === "Active" && (
+                                        {user.isOnline && (
                                             <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-emerald-500" />
                                         )}
 
                                     </div>
                                     <div className="flex-1">
                                         <p className="font-semibold text-slate-900">
-                                            {user.first_name} {user.last_name}
+                                            {user.name}
                                         </p>
 
                                         <p className="text-sm text-slate-500">
                                             {user.department || "Sem departamento"}
                                         </p>
                                     </div>
-                                    {selectedUserId === user.profile_id && (
+                                    {selectedUserId === user.profileId && (
                                         <div className="rounded-full bg-slate-900 p-1">
                                             <Check
                                                 size={16}

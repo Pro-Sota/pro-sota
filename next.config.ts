@@ -31,21 +31,20 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   images: {
     unoptimized: true,
-    qualities: [75, 100]
+    qualities: [75, 100],
   },
   turbopack: {
     root: __dirname,
   },
+  transpilePackages: ["@supabase/ssr", "@supabase/supabase-js"],
   async headers() {
     return [
       {
         source: "/(.*)",
-        headers: [
-          ...securityHeaders
-        ],
+        headers: [...securityHeaders],
       },
     ];
-  }
+  },
 };
 
 export default nextConfig;

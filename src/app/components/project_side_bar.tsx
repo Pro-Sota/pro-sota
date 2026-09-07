@@ -30,6 +30,10 @@ export default function ProjectNavbar({
       href: `/management/projects/${projectId}/documents/all-files?view=list`,
     },
     {
+      name: "Orçamento e custos",
+      href: `/management/projects/${projectId}/budget`,
+    },
+    {
       name: "Aprovações e Comentários",
       href: `/management/projects/${projectId}/approvals-and-reviews`,
     },
@@ -50,8 +54,8 @@ export default function ProjectNavbar({
   };
 
   return (
-    <nav className="shrink-0 border-b border-gray-200 px-4">
-      <ul className="flex flex-row gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <nav className="shrink-0 border-b border-gray-200 px-4 bg-white">
+      <ul className="flex flex-row gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {tabMenu.map((item) => {
           const active = isActive(item.href);
           return (

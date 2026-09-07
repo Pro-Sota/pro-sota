@@ -1,18 +1,7 @@
-"use client";
 
-import { Database } from "@/app/lib/supabase/models";
+import type { ChatSummary } from "@/services/messages";
 
-type Conversation =
-  Database["public"]["Tables"]["conversations"]["Row"];
-
-export interface ConversationWithDetails extends Conversation {
-  displayName: string;
-  avatarUrl?: string;
-  isOnline: boolean;
-  unreadCount: number;
-  lastMessage: string;
-  updated_at:string;
-}
+export type ConversationWithDetails = ChatSummary;
 
 interface ChatItemProps {
   chat: ConversationWithDetails;
@@ -21,17 +10,18 @@ interface ChatItemProps {
   icon: React.ReactNode;
 }
 
+
 export default function ChatItem({
   chat,
   isSelected,
   onSelect,
   icon,
 }: ChatItemProps) {
-  const displayTime = chat.updated_at
+  const displayTime = chat.lastMessageAt
     ? new Intl.DateTimeFormat("pt-PT", {
         hour: "2-digit",
         minute: "2-digit",
-      }).format(new Date(chat.updated_at))
+      }).format(new Date(chat.lastMessageAt))
     : "";
 
   return (
@@ -61,6 +51,7 @@ export default function ChatItem({
           {chat.isOnline && (
             <span
               className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 shadow-sm"
+              role="img"
               aria-label="Online"
               title="Online"
             />
@@ -88,6 +79,7 @@ export default function ChatItem({
         {chat.unreadCount > 0 && (
           <span
             className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-medium text-white"
+            role="status"
             aria-label={`${chat.unreadCount} unread messages`}
           >
             {chat.unreadCount > 9 ? "9+" : chat.unreadCount}

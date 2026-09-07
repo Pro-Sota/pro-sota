@@ -4,7 +4,6 @@ import { ProjectFormState } from "@/app/management/projects/create-project/page"
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 
-
 const supabase = createClient();
 
 export async function getProjectById(projectId: string) {
@@ -31,9 +30,7 @@ export async function createProject(project: ProjectFormState) {
   if (error) {
     console.error("Create project error:", JSON.stringify(error, null, 2));
 
-    throw new Error(
-      error.message || "Failed to create project"
-    );
+    throw new Error(error.message || "Failed to create project");
   }
 
   return data;
@@ -41,7 +38,7 @@ export async function createProject(project: ProjectFormState) {
 
 export async function getProjectsByUser(userId: string) {
   const { data, error } = await supabase
-    .from("user_projects")
+    .from("project_members")
     .select("*")
     .eq("profile_id", userId);
 
@@ -54,26 +51,28 @@ type UserProjectResult = {
   projects: Project | null;
 };
 
-export async function getUserProjects(
-  userId: string
-): Promise<Project[]> {
+export async function getUserProjects(userId: string): Promise<Project[]> {
   const { data, error } = await supabase
-    .from("user_projects")
-    .select(`
+    .from("project_members")
+    .select(
+      `
       projects (*)
-    `)
+    `,
+    )
     .eq("profile_id", userId);
 
   if (error) throw error;
 
-  return (data as unknown as UserProjectResult[])
-    .flatMap((row) => (row.projects ? [row.projects] : []));
+  return (data as unknown as UserProjectResult[]).flatMap((row) =>
+    row.projects ? [row.projects] : [],
+  );
 }
 
 export async function getProjectMembers(profileID: string) {
   const { data, error } = await supabase
     .from("project_members")
-    .select(`
+    .select(
+      `
       project_role,
       profiles (
         profile_id,
@@ -81,11 +80,32 @@ export async function getProjectMembers(profileID: string) {
         last_name,
         avatar_url
       )
-    `)
+    `,
+    )
     .eq("profile_id", profileID);
 
-  if (error) throw error;
+  if (error) {
+    console.error("Supabase:", error);
+    throw new Error(error.message);}
   return data;
+}
+
+export async function getProjectManager(projectId: string) {
+  const { data:projectData, error:projectError } = await supabase
+    .from("project_members")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("role", "Manager")
+    .single();
+
+  if (projectError) {
+    throw new Error(projectError.message);
+  }
+
+  const {data:user, error:userError} = await supabase
+  .from("profiles").select("*").eq("profile_id", projectData["profile_id"]).single();
+
+  return `${user["first_name"]} ${user["last_name"]}`;
 }
 
 export async function archiveProject(id: string) {
@@ -103,7 +123,7 @@ export async function archiveProject(id: string) {
 
 export async function updateProject(
   projectId: string,
-  updates: Partial<Project>
+  updates: Partial<Project>,
 ) {
   const { data, error } = await supabase
     .from("projects")
@@ -144,7 +164,7 @@ export async function searchProjects(query: string) {
 export async function addProjectMember(
   projectId: string,
   userId: string,
-  role = "Member"
+  role = "Member",
 ) {
   const { data, error } = await supabase
     .from("project_members")
@@ -161,15 +181,12 @@ export async function addProjectMember(
   return data;
 }
 
-export async function removeProjectMember(
-  projectId: string,
-  userId: string
-) {
+export async function removeProjectMember(projectId: string, userId: string) {
   const { error } = await supabase
     .from("project_members")
     .delete()
     .eq("project_id", projectId)
-    .eq("user_id", userId);
+    .eq("profile_id", userId);
 
   if (error) throw error;
 }
@@ -177,7 +194,7 @@ export async function removeProjectMember(
 export async function updateProjectMemberRole(
   projectId: string,
   userId: string,
-  role: string
+  role: string,
 ) {
   const { data, error } = await supabase
     .from("project_members")
@@ -203,12 +220,7 @@ export async function duplicateProject(projectId: string) {
 
   if (error) throw error;
 
-  const {
-    project_id,
-    created_at,
-    updated_at,
-    ...copy
-  } = project;
+  const { project_id, created_at, updated_at, ...copy } = project;
 
   const { data, error: insertError } = await supabase
     .from("projects")
@@ -248,10 +260,12 @@ export async function getProjectsByStatus(status: string) {
 export async function getProjectsByPriority(priority: string) {
   const { data, error } = await supabase
     .from("tasks")
-    .select(`
+    .select(
+      `
       project_id,
       projects (*)
-    `)
+    `,
+    )
     .eq("priority", priority);
 
   if (error) throw error;
@@ -259,10 +273,7 @@ export async function getProjectsByPriority(priority: string) {
   return data;
 }
 
-export async function getProjectsByDateRange(
-  start: string,
-  end: string
-) {
+export async function getProjectsByDateRange(start: string, end: string) {
   const { data, error } = await supabase
     .from("projects")
     .select("*")
@@ -274,10 +285,7 @@ export async function getProjectsByDateRange(
   return data;
 }
 
-export async function updateProjectStatus(
-  projectId: string,
-  status: string
-) {
+export async function updateProjectStatus(projectId: string, status: string) {
   const { data, error } = await supabase
     .from("projects")
     .update({ status })
@@ -347,15 +355,12 @@ export async function getProjectProgress(projectId: string) {
 
   const total = data.length;
 
-  const completed = data.filter(
-    t => t.status === "Completed"
-  ).length;
+  const completed = data.filter((t) => t.status === "Completed").length;
 
   return {
     totalTasks: total,
     completedTasks: completed,
-    percentage:
-      total === 0 ? 0 : Math.round((completed / total) * 100),
+    percentage: total === 0 ? 0 : Math.round((completed / total) * 100),
   };
 }
 
@@ -398,12 +403,14 @@ export async function getProjectPhases(projectId: string) {
 export async function getProjectStages(projectId: string) {
   const { data, error } = await supabase
     .from("project_phases")
-    .select(`
+    .select(
+      `
       *,
       project_stages (
         *
       )
-    `)
+    `,
+    )
     .eq("project_id", projectId);
 
   if (error) throw error;
@@ -461,28 +468,20 @@ export async function getProjectActivity(projectId: string) {
 }
 
 export async function getProjectSummary(projectId: string) {
-  const [
-    tasks,
-    documents,
-    files,
-    workRequests,
-    siteVisits,
-    members,
-  ] = await Promise.all([
-    getProjectTasks(projectId),
-    getProjectDocuments(projectId),
-    getProjectFiles(projectId),
-    getProjectWorkRequests(projectId),
-    getProjectSiteVisits(projectId),
-    getProjectMembers(projectId),
-  ]);
+  const [tasks, documents, files, workRequests, siteVisits, members] =
+    await Promise.all([
+      getProjectTasks(projectId),
+      getProjectDocuments(projectId),
+      getProjectFiles(projectId),
+      getProjectWorkRequests(projectId),
+      getProjectSiteVisits(projectId),
+      getProjectMembers(projectId),
+    ]);
 
   return {
     members: members.length,
     tasks: tasks.length,
-    completedTasks: tasks.filter(
-      task => task.status === "Completed"
-    ).length,
+    completedTasks: tasks.filter((task) => task.status === "Completed").length,
     documents: documents.length,
     files: files.length,
     workRequests: workRequests.length,

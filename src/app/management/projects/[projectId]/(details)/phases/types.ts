@@ -1,6 +1,9 @@
 export type Phase = {
+    id:string;
     name: string;
     status: string;
     progress: number;
-    dates: string;
+    description:string;
+    startDate: string;
+    endDate: string;
 };

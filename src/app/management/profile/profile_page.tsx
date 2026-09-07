@@ -74,7 +74,7 @@ export default function ProfileClient({
     ];
 
     return (
-        <div className="min-h-screen p-6 md:p-10 bg-gray-50">
+        <div className="min-h-screen p-6 md:p-10">
             <div className="mx-auto max-w-7xl space-y-8">
                 {/* Header */}
                 <section className="rounded-3xl p-8 shadow-sm bg-white">

@@ -1,5 +1,3 @@
-"use client";
-
 import { Grid, List } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
@@ -26,7 +24,7 @@ export default function DocumentToolbar({
   }
 
   return (
-    <div className="sticky top-0 z-10 h-[60px] flex items-center justify-between border-b bg-white p-4">
+    <div className="sticky top-0 z-10 h-[60px] gap-2 flex items-center justify-between border-b bg-white p-4">
       <CreateFolderDialog />
 
       <div className="flex gap-2">

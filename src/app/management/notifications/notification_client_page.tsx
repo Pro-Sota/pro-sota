@@ -151,7 +151,7 @@ export default function NotificationClientPage({notifications}:props) {
   if (loading) return (<Loader />);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
+    <div className="min-h-screen p-8">
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-10">

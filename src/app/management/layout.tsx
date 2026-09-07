@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   },
   description: "ProSota Management Dashboard",
   openGraph: {
-    title: "ProSota Management Dashboard", 
+    title: "ProSota Management Dashboard",
     description: "ProSota Management Dashboard",
   },
 };

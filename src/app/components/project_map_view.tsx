@@ -1,27 +1,56 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Database } from "../lib/supabase/models";
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 
-export default function ProjectMapView({
-  projects,
-}: {
-  projects: Project[];
-}) {
-  const mapUrl =
-    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.671057212929!2d-79.38318468519957!3d43.64306242217024!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x882b34d3b8b3b3d3%3A0x7e4b8f4f3e5a1b1b!2sCN%20Tower!5e0!3m2!1sen!2sca!4v1631025940134!5m2!1sen!2sca";
+export default function ProjectMapView({ projects }: { projects: Project[] }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<{ remove: () => void } | null>(null);
+  const latitude = -9.0121;
+  const longitude = 13.3844;
 
-  return (
-    <div className="w-full h-full flex  overflow-hidden">
-      <iframe
-        src={mapUrl}
-        title="Project locations map"
-        loading="lazy"
-        className="fixed w-full h-full"
-        allowFullScreen
-        referrerPolicy="no-referrer-when-downgrade"
-      />
-    </div>
-  );
+  useEffect(() => {
+    if (!mapRef.current || projects.length === 0) return;
+
+    // Import inside effect to avoid window is not defined error
+    import("leaflet").then((leafletModule) => {
+      const L = leafletModule.default;
+
+      // Fix marker icon paths
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "/leaflet/images/marker-icon-2x.png",
+        iconUrl: "/leaflet/images/marker-icon.png",
+        shadowUrl: "/leaflet/images/marker-shadow.png",
+      });
+
+      import("leaflet/dist/leaflet.css");
+      const map = L.map(mapRef.current || "").setView(
+        [latitude, longitude],
+        13,
+      );
+
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map);
+      L.marker([latitude, longitude])
+        .addTo(map)
+        .bindPopup("A pretty CSS popup.<br> Easily customizable.")
+        .openPopup();
+      projects.forEach((project) => {
+        L.marker([latitude, longitude]).bindPopup(project.title).addTo(map);
+      });
+
+      mapInstanceRef.current = map;
+    });
+
+    return () => {
+      mapInstanceRef.current?.remove();
+    };
+  }, [projects]);
+
+  return <div ref={mapRef} className="w-full h-full" />;
 }

@@ -37,7 +37,6 @@ export async function getProfile() {
 
 
 export async function getAllUsers() {
-  try {
     const cookieStore = await cookies();
     const supabase = createClient(cookieStore);
 
@@ -50,9 +49,5 @@ export async function getAllUsers() {
     }
 
     return data as Profile[] | null;
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    return null;
-  }
 }
 

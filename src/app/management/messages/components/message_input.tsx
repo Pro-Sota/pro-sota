@@ -3,36 +3,30 @@
 import { useState } from "react";
 import { Paperclip, Send } from "lucide-react";
 import { LABELS } from "./chat_labels";
+import { useParams, useRouter } from "next/navigation";
+import { sendMessageAction } from "@/app/actions/message";
 
-interface MessageInputProps {
-  selectedChatId?: string;
-}
-
-export default function MessageInput({ selectedChatId }: MessageInputProps) {
+export default function MessageInput() {
+  const params = useParams<{ chatId?: string }>();
+    const selectedChatId = params.chatId;
+  const router = useRouter();
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedChatId) return;
 
     setIsSending(true);
+    setError(null);
     try {
-      // Send message to your API
-      const response = await fetch(`/api/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chatId: selectedChatId,
-          content: messageInput,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to send message");
-
+      await sendMessageAction(selectedChatId, messageInput);
       setMessageInput("");
+      window.dispatchEvent(new Event("messages:updated"));
+      router.refresh();
     } catch (error) {
       console.error("Error sending message:", error);
-      // TODO: Show error toast/notification to user
+      setError(error instanceof Error ? error.message : "Não foi possível enviar a mensagem");
     } finally {
       setIsSending(false);
     }
@@ -46,12 +40,12 @@ export default function MessageInput({ selectedChatId }: MessageInputProps) {
   };
 
   return (
-    <div className="border-t border-slate-200 bg-white p-4">
+    <div className="border-t border-[#BD9655] bg-white p-4">
       <div className="flex items-end gap-3">
         <button
           disabled={!selectedChatId}
           aria-label="Attach file"
-          className="rounded-lg border border-slate-200 p-3 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg border border-[#BD9655] p-3 transition-colors hover:bg-[#BD9655]/50 disabled:cursor-not-allowed disabled:opacity-50"
           title={!selectedChatId ? "Select a chat first" : "Attach file"}
         >
           <Paperclip size={17} />
@@ -64,18 +58,19 @@ export default function MessageInput({ selectedChatId }: MessageInputProps) {
           placeholder={LABELS.typeMessage}
           disabled={!selectedChatId || isSending}
           aria-label="Message input"
-          className="flex-1 rounded-lg border border-slate-200 px-4 py-3 placeholder-slate-500 focus:border-slate-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50"
+          className="flex-1 rounded-lg border border-[#BD9955] px-4 py-3 placeholder-slate-500 focus:border-[#BD9955] focus:outline-none disabled:cursor-not-allowed disabled:bg-[#BD9955]/50"
         />
 
         <button
           onClick={handleSendMessage}
           disabled={!selectedChatId || !messageInput.trim() || isSending}
           aria-label="Send message"
-          className="rounded-lg bg-slate-900 p-3 text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="rounded-lg bg-[#BD9655] p-3 text-[#00950] transition-colors hover:bg-[#BD9655] disabled:cursor-not-allowed disabled:bg-[#BD9655]/50"
         >
           <Send size={17} />
         </button>
       </div>
+      {error && <p className="mt-2 text-sm text-red-600" role="alert">{error}</p>}
     </div>
   );
 }

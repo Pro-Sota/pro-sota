@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Phase } from "./types";
 import { PhaseTimeline } from "./PhaseTimeline";
 import { Metric } from "./Metric";
 import { StatusPill } from "./StatusPill";
 import { EmptyState } from "./EmptyState";
 import { ProgressBar } from "./ProgressBar";
-import { Card } from "./Card";
+import { PhaseEditModal } from "./phase_edit_modal";
 import Loader from "@/app/components/loader";
 
 type StatusValue =
@@ -23,18 +24,6 @@ type StatusItem = {
   phaseName: string;
 };
 
-const STATUS_LABELS_PT: Record<StatusValue, string> = {
-  Completed: "Concluída",
-  Current: "Em curso",
-  Upcoming: "Por iniciar",
-  "In Review": "Em revisão",
-  Pending: "Pendente",
-};
-
-function statusLabel(status: string): string {
-  return STATUS_LABELS_PT[status as StatusValue] ?? status;
-}
-
 const STATUS = {
   Completed: {
     label: "Concluída",
@@ -46,11 +35,11 @@ const STATUS = {
   },
   Upcoming: {
     label: "Por iniciar",
-    color: "bg-slate-50 text-slate-500 border-slate-200",
+    color: "bg-gray-50 text-gray-500 border-gray-200",
   },
   Pending: {
     label: "Pendente",
-    color: "bg-slate-100 text-slate-600 border-slate-200",
+    color: "bg-gray-100 text-gray-600 border-gray-200",
   },
   "In Review": {
     label: "Em revisão",
@@ -58,245 +47,348 @@ const STATUS = {
   },
 } as const;
 
+type PhaseWithDescription = Phase & {
+  description: string;
+  startDate: string;
+  endDate: string;
+};
 
-const phases: Phase[] = [
+const phases: PhaseWithDescription[] = [
   {
+    id: "phase-1",
     name: "Comercial e Adjudicação",
     status: "Current",
     progress: 0,
-    dates: "",
+    description: "Fase inicial de comercialização e adjudicação",
+    startDate: "2024-01-15",
+    endDate: "2024-02-28",
   },
   {
+    id: "phase-2",
     name: "Briefing e Programa de Necessidades",
     status: "Upcoming",
     progress: 0,
-    dates: "",
+    description: "Definição de requisitos e necessidades",
+    startDate: "2024-02-01",
+    endDate: "2024-03-31",
   },
   {
+    id: "phase-3",
     name: "Estudo Funcional (Método Pro Sota)",
     status: "Upcoming",
     progress: 0,
-    dates: "",
+    description: "Análise funcional do espaço",
+    startDate: "2024-03-01",
+    endDate: "2024-04-30",
   },
   {
+    id: "phase-4",
     name: "Estudo Prévio / Conceito Arquitectónico",
     status: "Upcoming",
     progress: 0,
-    dates: "",
+    description: "Desenvolvimento do conceito",
+    startDate: "2024-04-01",
+    endDate: "2024-05-31",
   },
   {
+    id: "phase-5",
     name: "Anteprojecto / Licenciamento",
     status: "Upcoming",
     progress: 0,
-    dates: "",
+    description: "Anteprojecto e processo de licenciamento",
+    startDate: "2024-05-01",
+    endDate: "2024-07-31",
   },
   {
+    id: "phase-6",
     name: "Projecto de Execução",
     status: "Upcoming",
     progress: 0,
-    dates: "",
+    description: "Projecto detalhado de execução",
+    startDate: "2024-07-01",
+    endDate: "2024-09-30",
   },
   {
+    id: "phase-7",
     name: "Assistência Técnica à Obra",
     status: "Upcoming",
     progress: 0,
-    dates: "",
+    description: "Acompanhamento da execução em obra",
+    startDate: "2024-09-01",
+    endDate: "2025-12-31",
   },
 ];
 
 export default function PhasesPage() {
-  // Each item now belongs to a phase, so the lists can be scoped instead
-  // of floating unattached to the process they belong to.
-  const [loading, setLoading] = useState(true);
-  const deliverables: StatusItem[] = [];
+  const router = useRouter();
+  const params = useParams();
+  const projectId = params.projectId as string;
 
+  const [loading, setLoading] = useState(true);
+  const [phaseList, setPhaseList] = useState<Phase[]>(phases);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingPhase, setEditingPhase] = useState<Phase | null>(null);
+
+  const deliverables: StatusItem[] = [];
   const milestones: StatusItem[] = [];
 
   const currentIndex = Math.max(
-    0, phases.findIndex((p) => p.status === "Current"),
+    0,
+    phaseList.findIndex((p) => p.status === "Current")
   );
-  const currentPhase = phases[currentIndex] as Phase | undefined;
-  const overallProgress = computeOverallProgress(phases);
+  const currentPhase = phaseList[currentIndex] as Phase | undefined;
+  const overallProgress = computeOverallProgress(phaseList);
 
-  // Clicking a phase in the timeline scopes the deliverables/milestones
-  // below to that phase, defaulting to whichever phase is Current.
   const [selectedPhaseName, setSelectedPhaseName] = useState<
     string | undefined
   >(currentPhase?.name);
   const selectedPhase =
-    phases.find((p) => p.name === selectedPhaseName) ?? currentPhase;
+    phaseList.find((p) => p.name === selectedPhaseName) ?? currentPhase;
 
   const scopedDeliverables = useMemo(
     () => deliverables.filter((d) => d.phaseName === selectedPhase?.name),
-    [selectedPhase],
+    [selectedPhase]
   );
   const scopedMilestones = useMemo(
     () => milestones.filter((m) => m.phaseName === selectedPhase?.name),
-    [selectedPhase],
+    [selectedPhase]
   );
 
   function computeOverallProgress(phases: Phase[]) {
     if (!phases.length) return 0;
-
     const total = phases.reduce((sum, phase) => {
       if (phase.status === "Completed") return sum + 100;
       if (phase.status === "Current") return sum + phase.progress;
       return sum;
     }, 0);
-
     return Math.round(total / phases.length);
   }
 
-  const config = STATUS[status as keyof typeof STATUS];
+  const handleEditPhase = () => {
+    setEditingPhase(selectedPhase || null);
+    setEditModalOpen(true);
+  };
+
+  const handleViewDetails = () => {
+    const phasename = selectedPhaseName?.replaceAll(/[()]/g,'').replaceAll(/[/]/g,'').replaceAll(" ", "-");
+    if (selectedPhase?.id) {
+      router.push(
+        `/management/projects/${projectId}/phases/${phasename}`
+      );
+    }
+  };
+
+  const handleSavePhase = (updatedPhase: Phase) => {
+    setPhaseList((prev) =>
+      prev.map((p) => (p.id === updatedPhase.id ? updatedPhase : p))
+    );
+    setEditModalOpen(false);
+    setEditingPhase(null);
+    // TODO: Save to database
+  };
 
   useEffect(() => {
-    // Simulate data loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    const timer = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(timer);
   }, []);
 
-  if (loading) return (<Loader />);
-
+  if (loading) return <Loader />;
 
   return (
-    <div className="p-8 md:p-8 space-y-6 text-slate-700 min-h-screen">
-      {/* Header — primary action matches a fixed methodology: drill into
-                the selected phase, rather than adding an arbitrary new one. */}
-      <div className="flex justify-between items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Fases</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Metodologia do projecto, {phases.length} fases
-          </p>
-        </div>
+    <div className="min-h-screen">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+        <div className="space-y-8 sm:space-y-10">
+          {/* Header */}
+          <div className="border-b border-gray-200 pb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
+                  Fases
+                </h1>
+                <p className="mt-1 text-sm text-gray-600">
+                  Metodologia do projecto · {phaseList.length} fases definidas
+                </p>
+              </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            disabled={!selectedPhase}
-            className="text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-lg px-4 py-2.5"
-          >
-            Editar Fase
-          </button>
-          <button
-            disabled={!selectedPhase}
-            className="bg-slate-900 hover:bg-slate-800 disabled:opacity-40 transition-colors text-white text-sm font-medium px-4 py-2.5 rounded-lg"
-          >
-            Ver detalhes da fase
-          </button>
-        </div>
-      </div>
-
-      {/* Progress — merged: overall % as a corner stat, current phase
-                as the main content, instead of two cards repeating the same fact. */}
-      <Card>
-        <div className="flex justify-between items-start">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">
-              {currentPhase?.name ?? "Sem fase actual"}
-            </h2>
-            <p className="text-slate-500 text-sm font-mono mt-1">
-              {currentPhase?.dates || "Datas a definir"}
-            </p>
-          </div>
-          <div className="text-right shrink-0">
-            <span className="font-mono text-lg font-bold text-slate-900 tabular-nums">
-              {overallProgress}%
-            </span>
-            <p className="text-xs text-slate-400 mt-0.5">progresso geral</p>
-          </div>
-        </div>
-
-        {currentPhase && (
-          <div className="mt-6">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-slate-600">Conclusão da fase actual</span>
-              <span className="font-mono font-medium text-slate-900">
-                {currentPhase.progress}%
-              </span>
+              <div className="flex gap-3 flex-col xs:flex-row">
+                <button
+                  onClick={handleEditPhase}
+                  disabled={!selectedPhase}
+                  className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
+                >
+                  Editar Fase
+                </button>
+                <button
+                  onClick={handleViewDetails}
+                  disabled={!selectedPhase}
+                  className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
+                >
+                  Ver detalhes da fase
+                </button>
+              </div>
             </div>
-            <ProgressBar percent={currentPhase.progress} />
           </div>
-        )}
-      </Card>
 
-      {/* Timeline — horizontal on larger screens, stacked on mobile so
-                long phase names don't collide. Clicking a phase scopes the
-                lists below. */}
-      <Card className="p-6 md:p-8">
-        <h2 className="font-semibold text-slate-900 mb-8 md:mb-10">
-          Mapa de evolução
-        </h2>
-        {phases.length > 0 ? (
-          <PhaseTimeline
-            phases={phases}
-            selectedPhaseName={selectedPhase?.name}
-            onSelectPhase={setSelectedPhaseName}
-          />
-        ) : (
-          <EmptyState message="Ainda não existem fases definidas para este projecto." />
-        )}
-      </Card>
+          {/* Current Phase Hero Card */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+            <div className="border-b border-gray-200 px-6 sm:px-8 py-5 sm:py-6">
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
+                    {currentPhase?.name ?? "Sem fase actual"}
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-2 font-mono">
+                    {"Datas a definir"}
+                  </p>
+                </div>
 
-      {/* Metrics — explicitly scoped, so it's clear these are project
-                totals and not tied to whichever phase is selected above. */}
-      <div>
-        <p className="text-xs text-slate-400 mb-2 uppercase tracking-wide">
-          Total do projecto
-        </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Metric title="Documentos" value="0" />
-          <Metric title="Tarefas" value="0" />
-          <Metric title="Comentários" value="0" />
-          <Metric title="Equipa" value="0" />
+                <div className="flex items-baseline gap-6 sm:text-right">
+                  <div className="flex-1 sm:flex-none">
+                    <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
+                      Progresso Geral
+                    </p>
+                    <p className="text-3xl sm:text-4xl font-bold text-gray-900 font-mono tabular-nums">
+                      {overallProgress}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {currentPhase && (
+              <div className="px-6 sm:px-8 py-6 sm:py-8">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-baseline">
+                    <label className="text-sm font-medium text-gray-700">
+                      Conclusão da fase actual
+                    </label>
+                    <span className="text-sm font-mono font-semibold text-gray-900">
+                      {currentPhase.progress}%
+                    </span>
+                  </div>
+                  <ProgressBar percent={currentPhase.progress} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Timeline */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+            <div className="border-b border-gray-200 px-6 sm:px-8 py-5 sm:py-6">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Mapa de evolução
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Clique numa fase para ver os detalhes e entregas associadas
+              </p>
+            </div>
+
+            <div className="px-6 sm:px-8 py-6 sm:py-8">
+              {phaseList.length > 0 ? (
+                <PhaseTimeline
+                  phases={phaseList}
+                  selectedPhaseName={selectedPhase?.name}
+                  onSelectPhase={setSelectedPhaseName}
+                />
+              ) : (
+                <EmptyState message="Ainda não existem fases definidas para este projecto." />
+              )}
+            </div>
+          </div>
+
+          {/* Project Metrics */}
+          <div>
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+                Métricas do projecto
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+              <Metric title="Documentos" value="0" />
+              <Metric title="Tarefas" value="0" />
+              <Metric title="Comentários" value="0" />
+              <Metric title="Equipa" value="0" />
+            </div>
+          </div>
+
+          {/* Deliverables & Milestones - Scoped to Selected Phase */}
+          <div>
+            <div className="mb-4 pb-3 border-b border-gray-200">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+                  Fase Selecionada
+                </p>
+                <p className="text-sm font-medium text-gray-900">
+                  {selectedPhase?.name ?? "—"}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Deliverables */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                <div className="border-b border-gray-200 px-6 py-4 sm:py-5">
+                  <h3 className="font-semibold text-gray-900">Entregas</h3>
+                </div>
+
+                <div className="px-6 py-5 sm:py-6">
+                  {scopedDeliverables.length > 0 ? (
+                    <StatusList items={scopedDeliverables} />
+                  ) : (
+                    <EmptyState message="Sem entregas associadas a esta fase." />
+                  )}
+                </div>
+              </div>
+
+              {/* Milestones */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                <div className="border-b border-gray-200 px-6 py-4 sm:py-5">
+                  <h3 className="font-semibold text-gray-900">Etapas</h3>
+                </div>
+
+                <div className="px-6 py-5 sm:py-6">
+                  {scopedMilestones.length > 0 ? (
+                    <StatusList items={scopedMilestones} />
+                  ) : (
+                    <EmptyState message="Sem etapas associadas a esta fase." />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Deliverables + Milestones — now scoped to the selected phase,
-                so it's clear which stage each item belongs to. */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card>
-          <div className="flex items-baseline justify-between mb-4">
-            <h3 className="font-semibold text-slate-900">Entregas</h3>
-            <span className="text-xs text-slate-400">
-              {selectedPhase?.name ?? "—"}
-            </span>
-          </div>
-          {scopedDeliverables.length > 0 ? (
-            <StatusList items={scopedDeliverables} />
-          ) : (
-            <EmptyState message="Sem entregas associadas a esta fase." />
-          )}
-        </Card>
-
-        <Card>
-          <div className="flex items-baseline justify-between mb-4">
-            <h3 className="font-semibold text-slate-900">Etapas</h3>
-            <span className="text-xs text-slate-400">
-              {selectedPhase?.name ?? "—"}
-            </span>
-          </div>
-          {scopedMilestones.length > 0 ? (
-            <StatusList items={scopedMilestones} />
-          ) : (
-            <EmptyState message="Sem etapas associadas a esta fase." />
-          )}
-        </Card>
-      </div>
+      {/* Edit Phase Modal */}
+      <PhaseEditModal
+        phase={editingPhase}
+        open={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingPhase(null);
+        }}
+        onSave={handleSavePhase}
+      />
     </div>
   );
 }
 
 function StatusList({ items }: { items: StatusItem[] }) {
   return (
-    <div className="divide-y divide-slate-100">
-      {items.map((item) => (
+    <div className="divide-y divide-gray-100">
+      {items.map((item, idx) => (
         <div
           key={item.name}
-          className="flex justify-between items-center gap-3 py-3"
+          className={`flex justify-between items-center gap-3 py-3 ${
+            idx === 0 ? "" : ""
+          }`}
         >
-          <span className="text-slate-700 text-sm">{item.name}</span>
-          <StatusPill label={item.name} color={STATUS[item.status].color} />
+          <span className="text-sm text-gray-700 flex-1 min-w-0">
+            {item.name}
+          </span>
+          <div className="flex-shrink-0">
+            <StatusPill label={item.name} color={STATUS[item.status].color} />
+          </div>
         </div>
       ))}
     </div>

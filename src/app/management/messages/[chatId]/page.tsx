@@ -3,25 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Loader from "@/app/components/loader";
-
-interface Message {
-  id: string;
-  content: string;
-  senderId: string;
-  senderName: string;
-  timestamp: string;
-  isOwn: boolean;
-}
-
-interface ChatPageParams {
-  selectChatId?: string;
-}
+import { getMessagesAction } from "@/app/actions/message";
+import type { MessageView } from "@/services/messages";
 
 export default function ChatPage() {
-  const params = useParams();
-  const selectChatId = params?.selectChatId;
+  const params = useParams<{ chatId?: string }>();
+  const selectedChatId = params.chatId;
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<MessageView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -37,8 +26,7 @@ export default function ChatPage() {
 
   // Fetch messages for the selected chat
   useEffect(() => {
-    if (!selectChatId) {
-      setLoading(false);
+    if (!selectedChatId) {
       return;
     }
 
@@ -47,15 +35,7 @@ export default function ChatPage() {
       setError(null);
 
       try {
-        const response = await fetch(
-          `/api/chats/${selectChatId}/messages`
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch messages");
-        }
-
-        const data = await response.json();
+        const data = await getMessagesAction(selectedChatId);
         setMessages(data);
       } catch (err) {
         console.error("Error fetching messages:", err);
@@ -70,10 +50,18 @@ export default function ChatPage() {
     };
 
     fetchMessages();
-  }, [selectChatId]);
+  }, [selectedChatId]);
+
+  useEffect(() => {
+    const refreshMessages = () => {
+      if (selectedChatId) void getMessagesAction(selectedChatId).then(setMessages);
+    };
+    window.addEventListener("messages:updated", refreshMessages);
+    return () => window.removeEventListener("messages:updated", refreshMessages);
+  }, [selectedChatId]);
 
   // No chat selected
-  if (!selectChatId) {
+  if (!selectedChatId) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
@@ -121,7 +109,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 bg-[#F7F7F5]">
       {messages.map((message) => (
         <div
           key={message.id}

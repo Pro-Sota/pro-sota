@@ -11,9 +11,10 @@ import {
   Users
 } from "lucide-react";
 import Loader from "@/app/components/loader";
+import CustomSelect from "@/app/components/custom_select";
 
 type Activity = {
-
+  id:string;
 }
 
 type EquipmentStatus =
@@ -127,15 +128,14 @@ export default function EquipmentPage() {
 
   if (loading) return (<Loader />);
 
-
   return (
-    <div className="min-h-screen bg-gray-50 p-6 text-gray-900 md:p-10">
+    <div className="min-h-screen p-6 text-gray-900 md:p-10">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 border-b border-gray-200 pb-6 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              Equipamentos
+              Recursos de obra
             </h1>
             <p className="mt-1 text-sm text-gray-500">
               Acompanhe materiais e ferramentas da obra, saiba onde estão e quem é o responsável por cada item.
@@ -143,7 +143,7 @@ export default function EquipmentPage() {
           </div>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800">
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ">
             <Plus size={16} />
             Registar Material
           </button>
@@ -185,7 +185,7 @@ export default function EquipmentPage() {
             />
           </div>
 
-          <select
+          <CustomSelect
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-gray-400 focus:outline-none"
@@ -195,7 +195,7 @@ export default function EquipmentPage() {
             <option>Em Utilização</option>
             <option>Atrasado</option>
             <option>Em Falta</option>
-          </select>
+          </CustomSelect>
         </div>
 
         {/* Assets table */}

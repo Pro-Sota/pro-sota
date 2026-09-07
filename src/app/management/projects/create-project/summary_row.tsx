@@ -5,6 +5,7 @@ export function SummaryRow({
   label: string;
   value: string;
   emphasize?: boolean;
+  filled?:boolean;
 }) {
   return (
     <div className="flex items-start justify-between gap-3">

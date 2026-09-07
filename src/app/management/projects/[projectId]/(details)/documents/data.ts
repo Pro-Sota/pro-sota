@@ -183,7 +183,7 @@ export const folders: FolderType[] = [
   },
   {
     id: "5",
-    name: "budget",
+    name: "Orçamento",
     parent_folder_id: "null",
     project_id: "1",
     createdBy: "System",

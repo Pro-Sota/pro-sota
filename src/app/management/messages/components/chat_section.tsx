@@ -2,9 +2,9 @@
 
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import ChatItem from "./chat_item";
-import { ConversationWithDetails } from "./chat_item"; // better move this to a shared types file
+import { ConversationWithDetails } from "./chat_item";
+import { useRouter } from "next/navigation";
 
 interface ChatSectionProps {
   title: string;
@@ -24,11 +24,11 @@ export default function ChatSection({
 
   const unreadCount = chats.reduce(
     (total, chat) => total + chat.unreadCount,
-    0
+    0,
   );
 
   const handleSelectChat = (chatId: string) => {
-    router.push(`/messages/${chatId}`);
+    router.push(`/management/messages/${chatId}`);
   };
 
   return (
@@ -41,9 +41,7 @@ export default function ChatSection({
         <div className="flex items-center gap-2">
           <span className="text-slate-600">{icon}</span>
 
-          <h2 className="text-sm font-semibold text-slate-900">
-            {title}
-          </h2>
+          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
 
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
             {chats.length}

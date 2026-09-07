@@ -39,6 +39,112 @@ export type Database = {
   }
   public: {
     Tables: {
+      activities: {
+        Row: {
+          activity_id: string
+          activity_type: string
+          created_at: string
+          description: string | null
+          metadata: Json | null
+          project_id: string | null
+          task_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activity_id?: string
+          activity_type: string
+          created_at?: string
+          description?: string | null
+          metadata?: Json | null
+          project_id?: string | null
+          task_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activity_id?: string
+          activity_type?: string
+          created_at?: string
+          description?: string | null
+          metadata?: Json | null
+          project_id?: string | null
+          task_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "activities_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["task_id"]
+          },
+          {
+            foreignKeyName: "activities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      activity_logs: {
+        Row: {
+          action: string
+          activity_id: string
+          created_at: string
+          description: string | null
+          entity_id: string | null
+          entity_type: string
+          metadata: Json
+          project_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          activity_id?: string
+          created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type: string
+          metadata?: Json
+          project_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          activity_id?: string
+          created_at?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          metadata?: Json
+          project_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -217,6 +323,7 @@ export type Database = {
           folder_id: string
           name: string
           project_id: string
+          updated_at: string | null
           uploaded_by: string | null
           version: number | null
         }
@@ -227,6 +334,7 @@ export type Database = {
           folder_id: string
           name: string
           project_id: string
+          updated_at?: string | null
           uploaded_by?: string | null
           version?: number | null
         }
@@ -237,6 +345,7 @@ export type Database = {
           folder_id?: string
           name?: string
           project_id?: string
+          updated_at?: string | null
           uploaded_by?: string | null
           version?: number | null
         }
@@ -272,6 +381,7 @@ export type Database = {
           name: string
           parent_id: string | null
           project_id: string
+          slug: string | null
           sort_order: number | null
           type: string | null
         }
@@ -282,6 +392,7 @@ export type Database = {
           name: string
           parent_id?: string | null
           project_id: string
+          slug?: string | null
           sort_order?: number | null
           type?: string | null
         }
@@ -292,6 +403,7 @@ export type Database = {
           name?: string
           parent_id?: string | null
           project_id?: string
+          slug?: string | null
           sort_order?: number | null
           type?: string | null
         }
@@ -440,6 +552,42 @@ export type Database = {
         }
         Relationships: []
       }
+      project_members: {
+        Row: {
+          profile_id: string | null
+          project_id: string | null
+          role: Database["public"]["Enums"]["project_role"] | null
+          user_project_id: string
+        }
+        Insert: {
+          profile_id?: string | null
+          project_id?: string | null
+          role?: Database["public"]["Enums"]["project_role"] | null
+          user_project_id?: string
+        }
+        Update: {
+          profile_id?: string | null
+          project_id?: string | null
+          role?: Database["public"]["Enums"]["project_role"] | null
+          user_project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_projects_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "user_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           address_line_1: string | null
@@ -541,33 +689,45 @@ export type Database = {
       }
       tasks: {
         Row: {
+          actual_hours: number | null
+          assigned_to: string
           created_at: string
           description: string | null
           due_date: string | null
-          phase_id: string
+          estimated_hours: number | null
           priority: string
+          project_id: string | null
+          start_date: string | null
           status: string
           task_id: string
           title: string
           updated_at: string
         }
         Insert: {
+          actual_hours?: number | null
+          assigned_to: string
           created_at?: string
           description?: string | null
           due_date?: string | null
-          phase_id: string
+          estimated_hours?: number | null
           priority?: string
+          project_id?: string | null
+          start_date?: string | null
           status?: string
           task_id?: string
           title: string
           updated_at?: string
         }
         Update: {
+          actual_hours?: number | null
+          assigned_to?: string
           created_at?: string
           description?: string | null
           due_date?: string | null
-          phase_id?: string
+          estimated_hours?: number | null
           priority?: string
+          project_id?: string | null
+          start_date?: string | null
           status?: string
           task_id?: string
           title?: string
@@ -575,44 +735,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "tasks_phase_id_fkey"
-            columns: ["phase_id"]
-            isOneToOne: false
-            referencedRelation: "phases"
-            referencedColumns: ["phase_id"]
-          },
-        ]
-      }
-      user_projects: {
-        Row: {
-          profile_id: string | null
-          project_id: string | null
-          user_project_id: string
-        }
-        Insert: {
-          profile_id?: string | null
-          project_id?: string | null
-          user_project_id?: string
-        }
-        Update: {
-          profile_id?: string | null
-          project_id?: string | null
-          user_project_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_projects_profile_id_fkey"
-            columns: ["profile_id"]
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "user_projects_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["project_id"]
           },
         ]
       }
@@ -627,6 +754,31 @@ export type Database = {
       }
     }
     Enums: {
+      activity_action:
+        | "created"
+        | "updated"
+        | "deleted"
+        | "uploaded"
+        | "assigned"
+        | "unassigned"
+        | "status_changed"
+        | "completed"
+        | "approved"
+        | "rejected"
+        | "archived"
+        | "restored"
+        | "commented"
+      activity_entity_type:
+        | "project"
+        | "task"
+        | "document"
+        | "drawing"
+        | "client"
+        | "member"
+        | "invoice"
+        | "payment"
+        | "equipment"
+        | "meeting"
       conversation_type: "direct" | "project"
       new_project_status:
         | "Em Espera"
@@ -642,6 +794,13 @@ export type Database = {
         | "Supervisor"
         | "Viewer"
         | "Admin"
+      project_role:
+        | "Manager"
+        | "Coordinator"
+        | "Architect"
+        | "Engineer"
+        | "Consultant"
+        | "Other"
       project_status:
         | "Planning"
         | "In Progress"
@@ -784,6 +943,33 @@ export const Constants = {
   },
   public: {
     Enums: {
+      activity_action: [
+        "created",
+        "updated",
+        "deleted",
+        "uploaded",
+        "assigned",
+        "unassigned",
+        "status_changed",
+        "completed",
+        "approved",
+        "rejected",
+        "archived",
+        "restored",
+        "commented",
+      ],
+      activity_entity_type: [
+        "project",
+        "task",
+        "document",
+        "drawing",
+        "client",
+        "member",
+        "invoice",
+        "payment",
+        "equipment",
+        "meeting",
+      ],
       conversation_type: ["direct", "project"],
       new_project_status: [
         "Em Espera",
@@ -800,6 +986,14 @@ export const Constants = {
         "Supervisor",
         "Viewer",
         "Admin",
+      ],
+      project_role: [
+        "Manager",
+        "Coordinator",
+        "Architect",
+        "Engineer",
+        "Consultant",
+        "Other",
       ],
       project_status: [
         "Planning",

@@ -4,6 +4,7 @@ import { ChevronRight, ChevronDown } from "lucide-react";
 import { FolderItemType } from "../types";
 
 import { usePathname } from "next/navigation";
+import { capitalize } from "@/app/lib/library";
 
 interface FolderItemProps {
   folder: FolderItemType;
@@ -16,19 +17,28 @@ export default function FolderItem({
   folder,
   expanded,
   onSelected,
-  isExpanded,
 }: FolderItemProps) {
-  const hasChildren =
-    folder.children && folder.children.length > 0;
+  const hasChildren = folder.children && folder.children.length > 0;
 
   const pathname = usePathname();
 
   const handleClick = () => {
     onSelected(folder.href);
   };
+  
+  const isExpanded = (folder: FolderItemType) => {
+  const folderPath = folder.href.split("?")[0];
 
-  const isActive = (href: string) =>
-    pathname === href.split("?")[0];
+  return (
+    pathname === folderPath ||
+    pathname.startsWith(`${folderPath}/`)
+  );
+};
+
+  const isActive = (href: string) => {
+    const path = href.split("?")[0];
+    return pathname === path;
+  };
 
   return (
     <li>
@@ -45,7 +55,7 @@ export default function FolderItem({
         `}
       >
         <folder.icon className="mr-2 h-4 w-4" />
-        {folder.name}
+        {capitalize(folder.name)}
 
         {hasChildren &&
           (expanded ? (

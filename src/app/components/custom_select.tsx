@@ -1,4 +1,4 @@
-"use client0";
+"use client";
 
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -17,16 +17,12 @@ export default function CustomSelect({
         <div className="relative">
             <select {...props}
                 className={`${inputStyle} appearance-none pr-10`}
-                onMouseDown={() => setOpen(true)}
+                onClick={() => setOpen(!open)}
                 onBlur={() => setOpen(false)}
-                onChange={(e) => {
-                    setOpen(false);
-                    props.onChange?.(e);
-                }}
             >
                 {children}
             </select>
-            <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform duration-300 ${open ? "rotate-[180deg]" : ""}`} />
+            <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
         </div>
     );
 }

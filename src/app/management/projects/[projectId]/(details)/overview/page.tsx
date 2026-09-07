@@ -1,9 +1,7 @@
 import OverviewClientPage from "./overview_client_view"
 
 
-
-
-export default async function OverviewPage() {
+export default function OverviewPage() {
 
 
     return <OverviewClientPage />
