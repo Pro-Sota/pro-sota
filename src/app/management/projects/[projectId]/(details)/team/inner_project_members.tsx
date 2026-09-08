@@ -1,0 +1,311 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { UserPlus, Settings, X, Search, Filter } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Loader from "@/app/components/loader";
+import { Database } from "@/app/lib/supabase/models";
+import CustomSelect from "@/app/components/custom_select";
+import ManageRolesModal from "./manage_role_modal";
+import TeamCard from "./team_card";
+import AddMemberModal from "./add_member_modal";
+import { Role, TeamMember } from "./types";
+
+
+
+
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+
+// Combined type from profiles + project_members + roles
+
+interface TeamProps {
+    projectId: string;
+    projectMembers: TeamMember[];
+    team: Profile[]
+}
+
+export default function Team({ projectMembers, team }: TeamProps) {
+    const [manageRolesOpen, setManageRolesOpen] = useState(false);
+    const [addMemberOpen, setAddMemberOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedRole, setSelectedRole] = useState<Role | "all">("all");
+
+    const router = useRouter();
+
+    const sections: { title: string; role: Role }[] = [
+        {
+            title: "Gestor do projecto",
+            role: "project-manager",
+        },
+        {
+            title: "Coordenador",
+            role: "coordenador",
+        },
+        {
+            title: "Arquitectos",
+            role: "architect",
+        },
+        {
+            title: "Engenheiros",
+            role: "engineer",
+        },
+        {
+            title: "Parceiros",
+            role: "partner",
+        },
+    ];
+
+    const roleColors: Record<Role, string> = {
+        "project-manager": "from-purple-500 to-purple-600",
+        coordenador: "from-blue-500 to-blue-600",
+        architect: "from-emerald-500 to-emerald-600",
+        engineer: "from-orange-500 to-orange-600",
+        partner: "from-pink-500 to-pink-600",
+    };
+
+    const handleViewProfile = (member: TeamMember) => {
+        router.push(`/management/team/profile/${member.profile_id}`);
+    };
+
+    // Filter members by search and role
+    const filteredMembers = projectMembers.filter((member) => {
+        const fullName = `${member.first_name} ${member.last_name}`.toLowerCase();
+        const matchesSearch = fullName.includes(searchQuery.toLowerCase());
+        const matchesRole = selectedRole === "all" || member.role === selectedRole;
+        return matchesSearch && matchesRole;
+    });
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setLoading(false);
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        if (!manageRolesOpen) return;
+
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [manageRolesOpen]);
+
+    if (loading) {
+        return <Loader />;
+    }
+
+    return (
+        <>
+            <div className="mx-auto my-8 h-full max-w-7xl px-6 pb-12">
+                {/* Header */}
+                <div className="mb-10 space-y-6">
+                    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900">Equipa</h1>
+                            <p className="mt-2 text-sm text-gray-600">
+                                Gerencie e colabore com sua equipe
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            {/* Manage team */}
+                            <button
+                                type="button"
+                                onClick={() => setManageRolesOpen(true)}
+                                className="group inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:border-gray-400 hover:bg-gray-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                            >
+                                <Settings size={18} className="transition group-hover:rotate-180" />
+                                Gerir responsáveis
+                            </button>
+
+                            {/* Add member */}
+                            <button
+                                type="button"
+                                onClick={() => setAddMemberOpen(true)}
+                                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-gradient-to-r from-slate-600 to-slate-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg transition hover:shadow-xl hover:from-slate-700 hover:to-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                            >
+                                <UserPlus size={18} />
+                                Adicionar membro
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Search & Filter Bar */}
+                    {projectMembers.length > 0 && (
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            {/* Search */}
+                            <div className="relative flex-1">
+                                <Search
+                                    size={18}
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Procurar membro..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-500 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                                />
+                            </div>
+
+                            {/* Filter */}
+                            <CustomSelect
+                                value={selectedRole}
+                                onChange={(e) => setSelectedRole(e.target.value as Role | "all")}
+                                className="cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            >
+                                <option value="all">Todas as funções</option>
+                                {sections.map((section) => (
+                                    <option key={section.role} value={section.role}>
+                                        {section.title}
+                                    </option>
+                                ))}
+                            </CustomSelect>
+                        </div>
+                    )}
+                </div>
+
+                {/* Main Content */}
+                {projectMembers.length === 0 ? (
+                    <EmptyState setAddMemberOpen={setAddMemberOpen} />
+                ) : filteredMembers.length === 0 ? (
+                    /* No Results State */
+                    <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white px-8 py-12 text-center">
+                        <Filter size={32} className="mx-auto mb-4 text-gray-400" />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                            Nenhum membro encontrado
+                        </h3>
+                        <p className="mt-2 text-sm text-gray-600">
+                            Tente ajustar seus filtros ou termos de busca.
+                        </p>
+                    </div>
+                ) : (
+                    /* Team Sections */
+                    <div className="space-y-10">
+                        {sections.map((section) => {
+                            const sectionMembers = filteredMembers.filter(
+                                (member) => member.role === section.role,
+                            );
+
+                            if (sectionMembers.length === 0) return null;
+
+                            return (
+                                <div key={section.role} className="animate-in fade-in duration-500">
+                                    {/* Section header */}
+                                    <div className="mb-6 flex items-baseline justify-between">
+                                        <div>
+                                            <h2 className="text-xl font-semibold text-gray-900">
+                                                {section.title}
+                                            </h2>
+                                            <p className="mt-1 text-sm text-gray-500">
+                                                {sectionMembers.length}{" "}
+                                                {sectionMembers.length === 1 ? "membro" : "membros"}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            className={`h-2 w-12 rounded-full bg-gradient-to-r ${roleColors[section.role]}`}
+                                        />
+                                    </div>
+
+                                    {/* Members Grid */}
+                                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                        {sectionMembers.map((member, index) => (
+                                            <div
+                                                key={member.profile_id}
+                                                className="animate-in fade-in duration-500"
+                                                style={{
+                                                    animationDelay: `${index * 50}ms`,
+                                                }}
+                                            >
+                                                <TeamCard
+                                                    member={member}
+                                                    onViewProfile={handleViewProfile}
+                                                    roleColor={roleColors[section.role]}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Recent Activity */}
+                {projectMembers.length > 0 && (
+                    <div className="mt-16">
+                        <div className="mb-6">
+                            <h2 className="text-xl font-semibold text-gray-900">
+                                Actividades recentes
+                            </h2>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Acompanhe o que sua equipe está fazendo
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-8 text-center">
+                            <div className="mb-3 flex justify-center">
+                                <div className="rounded-full bg-white p-3">
+                                    <div className="h-6 w-6 rounded-full border-2 border-gray-300" />
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                                Nenhuma actividade recente no momento.
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Modals */}
+            {manageRolesOpen && (
+                <ManageRolesModal
+                    members={projectMembers}
+                    onClose={() => setManageRolesOpen(false)}
+                />
+            )}
+            {addMemberOpen && (
+                <AddMemberModal
+                    members={team}
+                    onClose={() => setAddMemberOpen(false)}
+                />
+            )}
+        </>
+    );
+}
+
+
+function EmptyState({
+    setAddMemberOpen,
+}: {
+    setAddMemberOpen: (open: boolean) => void;
+}) {
+    return (
+        /* Empty State */
+        <div className="rounded-2xl border-2 border-dashed border-gray-300 px-8 py-16 text-center">
+            <div className="mb-4 flex justify-center">
+                <div className="rounded-full bg-gradient-to-br from-slate-100 to-slate-50 p-4">
+                    <UserPlus size={32} className="text-slate-400" />
+                </div>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">
+                Sua equipa está vazia
+            </h3>
+            <p className="mt-2 text-sm text-gray-600">
+                Comece adicionando membros à sua equipa.
+            </p>
+            <button
+                onClick={() => setAddMemberOpen(true)}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            >
+                <UserPlus size={16} />
+                Adicionar primeiro membro
+            </button>
+        </div>
+    );
+}

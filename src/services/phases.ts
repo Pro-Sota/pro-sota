@@ -19,7 +19,6 @@ export async function getProjectPhases(projectId: string) {
     return data;
 }
 
-
 // Get a single phase
 export async function getPhase(phaseId: string) {
     const cookieStore = await cookies();

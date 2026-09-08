@@ -34,7 +34,7 @@ interface DocumentPageClientProps {
   projectId: string;
   folder: string[];
   view: "grid" | "list";
-  onUpload?: () => void; // ✅ FIX #5: Accept upload handler from parent
+  onUpload?: () => void; // Accept upload handler from parent
 }
 
 /**
@@ -107,7 +107,6 @@ function EmptyState({
         {config.description}
       </p>
 
-      {/* ✅ FIX #5: Add onClick handler to upload button */}
       {config.action && (
         <button
           type="button"
@@ -220,17 +219,18 @@ export default function DocumentPageClient({
    * -> show only direct children
    */
   const filteredFolders = useMemo(() => {
-    if (isAllFiles) {
-      return folders.filter((item) => item.parent_id === null);
-    }
+  if (isAllFiles) {
+    return folders;
+  }
 
-    if (!currentFolder) {
-      return [];
-    }
+  if (!currentFolder) {
+    return [];
+  }
 
-    return folders.filter((item) => item.parent_id === currentFolder.folder_id);
-  }, [folders, isAllFiles, currentFolder]);
-
+  return folders.filter(
+    (item) => item.parent_id === currentFolder.folder_id
+  );
+}, [folders, isAllFiles, currentFolder]);
   /*
    * Documents shown in the current location.
    */

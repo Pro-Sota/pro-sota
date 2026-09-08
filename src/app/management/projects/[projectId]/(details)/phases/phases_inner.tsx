@@ -187,7 +187,7 @@ export default function PhasesPageInner({ phases }: props) {
                                 <PhaseTimeline
                                     phases={phases}
                                     selectedPhaseName={selectedPhase?.name}
-                                    onSelectPhase={setSelectedPhaseName}
+                                    onSelectPhaseAction={setSelectedPhaseName}
                                 />
                             ) : (
                                 <EmptyState message="Ainda não existem fases definidas para este projecto." />

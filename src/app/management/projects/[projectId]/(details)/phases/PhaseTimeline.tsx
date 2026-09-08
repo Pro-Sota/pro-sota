@@ -1,16 +1,24 @@
 "use client";
-import { Phase } from "./types";
+
+import { Database } from "@/app/lib/supabase/models";
+import {useRouter} from "next/navigation";
+
+type Phase = Database["public"]["Tables"]["phases"]["Row"];
+
+
 
 export function PhaseTimeline({
-  phases, selectedPhaseName, onSelectPhase,
+  phases, selectedPhaseName, onSelectPhaseAction,
 }: {
   phases: Phase[];
   selectedPhaseName?: string;
-  onSelectPhase?: (name: string) => void;
+  onSelectPhaseAction?: (name: string) => void;
 }) {
+
+  const router = useRouter();
   const completedCount = phases.filter((p) => p.status === "Completed").length;
   const currentIndex = phases.findIndex((p) => p.status === "Current");
-  const currentPartial = currentIndex >= 0 ? phases[currentIndex].progress / 100 : 0;
+  const currentPartial = currentIndex >= 0 ? (phases[currentIndex].progress ?? 0) / 100 : 0;
   const stepsFilled = completedCount + currentPartial;
   const fillPercent = phases.length > 1
     ? (stepsFilled / (phases.length - 1)) * 100
@@ -34,7 +42,8 @@ export function PhaseTimeline({
           return (
             <button
               key={phase.name}
-              onClick={() => onSelectPhase?.(phase.name)}
+              onClick={() => onSelectPhaseAction?.(phase.name)}
+              onDoubleClick={() => router.push(`/management/projects/${phase.project_id}/phases/${phase.phase_id}`)}
               title={phase.name}
               className={` cursor-pointer
                                 flex md:flex-1 flex-row md:flex-col items-center md:text-center
@@ -62,7 +71,7 @@ export function PhaseTimeline({
                   {phase.name}
                 </h3>
                 <p className="text-xs text-slate-400 font-mono mt-0.5">
-                  {phase.dates || "Datas a definir"}
+                  {phase.planned_end || "Datas a definir"}
                 </p>
               </div>
             </button>

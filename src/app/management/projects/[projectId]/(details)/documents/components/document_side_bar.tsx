@@ -13,12 +13,12 @@ import { Database } from "@/app/lib/supabase/models";
 import { FolderItemType } from "../types";
 import FolderItem from "./folder_item";
 
-type Folder = Database["public"]["Tables"]["folders"]["Row"];
+type FolderRow = Database["public"]["Tables"]["folders"]["Row"];
 
 interface ProjectSidebarProps {
   projectId: string;
   view: string;
-  folders: Folder[];
+  folders: FolderRow[];
 }
 
 export default function DocumentSidebar({
@@ -29,7 +29,7 @@ export default function DocumentSidebar({
   const router = useRouter();
   const pathname = usePathname();
 
-  const base = `/management/projects/${projectId}/documents`;
+  const basePath = `/management/projects/${projectId}/documents`;
 
   /*
    * ---------------------------------------------------------
@@ -37,7 +37,7 @@ export default function DocumentSidebar({
    * ---------------------------------------------------------
    */
 
-  const handleSelect = (href: string) => {
+  const navigate = (href: string) => {
     router.push(href);
   };
 
@@ -45,37 +45,40 @@ export default function DocumentSidebar({
    * ---------------------------------------------------------
    * Build folder tree
    *
-   * Database structure:
+   * Database:
    *
-   * Architecture
-   *   ├── Estudos
-   *   ├── Plantas
-   *   └── Renders
+   * parent_id
+   * folder_id
+   * slug
    *
-   * The database stores folders as a flat array and uses
-   * parent_id to define the hierarchy.
+   * Result:
    *
-   * The generated URLs follow the hierarchy:
-   *
-   * /documents/architecture
-   * /documents/architecture/estudos
-   * /documents/architecture/plantas
+   * /documents/projects
+   * /documents/projects/drawings
+   * /documents/projects/drawings/floor-plans
    * ---------------------------------------------------------
    */
 
-  const foldersItem: FolderItemType[] = useMemo(() => {
+  const folderItems = useMemo<FolderItemType[]>(() => {
+    if (!folders?.length) {
+      return [];
+    }
+
     const buildTree = (
-      parentFolderId: string | null,
-      parentPath = "",
+      parentId: string | null,
+      parentPath: string = "",
     ): FolderItemType[] => {
       return folders
-        .filter((folder) => folder.parent_id === parentFolderId)
+        .filter((folder) => {
+          const folderParentId = folder.parent_id ?? null;
+          return folderParentId === parentId;
+        })
         .sort((a, b) => {
-          const aOrder = a.sort_order ?? 0;
-          const bOrder = b.sort_order ?? 0;
+          const orderA = a.sort_order ?? 0;
+          const orderB = b.sort_order ?? 0;
 
-          if (aOrder !== bOrder) {
-            return aOrder - bOrder;
+          if (orderA !== orderB) {
+            return orderA - orderB;
           }
 
           return a.name.localeCompare(b.name);
@@ -88,8 +91,9 @@ export default function DocumentSidebar({
           return {
             id: folder.folder_id,
             name: folder.name,
-            href: `${base}/${currentPath}?view=${view}`,
+            href: `${basePath}/${currentPath}?view=${view}`,
             icon: Folder,
+
             children: buildTree(
               folder.folder_id,
               currentPath ?? "",
@@ -99,21 +103,11 @@ export default function DocumentSidebar({
     };
 
     return buildTree(null);
-  }, [folders, base, view]);
+  }, [folders, basePath, view]);
 
   /*
    * ---------------------------------------------------------
-   * Main document navigation
-   *
-   * IMPORTANT:
-   *
-   * "Todos os documentos" uses the base /documents route.
-   *
-   * We do NOT create:
-   *
-   * /documents/all-files
-   *
-   * because "all files" is the default document view.
+   * Main navigation
    * ---------------------------------------------------------
    */
 
@@ -122,17 +116,17 @@ export default function DocumentSidebar({
       {
         id: "all-files",
         name: "Todos os documentos",
-        href: `${base}?view=${view}`,
+        href: basePath,
         icon: File,
       },
       {
         id: "recents",
         name: "Recentes",
-        href: `${base}/recents?view=${view}`,
+        href: `${basePath}/recents`,
         icon: Clock,
       },
     ],
-    [base, view],
+    [basePath],
   );
 
   /*
@@ -146,109 +140,99 @@ export default function DocumentSidebar({
       {
         id: "archive",
         name: "Arquivo",
-        href: `${base}/archive?view=${view}`,
+        href: `${basePath}/archive`,
         icon: Archive,
       },
     ],
-    [base, view],
+    [basePath],
   );
 
   /*
    * ---------------------------------------------------------
-   * Normalize route
+   * URL helpers
    *
-   * Removes query parameters and trailing slashes so that:
+   * pathname from Next.js does NOT contain ?view=...
    *
-   * /documents
-   * /documents/
-   * /documents?view=list
+   * Example:
    *
-   * are treated consistently.
+   * pathname:
+   * /management/projects/123/documents
+   *
+   * href:
+   * /management/projects/123/documents?view=list
+   *
+   * We therefore always compare pathname values.
    * ---------------------------------------------------------
    */
 
-  const normalizePath = (path: string) => {
-    if (!path) {
-      return "/";
-    }
-
-    const normalized = path.split("?")[0];
-
-    if (normalized.length > 1) {
-      return normalized.replace(/\/+$/, "");
-    }
-
-    return normalized;
+  const getPath = (href: string) => {
+    return href.split("?")[0].replace(/\/+$/, "") || "/";
   };
 
-  const currentPath = normalizePath(pathname);
+  const currentPath = getPath(pathname);
 
   /*
    * ---------------------------------------------------------
-   * Active route
-   *
-   * Exact match only.
-   *
-   * This is important because:
-   *
-   * /documents
-   *
-   * must NOT become active when we are inside:
-   *
-   * /documents/architecture
+   * Active navigation
    * ---------------------------------------------------------
    */
 
   const isActive = (href: string) => {
-    const targetPath = normalizePath(href);
+    const targetPath = getPath(href);
 
     return currentPath === targetPath;
   };
 
   /*
    * ---------------------------------------------------------
-   * Expanded folder
+   * Folder expansion
    *
-   * A folder is expanded when the current route is:
+   * Example:
    *
-   * /documents/architecture
+   * Current:
+   * /documents/design/drawings
    *
-   * OR a child route:
+   * Parent:
+   * /documents/design
    *
-   * /documents/architecture/plants
+   * => expanded
    *
-   * OR a deeper route:
+   * But:
    *
-   * /documents/architecture/plants/render-01
+   * /documents/design-archive
    *
+   * should NOT expand /documents/design.
    * ---------------------------------------------------------
    */
 
-  const isExpanded = (folder: FolderItemType) => {
-    const folderPath = normalizePath(folder.href);
+  const isFolderExpanded = (folder: FolderItemType) => {
+    const folderPath = getPath(folder.href);
 
-    return (
-      currentPath === folderPath ||
-      currentPath.startsWith(`${folderPath}/`)
-    );
+    if (currentPath === folderPath) {
+      return true;
+    }
+
+    return currentPath.startsWith(`${folderPath}/`);
   };
 
   /*
    * ---------------------------------------------------------
-   * Navigation button styles
+   * Classes
    * ---------------------------------------------------------
    */
 
-  const linkClass = (href: string) => {
+  const getLinkClass = (href: string) => {
     const active = isActive(href);
 
     return [
-      "flex w-full items-center rounded-md p-2",
-      "text-sm transition-colors cursor-pointer",
-      "focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400",
+      "flex w-full items-center rounded-md px-2 py-2",
+      "text-sm transition-colors",
+      "focus:outline-none focus-visible:ring-2",
+      "focus-visible:ring-slate-400",
+
       active
-        ? "bg-slate-500 text-white"
-        : "text-gray-800 hover:bg-gray-200",
+        ? "bg-slate-600 text-white"
+        : "text-gray-700 hover:bg-gray-100",
     ].join(" ");
   };
 
@@ -259,64 +243,57 @@ export default function DocumentSidebar({
    */
 
   return (
-    <aside
-      className="
-        flex h-full w-64 shrink-0 flex-col
-        border-r border-gray-300
-        bg-white
-        px-4 py-2
-        text-sm
-      "
-    >
-      {/* --------------------------------------------------- */}
-      {/* DOCUMENT NAVIGATION */}
-      {/* --------------------------------------------------- */}
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-gray-200 bg-white">
+      {/* HEADER / MAIN NAV */}
+      <nav className="flex min-h-0 flex-1 flex-col px-4 py-3">
 
-      <nav className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <p className="mb-2 shrink-0 text-xs font-semibold text-gray-500">
+        <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Documentos
         </p>
 
-        <ul className="shrink-0 space-y-1">
-          {menuItems.map(
-            ({ id, name, href, icon: Icon }) => (
-              <li key={id}>
+        <ul className="space-y-1">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+
+            return (
+              <li key={item.id}>
                 <button
                   type="button"
-                  className={linkClass(href)}
-                  onClick={() => handleSelect(href)}
+                  onClick={() =>
+                    navigate(`${item.href}?view=${view}`)
+                  }
+                  className={getLinkClass(item.href)}
                 >
                   <Icon className="mr-2 h-4 w-4 shrink-0" />
 
                   <span className="truncate">
-                    {name}
+                    {item.name}
                   </span>
                 </button>
               </li>
-            ),
-          )}
+            );
+          })}
         </ul>
 
-        <hr className="my-4 shrink-0 border-gray-300" />
+        <div className="my-4 border-t border-gray-200" />
 
-        {/* ------------------------------------------------- */}
-        {/* PROJECT FOLDERS */}
-        {/* ------------------------------------------------- */}
+        {/* FOLDERS */}
 
-        <p className="mb-2 shrink-0 text-xs font-semibold text-gray-500">
+        <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Pastas do projecto
         </p>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {foldersItem.length > 0 ? (
+          {folderItems.length > 0 ? (
             <ul className="space-y-1">
-              {foldersItem.map((folder) => (
+              {folderItems.map((folder) => (
                 <FolderItem
                   key={folder.id}
                   folder={folder}
-                  expanded={isExpanded(folder)}
-                  isExpanded={isExpanded}
-                  onSelected={handleSelect}
+                  expanded={isFolderExpanded(folder)}
+                  isExpanded={isFolderExpanded}
+                  onSelected={navigate}
                 />
               ))}
             </ul>
@@ -328,32 +305,34 @@ export default function DocumentSidebar({
         </div>
       </nav>
 
-      {/* --------------------------------------------------- */}
-      {/* BOTTOM NAVIGATION */}
-      {/* --------------------------------------------------- */}
+      {/* BOTTOM */}
 
-      <div className="shrink-0">
-        <hr className="my-4 border-gray-300" />
+      <div className="shrink-0 px-4">
+        <div className="border-t border-gray-200 py-3">
+          <ul className="space-y-1">
+            {bottomItems.map((item) => {
+              const Icon = item.icon;
 
-        <ul className="space-y-1 pb-2">
-          {bottomItems.map(
-            ({ id, name, href, icon: Icon }) => (
-              <li key={id}>
-                <button
-                  type="button"
-                  className={linkClass(href)}
-                  onClick={() => handleSelect(href)}
-                >
-                  <Icon className="mr-2 h-4 w-4 shrink-0" />
+              return (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`${item.href}?view=${view}`)
+                    }
+                    className={getLinkClass(item.href)}
+                  >
+                    <Icon className="mr-2 h-4 w-4 shrink-0" />
 
-                  <span className="truncate">
-                    {name}
-                  </span>
-                </button>
-              </li>
-            ),
-          )}
-        </ul>
+                    <span className="truncate">
+                      {item.name}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </div>
     </aside>
   );

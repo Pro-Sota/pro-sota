@@ -1,9 +1,12 @@
 "use client";
 
-import { ChevronRight, ChevronDown } from "lucide-react";
-import { FolderItemType } from "../types";
-
+import {
+  ChevronRight,
+  ChevronDown,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
+
+import { FolderItemType } from "../types";
 import { capitalize } from "@/app/lib/library";
 
 interface FolderItemProps {
@@ -17,27 +20,35 @@ export default function FolderItem({
   folder,
   expanded,
   onSelected,
+  isExpanded,
 }: FolderItemProps) {
-  const hasChildren = folder.children && folder.children.length > 0;
-
   const pathname = usePathname();
+
+  const hasChildren =
+    folder.children && folder.children.length > 0;
+
+  /*
+   * Remove query parameters.
+   *
+   * Example:
+   *
+   * /documents/drawings?view=list
+   *
+   * becomes:
+   *
+   * /documents/drawings
+   */
+  const folderPath = folder.href
+    .split("?")[0]
+    .replace(/\/+$/, "");
+
+  const currentPath = pathname
+    .replace(/\/+$/, "");
+
+  const active = currentPath === folderPath;
 
   const handleClick = () => {
     onSelected(folder.href);
-  };
-  
-  const isExpanded = (folder: FolderItemType) => {
-  const folderPath = folder.href.split("?")[0];
-
-  return (
-    pathname === folderPath ||
-    pathname.startsWith(`${folderPath}/`)
-  );
-};
-
-  const isActive = (href: string) => {
-    const path = href.split("?")[0];
-    return pathname === path;
   };
 
   return (
@@ -45,24 +56,30 @@ export default function FolderItem({
       <button
         type="button"
         onClick={handleClick}
-        className={`
-          flex w-full cursor-pointer items-center rounded-md p-2 transition-colors
-          ${
-            isActive(folder.href)
-              ? "bg-slate-500 text-white"
-              : "text-gray-800 hover:bg-gray-200"
-          }
-        `}
-      >
-        <folder.icon className="mr-2 h-4 w-4" />
-        {capitalize(folder.name)}
+        className={[
+          "flex w-full items-center rounded-md px-2 py-2",
+          "cursor-pointer transition-colors",
+          "focus:outline-none focus-visible:ring-2",
+          "focus-visible:ring-slate-400",
 
-        {hasChildren &&
-          (expanded ? (
-            <ChevronDown className="ml-auto h-4 w-4" />
+          active
+            ? "bg-[#BD9655] text-[#002950]"
+            : "text-gray-800 hover:bg-gray-100",
+        ].join(" ")}
+      >
+        <folder.icon className="mr-2 h-4 w-4 shrink-0" />
+
+        <span className="truncate">
+          {capitalize(folder.name)}
+        </span>
+
+        {hasChildren && (
+          expanded ? (
+            <ChevronDown className="ml-auto h-4 w-4 shrink-0" />
           ) : (
-            <ChevronRight className="ml-auto h-4 w-4" />
-          ))}
+            <ChevronRight className="ml-auto h-4 w-4 shrink-0" />
+          )
+        )}
       </button>
 
       {expanded && hasChildren && (

@@ -73,7 +73,7 @@ export async function getProjectMembers(profileID: string) {
     .from("project_members")
     .select(
       `
-      project_role,
+      role (name),
       profiles (
         profile_id,
         first_name,
@@ -87,25 +87,43 @@ export async function getProjectMembers(profileID: string) {
   if (error) {
     console.error("Supabase:", error);
     throw new Error(error.message);}
+
+    console.log("Project members data:", data);
+    
   return data;
 }
 
 export async function getProjectManager(projectId: string) {
-  const { data:projectData, error:projectError } = await supabase
+  const { data: projectMember, error: projectError } = await supabase
     .from("project_members")
-    .select("*")
+    .select("profile_id")
     .eq("project_id", projectId)
-    .eq("role", "Manager")
-    .single();
+    .eq("role_id", 3)
+    .maybeSingle();
 
   if (projectError) {
     throw new Error(projectError.message);
   }
 
-  const {data:user, error:userError} = await supabase
-  .from("profiles").select("*").eq("profile_id", projectData["profile_id"]).single();
+  if (!projectMember?.profile_id) {
+    return null;
+  }
 
-  return `${user["first_name"]} ${user["last_name"]}`;
+  const { data: user, error: userError } = await supabase
+    .from("profiles")
+    .select("first_name, last_name")
+    .eq("profile_id", projectMember.profile_id)
+    .maybeSingle();
+
+  if (userError) {
+    throw new Error(userError.message);
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim();
 }
 
 export async function archiveProject(id: string) {
@@ -202,7 +220,7 @@ export async function updateProjectMemberRole(
       project_role: role,
     })
     .eq("project_id", projectId)
-    .eq("user_id", userId)
+    .eq("profile_id", userId)
     .select()
     .single();
 

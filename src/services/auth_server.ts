@@ -47,7 +47,6 @@ export async function getAllUsers() {
     if (error) {
       throw new Error(error.message);
     }
-
-    return data as Profile[] | null;
+    return data ?? [];
 }
 

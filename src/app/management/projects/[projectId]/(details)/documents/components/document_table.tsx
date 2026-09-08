@@ -10,6 +10,7 @@ import { Database } from "@/app/lib/supabase/models";
 
 type Folder = Database["public"]["Tables"]["folders"]["Row"];
 type Document = Database["public"]["Tables"]["documents"]["Row"];
+
 interface DocumentTableViewProps {
   folders: Folder[];
   documents: Document[];
@@ -32,22 +33,39 @@ export default function DocumentTableView({
   const base = `/management/projects/${projectId}/documents`;
 
   const getFolderPath = (folder: Folder): string[] => {
-    const path: string[] = [];
+  const path: string[] = [];
 
-    let current: Folder | undefined = folder;
+  let current: Folder | undefined = folder;
 
-    while (current) {
-      path.unshift(current.slug || "");
-
-      if (!current.parent_id) {
-        break;
-      }
-
-      current = allFolders.find((item) => item.folder_id === current?.parent_id);
+  while (current) {
+    if (current.slug) {
+      path.unshift(current.slug);
     }
 
-    return path;
-  };
+    if (!current.parent_id) {
+      break;
+    }
+
+    const parent = allFolders.find(
+      (item) => item.folder_id === current!.parent_id
+    );
+
+    if (!parent) {
+      console.warn("Parent folder not found:", {
+        folder: current.name,
+        folderId: current.folder_id,
+        parentId: current.parent_id,
+        allFolders,
+      });
+
+      break;
+    }
+
+    current = parent;
+  }
+
+  return path;
+};
 
   const handleFolderClick = (folder: Folder) => {
     const path = getFolderPath(folder);

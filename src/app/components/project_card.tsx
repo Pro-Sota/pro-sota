@@ -55,7 +55,7 @@ export default function ProjectCard({ project }: { project: Project }) {
   useEffect(() => {
     async function setProjectManager(){
       const manager = await getProjectManager(project.project_id);
-      setManager(manager);
+      setManager(manager ?? "Sem responsável");
     }
 
     setProjectManager();
