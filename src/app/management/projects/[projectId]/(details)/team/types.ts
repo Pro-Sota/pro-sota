@@ -10,13 +10,30 @@ export type ManageRolesModalProps = {
 };
 
 export type Role =
-    | "project-manager"
-    | "coordenador"
-    | "architect"
-    | "engineer"
-    | "partner";
+    | "Project Manager"
+    | "Coordinator"
+    | "Architect"
+    | "Engineer"
+    | "Partner";
 
 export type Status = "disponível" | "ocupado" | "ausente";
+
+
+export const roleTranslations: Record<Role, string> = {
+    "Project Manager": "Gestor do projecto",
+    Coordinator: "Coordenador",
+    Architect: "Arquitecto",
+    Engineer: "Engenheiro",
+    Partner: "Parceiro",
+};
+
+export const roles: Role[] = [
+    "Project Manager",
+    "Coordinator",
+    "Architect",
+    "Engineer",
+    "Partner",
+];
 
 
 export type TeamMember = {
@@ -28,4 +45,13 @@ export type TeamMember = {
     avatar_url: string;
     status: Status;
     tasks: unknown[];
+};
+
+
+const roleNames: Record<Role, string> = {
+    Architect: "Arquitecto",
+    Engineer: "Engenheiro",
+    Partner: "Parceiro",
+    Coordinator: "Coordenador",
+    "Project Manager": "Gestor do projecto",
 };

@@ -10,6 +10,7 @@ import ManageRolesModal from "./manage_role_modal";
 import TeamCard from "./team_card";
 import AddMemberModal from "./add_member_modal";
 import { Role, TeamMember } from "./types";
+import { removeTeamMember } from "@/services/project_team";
 
 
 
@@ -30,42 +31,73 @@ export default function Team({ projectMembers, team }: TeamProps) {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedRole, setSelectedRole] = useState<Role | "all">("all");
+    const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
+    const [isRemoving, setIsRemoving] = useState(false);
+    const [successMessage, setSuccessMessage] = useState("");
+    const [errorMessage, setErrorMessage] = useState("");
 
     const router = useRouter();
 
     const sections: { title: string; role: Role }[] = [
         {
             title: "Gestor do projecto",
-            role: "project-manager",
+            role: "Project Manager",
         },
         {
             title: "Coordenador",
-            role: "coordenador",
+            role: "Coordinator",
         },
         {
             title: "Arquitectos",
-            role: "architect",
+            role: "Architect",
         },
         {
             title: "Engenheiros",
-            role: "engineer",
+            role: "Engineer",
         },
         {
             title: "Parceiros",
-            role: "partner",
+            role: "Partner",
         },
     ];
 
     const roleColors: Record<Role, string> = {
-        "project-manager": "from-purple-500 to-purple-600",
-        coordenador: "from-blue-500 to-blue-600",
-        architect: "from-emerald-500 to-emerald-600",
-        engineer: "from-orange-500 to-orange-600",
-        partner: "from-pink-500 to-pink-600",
+        "Project Manager": "from-purple-500 to-purple-600",
+        Coordinator: "from-blue-500 to-blue-600",
+        Architect: "from-emerald-500 to-emerald-600",
+        Engineer: "from-orange-500 to-orange-600",
+        Partner: "from-pink-500 to-pink-600",
     };
 
     const handleViewProfile = (member: TeamMember) => {
         router.push(`/management/team/profile/${member.profile_id}`);
+    };
+
+    const confirmRemoveMember = async () => {
+        if (!memberToRemove) return;
+
+        setIsRemoving(true);
+
+        const success = await removeTeamMember(memberToRemove);
+
+        if (!success) {
+            setIsRemoving(false);
+            setMemberToRemove(null);
+
+            // show error toast here
+            return;
+        }
+
+        setIsRemoving(false);
+        setMemberToRemove(null);
+
+        // show success toast here
+        router.refresh();
+    };
+
+    const handleRemoveMember = async (user_project_id: string) => {
+        setMemberToRemove(user_project_id);
+        confirmRemoveMember();
     };
 
     // Filter members by search and role
@@ -226,6 +258,7 @@ export default function Team({ projectMembers, team }: TeamProps) {
                                                     member={member}
                                                     onViewProfile={handleViewProfile}
                                                     roleColor={roleColors[section.role]}
+                                                    onRemoveMember={() => handleRemoveMember(member.user_project_id)}
                                                 />
                                             </div>
                                         ))}
@@ -275,6 +308,60 @@ export default function Team({ projectMembers, team }: TeamProps) {
                     onClose={() => setAddMemberOpen(false)}
                 />
             )}
+            {memberToRemove && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm"
+                    onClick={() => {
+                        if (!isRemoving) {
+                            setMemberToRemove(null);
+                        }
+                    }}
+                >
+                    <div
+                        className="w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="p-6">
+                            <h2 className="text-lg font-semibold text-gray-900">
+                                Remover membro
+                            </h2>
+
+                            <p className="mt-2 text-sm leading-6 text-gray-500">
+                                Tem a certeza de que deseja remover este membro
+                                do projecto?
+                            </p>
+
+                            <p className="mt-2 text-sm leading-6 text-gray-500">
+                                Esta ação irá remover o membro da equipa deste
+                                projecto.
+                            </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
+                            <button
+                                type="button"
+                                disabled={isRemoving}
+                                onClick={() => setMemberToRemove(null)}
+                                className="cursor-pointer rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={isRemoving}
+                                onClick={confirmRemoveMember}
+                                className="cursor-pointer rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {isRemoving ? "A remover..." : "Remover membro"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </>
     );
 }

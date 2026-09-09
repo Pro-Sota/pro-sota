@@ -9,8 +9,14 @@ export default async function ProjectPage({
 }) {
   const { projectId } = await params;
 
-  const team = await getAllUsers();
-  const projectMembers = await fetchProjectTeamMembers(projectId);
+  const team = (await getAllUsers()) as any;
+  const projectMembers = (await fetchProjectTeamMembers(projectId)) as any;
 
-  return (<Team projectId={projectId} projectMembers={projectMembers} team={team} />);
+  return (
+    <Team
+      projectId={projectId}
+      projectMembers={projectMembers as any}
+      team={team as any}
+    />
+  );
 }

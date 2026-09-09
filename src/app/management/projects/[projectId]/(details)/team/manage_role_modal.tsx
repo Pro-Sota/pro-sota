@@ -16,39 +16,12 @@ type Role =
     | "engineer"
     | "partner";
 
-type Status = "disponível" | "ocupado" | "ausente";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-
-// Combined type from profiles + project_members + roles
-type TeamCardProps = {
-    member: TeamMember;
-    onViewProfile: (member: TeamMember) => void;
-    roleColor?: string;
-};
 
 type ManageRolesModalProps = {
     members: TeamMember[];
     onClose: () => void;
 };
-
-const roleLabels: Record<Role, string> = {
-    "project-manager": "Gestor do projecto",
-    coordenador: "Coordenador",
-    architect: "Arquitecto",
-    engineer: "Engenheiro",
-    partner: "Parceiros",
-};
-
-const roleColors: Record<Role, string> = {
-    "project-manager": "from-purple-600 to-purple-400",
-    coordenador: "from-blue-600 to-blue-400",
-    architect: "from-amber-600 to-amber-400",
-    engineer: "from-emerald-600 to-emerald-400",
-    partner: "from-rose-600 to-rose-400",
-};
-
-
 
 
 
@@ -61,11 +34,11 @@ export default function ManageRolesModal({ members, onClose }: ManageRolesModalP
     const [saving, setSaving] = useState(false);
 
     const currentManager = members.find(
-        (member) => member.role === "project-manager"
+        (member) => member.role === "Project Manager"
     );
 
     const currentCoordinator = members.find(
-        (member) => member.role === "coordenador"
+        (member) => member.role === "Coordinator"
     );
 
     const [managerId, setManagerId] = useState(

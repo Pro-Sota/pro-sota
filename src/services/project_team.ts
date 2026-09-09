@@ -25,8 +25,8 @@ type TeamMember = {
  * This is useful for dashboard, profile pages, etc.
  */
 export async function getProjectMembers(project_id: string) {
-    const supabase = createClient();
 
+    const supabase = createClient();
     try {
         const { data, error } = await supabase
             .from("project_members")
@@ -153,46 +153,42 @@ export async function addTeamMember(
     projectId: string,
     profileId: string,
     roleName: string,
-    status: Status = "disponível",
-): Promise<boolean> {
+): Promise<{ success: boolean; error?: string }> {
+    
     const supabase = createClient();
 
     try {
-        // First, get the role ID from the role name
         const { data: roleData, error: roleError } = await supabase
             .from("roles")
-            .select("id")
+            .select("role_id")
             .eq("name", roleName)
             .single();
 
         if (roleError || !roleData) {
-            console.error("Error finding role:", roleError);
-            return false;
+            return { success: false, error: `Role not found: ${roleName}` };
         }
 
-        // Insert the project member
-        const { error } = await supabase.from("project_members").insert({
+        const { error: insertError } = await supabase.from("project_members").insert({
             profile_id: profileId,
             project_id: projectId,
-            role_id: roleData.id,
-            status: status,
+            role_id: roleData.role_id,
         });
 
-        if (error) {
-            console.error("Error adding team member:", error);
-            return false;
+        if (insertError) {
+            return { success: false, error: insertError.message };
         }
 
-        return true;
+        return { success: true };
+
+        
     } catch (error) {
-        console.error("Unexpected error adding team member:", error);
-        return false;
+        return { success: false, error: `Unexpected error: ${error instanceof Error ? error.message : String(error)}` };
     }
 }
-
 /**
  * Update a member's role in a project
- */
+*/
+
 export async function assignProjectRole(
     projectId: string,
     profileId: string,
@@ -260,7 +256,6 @@ export async function assignProjectRole(
                 "Error removing existing project responsibility:",
                 JSON.stringify(deleteError, null, 2)
             );
-
             return false;
         }
 
@@ -280,14 +275,11 @@ export async function assignProjectRole(
                 hint: insertError.hint,
                 code: insertError.code,
             });
-
             return false;
         }
-
         return true;
     } catch (error) {
         console.error("Unexpected error assigning project role:", error);
-
         return false;
     }
 }
@@ -295,10 +287,12 @@ export async function assignProjectRole(
 /**
  * Update a member's status in a project
  */
+
 export async function updateTeamMemberStatus(
     userProjectId: string,
     status: Status,
 ): Promise<boolean> {
+
     const supabase = createClient();
 
     try {
@@ -322,22 +316,21 @@ export async function updateTeamMemberStatus(
 /**
  * Remove a member from a project
  */
-export async function removeTeamMember(
-    userProjectId: string,
-): Promise<boolean> {
-    const supabase = createClient();
 
+export async function removeTeamMember(userProjectId: string,): Promise<boolean> {
+    const supabase = createClient();
     try {
-        const { error } = await supabase
-            .from("project_members")
+        const { error } = await supabase.from("project_members")
             .delete()
-            .eq("user_project_id", userProjectId);
+            .eq("project_members_id", userProjectId);
 
         if (error) {
-            console.error("Error removing team member:", error);
+            console.error("Error removing team member");
+            console.error("Code:", error.code); console.error("Message:", error.message);
+            console.error("Details:", error.details);
+            console.error("Hint:", error.hint);
             return false;
         }
-
         return true;
     } catch (error) {
         console.error("Unexpected error removing team member:", error);

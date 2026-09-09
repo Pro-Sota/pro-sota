@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { Database } from "../../../../../../../models";
 import { X } from "lucide-react";
-import { Role, Status } from "./types";
+import { Role, roles, roleTranslations, Status } from "./types";
+import { addTeamMember } from "@/services/project_team";
+import { useParams } from "next/navigation";
+import CustomSelect from "@/app/components/custom_select";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -12,30 +15,20 @@ type AddMemberModalProps = {
     onClose: () => void;
 };
 
-const roleLabels: Record<Role, string> = {
-    "project-manager": "Gestor do projecto",
-    coordenador: "Coordenador",
-    architect: "Arquitecto",
-    engineer: "Engenheiro",
-    partner: "Parceiros",
-};
-
 export default function AddMemberModal({ members, onClose }: AddMemberModalProps) {
+
+    const params = useParams();
+    const projectId = params.projectId as string;
+
     const [selectedMemberId, setSelectedMemberId] = useState("");
-    const [role, setRole] = useState<Role>("architect");
-    const [status, setStatus] = useState<Status>("disponível");
+    const [role, setRole] = useState<Role>("Architect");
 
     const handleAddMember = async () => {
-        if (!selectedMemberId) return;
 
-        const newMember = {
-            profile_id: selectedMemberId,
-            role,
-            status,
-        };
+        console.log("Adding member:", selectedMemberId, role);
 
-        console.log("Adding member:", newMember);
-        // TODO: Call your API to insert into project_members
+        await addTeamMember(projectId, selectedMemberId, role);
+
         onClose();
     };
 
@@ -49,6 +42,8 @@ export default function AddMemberModal({ members, onClose }: AddMemberModalProps
         },
         [] as Profile[],
     );
+
+
 
     return (
         <div
@@ -109,7 +104,7 @@ export default function AddMemberModal({ members, onClose }: AddMemberModalProps
                             Seleccione o utilizador que pretende adicionar.
                         </p>
 
-                        <select
+                        <CustomSelect
                             id="team-member"
                             value={selectedMemberId}
                             onChange={(event) => setSelectedMemberId(event.target.value)}
@@ -122,7 +117,7 @@ export default function AddMemberModal({ members, onClose }: AddMemberModalProps
                                     {member.first_name} {member.last_name}
                                 </option>
                             ))}
-                        </select>
+                        </CustomSelect>
                     </div>
 
                     {/* Role */}
@@ -134,18 +129,18 @@ export default function AddMemberModal({ members, onClose }: AddMemberModalProps
                             Função
                         </label>
 
-                        <select
+                        <CustomSelect
                             id="member-role"
                             value={role}
                             onChange={(event) => setRole(event.target.value as Role)}
                             className="mt-3 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
                         >
-                            <option value="architect">Arquitecto</option>
-                            <option value="engineer">Engenheiro</option>
-                            <option value="partner">Parceiro</option>
-                            <option value="coordenador">Coordenador</option>
-                            <option value="project-manager">Gestor do projecto</option>
-                        </select>
+                            {roles.map((role) => (
+                                <option key={role} value={role}>
+                                    {roleTranslations[role]}
+                                </option>
+                            ))}
+                        </CustomSelect>
                     </div>
                 </div>
 

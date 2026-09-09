@@ -40,8 +40,11 @@ const roleLabels: Record<Role, string> = {
 export default function TeamCard({
     member,
     onViewProfile,
+    onRemoveMember,
     roleColor = "from-slate-600 to-slate-400",
-}: TeamCardProps) {
+}: TeamCardProps & {
+    onRemoveMember?: (profileId: string | number) => void;
+}) {
 
     const status = statusStyles[member.status];
 
@@ -99,14 +102,27 @@ export default function TeamCard({
                     </div>
                 </div>
 
-                {/* Profile button */}
-                <button
-                    type="button"
-                    onClick={() => onViewProfile(member)}
-                    className="mt-5 w-full cursor-pointer rounded-lg border border-gray-200 bg-gradient-to-r from-gray-50 to-gray-50 py-2 text-sm font-medium text-gray-700 transition hover:from-gray-100 hover:to-gray-100 hover:border-gray-300"
-                >
-                    Ver perfil
-                </button>
+                {/* Action buttons */}
+                <div className="mt-5 flex gap-2">
+                    <button
+                        type="button"
+                        onClick={() => onViewProfile(member)}
+                        className="flex-1 cursor-pointer rounded-lg border border-gray-200 bg-gradient-to-r from-gray-50 to-gray-50 py-2 text-sm font-medium text-gray-700 transition hover:from-gray-100 hover:to-gray-100 hover:border-gray-300"
+                    >
+                        Ver perfil
+                    </button>
+                    {onRemoveMember && (
+                        <button
+                            type="button"
+                            onClick={() => onRemoveMember(member.profile_id)}
+                            className="cursor-pointer rounded-lg border border-red-200 bg-gradient-to-r from-red-50 to-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:from-red-100 hover:to-red-100 hover:border-red-300"
+                            aria-label={`Remover ${member.first_name} ${member.last_name} do projecto`}
+                            title="Remover do projecto"
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
