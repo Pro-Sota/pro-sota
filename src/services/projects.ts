@@ -1,6 +1,5 @@
 import { Database } from "@/app/lib/supabase/models";
 import { createClient } from "../app/lib/supabase/client";
-import { ProjectFormState } from "@/app/management/projects/create-project/page";
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 
@@ -18,23 +17,6 @@ export async function getProjectById(projectId: string) {
   return data;
 }
 
-export async function createProject(project: ProjectFormState) {
-  const { data, error } = await supabase
-    .from("projects")
-    .insert(project)
-    .select()
-    .single();
-
-  console.log("Supabase error:", error);
-
-  if (error) {
-    console.error("Create project error:", JSON.stringify(error, null, 2));
-
-    throw new Error(error.message || "Failed to create project");
-  }
-
-  return data;
-}
 
 export async function getProjectsByUser(userId: string) {
   const { data, error } = await supabase

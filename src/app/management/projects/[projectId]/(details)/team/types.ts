@@ -37,7 +37,7 @@ export const roles: Role[] = [
 
 
 export type TeamMember = {
-    user_project_id: string;
+    project_members_id: string;
     profile_id: string;
     role: Role;
     first_name: string;

@@ -463,6 +463,27 @@ export type Database = {
           },
         ]
       }
+      permissions: {
+        Row: {
+          created_at: string
+          description: string | null
+          name: string
+          permission_id: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          name: string
+          permission_id?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          name?: string
+          permission_id?: number
+        }
+        Relationships: []
+      }
       phase_steps: {
         Row: {
           actual_end: string | null
@@ -628,24 +649,34 @@ export type Database = {
       }
       project_members: {
         Row: {
+          joined_at: string | null
           profile_id: string | null
           project_id: string | null
-          role: Database["public"]["Enums"]["project_role"] | null
-          user_project_id: string
+          project_members_id: string
+          role_id: number | null
         }
         Insert: {
+          joined_at?: string | null
           profile_id?: string | null
           project_id?: string | null
-          role?: Database["public"]["Enums"]["project_role"] | null
-          user_project_id?: string
+          project_members_id?: string
+          role_id?: number | null
         }
         Update: {
+          joined_at?: string | null
           profile_id?: string | null
           project_id?: string | null
-          role?: Database["public"]["Enums"]["project_role"] | null
-          user_project_id?: string
+          project_members_id?: string
+          role_id?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "project_members_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["role_id"]
+          },
           {
             foreignKeyName: "user_projects_profile_id_fkey"
             columns: ["profile_id"]
@@ -682,6 +713,7 @@ export type Database = {
           municipality: string
           project_code: string
           project_id: string
+          province: string | null
           start_date: string | null
           state_province: string | null
           status: string
@@ -709,6 +741,7 @@ export type Database = {
           municipality: string
           project_code: string
           project_id?: string
+          province?: string | null
           start_date?: string | null
           state_province?: string | null
           status?: string
@@ -736,6 +769,7 @@ export type Database = {
           municipality?: string
           project_code?: string
           project_id?: string
+          province?: string | null
           start_date?: string | null
           state_province?: string | null
           status?: string
@@ -760,6 +794,54 @@ export type Database = {
             referencedColumns: ["profile_id"]
           },
         ]
+      }
+      role_permissions: {
+        Row: {
+          permission_id: number
+          role_id: number
+        }
+        Insert: {
+          permission_id: number
+          role_id?: number
+        }
+        Update: {
+          permission_id?: number
+          role_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["permission_id"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["role_id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          name: string | null
+          role_id: number
+        }
+        Insert: {
+          created_at?: string
+          name?: string | null
+          role_id?: number
+        }
+        Update: {
+          created_at?: string
+          name?: string | null
+          role_id?: number
+        }
+        Relationships: []
       }
       step_deliverables: {
         Row: {
@@ -817,7 +899,131 @@ export type Database = {
           },
         ]
       }
-      Suppliers: {
+      submission_files: {
+        Row: {
+          created_at: string
+          document_id: string | null
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string | null
+          submission_file_id: string
+          submission_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id?: string | null
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          submission_file_id?: string
+          submission_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string | null
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          submission_file_id?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submission_files_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["document_id"]
+          },
+          {
+            foreignKeyName: "submission_files_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["submission_id"]
+          },
+        ]
+      }
+      submissions: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_date: string | null
+          notes: string | null
+          project_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          revision_number: number
+          status: string
+          submission_id: string
+          submitted_at: string
+          submitted_by: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          notes?: string | null
+          project_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision_number?: number
+          status?: string
+          submission_id?: string
+          submitted_at?: string
+          submitted_by: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          notes?: string | null
+          project_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision_number?: number
+          status?: string
+          submission_id?: string
+          submitted_at?: string
+          submitted_by?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "submissions_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "submissions_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      suppliers: {
         Row: {
           address_line_1: string | null
           address_line_2: string | null
@@ -825,12 +1031,16 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          nif: string | null
           person_of_contact: string | null
           phone_number: string | null
           projects: number | null
           rating: number | null
           status: string | null
+          sub_category: string | null
           supplier_id: string
+          supplier_name: string | null
+          tags: Json[] | null
           updated_at: string | null
         }
         Insert: {
@@ -840,12 +1050,16 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          nif?: string | null
           person_of_contact?: string | null
           phone_number?: string | null
           projects?: number | null
           rating?: number | null
           status?: string | null
+          sub_category?: string | null
           supplier_id?: string
+          supplier_name?: string | null
+          tags?: Json[] | null
           updated_at?: string | null
         }
         Update: {
@@ -855,12 +1069,16 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          nif?: string | null
           person_of_contact?: string | null
           phone_number?: string | null
           projects?: number | null
           rating?: number | null
           status?: string | null
+          sub_category?: string | null
           supplier_id?: string
+          supplier_name?: string | null
+          tags?: Json[] | null
           updated_at?: string | null
         }
         Relationships: []

@@ -1,194 +1,206 @@
-import { ChevronRight, FileCheck2 } from "lucide-react";
-import React from "react";
+import {
+  CircleDollarSign,
+  CreditCard,
+  FileText,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 
-export function SectionHeader({
-  title,
-  description,
-}: {
-  title: string;
-  description?: string;
-}) {
-  return (
-    <div className="mb-5">
-      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+import type {BudgetPageData}  from "../types";
+import {StatCard} from "./stats_card";
+import SectionHeader from "./section_header";
+import EmptyState from "./empty_state";
 
-      {description && (
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
-      )}
-    </div>
-  );
+interface OverviewTabProps {
+  data: BudgetPageData;
 }
 
-export function EmptyState({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white px-6 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
-        <Icon size={22} />
-      </div>
+const currency = new Intl.NumberFormat("pt-AO", {
+  style: "currency",
+  currency: "AOA",
+  maximumFractionDigits: 0,
+});
 
-      <h3 className="mt-4 text-sm font-semibold text-gray-900">{title}</h3>
+const dateFormatter = new Intl.DateTimeFormat("pt-AO", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
 
-      <p className="mt-1 max-w-md text-sm text-gray-500">{description}</p>
-    </div>
-  );
-}
+export default function OverviewTab({
+  data,
+}: OverviewTabProps) {
+  const budget = data.budget;
+  const metrics = data.metrics;
 
-export function CardSection({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-      <SectionHeader title={title} description={description} />
-      {children}
-    </div>
-  );
-}
-
-export function ActivityItem({
-  title,
-  description,
-  value,
-  date,
-}: {
-  title: string;
-  description: string;
-  value: string;
-  date: string;
-}) {
-  return (
-    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
-          <FileCheck2 />
-        </div>
-
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-gray-900">
-            {title}
-          </p>
-
-          <p className="text-xs text-gray-500">{description}</p>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-6 sm:justify-end">
-        <span className="text-xs text-gray-400">{date}</span>
-
-        <span className="text-sm font-semibold text-gray-900">{value}</span>
-      </div>
-    </div>
-  );
-}
-
-export function DocumentCard({
-  title,
-  description,
-  icon: Icon,
-}: {
-  title: string;
-  description: string;
-  icon: React.ElementType;
-}) {
-  return (
-    <button
-      type="button"
-      className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:border-gray-300 hover:shadow"
-    >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
-        <Icon size={20} />
-      </div>
-
-      <div className="min-w-0">
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-
-        <p className="mt-1 text-xs leading-5 text-gray-500">{description}</p>
-      </div>
-
-      <ChevronRight
-        size={17}
-        className="ml-auto shrink-0 text-gray-400"
+  if (!budget || !metrics) {
+    return (
+      <EmptyState
+        title="Sem dados financeiros"
+        description="Este projecto ainda não possui um orçamento financeiro configurado."
       />
-    </button>
+    );
+  }
+
+  const budgetUsed = Math.min(
+    Math.max(metrics.budgetUsed, 0),
+    100,
   );
-}
-
-export function SiteCard({
-  title,
-  description,
-  icon: Icon,
-}: {
-  title: string;
-  description: string;
-  icon: React.ElementType;
-}) {
-  return (
-    <button
-      type="button"
-      className="group rounded-2xl border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:border-gray-300 hover:shadow"
-    >
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
-        <Icon size={20} />
-      </div>
-
-      <h3 className="mt-4 text-sm font-semibold text-gray-900">{title}</h3>
-
-      <p className="mt-1 text-xs leading-5 text-gray-500">{description}</p>
-
-      <div className="mt-4 flex items-center gap-1 text-xs font-medium text-gray-500 transition group-hover:text-gray-900">
-        Ver registos
-        <ChevronRight size={14} />
-      </div>
-    </button>
-  );
-}
-
-type AlertCardProps = {
-  icon: React.ElementType;
-  color: "green" | "orange" | "blue";
-  title: string;
-  description: string;
-};
-
-const colorMap = {
-  green: { bg: "bg-green-50", text: "text-green-600" },
-  orange: { bg: "bg-orange-50", text: "text-orange-600" },
-  blue: { bg: "bg-blue-50", text: "text-blue-600" },
-};
-
-export function AlertCard({
-  icon: Icon,
-  color,
-  title,
-  description,
-}: AlertCardProps) {
-  const colors = colorMap[color];
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-      <div className="flex items-center gap-3">
-        <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${colors.bg} ${colors.text}`}>
-          <Icon size={18} />
+    <div className="space-y-8">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <StatCard
+          title="Orçamento aprovado"
+          value={currency.format(
+            budget.approved_budget
+          )}
+          icon={Wallet} subtitle={""}        />
+
+        <StatCard
+          title="Valor contratado"
+          value={currency.format(
+            budget.contracted_value
+          )}
+          icon={CircleDollarSign} subtitle={""}        />
+
+        <StatCard
+          title="Custos realizados"
+          value={currency.format(
+            metrics.totalCosts
+          )}
+          icon={CreditCard} subtitle={""}        />
+
+        <StatCard
+          title="Facturado"
+          value={currency.format(
+            metrics.totalInvoiced
+          )}
+          icon={FileText} subtitle={""}        />
+
+        <StatCard
+          title="Recebido"
+          value={currency.format(
+            metrics.totalReceived
+          )}
+          icon={TrendingUp} subtitle={""}        />
+
+        <StatCard
+          title="Por receber"
+          value={currency.format(
+            metrics.totalPending
+          )}
+          icon={TrendingDown} subtitle={""}        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border bg-white p-6">
+          <SectionHeader
+            title="Execução do orçamento"
+            description="Custos realizados em relação ao orçamento aprovado."
+          />
+
+          <div className="mt-6">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                Utilização
+              </span>
+
+              <span className="font-medium">
+                {budgetUsed.toFixed(1)}%
+              </span>
+            </div>
+
+            <div className="h-3 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-orange-500 transition-all"
+                style={{
+                  width: `${budgetUsed}%`,
+                }}
+              />
+            </div>
+
+            <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+              <span>
+                {currency.format(metrics.totalCosts)}
+              </span>
+
+              <span>
+                {currency.format(
+                  budget.approved_budget,
+                )}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <p className="text-sm font-medium text-gray-900">{title}</p>
+        <div className="rounded-xl border bg-white p-6">
+          <SectionHeader
+            title="Margem prevista"
+            description="Estimativa baseada no valor contratado e nos custos realizados."
+          />
 
-          <p className="text-xs text-gray-500">{description}</p>
+          <div className="mt-6">
+            <p className="text-3xl font-semibold">
+              {currency.format(
+                metrics.expectedMargin,
+              )}
+            </p>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              {metrics.expectedMarginPercentage.toFixed(
+                1,
+              )}
+              % do valor contratado
+            </p>
+          </div>
         </div>
+      </div>
+
+      <div className="rounded-xl border bg-white p-6">
+        <SectionHeader
+          title="Actividade financeira recente"
+          description="Últimos movimentos registados no projecto."
+        />
+
+        {data.activity.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState
+              title="Sem actividade financeira"
+              description="Ainda não existem facturas, pagamentos, custos ou revisões registados."
+            />
+          </div>
+        ) : (
+          <div className="mt-6 divide-y">
+            {data.activity.map((activity:any) => (
+              <div
+                key={activity.id}
+                className="flex items-center justify-between gap-4 py-4"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium">
+                    {activity.title}
+                  </p>
+
+                  <p className="truncate text-sm text-muted-foreground">
+                    {activity.description}
+                  </p>
+
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {dateFormatter.format(
+                      new Date(activity.date),
+                    )}
+                  </p>
+                </div>
+
+                <p className="shrink-0 text-sm font-semibold">
+                  {currency.format(activity.amount)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

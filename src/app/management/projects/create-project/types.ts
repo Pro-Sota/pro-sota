@@ -3,11 +3,9 @@ import { Database } from "@/app/lib/supabase/models";
 export type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
 export type TeamMember = Database["public"]["Tables"]["profiles"]["Row"];
 export type SelectableTeamMember = TeamMember & { isCustom?: boolean };
-
-export interface ProjectFormState extends ProjectInsert {
-  client_id?: string | null;
-  teamMembers?: SelectableTeamMember[];
-}
+export type ProjectFormState = ProjectInsert & {
+  teamMembers: SelectableTeamMember[];
+};
 
 export interface DurationInfo {
   invalid: boolean;
@@ -36,6 +34,7 @@ export const INITIAL_PROJECT: ProjectFormState = {
   urgency: null,
   address_line_1: null,
   address_line_2: null,
+  province:null,
   city: null,
   country: null,
   latitude: null,
@@ -53,7 +52,7 @@ export const REQUIRED_FOR_PROGRESS = [
   "address_line_1",
   "start_date",
   "end_date",
-  "budget",
+  "project_code",
 ] as const;
 
 export const PROJECT_TYPES = [

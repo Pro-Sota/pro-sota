@@ -172,7 +172,6 @@ export async function isAuthenticated() {
 }
 
 import { AuthChangeEvent, Session } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
 
 export function onAuthStateChange(
   callback: (event: AuthChangeEvent, session: Session | null) => void

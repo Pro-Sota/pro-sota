@@ -30,11 +30,11 @@ const statusStyles: Record<Status, { dot: string; label: string; bg: string }> =
 };
 
 const roleLabels: Record<Role, string> = {
-    "project-manager": "Gestor do projecto",
-    coordenador: "Coordenador",
-    architect: "Arquitecto",
-    engineer: "Engenheiro",
-    partner: "Parceiros",
+    "Project Manager": "Gestor do projecto",
+    Coordinator: "Coordenador",
+    Architect: "Arquitecto",
+    Engineer: "Engenheiro",
+    Partner: "Parceiros",
 };  
 
 export default function TeamCard({

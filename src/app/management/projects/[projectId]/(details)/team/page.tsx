@@ -1,5 +1,5 @@
 import Team from "./inner_project_members";
-import { fetchProjectTeamMembers } from "@/services/project_team";
+import { getProjectMembers } from "@/services/project_team";
 import { getAllUsers } from "@/services/auth_server";
 
 export default async function ProjectPage({
@@ -10,7 +10,7 @@ export default async function ProjectPage({
   const { projectId } = await params;
 
   const team = (await getAllUsers()) as any;
-  const projectMembers = (await fetchProjectTeamMembers(projectId)) as any;
+  const projectMembers =await getProjectMembers(projectId);
 
   return (
     <Team

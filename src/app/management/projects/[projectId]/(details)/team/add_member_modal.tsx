@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Database } from "../../../../../../../models";
 import { X } from "lucide-react";
-import { Role, roles, roleTranslations, Status } from "./types";
+import { Role, roles, roleTranslations } from "./types";
 import { addTeamMember } from "@/services/project_team";
 import { useParams } from "next/navigation";
 import CustomSelect from "@/app/components/custom_select";
@@ -13,37 +13,97 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type AddMemberModalProps = {
     members: Profile[];
     onClose: () => void;
+    onMemberAdded?: () => void;
 };
 
-export default function AddMemberModal({ members, onClose }: AddMemberModalProps) {
-
+export default function AddMemberModal({
+    members,
+    onClose,
+    onMemberAdded,
+}: AddMemberModalProps) {
     const params = useParams();
+
     const projectId = params.projectId as string;
 
-    const [selectedMemberId, setSelectedMemberId] = useState("");
-    const [role, setRole] = useState<Role>("Architect");
+    const [selectedMemberId, setSelectedMemberId] =
+        useState("");
+
+    const [role, setRole] =
+        useState<Role>("Architect");
+
+    const [isAdding, setIsAdding] =
+        useState(false);
+
+    const [error, setError] =
+        useState("");
 
     const handleAddMember = async () => {
+        if (!projectId || !selectedMemberId || isAdding) {
+            return;
+        }
 
-        console.log("Adding member:", selectedMemberId, role);
+        setError("");
+        setIsAdding(true);
 
-        await addTeamMember(projectId, selectedMemberId, role);
+        try {
+            console.log("Adding member:", {
+                projectId,
+                profileId: selectedMemberId,
+                role,
+            });
 
-        onClose();
+            const result = await addTeamMember(
+                projectId,
+                selectedMemberId,
+                role,
+            );
+
+            if (!result.success) {
+                setError(
+                    result.error ??
+                        "Não foi possível adicionar o membro.",
+                );
+
+                return;
+            }
+
+            /*
+             * Tell the parent that the database
+             * operation was successful.
+             */
+            onMemberAdded?.();
+
+            onClose();
+        } catch (error) {
+            console.error(
+                "Error adding project member:",
+                error,
+            );
+
+            setError(
+                "Ocorreu um erro ao adicionar o membro.",
+            );
+        } finally {
+            setIsAdding(false);
+        }
     };
 
-    // Get unique profiles (to avoid duplicates if member is already in project)
     const availableProfiles = members.reduce(
         (acc, member) => {
-            if (!acc.some((m) => m.profile_id === member.profile_id)) {
+            if (
+                !acc.some(
+                    (m) =>
+                        m.profile_id ===
+                        member.profile_id,
+                )
+            ) {
                 acc.push(member);
             }
+
             return acc;
         },
         [] as Profile[],
     );
-
-
 
     return (
         <div
@@ -52,7 +112,6 @@ export default function AddMemberModal({ members, onClose }: AddMemberModalProps
             aria-modal="true"
             aria-labelledby="add-member-title"
         >
-            {/* Backdrop */}
             <button
                 type="button"
                 aria-label="Fechar modal"
@@ -60,9 +119,7 @@ export default function AddMemberModal({ members, onClose }: AddMemberModalProps
                 className="absolute inset-0 cursor-default bg-black/20"
             />
 
-            {/* Modal */}
             <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-in fade-in zoom-in duration-300">
-                {/* Header */}
                 <div className="border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white px-6 py-6">
                     <div className="flex items-start justify-between">
                         <div>
@@ -89,7 +146,6 @@ export default function AddMemberModal({ members, onClose }: AddMemberModalProps
                     </div>
                 </div>
 
-                {/* Content */}
                 <div className="space-y-5 px-6 py-6">
                     {/* Member */}
                     <div>
@@ -107,16 +163,32 @@ export default function AddMemberModal({ members, onClose }: AddMemberModalProps
                         <CustomSelect
                             id="team-member"
                             value={selectedMemberId}
-                            onChange={(event) => setSelectedMemberId(event.target.value)}
+                            onChange={(event) =>
+                                setSelectedMemberId(
+                                    event.target.value,
+                                )
+                            }
                             className="mt-3 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
                         >
-                            <option value="">Seleccionar membro</option>
+                            <option value="">
+                                Seleccionar membro
+                            </option>
 
-                            {availableProfiles.map((member) => (
-                                <option key={member.profile_id} value={member.profile_id}>
-                                    {member.first_name} {member.last_name}
-                                </option>
-                            ))}
+                            {availableProfiles.map(
+                                (member) => (
+                                    <option
+                                        key={
+                                            member.profile_id
+                                        }
+                                        value={
+                                            member.profile_id
+                                        }
+                                    >
+                                        {member.first_name}{" "}
+                                        {member.last_name}
+                                    </option>
+                                ),
+                            )}
                         </CustomSelect>
                     </div>
 
@@ -132,24 +204,42 @@ export default function AddMemberModal({ members, onClose }: AddMemberModalProps
                         <CustomSelect
                             id="member-role"
                             value={role}
-                            onChange={(event) => setRole(event.target.value as Role)}
+                            onChange={(event) =>
+                                setRole(
+                                    event.target
+                                        .value as Role,
+                                )
+                            }
                             className="mt-3 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
                         >
                             {roles.map((role) => (
-                                <option key={role} value={role}>
-                                    {roleTranslations[role]}
+                                <option
+                                    key={role}
+                                    value={role}
+                                >
+                                    {
+                                        roleTranslations[
+                                            role
+                                        ]
+                                    }
                                 </option>
                             ))}
                         </CustomSelect>
                     </div>
+
+                    {error && (
+                        <p className="text-sm text-red-600">
+                            {error}
+                        </p>
+                    )}
                 </div>
 
-                {/* Footer */}
                 <div className="flex justify-end gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+                        disabled={isAdding}
+                        className="cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         Cancelar
                     </button>
@@ -157,10 +247,15 @@ export default function AddMemberModal({ members, onClose }: AddMemberModalProps
                     <button
                         type="button"
                         onClick={handleAddMember}
-                        disabled={!selectedMemberId}
+                        disabled={
+                            !selectedMemberId ||
+                            isAdding
+                        }
                         className="cursor-pointer rounded-lg bg-gradient-to-r from-slate-600 to-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:from-slate-700 hover:to-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        Adicionar membro
+                        {isAdding
+                            ? "A adicionar..."
+                            : "Adicionar membro"}
                     </button>
                 </div>
             </div>
