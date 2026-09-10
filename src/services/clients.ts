@@ -27,9 +27,34 @@ export async function getClients(): Promise<ClientWithProjectCount[]> {
   return (clients ?? []).map((client) => ({ ...client, projectCount: projectCounts.get(client.client_id) ?? 0 }));
 }
 
-export async function createClientRecord(client: ClientInsert): Promise<Client> {
+
+export async function createClientRecord(
+  client: ClientInsert,
+): Promise<Client> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("clients").insert(client).select().single();
-  if (error) throw error;
+
+  console.log("CREATE CLIENT PAYLOAD:", client);
+
+  const { data, error } = await supabase
+    .from("clients")
+    .insert(client)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("SUPABASE CREATE CLIENT ERROR:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("O cliente foi criado, mas nenhum registo foi devolvido.");
+  }
+
   return data;
 }
