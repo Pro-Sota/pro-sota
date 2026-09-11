@@ -738,7 +738,7 @@ export async function getProjectSummary(projectId: string) {
   ]);
 
   return {
-    members: members.length,asdipo
+    members: members.length,
     tasks: tasks.length,
     completedTasks: tasks.filter(
       (task) => task.status === "Completed",
