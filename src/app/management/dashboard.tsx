@@ -89,9 +89,7 @@ export default function Dashboard({ data }: DashboardProps) {
   const documents = data.documents;
 
   const teamSize = data.users.length ?? 0;
-  const activeProjects = data.projects.filter(
-    (proj) => proj.status === "Em Observação",
-  );
+  const activeProjects = data.projects;
 
   const stats = [
     {
@@ -302,7 +300,7 @@ export default function Dashboard({ data }: DashboardProps) {
 
                           return (
                             <tr
-                              key={proj.project_code}
+                              key={proj.project_id}
                               onClick={() => handleProjClick(proj.project_id)}
                               className="group cursor-pointer transition-colors hover:bg-gray-50"
                             >

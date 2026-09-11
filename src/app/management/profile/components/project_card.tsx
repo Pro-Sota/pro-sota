@@ -17,7 +17,6 @@ export default function ProjectCard({
     project: Project;
 }) {
     const statusStyle =
-        STATUS_STYLES[project.status] ??
         "bg-slate-100 text-slate-700 border-slate-200";
 
     return (

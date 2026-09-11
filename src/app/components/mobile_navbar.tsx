@@ -113,7 +113,7 @@ export default function MobileNavbar({ collapsed, setCollapsedAction }: Props) {
 
               {/* Logout Button */}
               <div onClick={handleNavClick}>
-                <LogoutButton expanded={true} />
+                <LogoutButton />
               </div>
             </div>
           </div>

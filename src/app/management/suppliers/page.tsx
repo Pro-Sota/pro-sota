@@ -1,13 +1,8 @@
 import SuppliersClientPage from "./suppliers_client_page";
-
-type SupplierStatus = "Activo" | "Inactivo" | "Em Análise";
-
-import {Database} from "@/app/lib/supabase/models";
-
-type Supplier = Database["public"]["Tables"]["Suppliers"]["Row"];
+import { getSuppliers } from "@/services/supplier";
 
 export default async function SuppliersPage() {
+  const suppliers = await getSuppliers();
 
-  const suppliers : Supplier[] = [];
-  return <SuppliersClientPage suppliers={suppliers}/>;
+  return <SuppliersClientPage suppliers={suppliers} />;
 }

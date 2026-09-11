@@ -2,63 +2,98 @@ import { EMAIL_REGEX } from "./client_form";
 import type { ClientInsert } from "./client";
 
 export const validateClient = (
-    client: ClientInsert,
-    isOrg: boolean
+  client: ClientInsert,
+  isOrg: boolean
 ): Record<string, string> => {
-    const errors: Record<string, string> = {};
+  const errors: Record<string, string> = {};
 
-    if (isOrg && !client.organization_name?.trim()) {
-        errors.organization_name = "O nome da empresa é obrigatório.";
+  // Individual
+  if (!isOrg && !client.first_name?.trim()) {
+    errors.first_name = "O primeiro nome é obrigatório.";
+  }
+
+  if (!isOrg && !client.last_name?.trim()) {
+    errors.last_name = "O último nome é obrigatório.";
+  }
+
+  // Company / Government
+  if (isOrg && !client.organization_name?.trim()) {
+    errors.organization_name =
+      "O nome da empresa ou organização é obrigatório.";
+  }
+
+  // Contact person is optional because the database column is nullable.
+  // If you want it required, add this validation back.
+  //
+  // if (isOrg && !client.contact_person?.trim()) {
+  //   errors.contact_person = "A pessoa de contacto é obrigatória.";
+  // }
+
+  // Email is optional in the database.
+  // Only validate it when the user actually provides one.
+  if (client.email?.trim()) {
+    if (!EMAIL_REGEX.test(client.email.trim())) {
+      errors.email = "Introduza um endereço de email válido.";
     }
+  }
 
-    if (!isOrg && !client.first_name?.trim()) {
-        errors.first_name = "O primeiro nome é obrigatório.";
-    }
-
-    if (!isOrg && !client.last_name?.trim()) {
-        errors.last_name = "O último nome é obrigatório.";
-    }
-
-    if (isOrg && !client.contact_person?.trim()) {
-        errors.contact_person = "A pessoa de contacto é obrigatória.";
-    }
-
-    if (!client.email?.trim()) {
-        errors.email = "O email é obrigatório.";
-    } else if (!EMAIL_REGEX.test(client.email.trim())) {
-        errors.email = "Introduza um endereço de email válido.";
-    }
-
-    return errors;
+  return errors;
 };
 
-export const toNullable = (value?: string | null): string | null => {
-    return value?.trim() || null;
+export const toNullable = (
+  value?: string | null
+): string | null => {
+  return value?.trim() || null;
 };
 
 export const buildClientPayload = (
-    client: ClientInsert,
-    isOrg: boolean
-): ClientInsert =>{ return {
-        ...client,
-        name: isOrg
-            ? client.organization_name?.trim() ?? ""
-            : `${client.first_name?.trim() ?? ""} ${client.last_name?.trim() ?? ""}`.trim(),
-        first_name: isOrg ? null : toNullable(client.first_name),
-        last_name: isOrg ? null : toNullable(client.last_name),
-        organization_name: isOrg ? toNullable(client.organization_name) : null,
-        contact_person: isOrg ? toNullable(client.contact_person) : null,
-        email: client.email?.trim().toLowerCase() || null,
-        phone: toNullable(client.phone),
-        address: toNullable(client.address),
-        address_line_1: toNullable(client.address_line_1),      // Building number
-        address_line_2: toNullable(client.address_line_2),      // Block/Apt
-        city: toNullable(client.city),
-        state_province: toNullable(client.state_province),      // Province
-        country: "Angola",
-        notes: toNullable(client.notes),
-        status: "Prospective",
-        // Don't include: building_number, apartment_number, neighborhood, postal_code, district, commune
-        // They don't exist in your schema
-    };
+  client: ClientInsert,
+  isOrg: boolean
+): ClientInsert => {
+  const firstName = toNullable(client.first_name);
+  const lastName = toNullable(client.last_name);
+  const organizationName = toNullable(client.organization_name);
+
+  const name = isOrg
+    ? organizationName
+    : [firstName, lastName].filter(Boolean).join(" ") || null;
+
+  return {
+    ...client,
+
+    // Automatically generated display name
+    name,
+
+    // Individual
+    first_name: isOrg ? null : firstName,
+    last_name: isOrg ? null : lastName,
+
+    // Organization
+    organization_name: isOrg ? organizationName : null,
+    contact_person: isOrg
+      ? toNullable(client.contact_person)
+      : null,
+
+    // Contact
+    email: client.email?.trim().toLowerCase() || null,
+    phone: toNullable(client.phone),
+    preferred_contact_method:
+      client.preferred_contact_method || null,
+
+    // Location
+    address_line_1: toNullable(client.address_line_1),
+    neighborhood: toNullable(client.neighborhood),
+    province: toNullable(client.province),
+    city: toNullable(client.city),
+    country: toNullable(client.country) || "Angola",
+
+    // Identification
+    nif: toNullable(client.nif),
+
+    // Other
+    notes: toNullable(client.notes),
+
+    // New clients
+    status: "Prospective",
+  };
 };

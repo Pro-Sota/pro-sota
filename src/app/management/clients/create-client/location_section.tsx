@@ -1,5 +1,9 @@
 import { MapPin } from "lucide-react";
-import { inputClass, sectionClass, ANGOLA_PROVINCES } from "./client_form";
+import {
+  inputClass,
+  sectionClass,
+  ANGOLA_PROVINCES,
+} from "./client_form";
 import type { FieldChangeEvent, ClientInsert } from "./client";
 import CustomSelect from "@/app/components/custom_select";
 
@@ -14,108 +18,124 @@ export default function LocationSection({
 }: LocationSectionProps) {
   return (
     <div className={sectionClass}>
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100">
+      {/* Header */}
+      <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
           <MapPin size={20} className="text-slate-600" />
         </div>
-        <h2 className="text-base font-semibold text-slate-900">Localização</h2>
+
+        <h2 className="text-base font-semibold text-slate-900">
+          Localização
+        </h2>
       </div>
 
-      <div className="px-6 py-5 space-y-4">
-        {/* Street Address */}
+      <div className="space-y-4 px-6 py-5">
+        {/* País */}
         <div>
-          <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-            Morada
+          <label
+            htmlFor="country"
+            className="mb-1.5 block text-sm font-semibold text-slate-700"
+          >
+            País
           </label>
+
           <input
+            id="country"
             type="text"
-            name="address"
-            placeholder="Avenida 21 de Janeiro, Rua da Independência"
+            name="country"
+            placeholder="Angola"
             className={inputClass(false)}
-            value={client.address || ""}
+            value={client.country || ""}
             onChange={onChange}
           />
         </div>
 
-        {/* Building Number & Block/Apartment */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Número
-            </label>
-            <input
-              type="text"
-              name="building_number"
-              placeholder="123, Lote 45, Conj. 12"
-              className={inputClass(false)}
-              value={client.building_number || ""}
-              onChange={onChange}
-            />
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Bloco / Apto
-            </label>
-            <input
-              type="text"
-              name="apartment_number"
-              placeholder="Bloco A, Apto 42"
-              className={inputClass(false)}
-              value={client.apartment_number || ""}
-              onChange={onChange}
-            />
-          </div>
-        </div>
-
-        {/* Neighborhood & Commune */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Bairro
-            </label>
-            <input
-              type="text"
-              name="neighborhood"
-              placeholder="Maianga, Cazenga, Talatona, Viana"
-              className={inputClass(false)}
-              value={client.neighborhood || ""}
-              onChange={onChange}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Código Postal
-            </label>
-            <input
-              type="text"
-              disabled
-              name="postal_code"
-              placeholder="Opcional"
-              className={inputClass(false)}
-              value={client.postal_code || ""}
-              onChange={onChange}
-            />
-          </div>
-        </div>
-
-        {/* Province Dropdown */}
+        {/* Endereço */}
         <div>
-          <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-            Província
-          </label>
-          <CustomSelect
-            name="city"
-            value={client.city || ""}
-            onChange={onChange}
-            className={inputClass(false)}
+          <label
+            htmlFor="address_line_1"
+            className="mb-1.5 block text-sm font-semibold text-slate-700"
           >
-            {ANGOLA_PROVINCES.map((province) => (
-              <option key={province} value={province}>
-                {province}
-              </option>
-            ))}
-         </CustomSelect>
+            Endereço
+          </label>
+
+          <input
+            id="address_line_1"
+            type="text"
+            name="address_line_1"
+            placeholder="Avenida 21 de Janeiro, Rua da Independência"
+            className={inputClass(false)}
+            value={client.address_line_1 || ""}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Bairro */}
+        <div>
+          <label
+            htmlFor="neighborhood"
+            className="mb-1.5 block text-sm font-semibold text-slate-700"
+          >
+            Bairro
+          </label>
+
+          <input
+            id="neighborhood"
+            type="text"
+            name="neighborhood"
+            placeholder="Maianga, Talatona, Viana"
+            className={inputClass(false)}
+            value={client.neighborhood || ""}
+            onChange={onChange}
+          />
+        </div>
+
+        {/* Província & Município */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Província */}
+          <div>
+            <label
+              htmlFor="province"
+              className="mb-1.5 block text-sm font-semibold text-slate-700"
+            >
+              Província
+            </label>
+
+            <CustomSelect
+              name="province"
+              value={client.province || ""}
+              onChange={onChange}
+              className={inputClass(false)}
+            >
+              <option value="">Selecionar província</option>
+
+              {ANGOLA_PROVINCES.map((province) => (
+                <option key={province} value={province}>
+                  {province}
+                </option>
+              ))}
+            </CustomSelect>
+          </div>
+
+          {/* Município / Cidade */}
+          <div>
+            <label
+              htmlFor="city"
+              className="mb-1.5 block text-sm font-semibold text-slate-700"
+            >
+              Município / Cidade
+            </label>
+
+            <input
+              id="city"
+              type="text"
+              name="city"
+              placeholder="Talatona, Viana, Luanda"
+              className={inputClass(false)}
+              value={client.city || ""}
+              onChange={onChange}
+            />
+          </div>
         </div>
       </div>
     </div>

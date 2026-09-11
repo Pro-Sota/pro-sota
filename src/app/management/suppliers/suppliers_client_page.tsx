@@ -1,94 +1,88 @@
 "use client";
+
 import { StatCard } from "@/app/components/StatCard";
-import { Database } from "@/app/lib/supabase/models";
 import {
   Search,
   Plus,
   CheckCircle2,
   Clock,
-  Boxes,
-  ArrowUpRight,
   Building2Icon,
   X,
   ChevronDown,
   Filter,
   SearchX,
   Building2,
-  FileUp,
-  AlertCircle,
-  Download,
-  Trash2,
+  ArrowUpRight,
   Award,
+  MapPin,
+  Phone,
+  User,
+  Hash,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import {useMemo, useState } from "react";
+
+import {
+  type Supplier,
+  type SupplierStatus,
+} from "./types"
+
+const STATUS_LABELS: Record<SupplierStatus, string> = {
+  Active: "Activo",
+  Inactive: "Inativo",
+  Prospective: "Potencial",
+};
+
+const STATUS_STYLES: Record<SupplierStatus, string> = {
+  Active: "bg-green-100 text-green-700",
+  Inactive: "bg-gray-100 text-gray-600",
+  Prospective: "bg-amber-100 text-amber-700",
+};
 
 const tokens = {
-  ink: "#0F172A",
-  paper: "#CBD5E1",
-  card: "#FFFFFF",
-  cardAlt: "#F1F5F9",
-  slate700: "#334155",
-  slate600: "#475569",
-  onSlate700: "#FFFFFF",
-  stone: "#64748B",
   line: "#CBD5E1",
-  bronze: "#A8672E",
-  bronzeBg: "#F1E3D3",
-  olive: "#4B7A2F",
-  oliveBg: "#E1EED7",
-  amber: "#9C6F1E",
-  amberBg: "#F3E6C9",
 };
 
-type SupplierStatus = "Activo" | "Inactivo" | "Em Análise";
-
-type RatingCriteria = {
-  label: string;
-  score: number; // 1-5
-  weight: number; // percentage weight
-};
-
-type Document = {
-  id: string;
-  name: string;
-  type: "proposta" | "contrato" | "factura" | "ficha_tecnica" | "certificado" | "garantia" | "conformidade" | "licenca" | "seguro" | "outro";
-  uploadDate: string;
-  expiryDate?: string;
-  uploader: string;
-  status: "valido" | "expirando" | "expirado";
-};
-
-type Supplier = Database["public"]["Tables"]["Suppliers"]["Row"];
-
-const statusStyles: Record<SupplierStatus, string> = {
-  Activo: "bg-green-100 text-green-700",
-  "Em Análise": "bg-amber-100 text-amber-700",
-  Inactivo: "bg-gray-100 text-gray-600",
-};
-
-const documentTypes = {
-  proposta: "Proposta Comercial",
-  contrato: "Contrato/Acordo-Quadro",
-  factura: "Factura",
-  ficha_tecnica: "Ficha Técnica",
-  certificado: "Certificado de Qualidade",
-  garantia: "Garantia",
-  conformidade: "Declaração de Conformidade",
-  licenca: "Licença/Alvará",
-  seguro: "Seguro",
-  outro: "Outro",
-};
-
-export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]}) {
-
+export default function SuppliersClientPage({
+  suppliers,
+}: {
+  suppliers: Supplier[];
+}) {
   const router = useRouter();
+
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"All" | SupplierStatus>("All");
+  const [statusFilter, setStatusFilter] =
+    useState<"All" | SupplierStatus>("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+
+  const [selectedSupplier, setSelectedSupplier] =
+    useState<Supplier | null>(null);
+
   const [detailsOpen, setDetailsOpen] = useState(false);
 
+  /*
+   * Get unique categories from the database.
+   */
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set(
+      suppliers
+        .map((supplier) => supplier.category?.trim())
+        .filter(Boolean)
+    );
+
+    return Array.from(uniqueCategories).sort((a, b) =>
+      a!.localeCompare(b!)
+    ) as string[];
+  }, [suppliers]);
+
+  /*
+   * Summary
+   *
+   * Projects are intentionally not counted here because
+   * supplier_projects does not exist in the supplied schema yet.
+   */
+  
   const summary = [
     {
       label: "Total de fornecedores",
@@ -97,38 +91,85 @@ export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]})
     },
     {
       label: "Ativos",
-      value: suppliers.filter((s) => s.status === "Activo").length,
+      value: suppliers.filter(
+        (supplier) => supplier.status === "Active"
+      ).length,
       icon: CheckCircle2,
     },
     {
       label: "Em análise",
-      value: suppliers.filter((s) => s.status === "Em Análise").length,
+      value: suppliers.filter(
+        (supplier) => supplier.status === "Prospective"
+      ).length,
       icon: Clock,
     },
     {
-      label: "Projetos vinculados",
-      value: suppliers.reduce((sum, s) => sum + s.projects
-      , 0),
-      icon: Boxes,
+      label: "Categorias",
+      value: categories.length,
+      icon: Building2Icon,
     },
   ];
 
+  /*
+   * Filtering
+   */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return suppliers.filter((c) => {
+
+    return suppliers.filter((supplier) => {
+      const searchableValues = [
+        supplier.supplier_name,
+        supplier.nif,
+        supplier.person_of_contact,
+        supplier.phone_number,
+        supplier.address_line_1,
+        supplier.city,
+        supplier.country,
+        supplier.category,
+        supplier.sub_category,
+      ];
+
       const matchesQuery =
         !q ||
-        c.name.toLowerCase().includes(q) ||
-        c.category.toLowerCase().includes(q) ||
-        c.location.toLowerCase().includes(q);
-      const matchesStatus = statusFilter === "All" || c.status === statusFilter;
-      return matchesQuery && matchesStatus;
+        searchableValues
+          .filter(
+            (value): value is string =>
+              typeof value === "string" && value.length > 0
+          )
+          .some((value) =>
+            value.toLowerCase().includes(q)
+          );
+
+      const matchesStatus =
+        statusFilter === "All" ||
+        supplier.status === statusFilter;
+
+      const matchesCategory =
+        categoryFilter === "All" ||
+        supplier.category === categoryFilter;
+
+      return (
+        matchesQuery &&
+        matchesStatus &&
+        matchesCategory
+      );
     });
-  }, [query, statusFilter]);
+  }, [
+    suppliers,
+    query,
+    statusFilter,
+    categoryFilter,
+  ]);
 
   const handleViewSupplier = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
     setDetailsOpen(true);
+  };
+
+  const clearFilters = () => {
+    setQuery("");
+    setStatusFilter("All");
+    setCategoryFilter("All");
   };
 
   return (
@@ -137,17 +178,21 @@ export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]})
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900" >
+            <h1 className="text-3xl font-bold text-gray-900">
               Gestão de fornecedores
             </h1>
+
             <p className="mt-1 text-sm text-gray-500">
               Gerencie fornecedores, materiais, contratos e desempenho.
             </p>
           </div>
 
           <button
-            onClick={() => router.push("/management/suppliers/new")}
-            className="flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition hover:opacity-90 bg-[#BD9655] text-[#002950] cursor-pointer"
+            type="button"
+            onClick={() =>
+              router.push("/management/suppliers/new")
+            }
+            className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-5 py-2.5 text-sm font-bold text-[#002950] transition hover:opacity-90"
           >
             <Plus size={16} />
             Adicionar fornecedor
@@ -157,141 +202,153 @@ export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]})
         {/* Summary Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {summary.map(({ label, value, icon: Icon }) => (
-            <StatCard key={label} icon={<Icon />} title={label} value={`${value}`} />
+            <StatCard
+              key={label}
+              icon={<Icon size={22} />}
+              title={label}
+              value={String(value)}
+            />
           ))}
         </div>
 
         {/* Search and Filters */}
-        <div
-          className="flex flex-col gap-3 rounded-2xl p-4 md:flex-row md:items-center"
-          style={{ background: tokens.card, border: `1px solid ${tokens.line}` }}
-        >
-
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:flex-row md:items-center">
+          {/* Search */}
           <div className="relative flex-1">
-            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search
+              size={18}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Procurar por nome, email, ou número de telefone..."
-              aria-label="Search clients"
+              placeholder="Procurar por fornecedor, NIF, contacto, telefone ou categoria..."
+              aria-label="Pesquisar fornecedores"
               className="w-full rounded-lg border py-2 pl-10 pr-9 outline-none focus:ring-2 focus:ring-black"
             />
+
             {query && (
               <button
+                type="button"
                 onClick={() => setQuery("")}
-                aria-label="Clear search"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label="Limpar pesquisa"
+                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600"
               >
                 <X size={16} />
               </button>
             )}
           </div>
 
+          {/* Status Filter */}
           <FilterBtn
             filtersOpen={filtersOpen}
             setFiltersOpen={setFiltersOpen}
             statusFilter={statusFilter}
-            setStatusFilter={() => setStatusFilter}
+            setStatusFilter={setStatusFilter}
           />
 
+          {/* Category */}
           <select
-            className="rounded-lg px-3 py-2 text-sm outline-none bg-gray-300/30 border border-gray-200 text-gray-600"
+            value={categoryFilter}
+            onChange={(e) =>
+              setCategoryFilter(e.target.value)
+            }
+            aria-label="Filtrar por categoria"
+            className="cursor-pointer rounded-lg border border-gray-200 bg-gray-300/30 px-3 py-2 text-sm text-gray-600 outline-none focus:ring-2 focus:ring-black"
           >
-            <option>Todas as categorias</option>
-            <option>Materiais</option>
-            <option>Móveis</option>
-            <option>Construção</option>
-          </select>
+            <option value="All">
+              Todas as categorias
+            </option>
 
-          <select
-            className="rounded-lg px-3 py-2 text-sm outline-none bg-gray-300/30 border border-gray-200 text-gray-600"
-          >
-            <option>Todos os status</option>
-            <option>Ativo</option>
-            <option>Em análise</option>
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
           </select>
         </div>
 
+        {/* Results */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-500">
+            {filtered.length} de {suppliers.length} fornecedores
+          </p>
+
+          {(query ||
+            statusFilter !== "All" ||
+            categoryFilter !== "All") && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="cursor-pointer text-sm font-medium text-gray-600 underline underline-offset-2 hover:text-gray-900"
+              >
+                Limpar filtros
+              </button>
+            )}
+        </div>
+
         {/* Supplier Table */}
-        <div className="overflow-hidden rounded-2xl bg-white border border-gray-100">
-          <table className="w-full">
-            <thead className="border-b bg-gray-50">
-              <tr className="text-left text-sm text-gray-600">
-                {["Fornecedor", "Categoria", "Localização", "Avaliação", "Projetos", "Status", " "].map((h) => (
-                  <th
-                    key={h}
-                    className="px-6 py-4 font-medium"
-                  >
-                    {h}
+        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[850px]">
+              <thead className="border-b bg-gray-50">
+                <tr className="text-left text-sm text-gray-600">
+                  <th className="px-6 py-4 font-medium">
+                    Fornecedor
                   </th>
-                ))}
-              </tr>
-            </thead>
 
-            <tbody>
-              {suppliers.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-16">
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <div className="mb-4 rounded-full bg-gray-100 p-4">
-                        <Building2 className="h-8 w-8 text-gray-400" />
-                      </div>
+                  <th className="px-6 py-4 font-medium">
+                    Categoria
+                  </th>
 
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Nenhum fornecedor registado
-                      </h3>
+                  <th className="px-6 py-4 font-medium">
+                    Localização
+                  </th>
 
-                      <p className="mt-2 max-w-md text-sm text-gray-500">
-                        Adicione o seu primeiro fornecedor para começar a gerir contratos,
-                        materiais e desempenho.
-                      </p>
+                  <th className="px-6 py-4 font-medium">
+                    Avaliação
+                  </th>
 
-                      <button className="mt-6 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                        <Plus size={16} />
-                        Adicionar fornecedor
-                      </button>
-                    </div>
-                  </td>
+                  <th className="px-6 py-4 font-medium">
+                    Contacto
+                  </th>
+
+                  <th className="px-6 py-4 font-medium">
+                    Estado
+                  </th>
+
+                  <th className="px-6 py-4 font-medium">
+                    {" "}
+                  </th>
                 </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-16">
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <div className="mb-4 rounded-full bg-gray-100 p-4">
-                        <SearchX className="h-8 w-8 text-gray-400" />
-                      </div>
+              </thead>
 
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Nenhum fornecedor encontrado
-                      </h3>
-
-                      <p className="mt-2 text-sm text-gray-500">
-                        Tente alterar os filtros ou pesquisar por outro nome.
-                      </p>
-
-                      <button
-                        onClick={() => {
-                          setQuery("");
-                          setStatusFilter("All");
-                        }}
-                        className="mt-5 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Limpar filtros
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((supplier) => (
-                  <SupplierRow
-                    key={supplier.name}
-                    supplier={supplier}
-                    onView={handleViewSupplier}
+              <tbody>
+                {suppliers.length === 0 ? (
+                  <EmptySupplierState
+                    onAdd={() =>
+                      router.push(
+                        "/management/suppliers/new"
+                      )
+                    }
                   />
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : filtered.length === 0 ? (
+                  <EmptyFilteredState
+                    onReset={clearFilters}
+                  />
+                ) : (
+                  filtered.map((supplier) => (
+                    <SupplierRow
+                      key={supplier.supplier_id}
+                      supplier={supplier}
+                      onView={handleViewSupplier}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -299,66 +356,118 @@ export default function SuppliersClientPage({suppliers}:{suppliers: Supplier[]})
       {detailsOpen && selectedSupplier && (
         <SupplierDetailsModal
           supplier={selectedSupplier}
-          onClose={() => setDetailsOpen(false)}
+          onClose={() => {
+            setDetailsOpen(false);
+            setSelectedSupplier(null);
+          }}
         />
       )}
     </div>
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Filter button                                                               */
+/* -------------------------------------------------------------------------- */
+
 interface FilterProps {
   filtersOpen: boolean;
   setFiltersOpen: (isOpen: boolean) => void;
-  statusFilter: string;
-  setStatusFilter: (filter: string) => void;
+  statusFilter: "All" | SupplierStatus;
+  setStatusFilter: (
+    filter: "All" | SupplierStatus
+  ) => void;
 }
 
-function FilterBtn({ filtersOpen, setFiltersOpen, statusFilter, setStatusFilter }: FilterProps) {
+function FilterBtn({
+  filtersOpen,
+  setFiltersOpen,
+  statusFilter,
+  setStatusFilter,
+}: FilterProps) {
   return (
     <div className="relative">
       <button
-        onClick={() => setFiltersOpen(!filtersOpen)}
+        type="button"
+        onClick={() =>
+          setFiltersOpen(!filtersOpen)
+        }
         aria-expanded={filtersOpen}
-        className="text-sm flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-black lg:w-auto"
+        aria-haspopup="menu"
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-black lg:w-auto"
       >
         <Filter size={14} />
+
         Filtros
+
         {statusFilter !== "All" && (
-          <span className="rounded-full bg-black px-1.5 text-xs text-white">1</span>
+          <span className="rounded-full bg-black px-1.5 text-xs text-white">
+            1
+          </span>
         )}
-        <ChevronDown size={14} className={`transition-transform ${filtersOpen ? "rotate-180" : ""}`} />
+
+        <ChevronDown
+          size={14}
+          className={`transition-transform ${filtersOpen ? "rotate-180" : ""
+            }`}
+        />
       </button>
 
       {filtersOpen && (
-        <div className="absolute right-0 z-10 mt-2 w-48 rounded-lg border bg-white p-2 shadow-lg">
-          <p className="px-2 pb-1 pt-1 text-xs font-medium uppercase text-gray-400">Filtros</p>
-          {(["All", "Active", "Pending", "Inactive"] as const).map((s) => (
+        <div
+          role="menu"
+          className="absolute right-0 z-10 mt-2 w-48 rounded-lg border bg-white p-2 shadow-lg"
+        >
+          <p className="px-2 pb-1 pt-1 text-xs font-medium uppercase text-gray-400">
+            Estado
+          </p>
+
+          {(
+            [
+              "All",
+              "Active",
+              "Prospective",
+              "Inactive",
+            ] as const
+          ).map((status) => (
             <button
-              key={s}
+              key={status}
+              type="button"
+              role="menuitem"
               onClick={() => {
-                setStatusFilter(s as SupplierStatus);
+                setStatusFilter(status);
                 setFiltersOpen(false);
               }}
-              className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-100 ${statusFilter === s ? "font-medium text-black" : "text-gray-600"
+              className={`flex w-full cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-100 ${statusFilter === status
+                  ? "font-medium text-black"
+                  : "text-gray-600"
                 }`}
             >
-              {s}
+              {status === "All"
+                ? "Todos"
+                : STATUS_LABELS[status]}
             </button>
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Avatar                                                                      */
+/* -------------------------------------------------------------------------- */
 
 function Avatar({ name }: { name: string }) {
-  const initials = name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const initials =
+    name
+      .trim()
+      .split(/\s+/)
+      .map((part) => part[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?";
 
   return (
     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white">
@@ -367,51 +476,33 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Stars                                                                       */
+/* -------------------------------------------------------------------------- */
 
 function Stars({ count }: { count: number }) {
+  const safeCount = Math.max(
+    0,
+    Math.min(5, Math.round(count))
+  );
+
   return (
-    <span className="text-slate-700">
-      {"★".repeat(count)}
-      <span style={{ color: tokens.line }}>{"★".repeat(5 - count)}</span>
+    <span
+      className="text-slate-700"
+      aria-label={`Avaliação ${safeCount} de 5`}
+    >
+      {"★".repeat(safeCount)}
+
+      <span style={{ color: tokens.line }}>
+        {"★".repeat(5 - safeCount)}
+      </span>
     </span>
   );
 }
 
-const STATUS_STYLES: Record<SupplierStatus, string> = {
-  Activo: "bg-green-100 text-green-700",
-  "Em Análise": "bg-amber-100 text-amber-700",
-  Inactivo: "bg-gray-100 text-gray-600",
-};
-
-
-function StatusBadge({ status }: { status: SupplierStatus }) {
-  return (
-    <span className={`rounded-full px-3 py-1 text-sm ${STATUS_STYLES[status]}`}>
-      {status}
-    </span>
-  );
-}
-
-function DocumentStatusBadge({ status }: { status: "valido" | "expirando" | "expirado" }) {
-  const styles = {
-    valido: "bg-green-50 text-green-700 border border-green-200",
-    expirando: "bg-amber-50 text-amber-700 border border-amber-200",
-    expirado: "bg-red-50 text-red-700 border border-red-200",
-  };
-
-  const labels = {
-    valido: "Válido",
-    expirando: "Expira em breve",
-    expirado: "Expirado",
-  };
-
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${styles[status]}`}>
-      {status === "expirado" && <AlertCircle size={12} />}
-      {labels[status]}
-    </span>
-  );
-}
+/* -------------------------------------------------------------------------- */
+/* Supplier row                                                                */
+/* -------------------------------------------------------------------------- */
 
 function SupplierRow({
   supplier,
@@ -420,25 +511,107 @@ function SupplierRow({
   supplier: Supplier;
   onView: (supplier: Supplier) => void;
 }) {
+  const status =
+    (supplier.status as SupplierStatus | null) ??
+    "Prospective";
+
   return (
     <tr className="border-b last:border-0 hover:bg-gray-50">
+      {/* Supplier */}
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
-          <Avatar name={supplier.name} />
-          <span className="font-medium text-gray-900">{supplier.name}</span>
+          <Avatar
+            name={supplier.supplier_name ?? ""}
+          />
+
+          <div>
+            <p className="font-medium text-gray-900">
+              {supplier.supplier_name}
+            </p>
+
+            {supplier.nif && (
+              <p className="text-xs text-gray-400">
+                NIF: {supplier.nif}
+              </p>
+            )}
+          </div>
         </div>
       </td>
-      <td className="px-6 py-4 text-gray-600">{supplier.category}</td>
-      <td className="px-6 py-4 text-gray-600">{supplier.location}</td>
-      <td className="px-6 py-4"> <Stars count={supplier.rating} /></td>
-      <td className="px-6 py-4"> {supplier.projects} </td>
+
+      {/* Category */}
       <td className="px-6 py-4">
-        <StatusBadge status={supplier.status} />
+        <div className="text-sm text-gray-600">
+          {supplier.category || "—"}
+        </div>
+
+        {supplier.sub_category && (
+          <div className="text-xs text-gray-400">
+            {supplier.sub_category}
+          </div>
+        )}
       </td>
-      <td className="p-4 font-medium">
+
+      {/* Location */}
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-1.5 text-sm text-gray-600">
+          <MapPin size={14} className="text-gray-400" />
+
+          {supplier.city ||
+            supplier.country ||
+            "—"}
+        </div>
+      </td>
+
+      {/* Rating */}
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-2">
+          <Stars count={supplier.rating ?? 0} />
+
+          {supplier.rating !== null && (
+            <span className="text-xs text-gray-500">
+              {supplier.rating}/5
+            </span>
+          )}
+        </div>
+      </td>
+
+      {/* Contact */}
+      <td className="px-6 py-4">
+        {supplier.person_of_contact && (
+          <div className="text-sm text-gray-700">
+            {supplier.person_of_contact}
+          </div>
+        )}
+
+        {supplier.phone_number ? (
+          <div className="text-xs text-gray-400">
+            {supplier.phone_number}
+          </div>
+        ) : (
+          !supplier.person_of_contact && (
+            <span className="text-sm text-gray-400">
+              —
+            </span>
+          )
+        )}
+      </td>
+
+      {/* Status */}
+      <td className="px-6 py-4">
+        <span
+          className={`inline-flex rounded-full px-3 py-1 text-sm ${STATUS_STYLES[status]
+            }`}
+        >
+          {STATUS_LABELS[status]}
+        </span>
+      </td>
+
+      {/* Action */}
+      <td className="px-6 py-4">
         <button
+          type="button"
           onClick={() => onView(supplier)}
-          className="cursor-pointer flex items-center gap-1 text-sm font-medium hover:underline underline-offset-3"
+          className="flex cursor-pointer items-center gap-1 text-sm font-medium text-gray-700 underline-offset-3 hover:underline"
         >
           Ver
           <ArrowUpRight size={14} />
@@ -448,160 +621,421 @@ function SupplierRow({
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Empty states                                                                */
+/* -------------------------------------------------------------------------- */
+
+function EmptySupplierState({
+  onAdd,
+}: {
+  onAdd: () => void;
+}) {
+  return (
+    <tr>
+      <td colSpan={7} className="px-6 py-16">
+        <div className="flex flex-col items-center justify-center text-center">
+          <div className="mb-4 rounded-full bg-gray-100 p-4">
+            <Building2 className="h-8 w-8 text-gray-400" />
+          </div>
+
+          <h3 className="text-lg font-semibold text-gray-900">
+            Nenhum fornecedor registado
+          </h3>
+
+          <p className="mt-2 max-w-md text-sm text-gray-500">
+            Adicione o seu primeiro fornecedor para
+            começar a gerir fornecedores e desempenho.
+          </p>
+
+          <button
+            type="button"
+            onClick={onAdd}
+            className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            <Plus size={16} />
+            Adicionar fornecedor
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function EmptyFilteredState({
+  onReset,
+}: {
+  onReset: () => void;
+}) {
+  return (
+    <tr>
+      <td colSpan={7} className="px-6 py-16">
+        <div className="flex flex-col items-center justify-center text-center">
+          <div className="mb-4 rounded-full bg-gray-100 p-4">
+            <SearchX className="h-8 w-8 text-gray-400" />
+          </div>
+
+          <h3 className="text-lg font-semibold text-gray-900">
+            Nenhum fornecedor encontrado
+          </h3>
+
+          <p className="mt-2 text-sm text-gray-500">
+            Tente alterar os filtros ou pesquisar por
+            outro fornecedor.
+          </p>
+
+          <button
+            type="button"
+            onClick={onReset}
+            className="mt-5 cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Supplier details modal                                                      */
+/* -------------------------------------------------------------------------- */
+
 interface SupplierDetailsModalProps {
   supplier: Supplier;
   onClose: () => void;
 }
 
-function SupplierDetailsModal({ supplier, onClose }: SupplierDetailsModalProps) {
-  const [documents, setDocuments] = useState<Document[]>(supplier.documents || []);
-  const expiredDocs = documents.filter(d => d.status === "expirado").length;
-  const expiringDocs = documents.filter(d => d.status === "expirando").length;
+function SupplierDetailsModal({
+  supplier,
+  onClose,
+}: SupplierDetailsModalProps) {
+  const status =
+    (supplier.status as SupplierStatus | null) ??
+    "Prospective";
+
+  const rating = supplier.rating ?? 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="supplier-details-title"
+    >
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-lg">
-        {/* Modal Header */}
-        <div className="sticky top-0 border-b bg-gray-50 px-6 py-4 flex items-center justify-between">
+        {/* Header */}
+        <div className="sticky top-0 flex items-center justify-between border-b bg-gray-50 px-6 py-4">
           <div className="flex items-center gap-3">
-            <Avatar name={supplier.name} />
+            <Avatar
+              name={supplier.supplier_name ?? ""}
+            />
+
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{supplier.name}</h2>
-              <p className="text-xs text-gray-500">{supplier.category} • {supplier.location}</p>
+              <h2
+                id="supplier-details-title"
+                className="text-xl font-bold text-gray-900"
+              >
+                {supplier.supplier_name}
+              </h2>
+
+              <p className="text-xs text-gray-500">
+                {supplier.category || "Sem categoria"}
+                {supplier.sub_category
+                  ? ` • ${supplier.sub_category}`
+                  : ""}
+              </p>
             </div>
           </div>
+
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-lg p-2 hover:bg-gray-200"
+            aria-label="Fechar detalhes"
+            className="cursor-pointer rounded-lg p-2 hover:bg-gray-200"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Modal Body */}
+        {/* Body */}
         <div className="space-y-6 p-6">
-          {/* Status & Contact */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase">Status</p>
-              <div className="mt-2">
-                <StatusBadge status={supplier.status} />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase">Contacto</p>
-              <p className="mt-2 text-sm text-gray-900 font-medium">{supplier.contact || "Não definido"}</p>
-              {supplier.email && <p className="text-xs text-gray-500">{supplier.email}</p>}
+          {/* Status */}
+          <div>
+            <p className="text-xs font-medium uppercase text-gray-500">
+              Estado
+            </p>
+
+            <div className="mt-2">
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-sm ${STATUS_STYLES[status]
+                  }`}
+              >
+                {STATUS_LABELS[status]}
+              </span>
             </div>
           </div>
 
-          {/* Rating Breakdown */}
+          {/* Contact information */}
           <div>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Award size={18} />
-                Avaliação Objectiva
-              </h3>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-gray-900">{supplier.rating.toFixed(1)}</span>
-                <span className="text-slate-700">
-                  {"★".repeat(supplier.rating)}
-                  <span style={{ color: tokens.line }}>{"★".repeat(5 - supplier.rating)}</span>
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {supplier.ratingCriteria.map((criterion, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-700">{criterion.label}</span>
-                    <span className="font-medium text-gray-900">{criterion.score}/5</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-                    <div
-                      className="h-full bg-slate-900 transition-all"
-                      style={{ width: `${(criterion.score / 5) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Documents Section */}
-          <div>
-            <h3 className="mb-4 font-semibold text-gray-900 flex items-center gap-2">
-              <FileUp size={18} />
-              Documentação ({documents.length})
+            <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900">
+              <User size={18} />
+              Informações de contacto
             </h3>
 
-            {(expiredDocs > 0 || expiringDocs > 0) && (
-              <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
-                <p className="text-xs text-amber-900">
-                  {expiredDocs > 0 && <span className="font-medium">{expiredDocs} documento(s) expirado(s)</span>}
-                  {expiredDocs > 0 && expiringDocs > 0 && <span> • </span>}
-                  {expiringDocs > 0 && <span className="font-medium">{expiringDocs} expira em breve</span>}
-                </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DetailItem
+                icon={<User size={15} />}
+                label="Pessoa de contacto"
+                value={
+                  supplier.person_of_contact
+                }
+              />
+
+              <DetailItem
+                icon={<Phone size={15} />}
+                label="Telefone"
+                value={
+                  supplier.phone_number
+                }
+              />
+
+              <DetailItem
+                icon={<Hash size={15} />}
+                label="NIF"
+                value={supplier.nif}
+              />
+
+              <DetailItem
+                icon={<MapPin size={15} />}
+                label="Cidade"
+                value={supplier.city}
+              />
+
+              <DetailItem
+                icon={<MapPin size={15} />}
+                label="País"
+                value={supplier.country}
+              />
+
+              <DetailItem
+                label="Endereço"
+                value={supplier.address_line_1}
+              />
+            </div>
+          </div>
+
+          {/* Category */}
+          <div>
+            <h3 className="mb-4 font-semibold text-gray-900">
+              Classificação
+            </h3>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DetailItem
+                label="Categoria"
+                value={supplier.category}
+              />
+
+              <DetailItem
+                label="Subcategoria"
+                value={
+                  supplier.sub_category
+                }
+              />
+            </div>
+          </div>
+
+          {/* Rating */}
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 font-semibold text-gray-900">
+                <Award size={18} />
+                Avaliação
+              </h3>
+
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-gray-900">
+                  {rating}/5
+                </span>
+
+                <Stars count={rating} />
               </div>
-            )}
+            </div>
 
-            <button className="mb-4 w-full rounded-lg border-2 border-dashed border-gray-300 py-6 text-center hover:border-gray-400 hover:bg-gray-50 transition">
-              <FileUp size={24} className="mx-auto mb-2 text-gray-400" />
-              <p className="text-sm font-medium text-gray-700">Carregar novo documento</p>
-              <p className="text-xs text-gray-500">ou arrastar ficheiro aqui</p>
-            </button>
-
-            {documents.length > 0 ? (
-              <div className="space-y-2">
-                {documents.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 hover:bg-gray-100 transition"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 text-sm">{doc.name}</p>
-                      <div className="mt-1 flex flex-col gap-1 text-xs text-gray-500">
-                        <span>{documentTypes[doc.type]}</span>
-                        <span>Carregado por {doc.uploader} • {doc.uploadDate}</span>
-                        {doc.expiryDate && (
-                          <span className="text-gray-600">Validade: {doc.expiryDate}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <DocumentStatusBadge status={doc.status} />
-                      <div className="flex gap-1">
-                        <button className="p-2 rounded-lg hover:bg-gray-200 transition">
-                          <Download size={16} className="text-gray-600" />
-                        </button>
-                        <button className="p-2 rounded-lg hover:bg-red-100 transition">
-                          <Trash2 size={16} className="text-gray-400 hover:text-red-600" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            {supplier.rating === null ? (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+                Este fornecedor ainda não foi
+                avaliado.
               </div>
             ) : (
-              <p className="text-center text-sm text-gray-500 py-6">Nenhum documento carregado</p>
+              <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full bg-slate-900 transition-all"
+                  style={{
+                    width: `${(rating / 5) * 100}%`,
+                  }}
+                />
+              </div>
             )}
+          </div>
+
+          {/* Tags */}
+          <div>
+            <h3 className="mb-3 font-semibold text-gray-900">
+              Tags
+            </h3>
+
+            <SupplierTags tags={supplier.tags} />
+          </div>
+
+          {/* Dates */}
+          <div className="border-t pt-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DetailItem
+                label="Criado em"
+                value={formatDate(
+                  supplier.created_at
+                )}
+              />
+
+              <DetailItem
+                label="Última atualização"
+                value={formatDate(
+                  supplier.updated_at
+                )}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="border-t bg-gray-50 px-6 py-4 flex gap-3 justify-end">
+        {/* Footer */}
+        <div className="flex justify-end gap-3 border-t bg-gray-50 px-6 py-4">
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+            className="cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
           >
             Fechar
           </button>
-          <button className="rounded-lg px-4 py-2 text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 transition">
+
+          <button
+            type="button"
+            onClick={() =>
+              routerToEditSupplier(
+                supplier.supplier_id
+              )
+            }
+            className="cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+          >
             Editar fornecedor
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Detail item                                                                 */
+/* -------------------------------------------------------------------------- */
+
+function DetailItem({
+  icon,
+  label,
+  value,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div>
+      <p className="flex items-center gap-1.5 text-xs font-medium uppercase text-gray-500">
+        {icon}
+        {label}
+      </p>
+
+      <p className="mt-1 text-sm font-medium text-gray-900">
+        {value || "Não definido"}
+      </p>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tags                                                                        */
+/* -------------------------------------------------------------------------- */
+
+function SupplierTags({
+  tags,
+}: {
+  tags: unknown;
+}) {
+  if (!tags) {
+    return (
+      <p className="text-sm text-gray-500">
+        Nenhuma tag definida.
+      </p>
+    );
+  }
+
+  let parsedTags: string[] = [];
+
+  if (Array.isArray(tags)) {
+    parsedTags = tags.filter(
+      (tag): tag is string =>
+        typeof tag === "string"
+    );
+  } else if (
+    typeof tags === "object" &&
+    tags !== null
+  ) {
+    parsedTags = Object.values(tags).filter(
+      (tag): tag is string =>
+        typeof tag === "string"
+    );
+  }
+
+  if (!parsedTags.length) {
+    return (
+      <p className="text-sm text-gray-500">
+        Nenhuma tag definida.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {parsedTags.map((tag) => (
+        <span
+          key={tag}
+          className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700"
+        >
+          {tag}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                     */
+/* -------------------------------------------------------------------------- */
+
+function formatDate(
+  value: string | null
+) {
+  if (!value) {
+    return "Não definido";
+  }
+
+  return new Intl.DateTimeFormat("pt-AO", {
+    dateStyle: "medium",
+  }).format(new Date(value));
+}
+
+function routerToEditSupplier(
+  supplierId: string
+) {
+  window.location.href = `/management/suppliers/${supplierId}/edit`;
 }

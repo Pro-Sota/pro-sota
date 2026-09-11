@@ -147,9 +147,7 @@ export type Database = {
       }
       clients: {
         Row: {
-          address: string | null
           address_line_1: string | null
-          address_line_2: string | null
           city: string | null
           client_id: string
           client_type: string
@@ -160,25 +158,24 @@ export type Database = {
           deleted_at: string | null
           email: string | null
           first_name: string | null
-          industry: string | null
           last_contacted_at: string | null
           last_name: string | null
           logo_url: string | null
-          name: string
+          name: string | null
+          neighborhood: string | null
+          nif: string | null
           notes: string | null
           organization_name: string | null
           phone: string | null
           preferred_contact_method: string | null
-          state_province: string | null
+          province: string | null
           status: string
           updated_at: string | null
           updated_by: string | null
           website: string | null
         }
         Insert: {
-          address?: string | null
           address_line_1?: string | null
-          address_line_2?: string | null
           city?: string | null
           client_id?: string
           client_type: string
@@ -189,25 +186,24 @@ export type Database = {
           deleted_at?: string | null
           email?: string | null
           first_name?: string | null
-          industry?: string | null
           last_contacted_at?: string | null
           last_name?: string | null
           logo_url?: string | null
-          name: string
+          name?: string | null
+          neighborhood?: string | null
+          nif?: string | null
           notes?: string | null
           organization_name?: string | null
           phone?: string | null
           preferred_contact_method?: string | null
-          state_province?: string | null
+          province?: string | null
           status?: string
           updated_at?: string | null
           updated_by?: string | null
           website?: string | null
         }
         Update: {
-          address?: string | null
           address_line_1?: string | null
-          address_line_2?: string | null
           city?: string | null
           client_id?: string
           client_type?: string
@@ -218,16 +214,17 @@ export type Database = {
           deleted_at?: string | null
           email?: string | null
           first_name?: string | null
-          industry?: string | null
           last_contacted_at?: string | null
           last_name?: string | null
           logo_url?: string | null
-          name?: string
+          name?: string | null
+          neighborhood?: string | null
+          nif?: string | null
           notes?: string | null
           organization_name?: string | null
           phone?: string | null
           preferred_contact_method?: string | null
-          state_province?: string | null
+          province?: string | null
           status?: string
           updated_at?: string | null
           updated_by?: string | null
@@ -716,7 +713,7 @@ export type Database = {
           province: string | null
           start_date: string | null
           state_province: string | null
-          status: string
+          status: string | null
           title: string
           type: string | null
           updated_at: string | null
@@ -744,7 +741,7 @@ export type Database = {
           province?: string | null
           start_date?: string | null
           state_province?: string | null
-          status?: string
+          status?: string | null
           title: string
           type?: string | null
           updated_at?: string | null
@@ -772,7 +769,7 @@ export type Database = {
           province?: string | null
           start_date?: string | null
           state_province?: string | null
-          status?: string
+          status?: string | null
           title?: string
           type?: string | null
           updated_at?: string | null
