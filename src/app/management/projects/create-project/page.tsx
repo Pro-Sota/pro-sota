@@ -343,7 +343,7 @@ const isComplete = useMemo(() => {
         setDraftSaveError(
           error instanceof Error
             ? error.message
-            : "Não foi possível guardar o rascunho."
+            : "Não foi possível guardar o rascun2ho."
         );
       } finally {
         setSavingDraft(false);

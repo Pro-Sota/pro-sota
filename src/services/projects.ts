@@ -2,8 +2,13 @@ import { Database } from "@/app/lib/supabase/models";
 import { createClient } from "../app/lib/supabase/client";
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
+type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
 
 const supabase = createClient();
+
+/* =========================================================
+   PROJECT
+========================================================= */
 
 export async function getProjectById(projectId: string) {
   const { data, error } = await supabase
@@ -17,6 +22,95 @@ export async function getProjectById(projectId: string) {
   return data;
 }
 
+/**
+ * Creates a project and its project conversation.
+ *
+ * The creator is automatically added to:
+ * - project_members
+ * - conversation_participants
+ *
+ * This makes the project immediately visible in
+ * "Project Messages" for the creator.
+ */
+export async function createProject(
+  project: ProjectInsert,
+  creatorProfileId: string,
+) {
+  const { data: createdProject, error: projectError } = await supabase
+    .from("projects")
+    .insert(project)
+    .select()
+    .single();
+
+  if (projectError) {
+    throw new Error(projectError.message);
+  }
+
+  /*
+   * Add creator as project member.
+   *
+   * If your project creation flow already creates the creator
+   * as a project member, this upsert prevents a duplicate.
+   */
+  const { error: memberError } = await supabase
+    .from("project_members")
+    .upsert(
+      {
+        project_id: createdProject.project_id,
+        profile_id: creatorProfileId,
+        role: "member",
+      },
+      {
+        onConflict: "project_id,profile_id",
+      },
+    );
+
+  if (memberError) {
+    throw new Error(memberError.message);
+  }
+
+  /*
+   * Create exactly one project conversation.
+   */
+  const { data: conversation, error: conversationError } = await supabase
+    .from("conversations")
+    .insert({
+      project_id: createdProject.project_id,
+      conversation_type: "project",
+      is_group: true,
+    })
+    .select()
+    .single();
+
+  if (conversationError) {
+    throw new Error(conversationError.message);
+  }
+
+  /*
+   * Add creator to the project conversation.
+   */
+  const { error: participantError } = await supabase
+    .from("conversation_participants")
+    .upsert(
+      {
+        conversation_id: conversation.id,
+        profile_id: creatorProfileId,
+      },
+      {
+        onConflict: "conversation_id,profile_id",
+      },
+    );
+
+  if (participantError) {
+    throw new Error(participantError.message);
+  }
+
+  return createdProject;
+}
+
+/* =========================================================
+   PROJECT MEMBERS
+========================================================= */
 
 export async function getProjectsByUser(userId: string) {
   const { data, error } = await supabase
@@ -50,12 +144,14 @@ export async function getUserProjects(userId: string): Promise<Project[]> {
   );
 }
 
-export async function getProjectMembers(profileID: string) {
+export async function getProjectMembers(projectId: string) {
   const { data, error } = await supabase
     .from("project_members")
     .select(
       `
-      role (name),
+      profile_id,
+      role,
+      joined_at,
       profiles (
         profile_id,
         first_name,
@@ -64,16 +160,189 @@ export async function getProjectMembers(profileID: string) {
       )
     `,
     )
-    .eq("profile_id", profileID);
+    .eq("project_id", projectId);
 
   if (error) {
     console.error("Supabase:", error);
-    throw new Error(error.message);}
+    throw new Error(error.message);
+  }
 
-    console.log("Project members data:", data);
-    
   return data;
 }
+
+/**
+ * Returns the project conversation.
+ *
+ * There should only be one project conversation per project.
+ */
+export async function getProjectConversation(projectId: string) {
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("conversation_type", "project")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Creates the project conversation if it does not exist.
+ *
+ * Useful for existing projects created before project
+ * conversations were implemented.
+ */
+export async function ensureProjectConversation(projectId: string) {
+  const existingConversation = await getProjectConversation(projectId);
+
+  if (existingConversation) {
+    return existingConversation;
+  }
+
+  const { data, error } = await supabase
+    .from("conversations")
+    .insert({
+      project_id: projectId,
+      conversation_type: "project",
+      is_group: true,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+/**
+ * Adds a project member and automatically gives them access
+ * to the project's group conversation.
+ */
+export async function addProjectMember(
+  projectId: string,
+  profileId: string,
+  role = "member",
+) {
+  /*
+   * 1. Add user to the project.
+   */
+  const { data: member, error: memberError } = await supabase
+    .from("project_members")
+    .upsert(
+      {
+        project_id: projectId,
+        profile_id: profileId,
+        role,
+      },
+      {
+        onConflict: "project_id,profile_id",
+      },
+    )
+    .select()
+    .single();
+
+  if (memberError) {
+    throw new Error(memberError.message);
+  }
+
+  /*
+   * 2. Find or create the project's group conversation.
+   */
+  const conversation = await ensureProjectConversation(projectId);
+
+  /*
+   * 3. Add the project member to the conversation.
+   *
+   * getChats() uses conversation_participants, so after
+   * this insert the project automatically appears in the
+   * user's "Project Messages".
+   */
+  const { error: participantError } = await supabase
+    .from("conversation_participants")
+    .upsert(
+      {
+        conversation_id: conversation.id,
+        profile_id: profileId,
+      },
+      {
+        onConflict: "conversation_id,profile_id",
+      },
+    );
+
+  if (participantError) {
+    throw new Error(participantError.message);
+  }
+
+  return member;
+}
+
+export async function removeProjectMember(
+  projectId: string,
+  profileId: string,
+) {
+  /*
+   * Find the project conversation first.
+   */
+  const conversation = await getProjectConversation(projectId);
+
+  /*
+   * Remove from the project.
+   */
+  const { error: memberError } = await supabase
+    .from("project_members")
+    .delete()
+    .eq("project_id", projectId)
+    .eq("profile_id", profileId);
+
+  if (memberError) {
+    throw new Error(memberError.message);
+  }
+
+  /*
+   * Also remove from the project conversation.
+   */
+  if (conversation) {
+    const { error: participantError } = await supabase
+      .from("conversation_participants")
+      .delete()
+      .eq("conversation_id", conversation.id)
+      .eq("profile_id", profileId);
+
+    if (participantError) {
+      throw new Error(participantError.message);
+    }
+  }
+}
+
+export async function updateProjectMemberRole(
+  projectId: string,
+  profileId: string,
+  role: string,
+) {
+  const { data, error } = await supabase
+    .from("project_members")
+    .update({
+      role,
+    })
+    .eq("project_id", projectId)
+    .eq("profile_id", profileId)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return data;
+}
+
+/* =========================================================
+   PROJECT MANAGER
+========================================================= */
 
 export async function getProjectManager(projectId: string) {
   const { data: projectMember, error: projectError } = await supabase
@@ -108,11 +377,15 @@ export async function getProjectManager(projectId: string) {
   return `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim();
 }
 
-export async function archiveProject(id: string) {
+/* =========================================================
+   PROJECT UPDATE
+========================================================= */
+
+export async function archiveProject(projectId: string) {
   const { data, error } = await supabase
     .from("projects")
     .update({ archived: true })
-    .eq("id", id)
+    .eq("project_id", projectId)
     .select()
     .single();
 
@@ -161,56 +434,6 @@ export async function searchProjects(query: string) {
   return data;
 }
 
-export async function addProjectMember(
-  projectId: string,
-  userId: string,
-  role = "Member",
-) {
-  const { data, error } = await supabase
-    .from("project_members")
-    .insert({
-      project_id: projectId,
-      user_id: userId,
-      project_role: role,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return data;
-}
-
-export async function removeProjectMember(projectId: string, userId: string) {
-  const { error } = await supabase
-    .from("project_members")
-    .delete()
-    .eq("project_id", projectId)
-    .eq("profile_id", userId);
-
-  if (error) throw error;
-}
-
-export async function updateProjectMemberRole(
-  projectId: string,
-  userId: string,
-  role: string,
-) {
-  const { data, error } = await supabase
-    .from("project_members")
-    .update({
-      project_role: role,
-    })
-    .eq("project_id", projectId)
-    .eq("profile_id", userId)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return data;
-}
-
 export async function duplicateProject(projectId: string) {
   const { data: project, error } = await supabase
     .from("projects")
@@ -244,6 +467,10 @@ export async function deleteProject(projectId: string) {
 
   if (error) throw error;
 }
+
+/* =========================================================
+   PROJECT STATUS / FILTERS
+========================================================= */
 
 export async function getProjectsByStatus(status: string) {
   const { data, error } = await supabase
@@ -285,7 +512,10 @@ export async function getProjectsByDateRange(start: string, end: string) {
   return data;
 }
 
-export async function updateProjectStatus(projectId: string, status: string) {
+export async function updateProjectStatus(
+  projectId: string,
+  status: string,
+) {
   const { data, error } = await supabase
     .from("projects")
     .update({ status })
@@ -305,6 +535,10 @@ export async function completeProject(projectId: string) {
 export async function reopenProject(projectId: string) {
   return updateProjectStatus(projectId, "Active");
 }
+
+/* =========================================================
+   PROJECT FILES
+========================================================= */
 
 export async function getProjectFiles(projectId: string) {
   const { data, error } = await supabase
@@ -345,6 +579,10 @@ export async function deleteProjectFile(projectFileId: string) {
   if (error) throw error;
 }
 
+/* =========================================================
+   PROJECT PROGRESS
+========================================================= */
+
 export async function getProjectProgress(projectId: string) {
   const { data, error } = await supabase
     .from("tasks")
@@ -355,14 +593,21 @@ export async function getProjectProgress(projectId: string) {
 
   const total = data.length;
 
-  const completed = data.filter((t) => t.status === "Completed").length;
+  const completed = data.filter(
+    (task) => task.status === "Completed",
+  ).length;
 
   return {
     totalTasks: total,
     completedTasks: completed,
-    percentage: total === 0 ? 0 : Math.round((completed / total) * 100),
+    percentage:
+      total === 0 ? 0 : Math.round((completed / total) * 100),
   };
 }
+
+/* =========================================================
+   PROJECT PHASES / STAGES
+========================================================= */
 
 export async function getProjectTimeline(projectId: string) {
   const { data, error } = await supabase
@@ -418,6 +663,10 @@ export async function getProjectStages(projectId: string) {
   return data;
 }
 
+/* =========================================================
+   PROJECT DOCUMENTS / SITE / REQUESTS / ACTIVITY
+========================================================= */
+
 export async function getProjectDocuments(projectId: string) {
   const { data, error } = await supabase
     .from("documents")
@@ -467,21 +716,33 @@ export async function getProjectActivity(projectId: string) {
   return data;
 }
 
+/* =========================================================
+   PROJECT SUMMARY
+========================================================= */
+
 export async function getProjectSummary(projectId: string) {
-  const [tasks, documents, files, workRequests, siteVisits, members] =
-    await Promise.all([
-      getProjectTasks(projectId),
-      getProjectDocuments(projectId),
-      getProjectFiles(projectId),
-      getProjectWorkRequests(projectId),
-      getProjectSiteVisits(projectId),
-      getProjectMembers(projectId),
-    ]);
+  const [
+    tasks,
+    documents,
+    files,
+    workRequests,
+    siteVisits,
+    members,
+  ] = await Promise.all([
+    getProjectTasks(projectId),
+    getProjectDocuments(projectId),
+    getProjectFiles(projectId),
+    getProjectWorkRequests(projectId),
+    getProjectSiteVisits(projectId),
+    getProjectMembers(projectId),
+  ]);
 
   return {
-    members: members.length,
+    members: members.length,asdipo
     tasks: tasks.length,
-    completedTasks: tasks.filter((task) => task.status === "Completed").length,
+    completedTasks: tasks.filter(
+      (task) => task.status === "Completed",
+    ).length,
     documents: documents.length,
     files: files.length,
     workRequests: workRequests.length,
