@@ -123,7 +123,7 @@ export default function TeamPage({ team }: { team: Profile[] }) {
 
                     <button
                         onClick={() => router.push("/management/team/create-member")}
-                        className="cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 active:bg-slate-950">
+                        className="cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-5 py-2.5 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 active:bg-slate-950">
                         <Plus size={16} />
                         Add Colaborador
                     </button>
@@ -171,7 +171,7 @@ export default function TeamPage({ team }: { team: Profile[] }) {
                                 aria-label="Grid view"
                                 aria-pressed={view === "grid"}
                                 className={`p-2.5 transition cursor-pointer ${view === "grid"
-                                    ? "bg-slate-900 text-white"
+                                    ? "bg-[#BD9655] text-[#002950]"
                                     : "bg-white text-slate-500 hover:bg-slate-50"
                                     }`}
                             >
@@ -182,9 +182,9 @@ export default function TeamPage({ team }: { team: Profile[] }) {
                                 onClick={() => setView("list")}
                                 aria-label="List view"
                                 aria-pressed={view === "list"}
-                                className={`cursor-pointer p-2.5 border-l border-slate-200 transition ${view === "list"
-                                    ? "bg-slate-900 text-white"
-                                    : "bg-white text-slate-500 hover:bg-slate-50"
+                                className={`cursor-pointer p-2.5 border-l border-[#BD9655] transition ${view === "list"
+                                    ? "bg-[#BD9655] text-[#002950]"
+                                    : "bg-white text-[#002950] hover:bg-[#BD9655/90]"
                                     }`}
                             >
                                 <List size={16} />

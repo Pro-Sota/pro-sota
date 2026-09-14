@@ -42,9 +42,9 @@ export default function LogoutButton() {
             disabled={loading}
             aria-label="Logout"
             title={expanded ? undefined : "Logout"}
-            className={`
-                group flex w-full items-center rounded-md
-                text-gray-300 transition-all duration-300
+            className={`cursor-pointer
+                group flex w-full items-center rounded-md font-medium
+                text-gray-600 transition-all duration-300
                 hover:text-[#BD9655] focus:outline-none focus:ring-2 focus:ring-[#BD9655]
                 disabled:cursor-not-allowed disabled:opacity-60
                 ${expanded
@@ -54,9 +54,9 @@ export default function LogoutButton() {
             `}
         >
             {loading ? (
-                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-gray-400" />
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-gray-600" />
             ) : (
-                <LogOut className="h-5 w-5 shrink-0 text-gray-400 group-hover:text-[#BD9655]" />
+                <LogOut className="h-5 w-5 shrink-0 text-gray-600 group-hover:text-[#BD9655]" />
             )}
 
             <span

@@ -26,6 +26,7 @@ import {
   type Supplier,
   type SupplierStatus,
 } from "./types"
+import CustomSelect from "@/app/components/custom_select";
 
 const STATUS_LABELS: Record<SupplierStatus, string> = {
   Active: "Activo",
@@ -192,7 +193,7 @@ export default function SuppliersClientPage({
             onClick={() =>
               router.push("/management/suppliers/new")
             }
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-5 py-2.5 text-sm font-bold text-[#002950] transition hover:opacity-90"
+            className="flex cursor-pointer items-center justify-center gap-2 bg-[#BD9655] rounded-xl px-5 py-2.5 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90"
           >
             <Plus size={16} />
             Adicionar fornecedor
@@ -249,7 +250,7 @@ export default function SuppliersClientPage({
           />
 
           {/* Category */}
-          <select
+          <CustomSelect
             value={categoryFilter}
             onChange={(e) =>
               setCategoryFilter(e.target.value)
@@ -266,7 +267,7 @@ export default function SuppliersClientPage({
                 {category}
               </option>
             ))}
-          </select>
+          </CustomSelect>
         </div>
 
         {/* Results */}

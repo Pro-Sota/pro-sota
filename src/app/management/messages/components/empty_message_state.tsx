@@ -20,7 +20,7 @@ export default function EmptyMessageState({ onNewMessage }: { onNewMessage: (sho
 
             <button
                 onClick={() => onNewMessage(true)}
-                className="mt-6 flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 transition-colors">
+                className="mt-6 flex items-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2.5 text-sm font-medium text-[#002950] hover:bg-[#BD9655]/90 transition-colors cursor-pointer">
                 <Plus size={16} />
                 {LABELS.newMessage}
             </button>

@@ -43,13 +43,13 @@ function clientTypeLabel(type: string) {
 }
 
 interface Props {
-    allClients: ClientWithProjectCount[]
+  allClients: ClientWithProjectCount[]
 }
 
-export default function ClientsPage({allClients}: Props) {
+export default function ClientsPage({ allClients }: Props) {
   const router = useRouter();
 
-    const clients = allClients;
+  const clients = allClients;
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -151,7 +151,7 @@ export default function ClientsPage({allClients}: Props) {
             onClick={() =>
               router.push("/management/clients/create-client")
             }
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2 text-white transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+            className="flex cursor-pointer items-center justify-center font-medium gap-2 text-sm rounded-lg bg-[#BD9655] px-4 py-2 text-[#002950] transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
           >
             <Plus size={18} />
             Novo Cliente
@@ -247,11 +247,10 @@ export default function ClientsPage({allClients}: Props) {
                       setStatusFilter(status);
                       setFiltersOpen(false);
                     }}
-                    className={`block w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-100 ${
-                      statusFilter === status
-                        ? "font-medium text-black"
-                        : "text-gray-600"
-                    }`}
+                    className={`block w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-100 ${statusFilter === status
+                      ? "font-medium text-black"
+                      : "text-gray-600"
+                      }`}
                   >
                     {status === "All"
                       ? "Todos"
@@ -280,34 +279,36 @@ export default function ClientsPage({allClients}: Props) {
         </p>
 
         {/* Clients table */}
-        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px]">
-              <thead className="border-b">
-                <tr className="text-left text-sm text-gray-600">
-                  <th className="px-6 py-4 font-medium">
+            <table className="w-full min-w-[820px]">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50/70">
+                  <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                     Cliente
                   </th>
 
-                  <th className="px-6 py-4 font-medium">
+                  <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                     Categoria
                   </th>
 
-                  <th className="px-6 py-4 font-medium">
+                  <th className="px-6 py-3.5 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                     Projectos
                   </th>
 
-                  <th className="px-6 py-4 font-medium">
+                  <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                     Contacto
                   </th>
 
-                  <th className="px-6 py-4 font-medium">
+                  <th className="px-6 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                     Estado
                   </th>
+
+                  <th className="w-10 px-4 py-3.5" />
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody className="divide-y divide-gray-100">
                 {filtered.map((client) => (
                   <tr
                     key={client.client_id}
@@ -316,46 +317,100 @@ export default function ClientsPage({allClients}: Props) {
                         `/management/clients/${client.client_id}`
                       )
                     }
-                    className="cursor-pointer border-b last:border-0 hover:bg-gray-50"
+                    className="group cursor-pointer bg-white transition-colors hover:bg-[#FAFAF8]"
                   >
-                    <td className="px-6 py-4 font-medium text-gray-900">
-                      {client.name ?? "—"}
-                    </td>
-
-                    <td className="px-6 py-4 text-gray-600">
-                      {clientTypeLabel(client.client_type)}
-                    </td>
-
-                    <td className="px-6 py-4 text-gray-600">
-                      {client.projectCount}
-                    </td>
-
+                    {/* Client */}
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-600">
-                        {client.phone ?? "—"}
-                      </div>
+                      <div className="flex items-center gap-3.5">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#002950]/5 text-sm font-semibold text-[#002950]">
+                          {(client.name?.charAt(0) ?? "?").toUpperCase()}
+                        </div>
 
-                      <div className="text-sm text-gray-400">
-                        {client.email ?? "—"}
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-gray-900">
+                            {client.name ?? "—"}
+                          </p>
+
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            ID #{client.client_id.slice(0, 8)}
+                          </p>
+                        </div>
                       </div>
                     </td>
 
+                    {/* Category */}
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+                        {clientTypeLabel(client.client_type)}
+                      </span>
+                    </td>
+
+                    {/* Projects */}
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex min-w-9 items-center justify-center rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-800 shadow-sm">
+                        {client.projectCount}
+                      </span>
+                    </td>
+
+                    {/* Contact */}
+                    <td className="px-6 py-4">
+                      <div className="max-w-[240px]">
+                        <p className="truncate text-sm font-medium text-gray-700">
+                          {client.phone ?? "Sem telefone"}
+                        </p>
+
+                        <p className="mt-0.5 truncate text-xs text-gray-400">
+                          {client.email ?? "Sem email"}
+                        </p>
+                      </div>
+                    </td>
+
+                    {/* Status */}
                     <td className="px-6 py-4">
                       <span
-                        className={`rounded-full px-3 py-1 text-sm ${
-                          STATUS_STYLES[client.status] ??
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_STYLES[client.status] ??
                           "bg-gray-100 text-gray-600"
-                        }`}
+                          }`}
                       >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${client.status === "Active"
+                            ? "bg-green-600"
+                            : client.status === "Prospective"
+                              ? "bg-amber-500"
+                              : "bg-gray-400"
+                            }`}
+                        />
+
                         {STATUS_LABELS[client.status] ??
                           client.status}
                       </span>
+                    </td>
+
+                    {/* Arrow */}
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 transition-all group-hover:bg-white group-hover:text-gray-600 group-hover:shadow-sm">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M6 3.5L10.5 8L6 12.5"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </div>nlj
 
           {!filtered.length && (
             <EmptyState
@@ -368,10 +423,8 @@ export default function ClientsPage({allClients}: Props) {
           )}
         </div>
       </div>
-    </div>
-  );
+    </div>)
 }
-
 function EmptyState({
   hasClients,
   onReset,

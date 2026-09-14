@@ -164,7 +164,7 @@ export default function NotificationClientPage({notifications}:props) {
           </div>
 
           <p className="text-slate-600">
-            Mantenha-se atualizado com a atividade do projeto.
+            Mantenha-se atualizado com as actividade dos projectos.
           </p>
         </div>
 
@@ -175,10 +175,10 @@ export default function NotificationClientPage({notifications}:props) {
               <button
                 key={filter.value}
                 onClick={() => setActiveFilter(filter.value)}
-                className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+                className={`rounded-md px-4 py-2 text-sm font-medium transition cursor-pointer ${
                   activeFilter === filter.value
-                    ? "bg-slate-800 text-white"
-                    : "text-slate-700 hover:bg-slate-200"
+                    ? "bg-[#BD9655] text-[#002950] hover:bg-[#BD9655]/90"
+                    : "text-slate-700 hover:bg-gray-100"
                 }`}
               >
                 {filter.label}
@@ -189,7 +189,7 @@ export default function NotificationClientPage({notifications}:props) {
           <button
             onClick={markAllAsRead}
             disabled={!notifications.some((n) => n.unread)}
-            className="flex w-fit items-center gap-2 rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-fit items-center gap-2 rounded-md bg-[#BD9655] px-4 py-2 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Check className="h-4 w-4" />
             Marcar tudo como lido

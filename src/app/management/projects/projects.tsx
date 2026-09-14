@@ -110,7 +110,7 @@ export default function ProjectsPageInner({
             </div>
             <Link
               href="/management/projects/create-project"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#BD9655] text-[#00520] text-sm font-medium rounded-lg hover:bg-[#BD9649] active:bg-[#BD9655] transition-colors duration-200 shadow-sm w-full sm:w-auto flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#BD9655] text-[#00520] text-sm font-medium rounded-lg hover:bg-[#BD9655]/90 active:bg-[#BD9655] transition-colors duration-200 shadow-sm w-full sm:w-auto flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
             >
               <Plus className="h-5 w-5" />
               <span className="hidden xs:inline">Novo Projecto</span>
