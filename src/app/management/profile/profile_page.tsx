@@ -84,7 +84,7 @@ export default function ProfileClient({
                             </div>
 
                             <div>
-                                <h1 className="mt-2 text-4xl font-medium">
+                                <h1 className="mt-2 text-[#002950] text-4xl font-medium">
                                     {fullName || "Utilizador"}
                                 </h1>
 

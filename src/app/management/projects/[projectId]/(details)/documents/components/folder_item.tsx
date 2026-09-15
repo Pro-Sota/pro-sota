@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ChevronRight,
   ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -16,6 +16,20 @@ interface FolderItemProps {
   isExpanded: (folder: FolderItemType) => boolean;
 }
 
+function normalizePath(path: string) {
+  const cleanPath =
+    path
+      .split("?")[0]
+      .replace(/\/+/g, "/")
+      .replace(/\/+$/, "") || "/";
+
+  try {
+    return decodeURIComponent(cleanPath);
+  } catch {
+    return cleanPath;
+  }
+}
+
 export default function FolderItem({
   folder,
   expanded,
@@ -27,23 +41,8 @@ export default function FolderItem({
   const hasChildren =
     folder.children && folder.children.length > 0;
 
-  /*
-   * Remove query parameters.
-   *
-   * Example:
-   *
-   * /documents/drawings?view=list
-   *
-   * becomes:
-   *
-   * /documents/drawings
-   */
-  const folderPath = folder.href
-    .split("?")[0]
-    .replace(/\/+$/, "");
-
-  const currentPath = pathname
-    .replace(/\/+$/, "");
+  const folderPath = normalizePath(folder.href);
+  const currentPath = normalizePath(pathname);
 
   const active = currentPath === folderPath;
 
@@ -56,9 +55,10 @@ export default function FolderItem({
       <button
         type="button"
         onClick={handleClick}
+        aria-current={active ? "page" : undefined}
         className={[
           "flex w-full items-center rounded-md px-2 py-2",
-          "cursor-pointer transition-colors",
+          "cursor-pointer transition-colors text-sm",
           "focus:outline-none focus-visible:ring-2",
           "focus-visible:ring-slate-400",
 
@@ -69,7 +69,7 @@ export default function FolderItem({
       >
         <folder.icon className="mr-2 h-4 w-4 shrink-0" />
 
-        <span className="truncate">
+        <span className="truncate ">
           {capitalize(folder.name)}
         </span>
 

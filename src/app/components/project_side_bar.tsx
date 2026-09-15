@@ -27,7 +27,7 @@ export default function ProjectNavbar({
     },
     {
       name: "Documentos",
-      href: `/management/projects/${projectId}/documents/all-files?view=list`,
+      href: `/management/projects/${projectId}/documents?view=list`,
     },
     {
       name: "Orçamento e custos",

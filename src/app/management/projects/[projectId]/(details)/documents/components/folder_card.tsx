@@ -1,37 +1,57 @@
 import Link from "next/link";
-import { Folder } from "lucide-react";
+import { Folder, ArrowUpRight } from "lucide-react";
 import { capitalize } from "@/app/lib/library";
 
 import { Database } from "@/app/lib/supabase/models";
 
 type Folder = Database["public"]["Tables"]["folders"]["Row"];
 
+interface FolderCardProps {
+  folder: Folder;
+  view: string;
+}
+
 export default function FolderCard({
   folder,
   view,
-}: {
-  folder: Folder;
-  view: string;
-}) {
+}: FolderCardProps) {
   return (
     <Link
       href={`/management/projects/${folder.project_id}/documents/folder/${folder.name}?view=${view}`}
-      className="group relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl"
+      className="group flex h-full min-h-[210px] w-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:ring-offset-2"
     >
-      {" "}
-      {/* Background Accent */}
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-500 to-yellow-600" />
-      {/* Icon */}
-      <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-xl bg-slate-50 transition-colors group-hover:bg-slate-100">
-        <Folder className="h-10 w-10 text-slate-600 transition-transform duration-300 group-hover:scale-110" />
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 transition-colors duration-200 group-hover:bg-slate-900">
+          <Folder className="h-6 w-6 text-slate-600 transition-colors duration-200 group-hover:text-white" />
+        </div>
+
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all duration-200 group-hover:bg-slate-100 group-hover:text-slate-700">
+          <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </div>
       </div>
-      {/* Folder Name */}
-      <h3 className="text-ellipsis min-h-[3.5rem] text-sm font-semibold text-slate-800">
-        {capitalize(folder.name)}
-      </h3>
-      {/* Hover Arrow */}
-      <div className="mt-auto flex items-center text-sm font-medium text-slate-600 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100">
-        Abrir a pasta →
+
+      {/* Folder Information */}
+      <div className="mt-6 flex flex-1 flex-col">
+        <span className="mb-1 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+          Pasta
+        </span>
+
+        <h3
+          className="line-clamp-2 text-[15px] font-semibold leading-6 text-slate-900"
+          title={capitalize(folder.name)}
+        >
+          {capitalize(folder.name)}
+        </h3>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-5 flex items-center border-t border-slate-100 pt-4">
+        <span className="text-xs font-medium text-slate-500 transition-colors group-hover:text-slate-900">
+          Abrir pasta
+        </span>
+
+        <ArrowUpRight className="ml-1.5 h-3.5 w-3.5 text-slate-400 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-slate-900" />
       </div>
     </Link>
   );

@@ -5,10 +5,10 @@ import {
   FolderOpen,
   FileText,
   Menu,
-  X,
   Upload,
   ChevronRight,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import DocumentGridView from "../components/document_grid";
 import DocumentSidebar from "../components/document_side_bar";
@@ -17,15 +17,20 @@ import DocumentToolbar from "../components/document_toolbar";
 
 import { Database } from "@/app/lib/supabase/models";
 import MobileView from "./mobile_view";
+import { capitalize } from "@/app/lib/library";
 
 type Folder = Database["public"]["Tables"]["folders"]["Row"];
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 
 interface EmptyStateProps {
-  type: "all-files" | "recents" | "empty-folder" | "no-documents";
+  type:
+    | "all-files"
+    | "recents"
+    | "empty-folder"
+    | "no-documents";
   currentView: "grid" | "list";
   folderName?: string;
-  onUploadClick?: () => void; 
+  onUploadClick?: () => void;
 }
 
 interface DocumentPageClientProps {
@@ -34,13 +39,54 @@ interface DocumentPageClientProps {
   projectId: string;
   folder: string[];
   view: "grid" | "list";
-  onUpload?: () => void; // Accept upload handler from parent
+  onUpload?: () => void;
 }
 
-/**
- * EmptyState Component
- * Displays contextual empty states based on view type
- */
+interface DocumentBreadcrumbProps {
+  projectId: string;
+  view: "grid" | "list";
+  folders: Folder[];
+  breadcrumbFolders: Folder[];
+  isAllFiles: boolean;
+  isRecents: boolean;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+function normalizeSlug(value: string) {
+  let normalized = value.trim();
+
+  /*
+   * Decode repeatedly because a URL can occasionally
+   * arrive double encoded.
+   */
+  for (let i = 0; i < 2; i++) {
+    try {
+      const decoded = decodeURIComponent(normalized);
+
+      if (decoded === normalized) {
+        break;
+      }
+
+      normalized = decoded;
+    } catch {
+      break;
+    }
+  }
+
+  return normalized
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/* -------------------------------------------------------------------------- */
+/* Empty state                                                                */
+/* -------------------------------------------------------------------------- */
+
 function EmptyState({
   type,
   currentView,
@@ -60,7 +106,8 @@ function EmptyState({
     recents: {
       icon: FileText,
       title: "Sem documentos recentes",
-      description: "Documentos acessados e modificados vão aparecer aqui.",
+      description:
+        "Documentos acessados e modificados vão aparecer aqui.",
       action: null,
       actionIcon: null,
     },
@@ -92,11 +139,16 @@ function EmptyState({
       className={[
         "flex w-full flex-col items-center justify-center",
         "px-6 text-center",
-        currentView === "grid" ? "min-h-[420px]" : "min-h-[360px]",
+        currentView === "grid"
+          ? "min-h-[420px]"
+          : "min-h-[360px]",
       ].join(" ")}
     >
       <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100">
-        <Icon className="h-8 w-8 text-gray-400" strokeWidth={1.5} />
+        <Icon
+          className="h-8 w-8 text-gray-400"
+          strokeWidth={1.5}
+        />
       </div>
 
       <h3 className="text-base font-semibold text-gray-900 sm:text-lg">
@@ -111,9 +163,11 @@ function EmptyState({
         <button
           type="button"
           onClick={onUploadClick}
-          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2.5 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 focus:outline-none focus:ring-2 focus:ring-[#002950] focus:ring-offset-2"
         >
-          {ActionIcon && <ActionIcon className="h-4 w-4" />}
+          {ActionIcon && (
+            <ActionIcon className="h-4 w-4" />
+          )}
 
           {config.action}
         </button>
@@ -122,7 +176,169 @@ function EmptyState({
   );
 }
 
-export default function DocumentPageClient({
+/* -------------------------------------------------------------------------- */
+/* Breadcrumb                                                                  */
+/* -------------------------------------------------------------------------- */
+
+function DocumentBreadcrumb({
+  projectId,
+  view,
+  folders,
+  breadcrumbFolders,
+  isAllFiles,
+  isRecents,
+}: DocumentBreadcrumbProps) {
+
+  
+  const router = useRouter();
+
+  const basePath =
+    `/management/projects/${projectId}/documents`;
+
+  function navigateToFolder(folderPath: string) {
+    const params = new URLSearchParams();
+    params.set("view", view);
+
+    const href = folderPath
+      ? `${basePath}/${folderPath}?${params.toString()}`
+      : `${basePath}?${params.toString()}`;
+
+    router.push(href);
+  }
+
+  function getFolderPath(folder: Folder) {
+    const path: Folder[] = [];
+
+    let current: Folder | undefined = folder;
+
+    while (current) {
+      path.unshift(current);
+
+      if (!current.parent_id) {
+        break;
+      }
+
+      current = folders.find(
+        (item) =>
+          item.folder_id === current?.parent_id,
+      );
+    }
+
+    return path
+      .map((item) =>
+        normalizeSlug(item.slug ?? ""),
+      )
+      .filter(Boolean)
+      .join("/");
+  }
+
+  
+
+  return (
+    <nav
+      aria-label="Localização"
+      className="flex min-w-0 items-center"
+    >
+      {/* Desktop breadcrumb */}
+
+      <div className="hidden min-w-0 items-center gap-1 sm:flex">
+        <button
+          type="button"
+          onClick={() => navigateToFolder("")}
+          aria-current={
+            isAllFiles ? "page" : undefined
+          }
+          className={[
+            "shrink-0 rounded-md px-2 py-1 text-sm transition-colors",
+            "focus:outline-none focus-visible:ring-2",
+            "focus-visible:ring-[#002950] focus-visible:ring-offset-1",
+            isAllFiles
+              ? "font-semibold text-[#002950]"
+              : "text-gray-500 hover:bg-[#BD9655]/10 hover:text-[#002950]",
+          ].join(" ")}
+        >
+          Documentos
+        </button>
+
+        {!isAllFiles && (
+          <>
+            <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+
+            {isRecents ? (
+              <span className="truncate px-2 py-1 text-sm font-semibold text-[#002950]">
+                Recentes
+              </span>
+            ) : (
+              breadcrumbFolders.map(
+                (item, index) => {
+                  const isLast =
+                    index ===
+                    breadcrumbFolders.length - 1;
+
+                  const folderPath =
+                    getFolderPath(item);
+
+                  return (
+                    <div
+                      key={item.folder_id}
+                      className="flex min-w-0 items-center gap-1"
+                    >
+                      {index > 0 && (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigateToFolder(
+                            folderPath,
+                          )
+                        }
+                        aria-current={
+                          isLast ? "page" : undefined
+                        }
+                        className={[
+                          "max-w-[180px] truncate rounded-md px-2 py-1 text-sm transition-colors",
+                          "focus:outline-none focus-visible:ring-2",
+                          "focus-visible:ring-[#002950] focus-visible:ring-offset-1",
+                          isLast
+                            ? "font-semibold text-[#002950]"
+                            : "text-gray-500 hover:bg-[#BD9655]/10 hover:text-[#002950]",
+                        ].join(" ")}
+                      >
+                        {capitalize(item.name)}
+                      </button>
+                    </div>
+                  );
+                },
+              )
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Mobile breadcrumb */}
+
+      <div className="min-w-0 sm:hidden">
+        <span className="block truncate text-sm font-semibold text-[#002950]">
+          {isAllFiles
+            ? "Todos os documentos"
+            : isRecents
+              ? "Recentes"
+              : breadcrumbFolders[
+                    breadcrumbFolders.length - 1
+                  ]?.name ?? "Documentos"}
+        </span>
+      </div>
+    </nav>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Main document page                                                         */
+/* -------------------------------------------------------------------------- */
+
+export default function DocumentInit({
   folders,
   documents,
   projectId,
@@ -130,65 +346,74 @@ export default function DocumentPageClient({
   view,
   onUpload,
 }: DocumentPageClientProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+   const normalizedFolder = useMemo(() => {
+    return folder.map((segment) => {
+      return normalizeSlug(segment);
+    });
+  }, [folder]);
+
+  const [sidebarOpen, setSidebarOpen] =
+    useState(false);
 
   useEffect(() => {
-    if (sidebarOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
+    document.body.style.overflow = sidebarOpen
+      ? "hidden"
+      : "unset";
+
     return () => {
       document.body.style.overflow = "unset";
     };
   }, [sidebarOpen]);
 
-  /*
-   * URL structure:
-   *
-   * /documents
-   * -> folder = []
-   *
-   * /documents/architecture
-   * -> folder = ["architecture"]
-   *
-   * /documents/architecture/plants
-   * -> folder = ["architecture", "plants"]
-   *
-   * /documents/recents
-   * -> folder = ["recents"]
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Special locations                                                        */
+  /* ------------------------------------------------------------------------ */
 
-  const isAllFiles = folder.length === 0;
+  const isAllFiles =
+    normalizedFolder.length === 0 ||
+    (normalizedFolder.length === 1 &&
+      normalizedFolder[0] === "all-files");
 
-  const isRecents = folder.length === 1 && folder[0] === "recents";
+  const isRecents =
+    normalizedFolder.length === 1 &&
+    normalizedFolder[0] === "recents";
 
-  /**
-   * Resolves the current folder from the URL path.
-   * Walks through the folder hierarchy to find the matching folder.
-   * Returns null if the path is invalid or folder doesn't exist.
-   */
-  const currentFolder = useMemo(() => {
-    if (isAllFiles || isRecents || folder.length === 0) {
+  /* ------------------------------------------------------------------------ */
+  /* Resolve current folder                                                   */
+  /* ------------------------------------------------------------------------ */
+
+    const currentFolder = useMemo(() => {
+    if (isAllFiles || isRecents) {
       return null;
     }
 
     let parentFolderId: string | null = null;
     let matchedFolder: Folder | null = null;
 
-    for (const slug of folder) {
+    for (const slug of normalizedFolder) {
       const match = folders.find((item) => {
-        return item.slug === slug && item.parent_id === parentFolderId;
+        const databaseSlug = normalizeSlug(
+          item.slug ?? item.name,
+        );
+
+        return (
+          databaseSlug === slug &&
+          item.parent_id === parentFolderId
+        );
       });
 
       if (!match) {
         console.warn("Folder not found:", {
-          slug,
+          requestedSlug: slug,
           parentFolderId,
           availableFolders: folders.map((item) => ({
             id: item.folder_id,
             name: item.name,
             slug: item.slug,
+            normalizedSlug: normalizeSlug(
+              item.slug ?? item.name,
+            ),
             parent_id: item.parent_id,
           })),
         });
@@ -201,48 +426,56 @@ export default function DocumentPageClient({
     }
 
     return matchedFolder;
-  }, [folders, folder, isAllFiles, isRecents]);
+  }, [
+    folders,
+    normalizedFolder,
+    isAllFiles,
+    isRecents,
+  ]);
 
-  /*
-   * If the URL contains a folder path but that
-   * folder cannot be resolved, the path is invalid.
-   */
-  const isInvalidFolder = !isAllFiles && !isRecents && currentFolder === null;
+  const isInvalidFolder =
+    !isAllFiles &&
+    !isRecents &&
+    currentFolder === null;
 
-  /*
-   * Folders shown in the current location.
-   *
-   * All Files:
-   * -> show root folders
-   *
-   * Inside a folder:
-   * -> show only direct children
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Current folders                                                          */
+  /* ------------------------------------------------------------------------ */
+
   const filteredFolders = useMemo(() => {
-  if (isAllFiles) {
-    return folders;
-  }
+    if (isAllFiles) {
+      return folders;
+    }
 
-  if (!currentFolder) {
-    return [];
-  }
+    if (!currentFolder) {
+      return [];
+    }
 
-  return folders.filter(
-    (item) => item.parent_id === currentFolder.folder_id
-  );
-}, [folders, isAllFiles, currentFolder]);
-  /*
-   * Documents shown in the current location.
-   */
+    return folders.filter(
+      (item) =>
+        item.parent_id === currentFolder.folder_id,
+    );
+  }, [
+    folders,
+    isAllFiles,
+    currentFolder,
+  ]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Current documents                                                        */
+  /* ------------------------------------------------------------------------ */
+
   const filteredDocuments = useMemo(() => {
-    /*
-     * Recent documents - sort by update time
-     */
     if (isRecents) {
       return [...documents]
         .sort((a, b) => {
-          const aDate = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-          const bDate = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+          const aDate = a.updated_at
+            ? new Date(a.updated_at).getTime()
+            : 0;
+
+          const bDate = b.updated_at
+            ? new Date(b.updated_at).getTime()
+            : 0;
 
           return bDate - aDate;
         })
@@ -257,51 +490,63 @@ export default function DocumentPageClient({
       return [];
     }
 
-    /*
-     * Documents belonging directly to
-     * the current folder.
-     */
-
     return documents.filter(
-      (document) => document.folder_id === currentFolder.folder_id,
+      (document) =>
+        document.folder_id ===
+        currentFolder.folder_id,
     );
-  }, [documents, isRecents, isAllFiles, currentFolder]);
+  }, [
+    documents,
+    isRecents,
+    isAllFiles,
+    currentFolder,
+  ]);
 
-  /*
-   * Does the current view contain anything?
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Empty state                                                              */
+  /* ------------------------------------------------------------------------ */
 
   const isEmpty =
-    filteredFolders.length === 0 && filteredDocuments.length === 0;
+    filteredFolders.length === 0 &&
+    filteredDocuments.length === 0;
 
-  /*
-   * Determine which empty state to display.
-   */
+  const emptyStateType: EmptyStateProps["type"] =
+    isRecents
+      ? "recents"
+      : isAllFiles
+        ? "all-files"
+        : filteredFolders.length > 0 &&
+            filteredDocuments.length === 0
+          ? "no-documents"
+          : "empty-folder";
 
-  const emptyStateType: EmptyStateProps["type"] = isRecents
-    ? "recents"
-    : isAllFiles
-      ? "all-files"
-      : filteredFolders.length > 0 && filteredDocuments.length === 0
-        ? "no-documents"
-        : "empty-folder";
+  /* ------------------------------------------------------------------------ */
+  /* Page title                                                               */
+  /* ------------------------------------------------------------------------ */
 
-  /*
-   * Page title.
-   */
   const pageTitle = isAllFiles
     ? "Todos os documentos"
     : isRecents
       ? "Documentos recentes"
       : (currentFolder?.name ?? "Documentos");
 
+  /* ------------------------------------------------------------------------ */
+  /* Breadcrumb hierarchy                                                     */
+  /* ------------------------------------------------------------------------ */
+
   const breadcrumbFolders = useMemo(() => {
-    if (isAllFiles || isRecents || !currentFolder) {
+    if (
+      isAllFiles ||
+      isRecents ||
+      !currentFolder
+    ) {
       return [];
     }
 
     const result: Folder[] = [];
-    let current: Folder | undefined = currentFolder;
+
+    let current: Folder | undefined =
+      currentFolder;
 
     while (current) {
       result.unshift(current);
@@ -311,14 +556,16 @@ export default function DocumentPageClient({
       }
 
       const parent = folders.find(
-        (item) => item.folder_id === current?.parent_id,
+        (item) =>
+          item.folder_id === current?.parent_id,
       );
 
       if (!parent) {
-        console.warn("Parent folder not found in hierarchy:", {
-          folderName: current.name,
-          parentId: current.parent_id,
-        });
+        console.warn(
+          "Parent folder not found:",
+          current.parent_id,
+        );
+
         break;
       }
 
@@ -326,14 +573,27 @@ export default function DocumentPageClient({
     }
 
     return result;
-  }, [folders, currentFolder, isAllFiles, isRecents]);
+  }, [
+    folders,
+    currentFolder,
+    isAllFiles,
+    isRecents,
+  ]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                   */
+  /* ------------------------------------------------------------------------ */
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">
       {/* DESKTOP SIDEBAR */}
 
-      <aside className="hidden h-full w-64 shrink-0 border-r border-gray-200 bg-white lg:block xl:w-64">
-        <DocumentSidebar projectId={projectId} view={view} folders={folders} />
+      <aside className="hidden h-full w-64 shrink-0 border-r border-gray-200 bg-white lg:block">
+        <DocumentSidebar
+          projectId={projectId}
+          view={view}
+          folders={folders}
+        />
       </aside>
 
       {/* MOBILE SIDEBAR */}
@@ -343,61 +603,43 @@ export default function DocumentPageClient({
           projectId={projectId}
           view={view}
           folders={folders}
-          setSidebarOpen={() => setSidebarOpen(!sidebarOpen)}
+          setSidebarOpen={() =>
+            setSidebarOpen(!sidebarOpen)
+          }
         />
       )}
 
       {/* MAIN AREA */}
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* TOP TOOLBAR */}
+        {/* HEADER */}
+
         <header className="z-30 shrink-0 border-b border-gray-200 bg-white">
-          <div className="flex min-h-14 items-center gap-3">
-            {/* Mobile Menu */}
+          <div className="flex min-h-14 items-center gap-3 px-3 sm:px-4">
+            {/* Mobile menu */}
 
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="ml-2 shrink-0 rounded-lg p-2 text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 lg:hidden"
-              aria-label="Open folders"
+              className="shrink-0 rounded-lg p-2 text-[#002950] transition-colors hover:bg-[#BD9655]/10 lg:hidden"
+              aria-label="Abrir pastas"
             >
               <Menu className="h-4 w-4" />
             </button>
 
-            {/* Location */}
+            {/* Breadcrumb */}
 
-            <div className="ml-2 flex min-w-0 flex-1 items-center gap-2">
-              <div className="hidden min-w-0 items-center gap-2 text-sm text-gray-500 sm:flex">
-                <span className="shrink-0">Documentos</span>
-                {!isAllFiles && (
-                  <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
-                )}
-
-                {!isAllFiles && !isRecents && (
-                  <>
-                    {breadcrumbFolders.map((item, index) => (
-                      <div
-                        key={`breadcrumb-${item.folder_id}-${index}`}
-                        className="flex min-w-0 items-center gap-2"
-                      >
-                        {index > 0 && (
-                          <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
-                        )}
-
-                        <span className="max-w-[150px] truncate">
-                          {item.name}
-                        </span>
-                      </div>
-                    ))}
-                  </>
-                )}
-
-                {isRecents && <span>Recentes</span>}
-              </div>
-
-              <h1 className="truncate text-sm font-semibold text-gray-900 sm:text-base">
-                {pageTitle}
-              </h1>
+            <div className="min-w-0 flex-1">
+              <DocumentBreadcrumb
+                projectId={projectId}
+                view={view}
+                folders={folders}
+                breadcrumbFolders={
+                  breadcrumbFolders
+                }
+                isAllFiles={isAllFiles}
+                isRecents={isRecents}
+              />
             </div>
 
             {/* Toolbar */}
@@ -412,7 +654,7 @@ export default function DocumentPageClient({
 
         <section className="min-h-0 flex-1 overflow-y-auto">
           <div className="w-full px-3 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6">
-            {/* Page heading */}
+            {/* PAGE HEADING */}
 
             <div className="mb-5">
               <h2 className="text-xl font-semibold tracking-tight text-gray-900 sm:text-2xl">
@@ -447,8 +689,8 @@ export default function DocumentPageClient({
                   </h3>
 
                   <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
-                    A pasta indicada no endereço não existe ou deixou de estar
-                    disponível.
+                    A pasta indicada no endereço não
+                    existe ou deixou de estar disponível.
                   </p>
                 </div>
               </div>
@@ -457,7 +699,9 @@ export default function DocumentPageClient({
                 <EmptyState
                   type={emptyStateType}
                   currentView={view}
-                  folderName={currentFolder?.name}
+                  folderName={
+                    currentFolder?.name
+                  }
                   onUploadClick={onUpload}
                 />
               </div>
@@ -466,7 +710,9 @@ export default function DocumentPageClient({
                 {view === "list" ? (
                   <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
                     <DocumentTableView
-                      documents={filteredDocuments}
+                      documents={
+                        filteredDocuments
+                      }
                       folders={filteredFolders}
                       allFolders={folders}
                       view={view}

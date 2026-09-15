@@ -410,7 +410,7 @@ export default function ClientsPage({ allClients }: Props) {
                 ))}
               </tbody>
             </table>
-          </div>nlj
+          </div>
 
           {!filtered.length && (
             <EmptyState

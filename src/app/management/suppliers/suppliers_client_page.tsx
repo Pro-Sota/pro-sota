@@ -1,32 +1,33 @@
 "use client";
 
-import { StatCard } from "@/app/components/StatCard";
+import { useMemo, useState } from "react";
 import {
   Search,
   Plus,
   CheckCircle2,
   Clock,
-  Building2Icon,
+  Building2,
   X,
   ChevronDown,
   Filter,
   SearchX,
-  Building2,
   ArrowUpRight,
   Award,
   MapPin,
   Phone,
   User,
   Hash,
+  MoreVertical,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {useMemo, useState } from "react";
+
+import { StatCard } from "@/app/components/StatCard";
+import CustomSelect from "@/app/components/custom_select";
 
 import {
   type Supplier,
   type SupplierStatus,
-} from "./types"
-import CustomSelect from "@/app/components/custom_select";
+} from "./types";
 
 const STATUS_LABELS: Record<SupplierStatus, string> = {
   Active: "Activo",
@@ -35,13 +36,12 @@ const STATUS_LABELS: Record<SupplierStatus, string> = {
 };
 
 const STATUS_STYLES: Record<SupplierStatus, string> = {
-  Active: "bg-green-100 text-green-700",
-  Inactive: "bg-gray-100 text-gray-600",
-  Prospective: "bg-amber-100 text-amber-700",
-};
-
-const tokens = {
-  line: "#CBD5E1",
+  Active:
+    "border border-emerald-200 bg-emerald-50 text-emerald-700",
+  Inactive:
+    "border border-slate-200 bg-slate-100 text-slate-600",
+  Prospective:
+    "border border-amber-200 bg-amber-50 text-amber-700",
 };
 
 export default function SuppliersClientPage({
@@ -54,17 +54,13 @@ export default function SuppliersClientPage({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] =
     useState<"All" | SupplierStatus>("All");
-  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] =
+    useState("All");
   const [filtersOpen, setFiltersOpen] = useState(false);
-
   const [selectedSupplier, setSelectedSupplier] =
     useState<Supplier | null>(null);
-
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  /*
-   * Get unique categories from the database.
-   */
   const categories = useMemo(() => {
     const uniqueCategories = new Set(
       suppliers
@@ -77,43 +73,36 @@ export default function SuppliersClientPage({
     ) as string[];
   }, [suppliers]);
 
-  /*
-   * Summary
-   *
-   * Projects are intentionally not counted here because
-   * supplier_projects does not exist in the supplied schema yet.
-   */
-  
-  const summary = [
-    {
-      label: "Total de fornecedores",
-      value: suppliers.length,
-      icon: Building2Icon,
-    },
-    {
-      label: "Ativos",
-      value: suppliers.filter(
-        (supplier) => supplier.status === "Active"
-      ).length,
-      icon: CheckCircle2,
-    },
-    {
-      label: "Em análise",
-      value: suppliers.filter(
-        (supplier) => supplier.status === "Prospective"
-      ).length,
-      icon: Clock,
-    },
-    {
-      label: "Categorias",
-      value: categories.length,
-      icon: Building2Icon,
-    },
-  ];
+  const summary = useMemo(
+    () => [
+      {
+        label: "Total de fornecedores",
+        value: suppliers.length,
+        icon: Building2,
+      },
+      {
+        label: "Ativos",
+        value: suppliers.filter(
+          (supplier) => supplier.status === "Active"
+        ).length,
+        icon: CheckCircle2,
+      },
+      {
+        label: "Em análise",
+        value: suppliers.filter(
+          (supplier) => supplier.status === "Prospective"
+        ).length,
+        icon: Clock,
+      },
+      {
+        label: "Categorias",
+        value: categories.length,
+        icon: Building2,
+      },
+    ],
+    [suppliers, categories]
+  );
 
-  /*
-   * Filtering
-   */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
@@ -135,7 +124,8 @@ export default function SuppliersClientPage({
         searchableValues
           .filter(
             (value): value is string =>
-              typeof value === "string" && value.length > 0
+              typeof value === "string" &&
+              value.trim().length > 0
           )
           .some((value) =>
             value.toLowerCase().includes(q)
@@ -162,6 +152,11 @@ export default function SuppliersClientPage({
     categoryFilter,
   ]);
 
+  const hasFilters =
+    query.trim().length > 0 ||
+    statusFilter !== "All" ||
+    categoryFilter !== "All";
+
   const handleViewSupplier = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
     setDetailsOpen(true);
@@ -173,35 +168,37 @@ export default function SuppliersClientPage({
     setCategoryFilter("All");
   };
 
+  const handleAddSupplier = () => {
+    router.push("/management/suppliers/new");
+  };
+
   return (
     <div className="min-h-screen p-6 md:p-10">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Gestão de fornecedores
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
+              Fornecedores
             </h1>
 
-            <p className="mt-1 text-sm text-gray-500">
-              Gerencie fornecedores, materiais, contratos e desempenho.
+            <p className="mt-1 text-slate-500">
+              Gerir fornecedores, materiais, contratos e desempenho.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={() =>
-              router.push("/management/suppliers/new")
-            }
-            className="flex cursor-pointer items-center justify-center gap-2 bg-[#BD9655] rounded-xl px-5 py-2.5 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90"
+            onClick={handleAddSupplier}
+            className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-5 py-2.5 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 active:scale-[0.98]"
           >
             <Plus size={16} />
             Adicionar fornecedor
           </button>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Statistics */}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {summary.map(({ label, value, icon: Icon }) => (
             <StatCard
               key={label}
@@ -212,21 +209,25 @@ export default function SuppliersClientPage({
           ))}
         </div>
 
-        {/* Search and Filters */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:flex-row md:items-center">
+        {/* Toolbar */}
+        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
           {/* Search */}
-          <div className="relative flex-1">
+          <div className="relative w-full lg:max-w-xl">
             <Search
-              size={18}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={16}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
             />
 
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Procurar por fornecedor, NIF, contacto, telefone ou categoria..."
+              onChange={(event) =>
+                setQuery(event.target.value)
+              }
+              type="search"
+              placeholder="Pesquisar fornecedor, NIF, contacto ou categoria..."
               aria-label="Pesquisar fornecedores"
-              className="w-full rounded-lg border py-2 pl-10 pr-9 outline-none focus:ring-2 focus:ring-black"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-900/5"
             />
 
             {query && (
@@ -234,105 +235,108 @@ export default function SuppliersClientPage({
                 type="button"
                 onClick={() => setQuery("")}
                 aria-label="Limpar pesquisa"
-                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             )}
           </div>
 
-          {/* Status Filter */}
-          <FilterBtn
-            filtersOpen={filtersOpen}
-            setFiltersOpen={setFiltersOpen}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-          />
+          {/* Filters */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <StatusFilter
+              filtersOpen={filtersOpen}
+              setFiltersOpen={setFiltersOpen}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+            />
 
-          {/* Category */}
-          <CustomSelect
-            value={categoryFilter}
-            onChange={(e) =>
-              setCategoryFilter(e.target.value)
-            }
-            aria-label="Filtrar por categoria"
-            className="cursor-pointer rounded-lg border border-gray-200 bg-gray-300/30 px-3 py-2 text-sm text-gray-600 outline-none focus:ring-2 focus:ring-black"
-          >
-            <option value="All">
-              Todas as categorias
-            </option>
-
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
+            <CustomSelect
+              value={categoryFilter}
+              onChange={(event) =>
+                setCategoryFilter(event.target.value)
+              }
+              aria-label="Filtrar por categoria"
+              className="w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 sm:w-auto"
+            >
+              <option value="All">
+                Todas as categorias
               </option>
-            ))}
-          </CustomSelect>
+
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </CustomSelect>
+          </div>
         </div>
 
-        {/* Results */}
+        {/* Results summary */}
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
-            {filtered.length} de {suppliers.length} fornecedores
+          <p className="text-sm text-slate-500">
+            {filtered.length}{" "}
+            {filtered.length === 1
+              ? "fornecedor"
+              : "fornecedores"}
+            {hasFilters
+              ? ` de ${suppliers.length}`
+              : ""}
           </p>
 
-          {(query ||
-            statusFilter !== "All" ||
-            categoryFilter !== "All") && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="cursor-pointer text-sm font-medium text-gray-600 underline underline-offset-2 hover:text-gray-900"
-              >
-                Limpar filtros
-              </button>
-            )}
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="cursor-pointer text-sm font-medium text-slate-600 transition hover:text-slate-900"
+            >
+              Limpar filtros
+            </button>
+          )}
         </div>
 
-        {/* Supplier Table */}
-        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+        {/* Supplier table */}
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[850px]">
-              <thead className="border-b bg-gray-50">
-                <tr className="text-left text-sm text-gray-600">
-                  <th className="px-6 py-4 font-medium">
+            <table className="w-full min-w-[950px]">
+              <thead className="border-b border-slate-200 bg-slate-50">
+                <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <th className="px-6 py-4">
                     Fornecedor
                   </th>
 
-                  <th className="px-6 py-4 font-medium">
+                  <th className="px-6 py-4">
                     Categoria
                   </th>
 
-                  <th className="px-6 py-4 font-medium">
+                  <th className="px-6 py-4">
                     Localização
                   </th>
 
-                  <th className="px-6 py-4 font-medium">
+                  <th className="px-6 py-4">
                     Avaliação
                   </th>
 
-                  <th className="px-6 py-4 font-medium">
+                  <th className="px-6 py-4">
                     Contacto
                   </th>
 
-                  <th className="px-6 py-4 font-medium">
+                  <th className="px-6 py-4">
                     Estado
                   </th>
 
-                  <th className="px-6 py-4 font-medium">
-                    {" "}
+                  <th className="w-12 px-4 py-4">
+                    <span className="sr-only">
+                      Acções
+                    </span>
                   </th>
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {suppliers.length === 0 ? (
                   <EmptySupplierState
-                    onAdd={() =>
-                      router.push(
-                        "/management/suppliers/new"
-                      )
-                    }
+                    onAdd={handleAddSupplier}
                   />
                 ) : filtered.length === 0 ? (
                   <EmptyFilteredState
@@ -353,7 +357,7 @@ export default function SuppliersClientPage({
         </div>
       </div>
 
-      {/* Supplier Details Modal */}
+      {/* Details modal */}
       {detailsOpen && selectedSupplier && (
         <SupplierDetailsModal
           supplier={selectedSupplier}
@@ -368,10 +372,10 @@ export default function SuppliersClientPage({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Filter button                                                               */
+/* Status filter                                                               */
 /* -------------------------------------------------------------------------- */
 
-interface FilterProps {
+interface StatusFilterProps {
   filtersOpen: boolean;
   setFiltersOpen: (isOpen: boolean) => void;
   statusFilter: "All" | SupplierStatus;
@@ -380,12 +384,14 @@ interface FilterProps {
   ) => void;
 }
 
-function FilterBtn({
+function StatusFilter({
   filtersOpen,
   setFiltersOpen,
   statusFilter,
   setStatusFilter,
-}: FilterProps) {
+}: StatusFilterProps) {
+  const active = statusFilter !== "All";
+
   return (
     <div className="relative">
       <button
@@ -395,31 +401,36 @@ function FilterBtn({
         }
         aria-expanded={filtersOpen}
         aria-haspopup="menu"
-        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-black lg:w-auto"
+        className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition sm:w-auto ${
+          active
+            ? "border-slate-300 bg-slate-50 text-slate-900"
+            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+        }`}
       >
         <Filter size={14} />
 
         Filtros
 
-        {statusFilter !== "All" && (
-          <span className="rounded-full bg-black px-1.5 text-xs text-white">
+        {active && (
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#002950] px-1.5 text-[10px] font-semibold text-white">
             1
           </span>
         )}
 
         <ChevronDown
           size={14}
-          className={`transition-transform ${filtersOpen ? "rotate-180" : ""
-            }`}
+          className={`transition-transform ${
+            filtersOpen ? "rotate-180" : ""
+          }`}
         />
       </button>
 
       {filtersOpen && (
         <div
           role="menu"
-          className="absolute right-0 z-10 mt-2 w-48 rounded-lg border bg-white p-2 shadow-lg"
+          className="absolute right-0 z-30 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
         >
-          <p className="px-2 pb-1 pt-1 text-xs font-medium uppercase text-gray-400">
+          <p className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Estado
           </p>
 
@@ -439,14 +450,22 @@ function FilterBtn({
                 setStatusFilter(status);
                 setFiltersOpen(false);
               }}
-              className={`flex w-full cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-100 ${statusFilter === status
-                  ? "font-medium text-black"
-                  : "text-gray-600"
-                }`}
+              className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-slate-50 ${
+                statusFilter === status
+                  ? "bg-slate-50 font-medium text-slate-900"
+                  : "text-slate-600"
+              }`}
             >
               {status === "All"
                 ? "Todos"
                 : STATUS_LABELS[status]}
+
+              {statusFilter === status && (
+                <CheckCircle2
+                  size={14}
+                  className="text-[#BD9655]"
+                />
+              )}
             </button>
           ))}
         </div>
@@ -471,7 +490,7 @@ function Avatar({ name }: { name: string }) {
       .toUpperCase() || "?";
 
   return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#BD9655] text-xs font-bold text-[#002950]">
       {initials}
     </div>
   );
@@ -489,12 +508,11 @@ function Stars({ count }: { count: number }) {
 
   return (
     <span
-      className="text-slate-700"
+      className="tracking-wide text-slate-700"
       aria-label={`Avaliação ${safeCount} de 5`}
     >
       {"★".repeat(safeCount)}
-
-      <span style={{ color: tokens.line }}>
+      <span className="text-slate-200">
         {"★".repeat(5 - safeCount)}
       </span>
     </span>
@@ -517,7 +535,7 @@ function SupplierRow({
     "Prospective";
 
   return (
-    <tr className="border-b last:border-0 hover:bg-gray-50">
+    <tr className="group transition-colors hover:bg-slate-50/70">
       {/* Supplier */}
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
@@ -525,13 +543,14 @@ function SupplierRow({
             name={supplier.supplier_name ?? ""}
           />
 
-          <div>
-            <p className="font-medium text-gray-900">
-              {supplier.supplier_name}
+          <div className="min-w-0">
+            <p className="truncate font-medium text-slate-900">
+              {supplier.supplier_name ||
+                "Fornecedor sem nome"}
             </p>
 
             {supplier.nif && (
-              <p className="text-xs text-gray-400">
+              <p className="mt-0.5 text-xs text-slate-400">
                 NIF: {supplier.nif}
               </p>
             )}
@@ -541,12 +560,12 @@ function SupplierRow({
 
       {/* Category */}
       <td className="px-6 py-4">
-        <div className="text-sm text-gray-600">
+        <div className="text-sm font-medium text-slate-700">
           {supplier.category || "—"}
         </div>
 
         {supplier.sub_category && (
-          <div className="text-xs text-gray-400">
+          <div className="mt-0.5 text-xs text-slate-400">
             {supplier.sub_category}
           </div>
         )}
@@ -554,12 +573,17 @@ function SupplierRow({
 
       {/* Location */}
       <td className="px-6 py-4">
-        <div className="flex items-center gap-1.5 text-sm text-gray-600">
-          <MapPin size={14} className="text-gray-400" />
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <MapPin
+            size={14}
+            className="shrink-0 text-slate-400"
+          />
 
-          {supplier.city ||
-            supplier.country ||
-            "—"}
+          <span>
+            {supplier.city ||
+              supplier.country ||
+              "—"}
+          </span>
         </div>
       </td>
 
@@ -569,7 +593,7 @@ function SupplierRow({
           <Stars count={supplier.rating ?? 0} />
 
           {supplier.rating !== null && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs font-medium text-slate-500">
               {supplier.rating}/5
             </span>
           )}
@@ -578,44 +602,47 @@ function SupplierRow({
 
       {/* Contact */}
       <td className="px-6 py-4">
-        {supplier.person_of_contact && (
-          <div className="text-sm text-gray-700">
-            {supplier.person_of_contact}
-          </div>
-        )}
+        {supplier.person_of_contact ? (
+          <div>
+            <p className="max-w-[180px] truncate text-sm text-slate-700">
+              {supplier.person_of_contact}
+            </p>
 
-        {supplier.phone_number ? (
-          <div className="text-xs text-gray-400">
-            {supplier.phone_number}
+            {supplier.phone_number && (
+              <p className="mt-0.5 text-xs text-slate-400">
+                {supplier.phone_number}
+              </p>
+            )}
           </div>
+        ) : supplier.phone_number ? (
+          <p className="text-sm text-slate-600">
+            {supplier.phone_number}
+          </p>
         ) : (
-          !supplier.person_of_contact && (
-            <span className="text-sm text-gray-400">
-              —
-            </span>
-          )
+          <span className="text-sm text-slate-400">
+            —
+          </span>
         )}
       </td>
 
       {/* Status */}
       <td className="px-6 py-4">
         <span
-          className={`inline-flex rounded-full px-3 py-1 text-sm ${STATUS_STYLES[status]
-            }`}
+          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[status]}`}
         >
           {STATUS_LABELS[status]}
         </span>
       </td>
 
       {/* Action */}
-      <td className="px-6 py-4">
+      <td className="px-4 py-4">
         <button
           type="button"
           onClick={() => onView(supplier)}
-          className="flex cursor-pointer items-center gap-1 text-sm font-medium text-gray-700 underline-offset-3 hover:underline"
+          aria-label={`Ver ${supplier.supplier_name}`}
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 opacity-0 transition hover:bg-white hover:text-slate-700 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
         >
-          Ver
-          <ArrowUpRight size={14} />
+          <MoreVertical size={16} />
         </button>
       </td>
     </tr>
@@ -633,17 +660,17 @@ function EmptySupplierState({
 }) {
   return (
     <tr>
-      <td colSpan={7} className="px-6 py-16">
+      <td colSpan={7} className="px-6 py-20">
         <div className="flex flex-col items-center justify-center text-center">
-          <div className="mb-4 rounded-full bg-gray-100 p-4">
-            <Building2 className="h-8 w-8 text-gray-400" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+            <Building2 className="h-8 w-8 text-slate-400" />
           </div>
 
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="mt-6 text-lg font-semibold text-slate-900">
             Nenhum fornecedor registado
           </h3>
 
-          <p className="mt-2 max-w-md text-sm text-gray-500">
+          <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
             Adicione o seu primeiro fornecedor para
             começar a gerir fornecedores e desempenho.
           </p>
@@ -651,7 +678,7 @@ function EmptySupplierState({
           <button
             type="button"
             onClick={onAdd}
-            className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#002950] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#002950]/90"
           >
             <Plus size={16} />
             Adicionar fornecedor
@@ -669,17 +696,17 @@ function EmptyFilteredState({
 }) {
   return (
     <tr>
-      <td colSpan={7} className="px-6 py-16">
+      <td colSpan={7} className="px-6 py-20">
         <div className="flex flex-col items-center justify-center text-center">
-          <div className="mb-4 rounded-full bg-gray-100 p-4">
-            <SearchX className="h-8 w-8 text-gray-400" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+            <SearchX className="h-8 w-8 text-slate-400" />
           </div>
 
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="mt-6 text-lg font-semibold text-slate-900">
             Nenhum fornecedor encontrado
           </h3>
 
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-slate-500">
             Tente alterar os filtros ou pesquisar por
             outro fornecedor.
           </p>
@@ -687,7 +714,7 @@ function EmptyFilteredState({
           <button
             type="button"
             onClick={onReset}
-            className="mt-5 cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="mt-6 cursor-pointer rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Limpar filtros
           </button>
@@ -718,31 +745,32 @@ function SupplierDetailsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="supplier-details-title"
     >
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-lg">
-        {/* Header */}
-        <div className="sticky top-0 flex items-center justify-between border-b bg-gray-50 px-6 py-4">
-          <div className="flex items-center gap-3">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        {/* Modal header */}
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-5">
+          <div className="flex min-w-0 items-center gap-3">
             <Avatar
               name={supplier.supplier_name ?? ""}
             />
 
-            <div>
+            <div className="min-w-0">
               <h2
                 id="supplier-details-title"
-                className="text-xl font-bold text-gray-900"
+                className="truncate text-lg font-semibold text-slate-900"
               >
                 {supplier.supplier_name}
               </h2>
 
-              <p className="text-xs text-gray-500">
-                {supplier.category || "Sem categoria"}
+              <p className="truncate text-sm text-slate-500">
+                {supplier.category ||
+                  "Sem categoria"}
                 {supplier.sub_category
-                  ? ` • ${supplier.sub_category}`
+                  ? ` · ${supplier.sub_category}`
                   : ""}
               </p>
             </div>
@@ -752,68 +780,80 @@ function SupplierDetailsModal({
             type="button"
             onClick={onClose}
             aria-label="Fechar detalhes"
-            className="cursor-pointer rounded-lg p-2 hover:bg-gray-200"
+            className="cursor-pointer rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
           >
-            <X size={20} />
+            <X size={19} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="space-y-6 p-6">
-          {/* Status */}
-          <div>
-            <p className="text-xs font-medium uppercase text-gray-500">
-              Estado
-            </p>
+        {/* Modal body */}
+        <div className="max-h-[calc(90vh-145px)] space-y-7 overflow-y-auto p-6">
+          {/* Overview */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                Estado
+              </p>
 
-            <div className="mt-2">
               <span
-                className={`inline-flex rounded-full px-3 py-1 text-sm ${STATUS_STYLES[status]
-                  }`}
+                className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[status]}`}
               >
                 {STATUS_LABELS[status]}
               </span>
             </div>
+
+            <div className="text-right">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                Avaliação
+              </p>
+
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-lg font-semibold text-slate-900">
+                  {rating}/5
+                </span>
+
+                <Stars count={rating} />
+              </div>
+            </div>
           </div>
 
-          {/* Contact information */}
-          <div>
-            <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900">
-              <User size={18} />
+          {/* Contact */}
+          <section>
+            <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <User
+                size={16}
+                className="text-slate-400"
+              />
               Informações de contacto
             </h3>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-5 rounded-xl border border-slate-200 bg-slate-50/60 p-5 sm:grid-cols-2">
               <DetailItem
-                icon={<User size={15} />}
+                icon={<User size={14} />}
                 label="Pessoa de contacto"
-                value={
-                  supplier.person_of_contact
-                }
+                value={supplier.person_of_contact}
               />
 
               <DetailItem
-                icon={<Phone size={15} />}
+                icon={<Phone size={14} />}
                 label="Telefone"
-                value={
-                  supplier.phone_number
-                }
+                value={supplier.phone_number}
               />
 
               <DetailItem
-                icon={<Hash size={15} />}
+                icon={<Hash size={14} />}
                 label="NIF"
                 value={supplier.nif}
               />
 
               <DetailItem
-                icon={<MapPin size={15} />}
+                icon={<MapPin size={14} />}
                 label="Cidade"
                 value={supplier.city}
               />
 
               <DetailItem
-                icon={<MapPin size={15} />}
+                icon={<MapPin size={14} />}
                 label="País"
                 value={supplier.country}
               />
@@ -823,15 +863,15 @@ function SupplierDetailsModal({
                 value={supplier.address_line_1}
               />
             </div>
-          </div>
+          </section>
 
-          {/* Category */}
-          <div>
-            <h3 className="mb-4 font-semibold text-gray-900">
+          {/* Classification */}
+          <section>
+            <h3 className="mb-4 text-sm font-semibold text-slate-900">
               Classificação
             </h3>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-5 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
               <DetailItem
                 label="Categoria"
                 value={supplier.category}
@@ -839,59 +879,56 @@ function SupplierDetailsModal({
 
               <DetailItem
                 label="Subcategoria"
-                value={
-                  supplier.sub_category
-                }
+                value={supplier.sub_category}
               />
             </div>
-          </div>
+          </section>
 
           {/* Rating */}
-          <div>
+          <section>
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 font-semibold text-gray-900">
-                <Award size={18} />
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <Award
+                  size={16}
+                  className="text-slate-400"
+                />
                 Avaliação
               </h3>
 
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-gray-900">
-                  {rating}/5
-                </span>
-
-                <Stars count={rating} />
-              </div>
+              <span className="text-sm font-medium text-slate-700">
+                {rating}/5
+              </span>
             </div>
 
             {supplier.rating === null ? (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
                 Este fornecedor ainda não foi
                 avaliado.
               </div>
             ) : (
-              <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className="h-full bg-slate-900 transition-all"
+                  className="h-full rounded-full bg-[#002950] transition-all"
                   style={{
                     width: `${(rating / 5) * 100}%`,
                   }}
                 />
               </div>
             )}
-          </div>
+          </section>
 
           {/* Tags */}
-          <div>
-            <h3 className="mb-3 font-semibold text-gray-900">
+          <section>
+            <h3 className="mb-3 text-sm font-semibold text-slate-900">
               Tags
             </h3>
 
             <SupplierTags tags={supplier.tags} />
-          </div>
+          </section>
 
           {/* Dates */}
-          <div className="border-t pt-5">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <section className="border-t border-slate-200 pt-5">
+            <div className="grid gap-5 sm:grid-cols-2">
               <DetailItem
                 label="Criado em"
                 value={formatDate(
@@ -906,15 +943,15 @@ function SupplierDetailsModal({
                 )}
               />
             </div>
-          </div>
+          </section>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-3 border-t bg-gray-50 px-6 py-4">
+        {/* Modal footer */}
+        <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
           >
             Fechar
           </button>
@@ -926,7 +963,7 @@ function SupplierDetailsModal({
                 supplier.supplier_id
               )
             }
-            className="cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+            className="cursor-pointer rounded-lg bg-[#002950] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#002950]/90"
           >
             Editar fornecedor
           </button>
@@ -950,13 +987,13 @@ function DetailItem({
   value?: string | null;
 }) {
   return (
-    <div>
-      <p className="flex items-center gap-1.5 text-xs font-medium uppercase text-gray-500">
+    <div className="min-w-0">
+      <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
         {icon}
         {label}
       </p>
 
-      <p className="mt-1 text-sm font-medium text-gray-900">
+      <p className="mt-1.5 break-words text-sm font-medium text-slate-900">
         {value || "Não definido"}
       </p>
     </div>
@@ -974,7 +1011,7 @@ function SupplierTags({
 }) {
   if (!tags) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-slate-500">
         Nenhuma tag definida.
       </p>
     );
@@ -999,7 +1036,7 @@ function SupplierTags({
 
   if (!parsedTags.length) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-slate-500">
         Nenhuma tag definida.
       </p>
     );
@@ -1010,7 +1047,7 @@ function SupplierTags({
       {parsedTags.map((tag) => (
         <span
           key={tag}
-          className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700"
+          className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600"
         >
           {tag}
         </span>
@@ -1023,9 +1060,7 @@ function SupplierTags({
 /* Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
 
-function formatDate(
-  value: string | null
-) {
+function formatDate(value: string | null) {
   if (!value) {
     return "Não definido";
   }
@@ -1035,8 +1070,6 @@ function formatDate(
   }).format(new Date(value));
 }
 
-function routerToEditSupplier(
-  supplierId: string
-) {
+function routerToEditSupplier(supplierId: string) {
   window.location.href = `/management/suppliers/${supplierId}/edit`;
 }

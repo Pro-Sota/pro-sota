@@ -1,5 +1,7 @@
+// src/app/management/projects/[projectId]/documents/[[...folder]]/page.tsx
+
 import { getProjectDocuments, getProjectFolders } from "@/services/documents";
-import DocumentPageClient from "../components/page_client";
+import DocumentInit from "../components/page_client";
 
 interface PageProps {
   params: Promise<{
@@ -18,11 +20,13 @@ export default async function DocumentsPage({
   const { projectId, folder = [] } = await params;
   const { view = "list" } = await searchParams;
 
-  const folders = await getProjectFolders(projectId);
-  const documents = await getProjectDocuments(projectId);
+  const [folders, documents] = await Promise.all([
+    getProjectFolders(projectId),
+    getProjectDocuments(projectId),
+  ]);
 
   return (
-    <DocumentPageClient
+    <DocumentInit
       projectId={projectId}
       folder={folder}
       view={view}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
     Plus,
     Search,
@@ -14,98 +14,113 @@ import {
     Phone,
     MoreVertical,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { StatCard } from "@/app/components/StatCard";
-import { useRouter } from "next/navigation";
 import { Database } from "@/app/lib/supabase/models";
 import CustomSelect from "@/app/components/custom_select";
-import Loader from "@/app/components/loader";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
-export default function TeamPage({ team }: { team: Profile[] }) {
-    const router = useRouter();
-    const [view, setView] = useState<"grid" | "list">("grid");
+type TeamPageProps = {
+    team: Profile[];
+};
 
-    const [teamSize, setTeamSize] = useState(0);
-    const [employees, setEmployees] = useState<Profile[]>([]);
+const statusStyles: Record<string, string> = {
+    Active: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+    Available: "border border-blue-200 bg-blue-50 text-blue-700",
+    Busy: "border border-amber-200 bg-amber-50 text-amber-700",
+    Inactive: "border border-slate-200 bg-slate-100 text-slate-600",
+};
+
+const getInitials = (firstName?: string | null, lastName?: string | null) => {
+    return `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
+};
+
+const getFullName = (
+    firstName?: string | null,
+    lastName?: string | null
+) => {
+    return [firstName, lastName].filter(Boolean).join(" ") || "Sem nome";
+};
+
+const getStatusStyle = (status?: string | null) => {
+    return (
+        statusStyles[status ?? ""] ??
+        "border border-slate-200 bg-slate-100 text-slate-600"
+    );
+};
+
+export default function TeamPage({ team }: TeamPageProps) {
+    const router = useRouter();
+
+    const [view, setView] = useState<"grid" | "list">("grid");
     const [search, setSearch] = useState("");
     const [departmentFilter, setDepartmentFilter] = useState("all");
 
-    useEffect(() => {
-        if (!team) {
-            setEmployees([]);
-            setTeamSize(0);
-        } else {
-            setEmployees(team);
-            setTeamSize(team.length);
-        }
-    }, []);
+    const employees = team ?? [];
 
-    const stats = [
-        {
-            title: "Colaboradores",
-            value: employees.length,
-            icon: Users,
-        },
-        {
-            title: "Arquitectos",
-            value: employees.filter(
-                (employee) => employee.department === "Architecture"
-            ).length,
-            icon: Building2,
-        },
-        {
-            title: "Engenheiros",
-            value: employees.filter(
-                (employee) => employee.department === "Engineering"
-            ).length,
-            icon: HardHat,
-        },
-        {
-            title: "Disponíveis",
-            value: employees.filter(
-                (employee) => employee.status === "Active"
-            ).length,
-            icon: Briefcase,
-        },
-    ];
+    const stats = useMemo(
+        () => [
+            {
+                title: "Colaboradores",
+                value: employees.length,
+                icon: Users,
+            },
+            {
+                title: "Arquitectos",
+                value: employees.filter(
+                    (employee) => employee.department === "Architecture"
+                ).length,
+                icon: Building2,
+            },
+            {
+                title: "Engenheiros",
+                value: employees.filter(
+                    (employee) => employee.department === "Engineering"
+                ).length,
+                icon: HardHat,
+            },
+            {
+                title: "Disponíveis",
+                value: employees.filter(
+                    (employee) =>
+                        employee.status === "Available" ||
+                        employee.status === "Active"
+                ).length,
+                icon: Briefcase,
+            },
+        ],
+        [employees]
+    );
 
-    const statusStyles: Record<string, string> = {
-        Active: "text-[#002950] font-bold border border-[#BD9655]",
-        Available: "bg-slate-200 text-slate-700",
-        Busy: "bg-slate-100 text-slate-500 border border-slate-300",
+    const filteredEmployees = useMemo(() => {
+        const searchTerm = search.trim().toLowerCase();
+
+        return employees.filter((employee) => {
+            const firstName = employee.first_name?.toLowerCase() ?? "";
+            const lastName = employee.last_name?.toLowerCase() ?? "";
+            const email = employee.email?.toLowerCase() ?? "";
+            const department = employee.department?.toLowerCase() ?? "";
+
+            const matchesSearch =
+                !searchTerm ||
+                firstName.includes(searchTerm) ||
+                lastName.includes(searchTerm) ||
+                email.includes(searchTerm) ||
+                department.includes(searchTerm);
+
+            const matchesDepartment =
+                departmentFilter === "all" ||
+                employee.department === departmentFilter;
+
+            return matchesSearch && matchesDepartment;
+        });
+    }, [employees, search, departmentFilter]);
+
+    const handleCreateMember = () => {
+        router.push("/management/team/create-member");
     };
-
-    const initials = (firstName: string, lastName: string) => {
-        const fullName = `${firstName} ${lastName}`;
-        return fullName
-            .split(" ")
-            .map((part) => part[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase();
-    };
-
-    const fullName = (firstName: string, lastName: string) => {
-        return `${firstName} ${lastName}`;
-    }
-
-    const filteredEmployees = employees.filter((employee) => {
-        const searchTerm = search.toLowerCase();
-
-        const matchesSearch =
-            employee.first_name.toLowerCase().includes(searchTerm) ||
-            employee.last_name.toLowerCase().includes(searchTerm) ||
-            employee.email?.toLowerCase().includes(searchTerm) ||
-            employee.department?.toLowerCase().includes(searchTerm);
-
-        const matchesDepartment =
-            departmentFilter === "all" ||
-            employee.department === departmentFilter;
-
-        return matchesSearch && matchesDepartment;
-    });
 
     return (
         <div className="min-h-screen p-6 md:p-10">
@@ -116,23 +131,31 @@ export default function TeamPage({ team }: { team: Profile[] }) {
                         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
                             Team
                         </h1>
+
                         <p className="mt-1 text-slate-500">
-                            Gerir arquitectos, engenheiro e colaboradores da empresa.
+                            Gerir arquitectos, engenheiros e colaboradores da empresa.
                         </p>
                     </div>
 
                     <button
-                        onClick={() => router.push("/management/team/create-member")}
-                        className="cursor-pointer flex items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-5 py-2.5 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 active:bg-slate-950">
+                        type="button"
+                        onClick={handleCreateMember}
+                        className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-5 py-2.5 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 active:scale-[0.98]"
+                    >
                         <Plus size={16} />
-                        Add Colaborador
+                        Adicionar colaborador
                     </button>
                 </div>
 
                 {/* Statistics */}
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     {stats.map((stat) => (
-                        <StatCard key={stat.title} icon={<stat.icon />} title={stat.title} value={`${stat.value}`} />
+                        <StatCard
+                            key={stat.title}
+                            icon={<stat.icon />}
+                            title={stat.title}
+                            value={String(stat.value)}
+                        />
                     ))}
                 </div>
 
@@ -141,51 +164,64 @@ export default function TeamPage({ team }: { team: Profile[] }) {
                     <div className="relative w-full max-w-md">
                         <Search
                             size={16}
+                            aria-hidden="true"
                             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                         />
+
                         <input
+                            type="search"
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search employee..."
-                            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Pesquisar colaborador..."
+                            aria-label="Pesquisar colaborador"
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-900/5"
                         />
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <CustomSelect
                             value={departmentFilter}
-                            onChange={(e) => setDepartmentFilter(e.target.value)}
-                            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-slate-400"
+                            onChange={(event) =>
+                                setDepartmentFilter(event.target.value)
+                            }
+                            aria-label="Filtrar por departamento"
+                            className="w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-slate-400 sm:w-auto"
                         >
                             <option value="all">Todos os departamentos</option>
                             <option value="Architecture">Arquitectura</option>
                             <option value="Engineering">Engenharia</option>
                             <option value="Construction">Construção</option>
                             <option value="IT">IT</option>
-                            <option value="Human Resources">Recursos humanos</option>
+                            <option value="Human Resources">
+                                Recursos humanos
+                            </option>
                         </CustomSelect>
 
                         <div className="flex overflow-hidden rounded-lg border border-slate-200">
                             <button
+                                type="button"
                                 onClick={() => setView("grid")}
-                                aria-label="Grid view"
+                                aria-label="Vista em grelha"
                                 aria-pressed={view === "grid"}
-                                className={`p-2.5 transition cursor-pointer ${view === "grid"
-                                    ? "bg-[#BD9655] text-[#002950]"
-                                    : "bg-white text-slate-500 hover:bg-slate-50"
-                                    }`}
+                                className={`cursor-pointer p-2.5 transition ${
+                                    view === "grid"
+                                        ? "bg-[#002950] text-white"
+                                        : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                                }`}
                             >
                                 <LayoutGrid size={16} />
                             </button>
 
                             <button
+                                type="button"
                                 onClick={() => setView("list")}
-                                aria-label="List view"
+                                aria-label="Vista em lista"
                                 aria-pressed={view === "list"}
-                                className={`cursor-pointer p-2.5 border-l border-[#BD9655] transition ${view === "list"
-                                    ? "bg-[#BD9655] text-[#002950]"
-                                    : "bg-white text-[#002950] hover:bg-[#BD9655/90]"
-                                    }`}
+                                className={`cursor-pointer border-l border-slate-200 p-2.5 transition ${
+                                    view === "list"
+                                        ? "bg-[#002950] text-white"
+                                        : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                                }`}
                             >
                                 <List size={16} />
                             </button>
@@ -193,10 +229,36 @@ export default function TeamPage({ team }: { team: Profile[] }) {
                     </div>
                 </div>
 
+                {/* Results summary */}
+                <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-500">
+                        {filteredEmployees.length}{" "}
+                        {filteredEmployees.length === 1
+                            ? "colaborador"
+                            : "colaboradores"}
+                        {search || departmentFilter !== "all"
+                            ? " encontrados"
+                            : ""}
+                    </p>
+
+                    {(search || departmentFilter !== "all") && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSearch("");
+                                setDepartmentFilter("all");
+                            }}
+                            className="cursor-pointer text-sm font-medium text-slate-600 transition hover:text-slate-900"
+                        >
+                            Limpar filtros
+                        </button>
+                    )}
+                </div>
+
                 {/* Employees */}
                 {filteredEmployees.length === 0 ? (
                     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-8 py-20 text-center">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#002950] text-[#BD9655]">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
                             <Users className="h-8 w-8 text-slate-400" />
                         </div>
 
@@ -204,16 +266,33 @@ export default function TeamPage({ team }: { team: Profile[] }) {
                             Nenhum colaborador encontrado
                         </h3>
 
-                        <p className="mt-2 max-w-md text-sm text-slate-500">
-                            Ainda não existem colaboradores registados. Adicione o primeiro membro da
-                            equipa para começar a gerir arquitectos, engenheiros e restantes
-                            colaboradores.
+                        <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+                            {employees.length === 0
+                                ? "Ainda não existem colaboradores registados. Adicione o primeiro membro da equipa para começar."
+                                : "Nenhum colaborador corresponde aos critérios de pesquisa ou departamento selecionados."}
                         </p>
 
-                        <button className="mt-6 flex cursor-pointer items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800">
-                            <Plus size={16} />
-                            Adicionar colaborador
-                        </button>
+                        {employees.length === 0 ? (
+                            <button
+                                type="button"
+                                onClick={handleCreateMember}
+                                className="mt-6 flex cursor-pointer items-center gap-2 rounded-lg bg-[#002950] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#002950]/90"
+                            >
+                                <Plus size={16} />
+                                Adicionar colaborador
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearch("");
+                                    setDepartmentFilter("all");
+                                }}
+                                className="mt-6 cursor-pointer rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                                Limpar filtros
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <div
@@ -223,120 +302,199 @@ export default function TeamPage({ team }: { team: Profile[] }) {
                                 : "space-y-3"
                         }
                     >
-                        {filteredEmployees.map((employee) =>
-                            view === "grid" ? (
+                        {filteredEmployees.map((employee) => {
+                            const name = getFullName(
+                                employee.first_name,
+                                employee.last_name
+                            );
+
+                            const initials = getInitials(
+                                employee.first_name,
+                                employee.last_name
+                            );
+
+                            const statusStyle = getStatusStyle(employee.status);
+
+                            return view === "grid" ? (
                                 <div
                                     key={employee.profile_id}
-                                    className="group rounded-xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-sm"
+                                    className="group rounded-xl border border-slate-200 bg-white p-5 transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
                                 >
                                     <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#BD9655] text-sm font-medium text-[#002950] font-bold">
-                                                {initials(employee.first_name, employee.last_name)}
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#BD9655] text-sm font-bold text-[#002950]">
+                                                {initials || "?"}
                                             </div>
 
-                                            <div>
-                                                <h3 className="font-medium text-slate-900">
-                                                    {fullName(employee.first_name, employee.last_name)}
+                                            <div className="min-w-0">
+                                                <h3
+                                                    className="truncate font-medium text-slate-900"
+                                                    title={name}
+                                                >
+                                                    {name}
                                                 </h3>
-                                                <p className="text-sm text-slate-500">{employee.department}</p>
+
+                                                <p className="truncate text-sm text-slate-500">
+                                                    {employee.department ||
+                                                        "Departamento não definido"}
+                                                </p>
                                             </div>
                                         </div>
 
                                         <button
-                                            aria-label="More options"
-                                            className="rounded-md p-1 text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-600 group-hover:opacity-100"
+                                            type="button"
+                                            aria-label={`Mais opções para ${name}`}
+                                            className="shrink-0 rounded-md p-1 text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 group-hover:opacity-100"
                                         >
                                             <MoreVertical size={16} />
                                         </button>
                                     </div>
 
                                     <div className="mt-5 space-y-2.5 text-sm text-slate-600">
-                                        <div className="flex items-center gap-2">
-                                            <Building2 size={14} className="text-slate-400" />
-                                            {employee.department}
-                                        </div>
-                                        <div className="flex items-center gap-2 truncate">
-                                            <Mail size={14} className="shrink-0 text-slate-400" />
-                                            <span className="truncate">{employee.email}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Phone size={14} className="text-slate-400" />
-                                            {employee.phone_number}
-                                        </div>
+                                        {employee.department && (
+                                            <div className="flex items-center gap-2">
+                                                <Building2
+                                                    size={14}
+                                                    className="shrink-0 text-slate-400"
+                                                />
+                                                <span className="truncate">
+                                                    {employee.department}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {employee.email && (
+                                            <div className="flex items-center gap-2">
+                                                <Mail
+                                                    size={14}
+                                                    className="shrink-0 text-slate-400"
+                                                />
+                                                <span className="truncate">
+                                                    {employee.email}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {employee.phone_number && (
+                                            <div className="flex items-center gap-2">
+                                                <Phone
+                                                    size={14}
+                                                    className="shrink-0 text-slate-400"
+                                                />
+                                                <span className="truncate">
+                                                    {employee.phone_number}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                                         <div>
-                                            <p className="text-xs text-slate-400">Projects</p>
-                                            <p className="font-medium text-slate-900">
-                                                {[]}
+                                            <p className="text-xs text-slate-400">
+                                                Estado
                                             </p>
+
+                                            <span
+                                                className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusStyle}`}
+                                            >
+                                                {employee.status || "Sem estado"}
+                                            </span>
                                         </div>
 
-                                        <span
-                                            className={`rounded-full px-2.5 py-1 text-xs  ${statusStyles[employee.status ?? ""]
-                                                }`}
-                                        >
-                                            {employee.status}
-                                        </span>
+                                        <div className="text-right">
+                                            <p className="text-xs text-slate-400">
+                                                Projectos
+                                            </p>
+
+                                            <p className="mt-1 font-medium text-slate-900">
+                                                —
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
                                 <div
                                     key={employee.profile_id}
-                                    className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                                    className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 transition duration-200 hover:border-slate-300 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-medium text-white">
-                                            {initials(employee.first_name, employee.last_name)}
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#002950] text-sm font-bold text-white">
+                                            {initials || "?"}
                                         </div>
 
-                                        <div>
-                                            <h3 className="font-medium text-slate-900">
-                                                {fullName(employee.first_name, employee.last_name)}
+                                        <div className="min-w-0">
+                                            <h3
+                                                className="truncate font-medium text-slate-900"
+                                                title={name}
+                                            >
+                                                {name}
                                             </h3>
-                                            <p className="text-sm text-slate-500">
-                                                {employee.department} · {employee.department}
+
+                                            <p className="truncate text-sm text-slate-500">
+                                                {employee.department ||
+                                                    "Departamento não definido"}
                                             </p>
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600 sm:ml-auto">
+                                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-600 sm:ml-auto">
+                                        {employee.email && (
+                                            <div className="flex min-w-0 items-center gap-2">
+                                                <Mail
+                                                    size={14}
+                                                    className="shrink-0 text-slate-400"
+                                                />
+                                                <span className="max-w-[240px] truncate">
+                                                    {employee.email}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {employee.phone_number && (
+                                            <div className="flex items-center gap-2">
+                                                <Phone
+                                                    size={14}
+                                                    className="shrink-0 text-slate-400"
+                                                />
+                                                <span>
+                                                    {employee.phone_number}
+                                                </span>
+                                            </div>
+                                        )}
+
                                         <div className="flex items-center gap-2">
-                                            <Mail size={14} className="text-slate-400" />
-                                            {employee.email}
+                                            <span className="text-slate-400">
+                                                Estado
+                                            </span>
+
+                                            <span
+                                                className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyle}`}
+                                            >
+                                                {employee.status || "Sem estado"}
+                                            </span>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Phone size={14} className="text-slate-400" />
-                                            {employee.phone_number}
-                                        </div>
+
                                         <div className="text-slate-400">
                                             <span className="font-medium text-slate-900">
-                                                {[]}
+                                                —
                                             </span>{" "}
-                                            projects
+                                            projectos
                                         </div>
-                                        <span
-                                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[employee.status ?? ""]
-                                                }`}
-                                        >
-                                            {employee.status}
-                                        </span>
+
                                         <button
-                                            aria-label="More options"
-                                            className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                            type="button"
+                                            aria-label={`Mais opções para ${name}`}
+                                            className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
                                         >
                                             <MoreVertical size={16} />
                                         </button>
                                     </div>
                                 </div>
-                            )
-                        )}
-                    </div>)
-                }
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
-
-    )
+    );
 }

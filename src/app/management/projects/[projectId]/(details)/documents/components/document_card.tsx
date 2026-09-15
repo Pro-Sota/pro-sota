@@ -1,18 +1,37 @@
 import Link from "next/link";
 import { FaFilePdf, FaFileWord } from "react-icons/fa";
 import { IoIosDocument } from "react-icons/io";
+import { Download, ExternalLink, Clock, ArrowUpRight } from "lucide-react";
 import { useMemo } from "react";
 
 import { Database } from "@/app/lib/supabase/models";
 
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 
-// Extract constants
-const ICON_CLASSES = "h-10 w-10 text-slate-600 transition-transform duration-300 group-hover:scale-110";
-const DOCUMENT_ICON_MAP: Record<string, React.ReactNode> = {
-  pdf: <FaFilePdf className={ICON_CLASSES} />,
-  docx: <FaFileWord className={ICON_CLASSES} />,
-  default: <IoIosDocument className={ICON_CLASSES} />,
+const DOCUMENT_ICON_MAP: Record<
+  string,
+  { icon: React.ReactNode; color: string; label: string }
+> = {
+  pdf: {
+    icon: <FaFilePdf className="h-6 w-6" />,
+    color: "bg-red-50 text-red-600",
+    label: "PDF",
+  },
+  docx: {
+    icon: <FaFileWord className="h-6 w-6" />,
+    color: "bg-blue-50 text-blue-600",
+    label: "DOCX",
+  },
+  doc: {
+    icon: <FaFileWord className="h-6 w-6" />,
+    color: "bg-blue-50 text-blue-600",
+    label: "DOC",
+  },
+  default: {
+    icon: <IoIosDocument className="h-6 w-6" />,
+    color: "bg-slate-100 text-slate-600",
+    label: "Document",
+  },
 };
 
 interface DocumentCardProps {
@@ -20,59 +39,113 @@ interface DocumentCardProps {
   onDownload?: (documentName: string) => void;
 }
 
-export default function DocumentCard({ document, onDownload }: DocumentCardProps) {
-  const fileExtension = useMemo(() => {
-    return document.name.split(".").pop()?.toLowerCase() || "default";
-  }, [document.name]);
+function formatDate(dateString: string | null) {
+  if (!dateString) return null;
 
-  const documentIcon = DOCUMENT_ICON_MAP[fileExtension] || DOCUMENT_ICON_MAP.default;
+  const date = new Date(dateString);
+  const now = new Date();
 
-  const handleDownload = () => {
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  });
+}
+
+export default function DocumentCard({
+  document,
+  onDownload,
+}: DocumentCardProps) {
+  const fileExtension = useMemo(
+    () => document.name.split(".").pop()?.toLowerCase() || "default",
+    [document.name]
+  );
+
+  const fileInfo = useMemo(
+    () => DOCUMENT_ICON_MAP[fileExtension] || DOCUMENT_ICON_MAP.default,
+    [fileExtension]
+  );
+
+  const createdDate = useMemo(
+    () => formatDate(document.created_at),
+    [document.created_at]
+  );
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     onDownload?.(document.name);
   };
 
   return (
-    <div
-      className="group relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl"
-      role="article"
+    <article
+      className="group flex h-full min-h-[210px] w-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg"
       aria-label={`Document: ${document.name}`}
     >
-      {/* Background Accent */}
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-500 to-yellow-600" />
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div
+          className={`flex h-12 w-12 items-center justify-center rounded-xl ${fileInfo.color}`}
+          aria-hidden="true"
+        >
+          {fileInfo.icon}
+        </div>
 
-      {/* Icon */}
-      <div
-        className="mb-4 flex h-20 w-20 items-center justify-center rounded-xl bg-slate-50 transition-colors group-hover:bg-slate-100"
-        aria-hidden="true"
-      >
-        {documentIcon}
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors group-hover:bg-slate-100 group-hover:text-slate-700">
+          <ArrowUpRight className="h-4 w-4" />
+        </div>
       </div>
 
-      {/* Title */}
-      <h3 className="mx-2 mb-2 line-clamp-2 text-sm font-semibold text-slate-800">
-        {document.name}
-      </h3>
+      {/* Information */}
+      <div className="mt-5 flex flex-1 flex-col">
+        <span className="mb-1 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+          {fileInfo.label}
+        </span>
 
-      {/* Actions */}
-      <div className="mt-auto flex w-full gap-2 flex-col sm:flex-row">
+        <h3
+          className="line-clamp-2 text-[15px] font-semibold leading-5 text-slate-900"
+          title={document.name}
+        >
+          {document.name}
+        </h3>
+
+        {createdDate && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+            <Clock className="h-3.5 w-3.5" />
+            <span>{createdDate}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3">
         <button
           onClick={handleDownload}
-          className="flex-1 rounded-lg bg-slate-600 px-3 py-2 text-center text-xs font-medium text-white transition hover:bg-slate-700 active:bg-slate-800 sm:px-4 sm:text-sm"
+          className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 text-xs font-medium text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:ring-offset-2 active:scale-[0.98]"
           aria-label={`Download ${document.name}`}
         >
-          Download
+          <Download className="h-3.5 w-3.5" />
+          <span>Download</span>
         </button>
 
         <Link
-          href={""} // Use actual URL from document
+          href=""
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-medium text-slate-600 transition hover:bg-slate-100 sm:px-4 sm:text-sm"
-          aria-label={`Open ${document.name} in new tab`}
+          className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:ring-offset-2 active:scale-[0.98]"
+          aria-label={`Open ${document.name}`}
         >
-          Open
+          <ExternalLink className="h-3.5 w-3.5" />
+          <span>Open</span>
         </Link>
       </div>
-    </div>
+    </article>
   );
 }

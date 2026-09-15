@@ -12,7 +12,7 @@ export function StatCard({
         <span className="rounded-lg bg-gray-100 p-2 text-gray-700">{icon}</span>
       </div>
       <p className="mt-5 text-sm text-gray-500">{title}</p>
-      <h2 className="mt-1 text-3xl font-bold">{value}</h2>
+      <h2 className="mt-1 text-3xl text-[#002950] font-bold">{value}</h2>
     </div>
   );
 }

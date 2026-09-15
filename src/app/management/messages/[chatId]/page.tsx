@@ -344,7 +344,7 @@ export default function ChatPage() {
           const {
             data: profile,
             error:
-              profileError,
+            profileError,
           } =
             await supabase
               .from("profiles")
@@ -366,9 +366,8 @@ export default function ChatPage() {
 
           if (profile) {
             senderName =
-              `${profile.first_name ?? ""} ${
-                profile.last_name ?? ""
-              }`.trim() ||
+              `${profile.first_name ?? ""} ${profile.last_name ?? ""
+                }`.trim() ||
               "Utilizador";
           }
         }
@@ -378,27 +377,27 @@ export default function ChatPage() {
         }
 
         const realtimeMessage: MessageView =
-          {
-            id: newMessage.id,
+        {
+          id: newMessage.id,
 
-            content:
-              newMessage.content ??
-              "",
+          content:
+            newMessage.content ??
+            "",
 
-            senderId:
-              newMessage.sender_id ??
-              "",
+          senderId:
+            newMessage.sender_id ??
+            "",
 
-            senderName,
+          senderName,
 
-            timestamp:
-              newMessage.created_at ??
-              new Date().toISOString(),
+          timestamp:
+            newMessage.created_at ??
+            new Date().toISOString(),
 
-            isOwn:
-              newMessage.sender_id ===
-              currentUserIdRef.current,
-          };
+          isOwn:
+            newMessage.sender_id ===
+            currentUserIdRef.current,
+        };
 
         /*
          * Add the realtime message.
@@ -567,56 +566,154 @@ export default function ChatPage() {
    * MESSAGES
    * --------------------------------------------------
    */
+  /*
+   * --------------------------------------------------
+   * MESSAGE DATE DIVIDER
+   * --------------------------------------------------
+   */
+
+  const getDateKey = (timestamp: string) => {
+    const date = new Date(timestamp);
+
+    return `${date.getFullYear()}-${String(
+      date.getMonth() + 1,
+    ).padStart(2, "0")}-${String(
+      date.getDate(),
+    ).padStart(2, "0")}`;
+  };
+
+  const formatDateDivider = (
+    timestamp: string,
+  ) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+
+    const todayKey = getDateKey(
+      now.toISOString(),
+    );
+
+    const yesterday = new Date(now);
+    yesterday.setDate(
+      yesterday.getDate() - 1,
+    );
+
+    const yesterdayKey = getDateKey(
+      yesterday.toISOString(),
+    );
+
+    const messageDateKey =
+      getDateKey(timestamp);
+
+    if (messageDateKey === todayKey) {
+      return "Hoje";
+    }
+
+    if (
+      messageDateKey === yesterdayKey
+    ) {
+      return "Ontem";
+    }
+
+    return date.toLocaleDateString(
+      "pt-AO",
+      {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      },
+    );
+  };
+
+  /*
+   * --------------------------------------------------
+   * MESSAGES
+   * --------------------------------------------------
+   */
 
   return (
-    <div className="space-y-4 bg-[#F7F7F5]">
+    <div className="h-full space-y-4 overflow-y-auto bg-white p-2">
       {messages.map(
-        (message) => (
-          <div
-            key={message.id}
-            className={`flex ${
-              message.isOwn
-                ? "justify-end"
-                : "justify-start"
-            }`}
-          >
-            <div
-              className={`max-w-xs rounded-lg px-4 py-2 lg:max-w-md xl:max-w-lg ${
-                message.isOwn
-                  ? "rounded-br-none bg-slate-900 text-white"
-                  : "rounded-bl-none bg-slate-200 text-slate-900"
-              }`}
-            >
-              {!message.isOwn && (
-                <p className="mb-1 text-xs font-semibold opacity-75">
-                  {message.senderName}
-                </p>
+        (message, index) => {
+          const previousMessage =
+            messages[index - 1];
+
+          const currentDateKey =
+            getDateKey(
+              message.timestamp,
+            );
+
+          const previousDateKey =
+            previousMessage
+              ? getDateKey(
+                previousMessage.timestamp,
+              )
+              : null;
+
+          const showDateDivider =
+            currentDateKey !==
+            previousDateKey;
+
+          return (
+            <div key={message.id}>
+              {/* Date Divider */}
+              {showDateDivider && (
+                <div className="my-6 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-slate-200" />
+
+                  <span className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-500 shadow-sm">
+                    {formatDateDivider(
+                      message.timestamp,
+                    )}
+                  </span>
+
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
               )}
 
-              <p className="break-words text-sm">
-                {message.content}
-              </p>
-
-              <p
-                className={`mt-1 text-xs ${
-                  message.isOwn
-                    ? "text-slate-300"
-                    : "text-slate-600"
-                }`}
+              {/* Message */}
+              <div
+                className={`flex ${message.isOwn
+                  ? "justify-end"
+                  : "justify-start"
+                  }`}
               >
-                {new Date(
-                  message.timestamp,
-                ).toLocaleTimeString(
-                  "pt-BR",
-                  {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  },
-                )}
-              </p>
+                <div
+                  className={`max-w-xs rounded-lg px-4 py-2 lg:max-w-md xl:max-w-lg ${message.isOwn
+                    ? "rounded-br-none bg-[#002950] text-white"
+                    : "rounded-bl-none bg-[#F1F5F9] text-slate-900"
+                    }`}
+                >
+                  {!message.isOwn && (
+                    <p className="mb-1 text-xs font-semibold opacity-75">
+                      {message.senderName}
+                    </p>
+                  )}
+
+                  <p className="break-words text-sm">
+                    {message.content}
+                  </p>
+
+                  <p
+                    className={`mt-1 text-xs ${message.isOwn
+                      ? "text-slate-300"
+                      : "text-slate-600"
+                      }`}
+                  >
+                    {new Date(
+                      message.timestamp,
+                    ).toLocaleTimeString(
+                      "pt-BR",
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      },
+                    )}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-        ),
+          );
+        },
       )}
 
       <div ref={messagesEndRef} />

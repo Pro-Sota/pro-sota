@@ -6,13 +6,16 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
     Bell,
+    CalendarDays,
     Folder,
     Handshake,
     HomeIcon,
+    ListTodo,
     LucideIcon,
     MessageCircle,
     Sidebar,
     User,
+    UserPlus,
     Users,
     UsersRound,
     WalletCards,
@@ -37,15 +40,27 @@ type Props = {
 
 const menuItems = [
     { name: "Visão geral", href: "/management", icon: HomeIcon },
+
+    { name: "Leads", href: "/management/leads", icon: UserPlus },
+
     { name: "Projectos", href: "/management/projects", icon: Folder },
+
+    { name: "Tarefas", href: "/management/tasks", icon: ListTodo },
+
+    { name: "Calendário", href: "/management/calendar", icon: CalendarDays },
+
     { name: "Mensagens", href: "/management/messages", icon: MessageCircle },
+
     { name: "Clientes", href: "/management/clients", icon: Users },
+
     { name: "Equipa Sota", href: "/management/team", icon: UsersRound },
+
     {
         name: "Recursos de obra",
         href: "/management/work-resources",
         icon: WalletCards,
     },
+
     {
         name: "Fornecedores",
         href: "/management/suppliers",
