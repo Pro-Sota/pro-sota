@@ -289,7 +289,7 @@ export default function Team({
                                 onClick={() =>
                                     setAddMemberOpen(true)
                                 }
-                                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-gradient-to-r from-slate-600 to-slate-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg transition hover:from-slate-700 hover:to-slate-800 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2.5 text-sm font-medium text-[#002950] shadow-lg transition hover:bg-[#BD9655]/90 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
                             >
                                 <UserPlus size={18} />
 
