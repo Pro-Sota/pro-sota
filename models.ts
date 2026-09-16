@@ -79,13 +79,6 @@ export type Database = {
             referencedColumns: ["project_id"]
           },
           {
-            foreignKeyName: "activities_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["task_id"]
-          },
-          {
             foreignKeyName: "activities_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -1020,10 +1013,45 @@ export type Database = {
           },
         ]
       }
+      supplier_projects: {
+        Row: {
+          created_at: string
+          project_id: string
+          supplier_id: string
+          supplier_project_id: string
+        }
+        Insert: {
+          created_at?: string
+          project_id: string
+          supplier_id: string
+          supplier_project_id?: string
+        }
+        Update: {
+          created_at?: string
+          project_id?: string
+          supplier_id?: string
+          supplier_project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "supplier_projects_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           address_line_1: string | null
-          address_line_2: string | null
           category: string | null
           city: string | null
           country: string | null
@@ -1031,18 +1059,16 @@ export type Database = {
           nif: string | null
           person_of_contact: string | null
           phone_number: string | null
-          projects: number | null
           rating: number | null
-          status: string | null
+          status: string
           sub_category: string | null
           supplier_id: string
-          supplier_name: string | null
-          tags: Json[] | null
-          updated_at: string | null
+          supplier_name: string
+          tags: Json | null
+          updated_at: string
         }
         Insert: {
           address_line_1?: string | null
-          address_line_2?: string | null
           category?: string | null
           city?: string | null
           country?: string | null
@@ -1050,18 +1076,16 @@ export type Database = {
           nif?: string | null
           person_of_contact?: string | null
           phone_number?: string | null
-          projects?: number | null
           rating?: number | null
-          status?: string | null
+          status?: string
           sub_category?: string | null
           supplier_id?: string
-          supplier_name?: string | null
-          tags?: Json[] | null
-          updated_at?: string | null
+          supplier_name: string
+          tags?: Json | null
+          updated_at?: string
         }
         Update: {
           address_line_1?: string | null
-          address_line_2?: string | null
           category?: string | null
           city?: string | null
           country?: string | null
@@ -1069,59 +1093,99 @@ export type Database = {
           nif?: string | null
           person_of_contact?: string | null
           phone_number?: string | null
-          projects?: number | null
           rating?: number | null
-          status?: string | null
+          status?: string
           sub_category?: string | null
           supplier_id?: string
-          supplier_name?: string | null
-          tags?: Json[] | null
-          updated_at?: string | null
+          supplier_name?: string
+          tags?: Json | null
+          updated_at?: string
         }
         Relationships: []
+      }
+      task_columns: {
+        Row: {
+          column_id: string
+          created_at: string
+          is_completed: boolean
+          name: string
+          position: number
+          project_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          column_id?: string
+          created_at?: string
+          is_completed?: boolean
+          name: string
+          position?: number
+          project_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          column_id?: string
+          created_at?: string
+          is_completed?: boolean
+          name?: string
+          position?: number
+          project_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_columns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+        ]
       }
       tasks: {
         Row: {
           actual_hours: number | null
-          assigned_to: string
+          assigned_to: string | null
+          column_id: string | null
           created_at: string
           description: string | null
           due_date: string | null
           estimated_hours: number | null
+          position: number
           priority: string
           project_id: string | null
           start_date: string | null
-          status: string
           task_id: string
           title: string
           updated_at: string
         }
         Insert: {
           actual_hours?: number | null
-          assigned_to: string
+          assigned_to?: string | null
+          column_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
           estimated_hours?: number | null
+          position?: number
           priority?: string
           project_id?: string | null
           start_date?: string | null
-          status?: string
           task_id?: string
           title: string
           updated_at?: string
         }
         Update: {
           actual_hours?: number | null
-          assigned_to?: string
+          assigned_to?: string | null
+          column_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
           estimated_hours?: number | null
+          position?: number
           priority?: string
           project_id?: string | null
           start_date?: string | null
-          status?: string
           task_id?: string
           title?: string
           updated_at?: string
@@ -1133,6 +1197,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "tasks_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "task_columns"
+            referencedColumns: ["column_id"]
+          },
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
           },
         ]
       }

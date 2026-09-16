@@ -13,6 +13,10 @@ import {
     Mail,
     Phone,
     MoreVertical,
+    UserRound,
+    Pencil,
+    FolderKanban,
+    Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -26,14 +30,10 @@ type TeamPageProps = {
     team: Profile[];
 };
 
-const statusStyles: Record<string, string> = {
-    Active: "border border-emerald-200 bg-emerald-50 text-emerald-700",
-    Available: "border border-blue-200 bg-blue-50 text-blue-700",
-    Busy: "border border-amber-200 bg-amber-50 text-amber-700",
-    Inactive: "border border-slate-200 bg-slate-100 text-slate-600",
-};
-
-const getInitials = (firstName?: string | null, lastName?: string | null) => {
+const getInitials = (
+    firstName?: string | null,
+    lastName?: string | null
+) => {
     return `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
 };
 
@@ -44,19 +44,13 @@ const getFullName = (
     return [firstName, lastName].filter(Boolean).join(" ") || "Sem nome";
 };
 
-const getStatusStyle = (status?: string | null) => {
-    return (
-        statusStyles[status ?? ""] ??
-        "border border-slate-200 bg-slate-100 text-slate-600"
-    );
-};
-
 export default function TeamPage({ team }: TeamPageProps) {
     const router = useRouter();
 
     const [view, setView] = useState<"grid" | "list">("grid");
     const [search, setSearch] = useState("");
     const [departmentFilter, setDepartmentFilter] = useState("all");
+    const [openMenu, setOpenMenu] = useState<string | null>(null);
 
     const employees = team ?? [];
 
@@ -82,12 +76,12 @@ export default function TeamPage({ team }: TeamPageProps) {
                 icon: HardHat,
             },
             {
-                title: "Disponíveis",
-                value: employees.filter(
-                    (employee) =>
-                        employee.status === "Available" ||
-                        employee.status === "Active"
-                ).length,
+                title: "Departamentos",
+                value: new Set(
+                    employees
+                        .map((employee) => employee.department)
+                        .filter(Boolean)
+                ).size,
                 icon: Briefcase,
             },
         ],
@@ -122,8 +116,33 @@ export default function TeamPage({ team }: TeamPageProps) {
         router.push("/management/team/create-member");
     };
 
+    const handleViewProfile = (profileId: string) => {
+        setOpenMenu(null);
+        router.push(`/management/team/${profileId}`);
+    };
+
+    const handleEditMember = (profileId: string) => {
+        setOpenMenu(null);
+        router.push(`/management/team/${profileId}/edit`);
+    };
+
+    const handleViewProjects = (profileId: string) => {
+        setOpenMenu(null);
+        router.push(`/management/team/${profileId}/projects`);
+    };
+
+    const handleDeleteMember = (profileId: string) => {
+        setOpenMenu(null);
+
+        // Connect this to your delete service when ready.
+        console.log("Delete collaborator:", profileId);
+    };
+
     return (
-        <div className="min-h-screen p-6 md:p-10">
+        <div
+            className="min-h-screen p-6 md:p-10"
+            onClick={() => setOpenMenu(null)}
+        >
             <div className="mx-auto max-w-7xl space-y-6">
                 {/* Header */}
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -133,7 +152,8 @@ export default function TeamPage({ team }: TeamPageProps) {
                         </h1>
 
                         <p className="mt-1 text-slate-500">
-                            Gerir arquitectos, engenheiros e colaboradores da empresa.
+                            Gerir arquitectos, engenheiros e colaboradores da
+                            empresa.
                         </p>
                     </div>
 
@@ -187,8 +207,12 @@ export default function TeamPage({ team }: TeamPageProps) {
                             aria-label="Filtrar por departamento"
                             className="w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-slate-400 sm:w-auto"
                         >
-                            <option value="all">Todos os departamentos</option>
-                            <option value="Architecture">Arquitectura</option>
+                            <option value="all">
+                                Todos os departamentos
+                            </option>
+                            <option value="Architecture">
+                                Arquitectura
+                            </option>
                             <option value="Engineering">Engenharia</option>
                             <option value="Construction">Construção</option>
                             <option value="IT">IT</option>
@@ -203,11 +227,10 @@ export default function TeamPage({ team }: TeamPageProps) {
                                 onClick={() => setView("grid")}
                                 aria-label="Vista em grelha"
                                 aria-pressed={view === "grid"}
-                                className={`cursor-pointer p-2.5 transition ${
-                                    view === "grid"
-                                        ? "bg-[#002950] text-white"
-                                        : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                                }`}
+                                className={`cursor-pointer p-2.5 transition ${view === "grid"
+                                    ? "bg-[#002950] text-white"
+                                    : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                                    }`}
                             >
                                 <LayoutGrid size={16} />
                             </button>
@@ -217,11 +240,10 @@ export default function TeamPage({ team }: TeamPageProps) {
                                 onClick={() => setView("list")}
                                 aria-label="Vista em lista"
                                 aria-pressed={view === "list"}
-                                className={`cursor-pointer border-l border-slate-200 p-2.5 transition ${
-                                    view === "list"
-                                        ? "bg-[#002950] text-white"
-                                        : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                                }`}
+                                className={`cursor-pointer border-l border-slate-200 p-2.5 transition ${view === "list"
+                                    ? "bg-[#002950] text-white"
+                                    : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                                    }`}
                             >
                                 <List size={16} />
                             </button>
@@ -313,13 +335,15 @@ export default function TeamPage({ team }: TeamPageProps) {
                                 employee.last_name
                             );
 
-                            const statusStyle = getStatusStyle(employee.status);
+                            const isMenuOpen =
+                                openMenu === employee.profile_id;
 
                             return view === "grid" ? (
                                 <div
                                     key={employee.profile_id}
-                                    className="group rounded-xl border border-slate-200 bg-white p-5 transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                                    className="group relative rounded-xl border border-slate-200 bg-white p-5 transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
                                 >
+                                    {/* Card header */}
                                     <div className="flex items-start justify-between">
                                         <div className="flex min-w-0 items-center gap-3">
                                             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#BD9655] text-sm font-bold text-[#002950]">
@@ -341,28 +365,106 @@ export default function TeamPage({ team }: TeamPageProps) {
                                             </div>
                                         </div>
 
-                                        <button
-                                            type="button"
-                                            aria-label={`Mais opções para ${name}`}
-                                            className="shrink-0 rounded-md p-1 text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-900/10 group-hover:opacity-100"
-                                        >
-                                            <MoreVertical size={16} />
-                                        </button>
+                                        {/* More options */}
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                aria-label={`Mais opções para ${name}`}
+                                                aria-expanded={isMenuOpen}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+
+                                                    setOpenMenu((current) =>
+                                                        current ===
+                                                            employee.profile_id
+                                                            ? null
+                                                            : employee.profile_id
+                                                    );
+                                                }}
+                                                className={`shrink-0 cursor-pointer rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${isMenuOpen
+                                                    ? "bg-slate-100 text-slate-600 opacity-100"
+                                                    : "opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                    }`}
+                                            >
+                                                <MoreVertical size={17} />
+                                            </button>
+
+                                            {isMenuOpen && (
+                                                <div
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
+                                                    }
+                                                    className="absolute right-0 top-9 z-50 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleViewProfile(
+                                                                employee.profile_id
+                                                            )
+                                                        }
+                                                        className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                    >
+                                                        <UserRound
+                                                            size={15}
+                                                            className="text-slate-400"
+                                                        />
+                                                        Ver perfil
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleEditMember(
+                                                                employee.profile_id
+                                                            )
+                                                        }
+                                                        className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                    >
+                                                        <Pencil
+                                                            size={15}
+                                                            className="text-slate-400"
+                                                        />
+                                                        Editar colaborador
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleViewProjects(
+                                                                employee.profile_id
+                                                            )
+                                                        }
+                                                        className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                    >
+                                                        <FolderKanban
+                                                            size={15}
+                                                            className="text-slate-400"
+                                                        />
+                                                        Ver projectos
+                                                    </button>
+
+                                                    <div className="my-1 border-t border-slate-100" />
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleDeleteMember(
+                                                                employee.profile_id
+                                                            )
+                                                        }
+                                                        className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50"
+                                                    >
+                                                        <Trash2 size={15} />
+                                                        Eliminar colaborador
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
+                                    {/* Contact details */}
                                     <div className="mt-5 space-y-2.5 text-sm text-slate-600">
-                                        {employee.department && (
-                                            <div className="flex items-center gap-2">
-                                                <Building2
-                                                    size={14}
-                                                    className="shrink-0 text-slate-400"
-                                                />
-                                                <span className="truncate">
-                                                    {employee.department}
-                                                </span>
-                                            </div>
-                                        )}
-
                                         {employee.email && (
                                             <div className="flex items-center gap-2">
                                                 <Mail
@@ -388,19 +490,8 @@ export default function TeamPage({ team }: TeamPageProps) {
                                         )}
                                     </div>
 
-                                    <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-                                        <div>
-                                            <p className="text-xs text-slate-400">
-                                                Estado
-                                            </p>
-
-                                            <span
-                                                className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusStyle}`}
-                                            >
-                                                {employee.status || "Sem estado"}
-                                            </span>
-                                        </div>
-
+                                    {/* Projects */}
+                                    <div className="mt-5 flex items-center justify-end border-t border-slate-100 pt-4">
                                         <div className="text-right">
                                             <p className="text-xs text-slate-400">
                                                 Projectos
@@ -415,7 +506,7 @@ export default function TeamPage({ team }: TeamPageProps) {
                             ) : (
                                 <div
                                     key={employee.profile_id}
-                                    className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 transition duration-200 hover:border-slate-300 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                                    className="group relative flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 transition duration-200 hover:border-slate-300 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
                                 >
                                     <div className="flex min-w-0 items-center gap-3">
                                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#002950] text-sm font-bold text-white">
@@ -462,18 +553,6 @@ export default function TeamPage({ team }: TeamPageProps) {
                                             </div>
                                         )}
 
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-slate-400">
-                                                Estado
-                                            </span>
-
-                                            <span
-                                                className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyle}`}
-                                            >
-                                                {employee.status || "Sem estado"}
-                                            </span>
-                                        </div>
-
                                         <div className="text-slate-400">
                                             <span className="font-medium text-slate-900">
                                                 —
@@ -481,13 +560,102 @@ export default function TeamPage({ team }: TeamPageProps) {
                                             projectos
                                         </div>
 
-                                        <button
-                                            type="button"
-                                            aria-label={`Mais opções para ${name}`}
-                                            className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                                        >
-                                            <MoreVertical size={16} />
-                                        </button>
+                                        {/* More options */}
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                aria-label={`Mais opções para ${name}`}
+                                                aria-expanded={isMenuOpen}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+
+                                                    setOpenMenu((current) =>
+                                                        current ===
+                                                            employee.profile_id
+                                                            ? null
+                                                            : employee.profile_id
+                                                    );
+                                                }}
+                                                className={`cursor-pointer rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${isMenuOpen
+                                                    ? "bg-slate-100 text-slate-600"
+                                                    : ""
+                                                    }`}
+                                            >
+                                                <MoreVertical size={17} />
+                                            </button>
+
+                                            {isMenuOpen && (
+                                                <div
+                                                    onClick={(event) =>
+                                                        event.stopPropagation()
+                                                    }
+                                                    className="absolute right-0 top-9 z-50 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleViewProfile(
+                                                                employee.profile_id
+                                                            )
+                                                        }
+                                                        className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                    >
+                                                        <UserRound
+                                                            size={15}
+                                                            className="text-slate-400"
+                                                        />
+                                                        Ver perfil
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleEditMember(
+                                                                employee.profile_id
+                                                            )
+                                                        }
+                                                        className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                    >
+                                                        <Pencil
+                                                            size={15}
+                                                            className="text-slate-400"
+                                                        />
+                                                        Editar colaborador
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleViewProjects(
+                                                                employee.profile_id
+                                                            )
+                                                        }
+                                                        className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                    >
+                                                        <FolderKanban
+                                                            size={15}
+                                                            className="text-slate-400"
+                                                        />
+                                                        Ver projectos
+                                                    </button>
+
+                                                    <div className="my-1 border-t border-slate-100" />
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleDeleteMember(
+                                                                employee.profile_id
+                                                            )
+                                                        }
+                                                        className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50"
+                                                    >
+                                                        <Trash2 size={15} />
+                                                        Eliminar colaborador
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             );

@@ -456,8 +456,12 @@ export default function KanbanBoard() {
       const newTask = await createTask({
         projectId,
         title: value,
-        status: columnId,
       });
+
+      if (newTask.columnId !== columnId) {
+        await moveTask(newTask.id, columnId);
+        newTask.columnId = columnId;
+      }
 
       setTasks((previous) => [...previous, newTask]);
 
@@ -615,7 +619,6 @@ export default function KanbanBoard() {
       await updateTask(taskId, {
         title: task.title,
         description: task.description,
-        status: task.columnId,
         dueDate: task.dueDate,
         priority: task.labels?.[0], // Store first label as priority
       });

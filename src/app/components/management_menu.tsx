@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
     Bell,
     CalendarDays,
+    Clock3,
     Folder,
     Handshake,
     HomeIcon,
@@ -53,7 +54,13 @@ const menuItems = [
 
     { name: "Clientes", href: "/management/clients", icon: Users },
 
-    { name: "Equipa Sota", href: "/management/team", icon: UsersRound },
+    { name: "Equipa", href: "/management/team", icon: UsersRound },
+
+    {
+        name: "Presença",
+        href: "/management/attendance",
+        icon: Clock3,
+    },
 
     {
         name: "Recursos de obra",

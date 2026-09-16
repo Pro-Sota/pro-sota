@@ -16,8 +16,10 @@ import {
 } from "lucide-react";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { Database } from "../lib/supabase/models";
+import CreateMeetingModal from "../components/create_meeting_modal";
 
 function EmptyState({
   icon: Icon,
@@ -80,6 +82,7 @@ interface DashboardProps {
 
 export default function Dashboard({ data }: DashboardProps) {
   const router = useRouter();
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
 
   const projects = data.projects;
   const clients = data.clients;
@@ -132,15 +135,15 @@ export default function Dashboard({ data }: DashboardProps) {
       variant: "secondary" as const,
     },
     {
-      label: "Carregar Documento",
-      icon: Upload,
-      href: "/management/documents/upload",
+      label: "Adicionar colaborador",
+      icon: UserPlus,
+      href: "/management/team/create-member",
       variant: "secondary" as const,
     },
     {
       label: "Agendar Reunião",
       icon: CalendarPlus,
-      href: "/management/calendar/schedule",
+      href: "",
       variant: "secondary" as const,
     },
   ];
@@ -170,12 +173,18 @@ export default function Dashboard({ data }: DashboardProps) {
             {quickActions.map((action) => (
               <button
                 key={action.label}
-                onClick={() => router.push(action.href)}
-                className={`group cursor-pointer flex flex-col items-start gap-2 rounded-lg px-4 py-3.5 text-md font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-900 ${
-                  action.variant === "primary"
-                    ? "bg-[#BD9655] text-[#002950] font-medium hover:bg-[#C8A66E] active:bg-gray-950"
-                    : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100"
-                }`}
+                onClick={() => {
+                  if (action.label === "Agendar Reunião") {
+                    setIsMeetingModalOpen(true);
+                    return;
+                  }
+
+                  router.push(action.href);
+                }}
+                className={`group cursor-pointer flex flex-col items-start gap-2 rounded-lg px-4 py-3.5 text-md font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-900 ${action.variant === "primary"
+                  ? "bg-[#BD9655] text-[#002950] font-medium hover:bg-[#C8A66E] active:bg-gray-950"
+                  : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100"
+                  }`}
               >
                 <action.icon className="h-4 w-4" />
                 <span className="text-xs sm:text-sm">{action.label}</span>
@@ -360,12 +369,12 @@ export default function Dashboard({ data }: DashboardProps) {
                                 <div className="mt-1 font-medium text-gray-700">
                                   {proj.end_date
                                     ? new Date(
-                                        proj.end_date,
-                                      ).toLocaleDateString("pt-PT", {
-                                        day: "2-digit",
-                                        month: "short",
-                                        year: "numeric",
-                                      })
+                                      proj.end_date,
+                                    ).toLocaleDateString("pt-PT", {
+                                      day: "2-digit",
+                                      month: "short",
+                                      year: "numeric",
+                                    })
                                     : "—"}
                                 </div>
                               </td>
@@ -415,10 +424,10 @@ export default function Dashboard({ data }: DashboardProps) {
                           <p className="mt-1 text-xs font-medium text-gray-400">
                             {item.due_date
                               ? new Date(item.due_date).toLocaleDateString("pt-PT", {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                })
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })
                               : "Sem data"}
                           </p>
                         </div>
@@ -443,6 +452,10 @@ export default function Dashboard({ data }: DashboardProps) {
           </div>
         </div>
       </div>
+      <CreateMeetingModal
+        open={isMeetingModalOpen}
+        onClose={() => setIsMeetingModalOpen(false)}
+      />
     </div>
   );
 }
@@ -505,12 +518,12 @@ function RecentActivitiesSection({ activities }: { activities: Activity[] }) {
                     <p className="mt-1 text-xs text-gray-400">
                       {activity.created_at
                         ? new Date(activity.created_at).toLocaleDateString("pt-PT", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
                         : ""}
                     </p>
                   </div>
@@ -695,10 +708,10 @@ function RecentDocumentsSection({ documents }: { documents: Document[] }) {
                   <p className="mt-1 text-xs text-gray-400">
                     {doc.created_at
                       ? new Date(doc.created_at).toLocaleDateString("pt-PT", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
                       : ""}
                   </p>
                 </div>

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import {
     ArrowDownUp,
     Building2,
-    ChevronDown,
+        ChevronDown,
     DollarSign,
     Ellipsis,
     Filter,
@@ -376,11 +376,10 @@ export default function LeadsInit() {
                                 onClick={() =>
                                     setShowFilters((value) => !value)
                                 }
-                                className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition sm:flex-none ${
-                                    showFilters
+                                className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition sm:flex-none ${showFilters
                                         ? "border-neutral-950 bg-neutral-950 text-white"
                                         : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
-                                }`}
+                                    }`}
                             >
                                 <Filter className="h-4 w-4" />
                                 Filtros
@@ -412,11 +411,10 @@ export default function LeadsInit() {
                                         onClick={() =>
                                             setActivePriority(priority)
                                         }
-                                        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                                            activePriority === priority
+                                        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${activePriority === priority
                                                 ? "bg-neutral-950 text-white"
                                                 : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-                                        }`}
+                                            }`}
                                     >
                                         {priority === "all"
                                             ? "Todas"
