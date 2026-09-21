@@ -50,3 +50,21 @@ export async function getAllUsers() {
     return data ?? [];
 }
 
+export async function getSession() {
+  try {
+     const cookieStore = await cookies();
+    const supabase = createClient(cookieStore);
+
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+
+    if (error) throw error;
+
+    return {session};
+  } catch (error) {
+    console.error("Get session error:", error);
+    throw error;
+  }
+}

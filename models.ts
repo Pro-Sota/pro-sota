@@ -414,6 +414,62 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          budget: number | null
+          company: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          lead_id: string
+          location: string | null
+          name: string
+          phone: string | null
+          project_name: string
+          project_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          budget?: number | null
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          lead_id?: string
+          location?: string | null
+          name: string
+          phone?: string | null
+          project_name: string
+          project_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          budget?: number | null
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          lead_id?: string
+          location?: string | null
+          name?: string
+          phone?: string | null
+          project_name?: string
+          project_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string

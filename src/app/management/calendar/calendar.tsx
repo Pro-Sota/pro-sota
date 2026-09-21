@@ -7,29 +7,32 @@ import {
     ChevronRight,
     Clock3,
     Filter,
-    MapPin,
     Plus,
     Search,
-    Users,
     X,
 } from "lucide-react";
 
-type EventType =
+export type EventType =
     | "project"
     | "task"
     | "meeting"
     | "site_visit"
     | "deadline";
 
-type CalendarEvent = {
-    id: number;
+export type CalendarEvent = {
+    id: string;
     title: string;
     date: string;
     time: string;
     type: EventType;
-    project?: string;
-    location?: string;
-    people?: string;
+    project?: string | null;
+    location?: string | null;
+    people?: string | null;
+};
+
+type CalendarPageInitProps = {
+    events: CalendarEvent[];
+    todayKey: string;
 };
 
 const eventStyles: Record<
@@ -58,59 +61,6 @@ const eventStyles: Record<
     },
 };
 
-const events: CalendarEvent[] = [
-    {
-        id: 1,
-        title: "Reunião com cliente",
-        date: "2026-09-15",
-        time: "09:00",
-        type: "meeting",
-        project: "Villa Talatona",
-        people: "3 participantes",
-    },
-    {
-        id: 2,
-        title: "Visita à obra",
-        date: "2026-09-15",
-        time: "11:30",
-        type: "site_visit",
-        project: "Residencial Kilamba",
-        location: "Kilamba, Luanda",
-    },
-    {
-        id: 3,
-        title: "Entrega de plantas",
-        date: "2026-09-16",
-        time: "14:00",
-        type: "deadline",
-        project: "Casa Miramar",
-    },
-    {
-        id: 4,
-        title: "Revisão de projecto",
-        date: "2026-09-17",
-        time: "10:00",
-        type: "project",
-        project: "Edifício Maianga",
-    },
-    {
-        id: 5,
-        title: "Orçamento final",
-        date: "2026-09-18",
-        time: "16:00",
-        type: "task",
-        project: "Villa Talatona",
-    },
-    {
-        id: 6,
-        title: "Reunião da equipa",
-        date: "2026-09-21",
-        time: "08:30",
-        type: "meeting",
-        people: "8 participantes",
-    },
-];
-
 const weekDays = [
     "Seg",
     "Ter",
@@ -129,6 +79,10 @@ function formatDateKey(date: Date) {
     return `${year}-${month}-${day}`;
 }
 
+function parseDateKey(dateKey: string) {
+    return new Date(`${dateKey}T12:00:00`);
+}
+
 function getCalendarDays(date: Date) {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -137,39 +91,69 @@ function getCalendarDays(date: Date) {
     const lastDay = new Date(year, month + 1, 0);
 
     let startDay = firstDay.getDay();
+
+    // Convert Sunday = 0 to Monday-first calendar.
     startDay = startDay === 0 ? 6 : startDay - 1;
 
     const totalDays = lastDay.getDate();
     const days: Date[] = [];
 
+    // Previous month days.
     for (let i = 0; i < startDay; i++) {
-        days.push(new Date(year, month, -startDay + i + 1));
+        days.push(
+            new Date(
+                year,
+                month,
+                -startDay + i + 1,
+            ),
+        );
     }
 
+    // Current month days.
     for (let day = 1; day <= totalDays; day++) {
         days.push(new Date(year, month, day));
     }
 
-    while (days.length < 52) {
-        const nextDay = days.length - startDay - totalDays + 1;
-        days.push(new Date(year, month + 1, nextDay));
+    // Next month days.
+    while (days.length < 42) {
+        const nextDay =
+            days.length - startDay - totalDays + 1;
+
+        days.push(
+            new Date(
+                year,
+                month + 1,
+                nextDay,
+            ),
+        );
     }
 
     return days;
 }
 
-export default function CalendarPageInit() {
-    const today = new Date(2026, 8, 15);
+export default function CalendarPageInit({
+    events,
+    todayKey,
+}: CalendarPageInitProps) {
+    const today = useMemo(
+        () => parseDateKey(todayKey),
+        [todayKey],
+    );
 
     const [currentDate, setCurrentDate] = useState(
-        new Date(today.getFullYear(), today.getMonth(), 1),
+        new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            1,
+        ),
     );
 
-    const [selectedDate, setSelectedDate] = useState(formatDateKey(today));
+    const [selectedDate, setSelectedDate] =
+        useState<string>(todayKey);
 
-    const [activeFilter, setActiveFilter] = useState<EventType | "all">(
-        "all",
-    );
+    const [activeFilter, setActiveFilter] = useState<
+        EventType | "all"
+    >("all");
 
     const [search, setSearch] = useState("");
 
@@ -179,33 +163,145 @@ export default function CalendarPageInit() {
     );
 
     const filteredEvents = useMemo(() => {
+        const searchValue = search.trim().toLowerCase();
+
         return events.filter((event) => {
             const matchesFilter =
-                activeFilter === "all" || event.type === activeFilter;
+                activeFilter === "all" ||
+                event.type === activeFilter;
 
-            const searchValue = search.toLowerCase();
+            if (!matchesFilter) {
+                return false;
+            }
 
-            const matchesSearch =
-                !searchValue ||
-                event.title.toLowerCase().includes(searchValue) ||
-                event.project?.toLowerCase().includes(searchValue);
+            if (!searchValue) {
+                return true;
+            }
 
-            return matchesFilter && matchesSearch;
+            return (
+                event.title
+                    .toLowerCase()
+                    .includes(searchValue) ||
+                event.project
+                    ?.toLowerCase()
+                    .includes(searchValue) ||
+                event.location
+                    ?.toLowerCase()
+                    .includes(searchValue)
+            );
         });
-    }, [activeFilter, search]);
+    }, [events, activeFilter, search]);
 
-    const selectedEvents = filteredEvents.filter(
-        (event) => event.date === selectedDate,
+    const selectedEvents = useMemo(
+        () =>
+            filteredEvents.filter(
+                (event) => event.date === selectedDate,
+            ),
+        [filteredEvents, selectedDate],
     );
 
-    const upcomingEvents = [...filteredEvents]
-        .filter((event) => event.date >= formatDateKey(today))
-        .sort((a, b) => {
-            return `${a.date}${a.time}`.localeCompare(
-                `${b.date}${b.time}`,
-            );
-        })
-        .slice(0, 5);
+    const monthEvents = useMemo(() => {
+        const year = currentDate.getFullYear();
+        const month = String(
+            currentDate.getMonth() + 1,
+        ).padStart(2, "0");
+
+        const prefix = `${year}-${month}`;
+
+        return events.filter((event) =>
+            event.date.startsWith(prefix),
+        );
+    }, [events, currentDate]);
+
+    const todayEvents = useMemo(
+        () =>
+            events.filter(
+                (event) => event.date === todayKey,
+            ),
+        [events, todayKey],
+    );
+
+    const nextSevenDaysKey = useMemo(() => {
+        const date = new Date(today);
+        date.setDate(date.getDate() + 7);
+
+        return formatDateKey(date);
+    }, [today]);
+
+    const nextSevenDaysEvents = useMemo(
+        () =>
+            events.filter(
+                (event) =>
+                    event.date >= todayKey &&
+                    event.date < nextSevenDaysKey,
+            ),
+        [events, todayKey, nextSevenDaysKey],
+    );
+
+    const upcomingDeadlines = useMemo(
+        () =>
+            events.filter(
+                (event) =>
+                    event.type === "deadline" &&
+                    event.date >= todayKey,
+            ),
+        [events, todayKey],
+    );
+
+    const upcomingEvents = useMemo(() => {
+        return [...filteredEvents]
+            .filter(
+                (event) => event.date >= todayKey,
+            )
+            .sort((a, b) =>
+                `${a.date}${a.time}`.localeCompare(
+                    `${b.date}${b.time}`,
+                ),
+            )
+            .slice(0, 5);
+    }, [filteredEvents, todayKey]);
+
+    const weekStart = useMemo(() => {
+        const date = new Date(today);
+        const day = date.getDay();
+
+        const mondayOffset =
+            day === 0 ? -6 : 1 - day;
+
+        date.setDate(
+            date.getDate() + mondayOffset,
+        );
+
+        return date;
+    }, [today]);
+
+    const weekEnd = useMemo(() => {
+        const date = new Date(weekStart);
+        date.setDate(date.getDate() + 6);
+
+        return date;
+    }, [weekStart]);
+
+    const weekStartKey = formatDateKey(weekStart);
+    const weekEndKey = formatDateKey(weekEnd);
+
+    const thisWeekEvents = useMemo(
+        () =>
+            events.filter(
+                (event) =>
+                    event.date >= weekStartKey &&
+                    event.date <= weekEndKey,
+            ),
+        [events, weekStartKey, weekEndKey],
+    );
+
+    const weekProjectCount = useMemo(() => {
+        return new Set(
+            thisWeekEvents
+                .map((event) => event.project)
+                .filter(Boolean),
+        ).size;
+    }, [thisWeekEvents]);
 
     const changeMonth = (amount: number) => {
         setCurrentDate(
@@ -218,14 +314,35 @@ export default function CalendarPageInit() {
     };
 
     const goToday = () => {
-        setCurrentDate(new Date(today.getFullYear(), today.getMonth(), 1));
-        setSelectedDate(formatDateKey(today));
+        setCurrentDate(
+            new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                1,
+            ),
+        );
+
+        setSelectedDate(todayKey);
     };
 
-    const monthLabel = currentDate.toLocaleDateString("pt-AO", {
+    const monthLabel = currentDate.toLocaleDateString(
+        "pt-AO",
+        {
+            month: "long",
+            year: "numeric",
+        },
+    );
+
+    const weekLabel = `${weekStart.toLocaleDateString(
+        "pt-AO",
+        {
+            day: "numeric",
+            month: "long",
+        },
+    )} — ${weekEnd.toLocaleDateString("pt-AO", {
+        day: "numeric",
         month: "long",
-        year: "numeric",
-    });
+    })}`;
 
     return (
         <main className="min-h-screen bg-[#F7F7F5] px-4 py-6 md:px-6 lg:px-8">
@@ -243,13 +360,14 @@ export default function CalendarPageInit() {
                         </h1>
 
                         <p className="mt-1 text-sm text-neutral-500">
-                            Acompanhe projectos, tarefas, reuniões e prazos.
+                            Acompanhe projectos, tarefas,
+                            reuniões e prazos.
                         </p>
                     </div>
 
                     <button
                         type="button"
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-neutral-950 px-4 text-sm font-medium text-white transition hover:bg-neutral-800"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-4 text-sm font-semibold text-[#002950] transition hover:bg-[#a9854b] focus:outline-none focus:ring-4 focus:ring-[#BD9655]/20"
                     >
                         <Plus className="h-4 w-4" />
                         Novo evento
@@ -262,8 +380,9 @@ export default function CalendarPageInit() {
                         <p className="text-xs font-medium text-neutral-500">
                             Eventos este mês
                         </p>
+
                         <p className="mt-2 text-2xl font-semibold text-neutral-950">
-                            24
+                            {monthEvents.length}
                         </p>
                     </div>
 
@@ -271,8 +390,9 @@ export default function CalendarPageInit() {
                         <p className="text-xs font-medium text-neutral-500">
                             Hoje
                         </p>
+
                         <p className="mt-2 text-2xl font-semibold text-neutral-950">
-                            2
+                            {todayEvents.length}
                         </p>
                     </div>
 
@@ -280,8 +400,9 @@ export default function CalendarPageInit() {
                         <p className="text-xs font-medium text-neutral-500">
                             Próximos 7 dias
                         </p>
+
                         <p className="mt-2 text-2xl font-semibold text-neutral-950">
-                            9
+                            {nextSevenDaysEvents.length}
                         </p>
                     </div>
 
@@ -289,8 +410,9 @@ export default function CalendarPageInit() {
                         <p className="text-xs font-medium text-neutral-500">
                             Prazos próximos
                         </p>
+
                         <p className="mt-2 text-2xl font-semibold text-red-600">
-                            3
+                            {upcomingDeadlines.length}
                         </p>
                     </div>
                 </div>
@@ -312,7 +434,9 @@ export default function CalendarPageInit() {
                                 <div className="flex items-center gap-1">
                                     <button
                                         type="button"
-                                        onClick={() => changeMonth(-1)}
+                                        onClick={() =>
+                                            changeMonth(-1)
+                                        }
                                         className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
                                         aria-label="Mês anterior"
                                     >
@@ -321,7 +445,9 @@ export default function CalendarPageInit() {
 
                                     <button
                                         type="button"
-                                        onClick={() => changeMonth(1)}
+                                        onClick={() =>
+                                            changeMonth(1)
+                                        }
                                         className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
                                         aria-label="Próximo mês"
                                     >
@@ -340,7 +466,9 @@ export default function CalendarPageInit() {
                                 <input
                                     value={search}
                                     onChange={(e) =>
-                                        setSearch(e.target.value)
+                                        setSearch(
+                                            e.target.value,
+                                        )
                                     }
                                     placeholder="Pesquisar eventos..."
                                     className="h-9 w-full rounded-lg border border-neutral-200 bg-neutral-50 pl-9 pr-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-neutral-400 focus:bg-white"
@@ -352,7 +480,9 @@ export default function CalendarPageInit() {
                         <div className="flex gap-2 overflow-x-auto border-b border-neutral-200 px-5 py-3">
                             <button
                                 type="button"
-                                onClick={() => setActiveFilter("all")}
+                                onClick={() =>
+                                    setActiveFilter("all")
+                                }
                                 className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                                     activeFilter === "all"
                                         ? "bg-neutral-950 text-white"
@@ -363,19 +493,29 @@ export default function CalendarPageInit() {
                             </button>
 
                             {(
-                                Object.keys(eventStyles) as EventType[]
+                                Object.keys(
+                                    eventStyles,
+                                ) as EventType[]
                             ).map((type) => (
                                 <button
                                     key={type}
                                     type="button"
-                                    onClick={() => setActiveFilter(type)}
+                                    onClick={() =>
+                                        setActiveFilter(
+                                            type,
+                                        )
+                                    }
                                     className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                                        activeFilter === type
+                                        activeFilter ===
+                                        type
                                             ? "bg-neutral-950 text-white"
                                             : "text-neutral-500 hover:bg-neutral-100"
                                     }`}
                                 >
-                                    {eventStyles[type].label}
+                                    {
+                                        eventStyles[type]
+                                            .label
+                                    }
                                 </button>
                             ))}
                         </div>
@@ -394,85 +534,113 @@ export default function CalendarPageInit() {
 
                         {/* Calendar */}
                         <div className="grid grid-cols-7">
-                            {calendarDays.map((date, index) => {
-                                const dateKey = formatDateKey(date);
-                                const isCurrentMonth =
-                                    date.getMonth() === currentDate.getMonth();
+                            {calendarDays.map(
+                                (date, index) => {
+                                    const dateKey =
+                                        formatDateKey(
+                                            date,
+                                        );
 
-                                const isToday =
-                                    dateKey === formatDateKey(today);
+                                    const isCurrentMonth =
+                                        date.getMonth() ===
+                                        currentDate.getMonth();
 
-                                const isSelected =
-                                    dateKey === selectedDate;
+                                    const isToday =
+                                        dateKey ===
+                                        todayKey;
 
-                                const dayEvents = filteredEvents
-                                    .filter(
-                                        (event) => event.date === dateKey,
-                                    )
-                                    .slice(0, 3);
+                                    const isSelected =
+                                        dateKey ===
+                                        selectedDate;
 
-                                return (
-                                    <button
-                                        key={`${dateKey}-${index}`}
-                                        type="button"
-                                        onClick={() =>
-                                            setSelectedDate(dateKey)
-                                        }
-                                        className={`group relative min-h-[120px] border-b border-r border-neutral-100 p-2 text-left transition hover:bg-neutral-50 ${
-                                            !isCurrentMonth
-                                                ? "bg-neutral-50/50"
-                                                : "bg-white"
-                                        } ${
-                                            isSelected
-                                                ? "ring-2 ring-inset ring-neutral-900"
-                                                : ""
-                                        }`}
-                                    >
-                                        <div className="mb-2 flex justify-end">
-                                            <span
-                                                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium ${
-                                                    isToday
-                                                        ? "bg-neutral-950 text-white"
-                                                        : isCurrentMonth
-                                                          ? "text-neutral-700"
-                                                          : "text-neutral-300"
-                                                }`}
-                                            >
-                                                {date.getDate()}
-                                            </span>
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            {dayEvents.map((event) => (
-                                                <div
-                                                    key={event.id}
-                                                    className={`truncate rounded-md border px-2 py-1.5 text-[10px] font-medium ${eventStyles[event.type].className}`}
-                                                >
-                                                    <span className="mr-1 opacity-70">
-                                                        {event.time}
-                                                    </span>
-                                                    {event.title}
-                                                </div>
-                                            ))}
-
-                                            {filteredEvents.filter(
+                                    const dayEvents =
+                                        filteredEvents
+                                            .filter(
                                                 (event) =>
-                                                    event.date === dateKey,
-                                            ).length > 3 && (
-                                                <div className="px-2 text-[10px] font-medium text-neutral-400">
-                                                    +{" "}
-                                                    {filteredEvents.filter(
-                                                        (event) =>
-                                                            event.date ===
-                                                            dateKey,
-                                                    ).length - 3}{" "}
-                                                    mais
-                                                </div>
-                                            )}
-                                        </div>
-                                    </button>
-                                );
-                            })}
+                                                    event.date ===
+                                                    dateKey,
+                                            )
+                                            .slice(0, 3);
+
+                                    const totalDayEvents =
+                                        filteredEvents.filter(
+                                            (event) =>
+                                                event.date ===
+                                                dateKey,
+                                        ).length;
+
+                                    return (
+                                        <button
+                                            key={`${dateKey}-${index}`}
+                                            type="button"
+                                            onClick={() =>
+                                                setSelectedDate(
+                                                    dateKey,
+                                                )
+                                            }
+                                            className={`group relative min-h-[120px] border-b border-r border-neutral-100 p-2 text-left transition hover:bg-neutral-50 ${
+                                                !isCurrentMonth
+                                                    ? "bg-neutral-50/50"
+                                                    : "bg-white"
+                                            } ${
+                                                isSelected
+                                                    ? "ring-2 ring-inset ring-neutral-900"
+                                                    : ""
+                                            }`}
+                                        >
+                                            <div className="mb-2 flex justify-end">
+                                                <span
+                                                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium ${
+                                                        isToday
+                                                            ? "bg-neutral-950 text-white"
+                                                            : isCurrentMonth
+                                                              ? "text-neutral-700"
+                                                              : "text-neutral-300"
+                                                    }`}
+                                                >
+                                                    {date.getDate()}
+                                                </span>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                {dayEvents.map(
+                                                    (
+                                                        event,
+                                                    ) => (
+                                                        <div
+                                                            key={
+                                                                event.id
+                                                            }
+                                                            className={`truncate rounded-md border px-2 py-1.5 text-[10px] font-medium ${eventStyles[event.type].className}`}
+                                                        >
+                                                            <span className="mr-1 opacity-70">
+                                                                {
+                                                                    event.time
+                                                                }
+                                                            </span>
+
+                                                            {
+                                                                event.title
+                                                            }
+                                                        </div>
+                                                    ),
+                                                )}
+
+                                                {totalDayEvents >
+                                                    3 && (
+                                                    <div className="px-2 text-[10px] font-medium text-neutral-400">
+                                                        +
+                                                        {" "}
+                                                        {totalDayEvents -
+                                                            3}{" "}
+                                                        mais
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </button>
+                                    );
+                                },
+                            )}
                         </div>
                     </section>
 
@@ -486,77 +654,117 @@ export default function CalendarPageInit() {
                                         Agenda
                                     </p>
 
-                                    <h3 className="mt-1 text-lg font-semibold capitalize text-neutral-950">
-                                        {new Date(
-                                            `${selectedDate}T12:00:00`,
-                                        ).toLocaleDateString("pt-AO", {
-                                            weekday: "long",
-                                            day: "numeric",
-                                            month: "long",
-                                        })}
-                                    </h3>
+                                    {selectedDate ? (
+                                        <h3 className="mt-1 text-lg font-semibold capitalize text-neutral-950">
+                                            {parseDateKey(
+                                                selectedDate,
+                                            ).toLocaleDateString(
+                                                "pt-AO",
+                                                {
+                                                    weekday:
+                                                        "long",
+                                                    day: "numeric",
+                                                    month: "long",
+                                                },
+                                            )}
+                                        </h3>
+                                    ) : (
+                                        <h3 className="mt-1 text-lg font-semibold text-neutral-950">
+                                            Agenda
+                                        </h3>
+                                    )}
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedDate("")}
-                                    className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-                                    aria-label="Limpar seleção"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
+                                {selectedDate && (
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setSelectedDate(
+                                                "",
+                                            )
+                                        }
+                                        className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+                                        aria-label="Limpar seleção"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                )}
                             </div>
 
-                            {selectedEvents.length === 0 ? (
+                            {selectedEvents.length ===
+                            0 ? (
                                 <div className="rounded-xl border border-dashed border-neutral-200 px-4 py-8 text-center">
                                     <CalendarDays className="mx-auto h-7 w-7 text-neutral-300" />
+
                                     <p className="mt-2 text-sm font-medium text-neutral-600">
                                         Sem eventos
                                     </p>
+
                                     <p className="mt-1 text-xs text-neutral-400">
-                                        Não existem eventos para este dia.
+                                        Não existem eventos
+                                        para este dia.
                                     </p>
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {selectedEvents.map((event) => (
-                                        <div
-                                            key={event.id}
-                                            className="rounded-xl border border-neutral-200 p-3"
-                                        >
-                                            <div className="flex gap-3">
-                                                <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100">
-                                                    <Clock3 className="h-4 w-4 text-neutral-600" />
-                                                </div>
+                                    {selectedEvents.map(
+                                        (event) => (
+                                            <div
+                                                key={
+                                                    event.id
+                                                }
+                                                className="rounded-xl border border-neutral-200 p-3"
+                                            >
+                                                <div className="flex gap-3">
+                                                    <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100">
+                                                        <Clock3 className="h-4 w-4 text-neutral-600" />
+                                                    </div>
 
-                                                <div className="min-w-0">
-                                                    <p className="text-sm font-semibold text-neutral-900">
-                                                        {event.title}
-                                                    </p>
-
-                                                    <p className="mt-1 text-xs text-neutral-500">
-                                                        {event.time}
-                                                    </p>
-
-                                                    {event.project && (
-                                                        <p className="mt-2 text-xs text-neutral-500">
-                                                            {event.project}
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-neutral-900">
+                                                            {
+                                                                event.title
+                                                            }
                                                         </p>
-                                                    )}
 
-                                                    <span
-                                                        className={`mt-2 inline-flex rounded-md border px-2 py-1 text-[10px] font-medium ${eventStyles[event.type].className}`}
-                                                    >
-                                                        {
-                                                            eventStyles[
-                                                                event.type
-                                                            ].label
-                                                        }
-                                                    </span>
+                                                        <p className="mt-1 text-xs text-neutral-500">
+                                                            {
+                                                                event.time
+                                                            }
+                                                        </p>
+
+                                                        {event.project && (
+                                                            <p className="mt-2 text-xs text-neutral-500">
+                                                                {
+                                                                    event.project
+                                                                }
+                                                            </p>
+                                                        )}
+
+                                                        {event.location && (
+                                                            <p className="mt-1 text-xs text-neutral-400">
+                                                                {
+                                                                    event.location
+                                                                }
+                                                            </p>
+                                                        )}
+
+                                                        <span
+                                                            className={`mt-2 inline-flex rounded-md border px-2 py-1 text-[10px] font-medium ${eventStyles[event.type].className}`}
+                                                        >
+                                                            {
+                                                                eventStyles[
+                                                                    event
+                                                                        .type
+                                                                ]
+                                                                    .label
+                                                            }
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ),
+                                    )}
                                 </div>
                             )}
 
@@ -576,6 +784,7 @@ export default function CalendarPageInit() {
                                     <p className="text-xs font-medium uppercase tracking-wider text-neutral-400">
                                         Próximos
                                     </p>
+
                                     <h3 className="mt-1 text-lg font-semibold text-neutral-950">
                                         Próximos eventos
                                     </h3>
@@ -590,54 +799,75 @@ export default function CalendarPageInit() {
                                 </button>
                             </div>
 
-                            <div className="space-y-1">
-                                {upcomingEvents.map((event) => (
-                                    <button
-                                        type="button"
-                                        key={event.id}
-                                        onClick={() =>
-                                            setSelectedDate(event.date)
-                                        }
-                                        className="flex w-full gap-3 rounded-xl p-3 text-left transition hover:bg-neutral-50"
-                                    >
-                                        <div className="flex w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-neutral-100">
-                                            <span className="text-[9px] font-semibold uppercase text-neutral-400">
-                                                {new Date(
-                                                    `${event.date}T12:00:00`,
-                                                ).toLocaleDateString(
-                                                    "pt-AO",
-                                                    {
-                                                        month: "short",
-                                                    },
-                                                )}
-                                            </span>
+                            {upcomingEvents.length ===
+                            0 ? (
+                                <div className="rounded-xl border border-dashed border-neutral-200 px-4 py-6 text-center">
+                                    <p className="text-sm font-medium text-neutral-600">
+                                        Sem próximos eventos
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-1">
+                                    {upcomingEvents.map(
+                                        (event) => (
+                                            <button
+                                                type="button"
+                                                key={
+                                                    event.id
+                                                }
+                                                onClick={() =>
+                                                    setSelectedDate(
+                                                        event.date,
+                                                    )
+                                                }
+                                                className="flex w-full gap-3 rounded-xl p-3 text-left transition hover:bg-neutral-50"
+                                            >
+                                                <div className="flex w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-neutral-100">
+                                                    <span className="text-[9px] font-semibold uppercase text-neutral-400">
+                                                        {parseDateKey(
+                                                            event.date,
+                                                        ).toLocaleDateString(
+                                                            "pt-AO",
+                                                            {
+                                                                month: "short",
+                                                            },
+                                                        )}
+                                                    </span>
 
-                                            <span className="text-base font-semibold text-neutral-900">
-                                                {new Date(
-                                                    `${event.date}T12:00:00`,
-                                                ).getDate()}
-                                            </span>
-                                        </div>
+                                                    <span className="text-base font-semibold text-neutral-900">
+                                                        {parseDateKey(
+                                                            event.date,
+                                                        ).getDate()}
+                                                    </span>
+                                                </div>
 
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-medium text-neutral-900">
-                                                {event.title}
-                                            </p>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-sm font-medium text-neutral-900">
+                                                        {
+                                                            event.title
+                                                        }
+                                                    </p>
 
-                                            <div className="mt-1 flex items-center gap-2 text-xs text-neutral-400">
-                                                <Clock3 className="h-3 w-3" />
-                                                {event.time}
-                                            </div>
+                                                    <div className="mt-1 flex items-center gap-2 text-xs text-neutral-400">
+                                                        <Clock3 className="h-3 w-3" />
+                                                        {
+                                                            event.time
+                                                        }
+                                                    </div>
 
-                                            {event.project && (
-                                                <p className="mt-1 truncate text-xs text-neutral-500">
-                                                    {event.project}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
+                                                    {event.project && (
+                                                        <p className="mt-1 truncate text-xs text-neutral-500">
+                                                            {
+                                                                event.project
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        ),
+                                    )}
+                                </div>
+                            )}
                         </section>
 
                         {/* Quick summary */}
@@ -651,8 +881,9 @@ export default function CalendarPageInit() {
                                     <p className="text-sm font-semibold">
                                         Esta semana
                                     </p>
+
                                     <p className="text-xs text-white/50">
-                                        15 — 21 Setembro
+                                        {weekLabel}
                                     </p>
                                 </div>
                             </div>
@@ -660,8 +891,11 @@ export default function CalendarPageInit() {
                             <div className="mt-5 grid grid-cols-2 gap-3">
                                 <div className="rounded-xl bg-white/5 p-3">
                                     <p className="text-xl font-semibold">
-                                        9
+                                        {
+                                            thisWeekEvents.length
+                                        }
                                     </p>
+
                                     <p className="mt-1 text-xs text-white/50">
                                         eventos
                                     </p>
@@ -669,8 +903,11 @@ export default function CalendarPageInit() {
 
                                 <div className="rounded-xl bg-white/5 p-3">
                                     <p className="text-xl font-semibold">
-                                        3
+                                        {
+                                            weekProjectCount
+                                        }
                                     </p>
+
                                     <p className="mt-1 text-xs text-white/50">
                                         projectos
                                     </p>

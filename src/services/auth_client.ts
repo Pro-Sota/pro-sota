@@ -295,7 +295,7 @@ export async function getSession() {
 
     if (error) throw error;
 
-    return session;
+    return {session};
   } catch (error) {
     console.error("Get session error:", error);
     throw error;

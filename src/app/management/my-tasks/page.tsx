@@ -1,11 +1,8 @@
+import KanbanBoard from '@/app/components/kanban/kanban_board';
+import { getTaskBoard } from '@/services/projects_server';
 
+export default async function TasksPage() {
+  const board = await getTaskBoard();
 
-export default function MyTasks() {
-
-    return (
-
-        <div>
-            
-        </div>
-    )
+  return <KanbanBoard initialBoard={board} />;
 }
