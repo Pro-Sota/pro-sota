@@ -1,7 +1,8 @@
 "use client";
 
 import { Search, Building2, User } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { LABELS } from "./chat_labels";
 import ChatSection from "./chat_section";
@@ -16,11 +17,30 @@ export default function MessageSideBar({
   projectConversations,
   directConversations,
 }: MessageSideBarProps) {
+  const router = useRouter();
   const params = useParams<{ chatId?: string | string[] }>();
 
   const selectedChatId = Array.isArray(params.chatId)
     ? params.chatId[0]
     : params.chatId;
+
+  useEffect(() => {
+    const handleMessagesUpdated = () => {
+      router.refresh();
+    };
+
+    window.addEventListener(
+      "messages:updated",
+      handleMessagesUpdated,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "messages:updated",
+        handleMessagesUpdated,
+      );
+    };
+  }, [router]);
 
   return (
     <aside className="hidden h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-[#BD9655] bg-white lg:flex">

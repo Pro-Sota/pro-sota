@@ -140,7 +140,7 @@ export default function TeamPage({ team }: TeamPageProps) {
 
     return (
         <div
-            className="min-h-screen p-6 md:p-10"
+            className="min-h-screen p-6 md:p-10 "
             onClick={() => setOpenMenu(null)}
         >
             <div className="mx-auto max-w-7xl space-y-6">

@@ -235,7 +235,7 @@ export default function CreateMember() {
     };
 
     return (
-        <div className="min-h-full bg-slate-50 px-5 py-12">
+        <div className="min-h-full px-5 py-12">
             <div className="mx-auto max-w-3xl space-y-6">
 
                 {/* Header */}
@@ -676,7 +676,7 @@ export default function CreateMember() {
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#1B3A5C] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#15304D] disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#BD9655] px-5 py-2.5 text-sm font-semibold text-[#002950] transition hover:bg-[#BD9655]/90 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {submitting && (
                                 <span className="animate-spin">

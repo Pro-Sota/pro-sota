@@ -81,16 +81,23 @@ export default function CreateClientForm() {
       // Voltar para a lista de clientes.
       router.push("/management/clients");
       router.refresh();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as {
+        message?: string;
+        details?: unknown;
+        hint?: string;
+        code?: string;
+      };
+
       console.error("CREATE CLIENT ERROR:", {
-        message: err?.message,
-        details: err?.details,
-        hint: err?.hint,
-        code: err?.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
       });
 
       setSubmitError(
-        err?.message || "Ocorreu um erro ao guardar o cliente."
+        error.message || "Ocorreu um erro ao guardar o cliente."
       );
 
       setSubmitting(false);

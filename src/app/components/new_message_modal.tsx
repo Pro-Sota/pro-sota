@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Search,
-  X,
-  MessageCircle,
-  Loader2,
-  Check,
-} from "lucide-react";
+import { Search, X, MessageCircle, Loader2, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -32,16 +26,15 @@ export default function NewConversationModal({
 
   const [users, setUsers] = useState<Recipient[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(
-    null,
-  );
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [startingConversation, setStartingConversation] =
-    useState(false);
-
+  const [startingConversation, setStartingConversation] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /*
+   * Load recipients when the modal is opened.
+   */
   useEffect(() => {
     if (!open || users.length > 0) {
       return;
@@ -69,6 +62,9 @@ export default function NewConversationModal({
     void loadUsers();
   }, [open, users.length]);
 
+  /*
+   * Filter recipients.
+   */
   const searchTerm = searchQuery.trim().toLowerCase();
 
   const filteredUsers = users.filter((user) => {
@@ -85,6 +81,9 @@ export default function NewConversationModal({
     );
   });
 
+  /*
+   * Close and reset the modal.
+   */
   const handleClose = () => {
     if (startingConversation) {
       return;
@@ -97,6 +96,12 @@ export default function NewConversationModal({
     onClose();
   };
 
+  /*
+   * Create the conversation.
+   *
+   * After creating it, notify the message sidebar so that
+   * its server-side conversation list is refreshed.
+   */
   const handleStartConversation = async () => {
     if (!selectedUserId || startingConversation) {
       return;
@@ -109,13 +114,38 @@ export default function NewConversationModal({
       const conversationId =
         await createConversationAction(selectedUserId);
 
-      if (onStartConversation) {
-        onStartConversation(conversationId);
-      }
-
-      router.push(
-        `/management/messages/${conversationId}`,
+      /*
+       * Tell the sidebar that the conversation list changed.
+       */
+      window.dispatchEvent(
+        new CustomEvent("messages:updated", {
+          detail: {
+            conversationId,
+            userId: selectedUserId,
+          },
+        }),
       );
+
+      /*
+       * Allow the parent to react to the new conversation.
+       */
+      onStartConversation?.(conversationId);
+
+      /*
+       * Close the modal before navigating.
+       */
+      onClose();
+
+      /*
+       * Navigate to the newly created conversation.
+       */
+      router.push(`/management/messages/${conversationId}`);
+
+      /*
+       * Refresh the server components so the sidebar receives
+       * the newly created conversation.
+       */
+      router.refresh();
     } catch (err) {
       setError(
         err instanceof Error
@@ -134,7 +164,6 @@ export default function NewConversationModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
       <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
           <div>
@@ -170,9 +199,7 @@ export default function NewConversationModal({
             <input
               type="search"
               value={searchQuery}
-              onChange={(event) =>
-                setSearchQuery(event.target.value)
-              }
+              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Pesquisar pessoa..."
               autoFocus
               disabled={startingConversation}
@@ -220,8 +247,7 @@ export default function NewConversationModal({
             </div>
           ) : (
             filteredUsers.map((user) => {
-              const isSelected =
-                selectedUserId === user.profileId;
+              const isSelected = selectedUserId === user.profileId;
 
               const initials = user.name
                 .split(" ")
@@ -236,9 +262,7 @@ export default function NewConversationModal({
                   key={user.profileId}
                   type="button"
                   disabled={startingConversation}
-                  onClick={() =>
-                    setSelectedUserId(user.profileId)
-                  }
+                  onClick={() => setSelectedUserId(user.profileId)}
                   className={`flex w-full items-center gap-3 border-b border-slate-100 px-6 py-3.5 text-left transition ${
                     isSelected
                       ? "bg-slate-50"
@@ -269,8 +293,7 @@ export default function NewConversationModal({
                     </p>
 
                     <p className="truncate text-xs text-slate-500">
-                      {user.department ||
-                        "Sem departamento"}
+                      {user.department || "Sem departamento"}
                     </p>
                   </div>
 
@@ -303,9 +326,7 @@ export default function NewConversationModal({
           <button
             type="button"
             onClick={handleStartConversation}
-            disabled={
-              !selectedUserId || startingConversation
-            }
+            disabled={!selectedUserId || startingConversation}
             className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {startingConversation ? (
