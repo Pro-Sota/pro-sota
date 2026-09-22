@@ -31,8 +31,6 @@ import {
   reorderTasks,
 } from "@/services/project_tasks";
 
-const UNASSIGNED_COLUMN_ID = "__unassigned__";
-
 const AVATAR_COLORS = [
   "bg-rose-500",
   "bg-orange-500",
@@ -52,10 +50,7 @@ const PRIORITIES: TaskPriority[] = [
   "Critical",
 ];
 
-const PRIORITY_CLASSES: Record<
-  TaskPriority,
-  string
-> = {
+const PRIORITY_CLASSES: Record<TaskPriority, string> = {
   Low: "bg-emerald-100 text-emerald-700",
   Medium: "bg-gray-100 text-gray-700",
   High: "bg-amber-100 text-amber-700",
@@ -64,6 +59,10 @@ const PRIORITY_CLASSES: Record<
 
 const ICON_BTN =
   "rounded-lg p-1.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1";
+
+type KanbanColumn = Omit<TaskColumn, "projectName"> & {
+  projectName?: string | null;
+};
 
 type KanbanBoardProps = {
   projectId?: string | null;
@@ -74,14 +73,10 @@ function avatarColor(value: string) {
   let hash = 0;
 
   for (let i = 0; i < value.length; i++) {
-    hash =
-      value.charCodeAt(i) +
-      ((hash << 5) - hash);
+    hash = value.charCodeAt(i) + ((hash << 5) - hash);
   }
 
-  return AVATAR_COLORS[
-    Math.abs(hash) % AVATAR_COLORS.length
-  ];
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
 function initials(value: string) {
@@ -103,45 +98,37 @@ function isOverdue(dueDate?: string | null) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const date = new Date(
-    `${dueDate}T00:00:00`,
-  );
+  const date = new Date(`${dueDate}T00:00:00`);
 
   return date < today;
 }
 
 function formatDueDate(dueDate: string) {
-  return new Date(
-    `${dueDate}T00:00:00`,
-  ).toLocaleDateString("pt-AO", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function isUnassignedColumn(
-  columnId: string | null,
-) {
-  return columnId === UNASSIGNED_COLUMN_ID;
+  return new Date(`${dueDate}T00:00:00`).toLocaleDateString(
+    "pt-AO",
+    {
+      month: "short",
+      day: "numeric",
+    },
+  );
 }
 
 export default function KanbanBoard({
   projectId = null,
   initialBoard,
 }: KanbanBoardProps) {
+  const initialColumns =
+    initialBoard.columns as unknown as KanbanColumn[];
+
   const [tasks, setTasks] = useState<Task[]>(
     initialBoard.tasks,
   );
 
-  const [columns, setColumns] = useState<TaskColumn[]>(
-    initialBoard.columns.filter(
-      (column) =>
-        column.id !== UNASSIGNED_COLUMN_ID,
-    ),
+  const [columns, setColumns] = useState<KanbanColumn[]>(
+    initialColumns,
   );
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [selectedTaskId, setSelectedTaskId] =
     useState<string | null>(null);
@@ -149,11 +136,9 @@ export default function KanbanBoard({
   const [taskInputs, setTaskInputs] =
     useState<Record<string, string>>({});
 
-  const [titleDraft, setTitleDraft] =
-    useState("");
+  const [titleDraft, setTitleDraft] = useState("");
 
-  const [listInput, setListInput] =
-    useState("");
+  const [listInput, setListInput] = useState("");
 
   const [isAddingList, setIsAddingList] =
     useState(false);
@@ -164,8 +149,7 @@ export default function KanbanBoard({
   const [columnTitleInput, setColumnTitleInput] =
     useState("");
 
-  const [searchQuery, setSearchQuery] =
-    useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [draggedTaskId, setDraggedTaskId] =
     useState<string | null>(null);
@@ -177,68 +161,53 @@ export default function KanbanBoard({
     useState<string | null>(null);
 
   const selectedTask =
-    tasks.find(
-      (task) =>
-        task.id === selectedTaskId,
-    ) ?? null;
+    tasks.find((task) => task.id === selectedTaskId) ??
+    null;
 
   /*
-   * Synchronise with the server-provided board.
+   * Synchronise the local board with server-provided data.
+   *
+   * The server is responsible for supplying ALL columns
+   * required by the board.
    */
   useEffect(() => {
     setTasks(initialBoard.tasks);
 
     setColumns(
-      initialBoard.columns.filter(
-        (column) =>
-          column.id !==
-          UNASSIGNED_COLUMN_ID,
-      ),
+      initialBoard.columns as unknown as KanbanColumn[],
     );
   }, [initialBoard]);
 
   /*
-   * Keyboard
+   * Keyboard handling for the task modal.
    */
   useEffect(() => {
     if (!selectedTaskId) return;
 
-    const handler = (
-      event: KeyboardEvent,
-    ) => {
+    const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setSelectedTaskId(null);
       }
     };
 
-    window.addEventListener(
-      "keydown",
-      handler,
-    );
+    window.addEventListener("keydown", handler);
 
     return () => {
-      window.removeEventListener(
-        "keydown",
-        handler,
-      );
+      window.removeEventListener("keydown", handler);
     };
   }, [selectedTaskId]);
 
   /*
-   * Selected task title
+   * Keep modal title in sync with selected task.
    */
   useEffect(() => {
-    setTitleDraft(
-      selectedTask?.title ?? "",
-    );
-  }, [
-    selectedTaskId,
-    selectedTask?.title,
-  ]);
+    setTitleDraft(selectedTask?.title ?? "");
+  }, [selectedTaskId, selectedTask?.title]);
 
   /*
    * Helpers
    */
+
   const updateTaskLocal = (
     taskId: string,
     updates: Partial<Task>,
@@ -257,116 +226,95 @@ export default function KanbanBoard({
 
   const getColumn = (
     columnId: string | null | undefined,
-  ) => {
+  ): KanbanColumn | null => {
     if (!columnId) return null;
 
     return (
       columns.find(
-        (column) =>
-          column.id === columnId,
+        (column) => column.id === columnId,
       ) ?? null
     );
   };
 
-  const getRealColumnId = (
-    columnId: string,
-  ): string | null => {
-    return isUnassignedColumn(columnId)
-      ? null
-      : columnId;
-  };
-
-  const getDisplayColumnId = (
-    columnId: string | null,
-  ): string => {
-    return columnId ?? UNASSIGNED_COLUMN_ID;
-  };
-
   /*
-   * Check if user can manage columns
-   * - Project owners can manage project columns
-   * - Any user can manage general columns (projectId = null)
+   * Column ownership
+   *
+   * Project board:
+   *   can manage only columns belonging to that project.
+   *
+   * General board:
+   *   can manage only general columns.
+   *
+   * Project columns are visible on the general board,
+   * but remain managed from their respective project.
    */
   const canManageColumns = (
-    column: TaskColumn | null,
+    column: KanbanColumn | null,
   ): boolean => {
     if (!column) return false;
 
     if (projectId) {
       return column.projectId === projectId;
     }
-    // In general board, can only manage general columns
+
     return column.projectId === null;
   };
 
   /*
    * Search
    */
-  const matchesSearch = (
-    task: Task,
-  ) => {
+
+  const matchesSearch = (task: Task) => {
     if (!searchQuery.trim()) {
       return true;
     }
 
-    const query =
-      searchQuery
-        .toLowerCase()
-        .trim();
+    const query = searchQuery.toLowerCase().trim();
 
     return (
-      task.title
-        .toLowerCase()
-        .includes(query) ||
-      task.description
-        .toLowerCase()
-        .includes(query) ||
-      task.priority
-        .toLowerCase()
-        .includes(query)
+      task.title.toLowerCase().includes(query) ||
+      task.description.toLowerCase().includes(query) ||
+      task.priority.toLowerCase().includes(query)
     );
   };
 
   const filteredTasks = useMemo(
-    () =>
-      tasks.filter(matchesSearch),
+    () => tasks.filter(matchesSearch),
     [tasks, searchQuery],
   );
 
-  const totalMatches =
-    filteredTasks.length;
+  const totalMatches = filteredTasks.length;
 
   const isSearching =
     searchQuery.trim().length > 0;
 
-  const unassignedTasks =
-    filteredTasks.filter(
-      (task) =>
-        task.columnId === null,
-    );
-
   /*
    * Columns
    */
+
   const handleAddColumn = async () => {
-    const title =
-      listInput.trim();
+    const title = listInput.trim();
 
     if (!title) return;
 
     try {
       setError(null);
 
-      const newColumn =
-        await createTaskColumn(
-          projectId ?? "",
-          title,
-          columns.length,
-        );
+      /*
+       * On the general board, projectId is intentionally
+       * empty so the service creates a general column.
+       *
+       * On a project board, the current project ID is used.
+       */
+      const newColumn = await createTaskColumn(
+        projectId ?? "",
+        title,
+        columns.length,
+      );
 
       setColumns((previous) => [
         ...previous,
-        newColumn,
+        newColumn as unknown as KanbanColumn,
       ]);
 
       setListInput("");
@@ -388,12 +336,10 @@ export default function KanbanBoard({
   const handleDeleteColumn = async (
     columnId: string,
   ) => {
-    const column =
-      getColumn(columnId);
+    const column = getColumn(columnId);
 
     if (!column) return;
 
-    // Check if user can delete this column
     if (!canManageColumns(column)) {
       setError(
         "Não tem permissão para eliminar esta lista.",
@@ -401,42 +347,37 @@ export default function KanbanBoard({
       return;
     }
 
+    /*
+     * We do not allow a column with tasks to be deleted.
+     *
+     * There is no "Sem lista" destination anymore, so
+     * deleting the column would otherwise orphan the tasks.
+     */
     const hasTasks = tasks.some(
-      (task) =>
-        task.columnId === columnId,
+      (task) => task.columnId === columnId,
     );
 
     if (hasTasks) {
-      const confirmed =
-        window.confirm(
-          "Esta lista contém tarefas. A lista será eliminada, mas as tarefas não serão eliminadas. As tarefas ficarão sem lista. Continuar?",
-        );
-
-      if (!confirmed) return;
+      setError(
+        "Esta lista contém tarefas. Mova as tarefas para outra lista antes de a eliminar.",
+      );
+      return;
     }
+
+    const confirmed = window.confirm(
+      `Eliminar a lista "${column.title}"?`,
+    );
+
+    if (!confirmed) return;
 
     try {
       setError(null);
 
-      await deleteTaskColumn(
-        columnId,
-      );
+      await deleteTaskColumn(columnId);
 
       setColumns((previous) =>
         previous.filter(
-          (item) =>
-            item.id !== columnId,
-        ),
-      );
-
-      setTasks((previous) =>
-        previous.map((task) =>
-          task.columnId === columnId
-            ? {
-                ...task,
-                columnId: null,
-              }
-            : task,
+          (item) => item.id !== columnId,
         ),
       );
     } catch (err) {
@@ -454,21 +395,18 @@ export default function KanbanBoard({
   };
 
   const startEditingColumn = (
-    column: TaskColumn,
+    column: KanbanColumn,
   ) => {
     if (!canManageColumns(column)) return;
 
     setEditingColumnId(column.id);
-    setColumnTitleInput(
-      column.title,
-    );
+    setColumnTitleInput(column.title);
   };
 
   const commitColumnTitle = async () => {
     if (!editingColumnId) return;
 
-    const title =
-      columnTitleInput.trim();
+    const title = columnTitleInput.trim();
 
     if (!title) {
       setEditingColumnId(null);
@@ -478,23 +416,21 @@ export default function KanbanBoard({
     const oldColumn =
       columns.find(
         (column) =>
-          column.id ===
-          editingColumnId,
-      );
+          column.id === editingColumnId,
+      ) ?? null;
 
-    if (
-      !oldColumn ||
-      oldColumn.title === title
-    ) {
+    if (!oldColumn || oldColumn.title === title) {
       setEditingColumnId(null);
       return;
     }
 
     if (!canManageColumns(oldColumn)) {
       setEditingColumnId(null);
+
       setError(
         "Não tem permissão para renomear esta lista.",
       );
+
       return;
     }
 
@@ -509,9 +445,12 @@ export default function KanbanBoard({
 
       setColumns((previous) =>
         previous.map((column) =>
-          column.id ===
-          editingColumnId
-            ? updatedColumn
+          column.id === editingColumnId
+            ? {
+                ...(updatedColumn as unknown as KanbanColumn),
+                projectName:
+                  column.projectName,
+              }
             : column,
         ),
       );
@@ -536,14 +475,12 @@ export default function KanbanBoard({
     columnId: string,
   ) => {
     const column = getColumn(columnId);
+
     if (!canManageColumns(column)) return;
 
-    setDraggedColumnId(
-      columnId,
-    );
+    setDraggedColumnId(columnId);
 
-    event.dataTransfer.effectAllowed =
-      "move";
+    event.dataTransfer.effectAllowed = "move";
 
     event.dataTransfer.setData(
       "text/plain",
@@ -560,20 +497,16 @@ export default function KanbanBoard({
     setDragOverColumnId(null);
 
     const raw =
-      event.dataTransfer.getData(
-        "text/plain",
-      );
+      event.dataTransfer.getData("text/plain");
 
     /*
-     * Column reorder
+     * Column reorder.
      */
     if (raw.startsWith("col:")) {
-      const sourceColumnId =
-        raw.slice(4);
+      const sourceColumnId = raw.slice(4);
 
       if (
-        sourceColumnId ===
-        targetColumnId
+        sourceColumnId === targetColumnId
       ) {
         return;
       }
@@ -584,55 +517,49 @@ export default function KanbanBoard({
       const targetColumn =
         getColumn(targetColumnId);
 
-      if (
-        !sourceColumn ||
-        !targetColumn
-      ) {
+      if (!sourceColumn || !targetColumn) {
         return;
       }
 
-      // Check if both columns can be reordered by this user
-      if (!canManageColumns(sourceColumn) || !canManageColumns(targetColumn)) {
+      /*
+       * Only columns managed by the current board
+       * can participate in reordering.
+       */
+      if (
+        !canManageColumns(sourceColumn) ||
+        !canManageColumns(targetColumn)
+      ) {
         return;
       }
 
       const next = [...columns];
 
-      const from =
-        next.findIndex(
-          (column) =>
-            column.id ===
-            sourceColumnId,
-        );
+      const from = next.findIndex(
+        (column) =>
+          column.id === sourceColumnId,
+      );
 
-      const to =
-        next.findIndex(
-          (column) =>
-            column.id ===
-            targetColumnId,
-        );
+      const to = next.findIndex(
+        (column) =>
+          column.id === targetColumnId,
+      );
 
-      if (
-        from === -1 ||
-        to === -1
-      ) {
+      if (from === -1 || to === -1) {
         return;
       }
 
-      const [moved] =
-        next.splice(from, 1);
+      const [moved] = next.splice(from, 1);
 
       if (!moved) return;
 
       next.splice(to, 0, moved);
 
-      const reordered =
-        next.map(
-          (column, index) => ({
-            ...column,
-            position: index,
-          }),
-        );
+      const reordered = next.map(
+        (column, index) => ({
+          ...column,
+          position: index,
+        }),
+      );
 
       setColumns(reordered);
 
@@ -640,8 +567,7 @@ export default function KanbanBoard({
         await reorderTaskColumns(
           projectId ?? "",
           reordered.map(
-            (column) =>
-              column.id,
+            (column) => column.id,
           ),
         );
       } catch (err) {
@@ -658,24 +584,23 @@ export default function KanbanBoard({
       }
 
       setDraggedColumnId(null);
+
       return;
     }
 
     /*
      * Task dropped on empty column area.
      */
-    const taskId =
-      raw.startsWith("task:")
-        ? raw.slice(5)
-        : draggedTaskId;
+    const taskId = raw.startsWith("task:")
+      ? raw.slice(5)
+      : draggedTaskId;
 
     if (!taskId) return;
 
     const task =
       tasks.find(
-        (item) =>
-          item.id === taskId,
-      );
+        (item) => item.id === taskId,
+      ) ?? null;
 
     if (!task) return;
 
@@ -690,14 +615,14 @@ export default function KanbanBoard({
   /*
    * Tasks
    */
+
   const handleTaskDragStart = (
     event: React.DragEvent,
     taskId: string,
   ) => {
     setDraggedTaskId(taskId);
 
-    event.dataTransfer.effectAllowed =
-      "move";
+    event.dataTransfer.effectAllowed = "move";
 
     event.dataTransfer.setData(
       "text/plain",
@@ -713,8 +638,7 @@ export default function KanbanBoard({
     event.preventDefault();
     event.stopPropagation();
 
-    const taskId =
-      draggedTaskId;
+    const taskId = draggedTaskId;
 
     if (
       !taskId ||
@@ -725,9 +649,8 @@ export default function KanbanBoard({
 
     const sourceTask =
       tasks.find(
-        (task) =>
-          task.id === taskId,
-      );
+        (task) => task.id === taskId,
+      ) ?? null;
 
     if (!sourceTask) return;
 
@@ -746,119 +669,64 @@ export default function KanbanBoard({
     targetColumnId: string,
     targetTaskId?: string,
   ) => {
-    const targetIsUnassigned =
-      isUnassignedColumn(
-        targetColumnId,
-      );
-
     const targetColumn =
-      targetIsUnassigned
-        ? null
-        : getColumn(
-            targetColumnId,
-          );
+      getColumn(targetColumnId);
 
-    /*
-     * General task (no projectId):
-     * can be moved to general columns only
-     */
-    if (!task.projectId) {
-      if (!targetIsUnassigned && targetColumn?.projectId) {
-        setError(
-          "Uma tarefa geral não pode ser colocada numa lista de projecto.",
-        );
-
-        return;
-      }
-    }
-
-    /*
-     * Project task:
-     * - if in project board: can move within project columns only
-     * - if in general board: cannot move to general columns
-     */
-    if (task.projectId) {
-      if (projectId) {
-        // In project board: must stay in project
-        if (!targetColumn || targetColumn.projectId !== projectId) {
-          setError(
-            "Uma tarefa de projecto não pode ser movida para fora do projecto.",
-          );
-          return;
-        }
-      } else {
-        // In general board: cannot move project tasks
-        setError(
-          "Uma tarefa de projecto não pode ser colocada em Sem lista.",
-        );
-        return;
-      }
+    if (!targetColumn) {
+      setError(
+        "A lista seleccionada não existe.",
+      );
+      return;
     }
 
     const sourceColumnId =
       task.columnId;
 
-    const targetRealColumnId =
-      getRealColumnId(
-        targetColumnId,
-      );
+    const previousTasks = tasks;
 
     /*
-     * Do nothing if there is no actual change.
+     * Tasks are organised by column only.
+     *
+     * The general board can therefore display and move
+     * tasks across the visible columns, including project
+     * columns.
      */
-    if (
-      sourceColumnId ===
-        targetRealColumnId &&
-      !targetTaskId
-    ) {
-      return;
-    }
+    const sourceTasks = tasks
+      .filter(
+        (item) =>
+          item.columnId ===
+          sourceColumnId,
+      )
+      .sort(
+        (a, b) =>
+          a.position - b.position,
+      );
 
-    const previousTasks =
-      tasks;
-
-    const sourceTasks =
-      tasks
-        .filter(
-          (item) =>
-            item.columnId ===
-            sourceColumnId,
-        )
-        .sort(
-          (a, b) =>
-            a.position -
-            b.position,
-        );
-
-    const targetTasks =
-      tasks
-        .filter(
-          (item) =>
-            item.columnId ===
-            targetRealColumnId,
-        )
-        .sort(
-          (a, b) =>
-            a.position -
-            b.position,
-        );
+    const targetTasks = tasks
+      .filter(
+        (item) =>
+          item.columnId ===
+          targetColumnId,
+      )
+      .sort(
+        (a, b) =>
+          a.position - b.position,
+      );
 
     const sourceWithoutTask =
       sourceTasks.filter(
-        (item) =>
-          item.id !== task.id,
+        (item) => item.id !== task.id,
       );
 
     let nextTargetTasks =
       sourceColumnId ===
-      targetRealColumnId
+      targetColumnId
         ? sourceWithoutTask
         : [...targetTasks];
 
     const movedTask: Task = {
       ...task,
-      columnId:
-        targetRealColumnId,
+      columnId: targetColumnId,
     };
 
     let insertionIndex =
@@ -868,13 +736,11 @@ export default function KanbanBoard({
       const targetIndex =
         nextTargetTasks.findIndex(
           (item) =>
-            item.id ===
-            targetTaskId,
+            item.id === targetTaskId,
         );
 
       if (targetIndex >= 0) {
-        insertionIndex =
-          targetIndex;
+        insertionIndex = targetIndex;
       }
     }
 
@@ -887,16 +753,15 @@ export default function KanbanBoard({
     const affectedColumnIds =
       new Set<string | null>([
         sourceColumnId,
-        targetRealColumnId,
+        targetColumnId,
       ]);
 
-    let nextTasks =
-      tasks.filter(
-        (item) =>
-          !affectedColumnIds.has(
-            item.columnId,
-          ),
-      );
+    let nextTasks = tasks.filter(
+      (item) =>
+        !affectedColumnIds.has(
+          item.columnId,
+        ),
+    );
 
     const sourceReordered =
       sourceWithoutTask.map(
@@ -916,7 +781,7 @@ export default function KanbanBoard({
 
     if (
       sourceColumnId ===
-      targetRealColumnId
+      targetColumnId
     ) {
       nextTasks.push(
         ...targetReordered,
@@ -925,19 +790,16 @@ export default function KanbanBoard({
       nextTasks.push(
         ...sourceReordered,
       );
+
       nextTasks.push(
         ...targetReordered,
       );
     }
 
-    /*
-     * Keep global ordering predictable.
-     */
-    nextTasks.sort(
-      (a, b) =>
-        a.createdAt.localeCompare(
-          b.createdAt,
-        ),
+    nextTasks.sort((a, b) =>
+      a.createdAt.localeCompare(
+        b.createdAt,
+      ),
     );
 
     setTasks(nextTasks);
@@ -945,43 +807,41 @@ export default function KanbanBoard({
     try {
       setError(null);
 
-      /*
-       * First move the task to the target column
-       */
       await moveTask(
         task.id,
-        targetRealColumnId,
+        targetColumnId,
         movedTask.position,
       );
 
       /*
-       * Persist source column order.
+       * Reorder source column.
        */
       if (
         sourceColumnId !==
-        targetRealColumnId
+        targetColumnId
       ) {
         await reorderTasks(
           task.projectId,
           sourceColumnId,
           sourceReordered.map(
-            (item) =>
-              item.id,
+            (item) => item.id,
           ),
         );
       }
 
       /*
-       * Persist target column order.
+       * Reorder target column.
+       *
+       * The target column may belong to a project
+       * while the task itself may be a general task.
        */
       await reorderTasks(
-        task.projectId,
-        targetRealColumnId,
+        targetColumn.projectId,
+        targetColumnId,
         targetReordered.map(
-          (item) =>
-            item.id,
-          ),
-        );
+          (item) => item.id,
+        ),
+      );
     } catch (err) {
       console.error(
         "Failed to move task:",
@@ -1001,6 +861,7 @@ export default function KanbanBoard({
   /*
    * Add task
    */
+
   const handleAddTask = async (
     columnId: string,
   ) => {
@@ -1010,80 +871,23 @@ export default function KanbanBoard({
 
     if (!value) return;
 
-    const isGeneral =
-      isUnassignedColumn(
-        columnId,
-      );
+    const column = getColumn(columnId);
 
-    const column =
-      isGeneral
-        ? null
-        : getColumn(columnId);
-
-    /*
-     * General task (no projectId).
-     */
-    if (isGeneral) {
-      try {
-        setError(null);
-
-        const newTask =
-          await createTask({
-            projectId: null,
-            columnId: null,
-            title: value,
-            priority: "Medium",
-          });
-
-        setTasks((previous) => [
-          ...previous,
-          newTask,
-        ]);
-
-        setTaskInputs((previous) => ({
-          ...previous,
-          [columnId]: "",
-        }));
-      } catch (err) {
-        console.error(
-          "Failed to create general task:",
-          err,
-        );
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Não foi possível criar a tarefa.",
-        );
-      }
-
-      return;
-    }
-
-    /*
-     * Column task (general or project).
-     */
     if (!column) return;
 
     try {
       setError(null);
 
-      const columnTasks =
-        tasks.filter(
+      const newTask = await createTask({
+        projectId: projectId ?? null,
+        title: value,
+        columnId,
+        priority: "Medium",
+        position: tasks.filter(
           (task) =>
-            task.columnId ===
-            columnId,
-        );
-
-      const newTask =
-        await createTask({
-          projectId: column.projectId,
-          title: value,
-          columnId,
-          priority: "Medium",
-          position:
-            columnTasks.length,
-        });
+            task.columnId === columnId,
+        ).length,
+      });
 
       setTasks((previous) => [
         ...previous,
@@ -1111,37 +915,32 @@ export default function KanbanBoard({
   /*
    * Delete task
    */
+
   const handleDeleteTask = async (
     taskId: string,
   ) => {
     const task =
       tasks.find(
-        (item) =>
-          item.id === taskId,
-      );
+        (item) => item.id === taskId,
+      ) ?? null;
 
     if (!task) return;
 
-    const confirmed =
-      window.confirm(
-        "Tem a certeza de que pretende eliminar esta tarefa?",
-      );
+    const confirmed = window.confirm(
+      "Tem a certeza de que pretende eliminar esta tarefa?",
+    );
 
     if (!confirmed) return;
 
-    const previousTasks =
-      tasks;
+    const previousTasks = tasks;
 
     setTasks((previous) =>
       previous.filter(
-        (item) =>
-          item.id !== taskId,
+        (item) => item.id !== taskId,
       ),
     );
 
-    if (
-      selectedTaskId === taskId
-    ) {
+    if (selectedTaskId === taskId) {
       setSelectedTaskId(null);
     }
 
@@ -1168,11 +967,11 @@ export default function KanbanBoard({
   /*
    * Task modal
    */
+
   const commitTitle = async () => {
     if (!selectedTask) return;
 
-    const title =
-      titleDraft.trim();
+    const title = titleDraft.trim();
 
     if (
       !title ||
@@ -1181,20 +980,18 @@ export default function KanbanBoard({
       setTitleDraft(
         selectedTask.title,
       );
-
       return;
     }
 
     try {
       setError(null);
 
-      const updated =
-        await updateTask(
-          selectedTask.id,
-          {
-            title,
-          },
-        );
+      const updated = await updateTask(
+        selectedTask.id,
+        {
+          title,
+        },
+      );
 
       updateTaskLocal(
         selectedTask.id,
@@ -1236,13 +1033,12 @@ export default function KanbanBoard({
     try {
       setError(null);
 
-      const updated =
-        await updateTask(
-          selectedTask.id,
-          {
-            priority,
-          },
-        );
+      const updated = await updateTask(
+        selectedTask.id,
+        {
+          priority,
+        },
+      );
 
       updateTaskLocal(
         selectedTask.id,
@@ -1290,13 +1086,12 @@ export default function KanbanBoard({
     try {
       setError(null);
 
-      const updated =
-        await updateTask(
-          selectedTask.id,
-          {
-            dueDate: value,
-          },
-        );
+      const updated = await updateTask(
+        selectedTask.id,
+        {
+          dueDate: value,
+        },
+      );
 
       updateTaskLocal(
         selectedTask.id,
@@ -1329,14 +1124,13 @@ export default function KanbanBoard({
     try {
       setError(null);
 
-      const updated =
-        await updateTask(
-          selectedTask.id,
-          {
-            description:
-              selectedTask.description,
-          },
-        );
+      const updated = await updateTask(
+        selectedTask.id,
+        {
+          description:
+            selectedTask.description,
+        },
+      );
 
       updateTaskLocal(
         selectedTask.id,
@@ -1359,73 +1153,68 @@ export default function KanbanBoard({
   /*
    * Empty search result
    */
+
   if (
     isSearching &&
     totalMatches === 0
   ) {
     return (
-      <>
-        <div className="min-h-screen">
-          <div className="mx-auto max-w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-            {error && (
-              <ErrorBanner
-                error={error}
-                onClose={() =>
-                  setError(null)
-                }
-              />
-            )}
+      <div className="min-h-screen">
+        <div className="mx-auto max-w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          {error && (
+            <ErrorBanner
+              error={error}
+              onClose={() =>
+                setError(null)
+              }
+            />
+          )}
 
-            <div className="mb-8 border-b border-gray-200 pb-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-                    Tarefas
-                  </h1>
+          <div className="mb-8 border-b border-gray-200 pb-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+                  Tarefas
+                </h1>
 
-                  <p className="mt-1 text-sm text-gray-600">
-                    {projectId
-                      ? "Organize as tarefas deste projecto."
-                      : "Consulte todas as tarefas, incluindo tarefas de projecto e tarefas gerais."}
-                  </p>
-                </div>
-
-                <SearchBox
-                  value={searchQuery}
-                  onChange={
-                    setSearchQuery
-                  }
-                />
+                <p className="mt-1 text-sm text-gray-600">
+                  {projectId
+                    ? "Organize as tarefas deste projecto."
+                    : "Consulte as tarefas gerais da equipa."}
+                </p>
               </div>
-            </div>
 
-            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-16 text-center">
-              <Search className="mb-4 h-10 w-10 text-gray-300" />
-
-              <p className="text-sm font-medium text-gray-900">
-                Nenhuma tarefa encontrada
-              </p>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Nenhuma tarefa corresponde a "
-                {searchQuery}"
-              </p>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSearchQuery("")
-                }
-                className="mt-4 text-sm font-medium text-gray-600 underline transition hover:text-gray-900"
-              >
-                Limpar pesquisa
-              </button>
+              <SearchBox
+                value={searchQuery}
+                onChange={setSearchQuery}
+              />
             </div>
           </div>
-        </div>
 
-        {selectedTask && null}
-      </>
+          <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-16 text-center">
+            <Search className="mb-4 h-10 w-10 text-gray-300" />
+
+            <p className="text-sm font-medium text-gray-900">
+              Nenhuma tarefa encontrada
+            </p>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Nenhuma tarefa corresponde a "
+              {searchQuery}"
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                setSearchQuery("")
+              }
+              className="mt-4 text-sm font-medium text-gray-600 underline transition hover:text-gray-900"
+            >
+              Limpar pesquisa
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -1452,188 +1241,41 @@ export default function KanbanBoard({
                 <p className="mt-1 text-sm text-gray-600">
                   {projectId
                     ? "Organize as tarefas deste projecto."
-                    : "Consulte todas as tarefas, incluindo tarefas de projecto e tarefas gerais."}
+                    : "Consulte as tarefas gerais da equipa através das listas disponíveis."}
                 </p>
               </div>
 
               <SearchBox
                 value={searchQuery}
-                onChange={
-                  setSearchQuery
-                }
+                onChange={setSearchQuery}
               />
             </div>
           </div>
 
           <div className="-mx-4 flex gap-6 overflow-x-auto px-4 pb-6 sm:mx-0 sm:px-0">
-            {/* ---------------------------------------------------------------- */}
-            {/* GENERAL/UNASSIGNED COLUMN                                        */}
-            {/* ---------------------------------------------------------------- */}
-
-            {!projectId && (
-              <div
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setDragOverColumnId(
-                    UNASSIGNED_COLUMN_ID,
-                  );
-                }}
-                onDragLeave={() =>
-                  setDragOverColumnId(
-                    (previous) =>
-                      previous ===
-                      UNASSIGNED_COLUMN_ID
-                        ? null
-                        : previous,
-                  )
-                }
-                onDrop={(event) =>
-                  handleColumnDropArea(
-                    event,
-                    UNASSIGNED_COLUMN_ID,
-                  )
-                }
-                className={`flex min-h-[600px] w-80 shrink-0 flex-col rounded-lg border bg-white shadow-sm transition ${
-                  dragOverColumnId ===
-                  UNASSIGNED_COLUMN_ID
-                    ? "border-gray-400 ring-2 ring-gray-200"
-                    : "border-gray-200"
-                }`}
-              >
-                <div className="border-b border-gray-200 px-4 py-4 sm:px-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <h2 className="truncate text-sm font-semibold text-gray-900">
-                        Sem lista
-                      </h2>
-                    </div>
-
-                    <span className="inline-flex min-w-[28px] items-center justify-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
-                      {unassignedTasks.length}
-                    </span>
-                  </div>
-
-                  <p className="mt-2 text-[11px] text-gray-400">
-                    Tarefas gerais da equipa
-                  </p>
-                </div>
-
-                <div className="flex-1 space-y-3 overflow-y-auto overflow-x-visible px-4 py-4 sm:px-5">
-                  {unassignedTasks.length ===
-                  0 ? (
-                    <p className="rounded-lg border-2 border-dashed border-gray-200 py-8 text-center text-xs text-gray-400">
-                      Sem tarefas gerais
-                    </p>
-                  ) : (
-                    unassignedTasks.map(
-                      (task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onSelect={() =>
-                            setSelectedTaskId(
-                              task.id,
-                            )
-                          }
-                          onDelete={() =>
-                            handleDeleteTask(
-                              task.id,
-                            )
-                          }
-                          draggable
-                          onDragStart={(
-                            event,
-                          ) =>
-                            handleTaskDragStart(
-                              event,
-                              task.id,
-                            )
-                          }
-                          onDragOver={(
-                            event,
-                          ) =>
-                            event.preventDefault()
-                          }
-                          onDrop={(event) =>
-                            handleTaskDrop(
-                              event,
-                              task.id,
-                              UNASSIGNED_COLUMN_ID,
-                            )
-                          }
-                        />
-                      ),
-                    )
-                  )}
-                </div>
-
-                <div className="space-y-3 border-t border-gray-200 px-4 py-4 sm:px-5">
-                  <input
-                    type="text"
-                    value={
-                      taskInputs[
-                        UNASSIGNED_COLUMN_ID
-                      ] ?? ""
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setTaskInputs(
-                        (previous) => ({
-                          ...previous,
-                          [UNASSIGNED_COLUMN_ID]:
-                            event.target
-                              .value,
-                        }),
-                      )
-                    }
-                    onKeyDown={(event) => {
-                      if (
-                        event.key ===
-                        "Enter"
-                      ) {
-                        handleAddTask(
-                          UNASSIGNED_COLUMN_ID,
-                        );
-                      }
-                    }}
-                    placeholder="Nova tarefa geral..."
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleAddTask(
-                        UNASSIGNED_COLUMN_ID,
-                      )
-                    }
-                    className="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1"
-                  >
-                    Adicionar tarefa
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ---------------------------------------------------------------- */}
-            {/* COLUMNS (General or Project)                                     */}
-            {/* ---------------------------------------------------------------- */}
-
             {columns.map((column) => {
-              const columnTasks =
-                filteredTasks
-                  .filter(
-                    (task) =>
-                      task.columnId ===
-                      column.id,
-                  )
-                  .sort(
-                    (a, b) =>
-                      a.position -
-                      b.position,
-                  );
+              const columnTasks = filteredTasks
+                .filter(
+                  (task) =>
+                    task.columnId ===
+                    column.id,
+                )
+                .sort(
+                  (a, b) =>
+                    a.position -
+                    b.position,
+                );
 
+              const isProjectColumn =
+                Boolean(column.projectId);
+
+              const displayedTitle =
+                !projectId &&
+                isProjectColumn &&
+                column.projectName
+                  ? `${column.title} — ${column.projectName}`
+                  : column.title;
+                
               return (
                 <div
                   key={column.id}
@@ -1666,28 +1308,32 @@ export default function KanbanBoard({
                       : "border-gray-200"
                   }`}
                 >
+                  {/* COLUMN HEADER */}
+
                   <div className="border-b border-gray-200 px-4 py-4 sm:px-5">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 flex-1 items-center gap-2">
                         <span
-                          draggable={
-                            canManageColumns(column)
-                          }
-                          onDragStart={(
-                            event,
-                          ) =>
+                          draggable={canManageColumns(
+                            column,
+                          )}
+                          onDragStart={(event) =>
                             handleColumnDragStart(
                               event,
                               column.id,
                             )
                           }
                           className={`select-none text-gray-300 transition ${
-                            canManageColumns(column)
+                            canManageColumns(
+                              column,
+                            )
                               ? "cursor-grab hover:text-gray-500 active:cursor-grabbing"
                               : "cursor-default"
                           }`}
                           title={
-                            canManageColumns(column)
+                            canManageColumns(
+                              column,
+                            )
                               ? "Arraste para reordenar"
                               : undefined
                           }
@@ -1702,12 +1348,9 @@ export default function KanbanBoard({
                             value={
                               columnTitleInput
                             }
-                            onChange={(
-                              event,
-                            ) =>
+                            onChange={(event) =>
                               setColumnTitleInput(
-                                event
-                                  .target
+                                event.target
                                   .value,
                               )
                             }
@@ -1738,35 +1381,41 @@ export default function KanbanBoard({
                         ) : (
                           <h2
                             onClick={() =>
-                              canManageColumns(column) &&
+                              canManageColumns(
+                                column,
+                              ) &&
                               startEditingColumn(
                                 column,
                               )
                             }
                             className={`truncate text-sm font-semibold text-gray-900 transition ${
-                              canManageColumns(column)
+                              canManageColumns(
+                                column,
+                              )
                                 ? "cursor-text hover:text-gray-600"
                                 : "cursor-default"
                             }`}
                             title={
-                              canManageColumns(column)
+                              canManageColumns(
+                                column,
+                              )
                                 ? "Clique para renomear"
-                                : undefined
+                                : displayedTitle
                             }
                           >
-                            {column.title}
+                            {displayedTitle}
                           </h2>
                         )}
                       </div>
 
                       <div className="flex shrink-0 items-center gap-2">
                         <span className="inline-flex min-w-[28px] items-center justify-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
-                          {
-                            columnTasks.length
-                          }
+                          {columnTasks.length}
                         </span>
 
-                        {canManageColumns(column) && (
+                        {canManageColumns(
+                          column,
+                        ) && (
                           <button
                             type="button"
                             onClick={() =>
@@ -1784,18 +1433,19 @@ export default function KanbanBoard({
                       </div>
                     </div>
 
-                    {projectId && !column.projectId && (
+                    {isProjectColumn ? (
+                      <p className="mt-2 truncate text-[11px] font-medium text-gray-400">
+                        {column.projectName ??
+                          "Lista de projecto"}
+                      </p>
+                    ) : (
                       <p className="mt-2 truncate text-[11px] text-gray-400">
                         Lista geral
                       </p>
                     )}
-
-                    {!projectId && column.projectId && (
-                      <p className="mt-2 truncate text-[11px] text-gray-400">
-                        Lista de projecto
-                      </p>
-                    )}
                   </div>
+
+                  {/* TASKS */}
 
                   <div className="flex-1 space-y-3 overflow-y-auto overflow-x-visible px-4 py-4 sm:px-5">
                     {columnTasks.length ===
@@ -1846,66 +1496,57 @@ export default function KanbanBoard({
                     )}
                   </div>
 
-                  {canManageColumns(column) && (
-                    <div className="space-y-3 border-t border-gray-200 px-4 py-4 sm:px-5">
-                      <input
-                        type="text"
-                        value={
-                          taskInputs[
-                            column.id
-                          ] ?? ""
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          setTaskInputs(
-                            (
-                              previous,
-                            ) => ({
-                              ...previous,
-                              [column.id]:
-                                event
-                                  .target
-                                  .value,
-                            }),
-                          )
-                        }
-                        onKeyDown={(
-                          event,
-                        ) => {
-                          if (
-                            event.key ===
-                            "Enter"
-                          ) {
-                            handleAddTask(
-                              column.id,
-                            );
-                          }
-                        }}
-                        placeholder="Nova tarefa..."
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
-                      />
+                  {/* ADD TASK */}
 
-                      <button
-                        type="button"
-                        onClick={() =>
+                  <div className="space-y-3 border-t border-gray-200 px-4 py-4 sm:px-5">
+                    <input
+                      type="text"
+                      value={
+                        taskInputs[
+                          column.id
+                        ] ?? ""
+                      }
+                      onChange={(event) =>
+                        setTaskInputs(
+                          (previous) => ({
+                            ...previous,
+                            [column.id]:
+                              event.target
+                                .value,
+                          }),
+                        )
+                      }
+                      onKeyDown={(event) => {
+                        if (
+                          event.key ===
+                          "Enter"
+                        ) {
                           handleAddTask(
                             column.id,
-                          )
+                          );
                         }
-                        className="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1"
-                      >
-                        Adicionar tarefa
-                      </button>
-                    </div>
-                  )}
+                      }}
+                      placeholder="Nova tarefa..."
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleAddTask(
+                          column.id,
+                        )
+                      }
+                      className="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1"
+                    >
+                      Adicionar tarefa
+                    </button>
+                  </div>
                 </div>
               );
             })}
 
-            {/* ---------------------------------------------------------------- */}
-            {/* NEW COLUMN BUTTON                                               */}
-            {/* ---------------------------------------------------------------- */}
+            {/* NEW COLUMN */}
 
             <div className="w-80 shrink-0">
               {isAddingList ? (
@@ -1916,8 +1557,7 @@ export default function KanbanBoard({
                     value={listInput}
                     onChange={(event) =>
                       setListInput(
-                        event.target
-                          .value,
+                        event.target.value,
                       )
                     }
                     onKeyDown={(event) => {
@@ -1986,9 +1626,7 @@ export default function KanbanBoard({
         </div>
       </div>
 
-      {/* -------------------------------------------------------------------- */}
-      {/* TASK MODAL                                                            */}
-      {/* -------------------------------------------------------------------- */}
+      {/* TASK MODAL */}
 
       {selectedTask && (
         <div
@@ -2041,9 +1679,7 @@ export default function KanbanBoard({
                 <button
                   type="button"
                   onClick={() =>
-                    setSelectedTaskId(
-                      null,
-                    )
+                    setSelectedTaskId(null)
                   }
                   aria-label="Fechar"
                   className={`${ICON_BTN} text-gray-400 hover:bg-gray-100 hover:text-gray-600`}
@@ -2061,12 +1697,10 @@ export default function KanbanBoard({
                   </p>
 
                   <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
-                    {selectedTask.columnId
-                      ? getColumn(
-                          selectedTask.columnId,
-                        )?.title ??
-                        "Sem lista"
-                      : "Sem lista"}
+                    {getColumn(
+                      selectedTask.columnId,
+                    )?.title ??
+                      "Lista indisponível"}
                   </span>
                 </div>
 
@@ -2112,7 +1746,9 @@ export default function KanbanBoard({
                     (priority) => (
                       <option
                         key={priority}
-                        value={priority}
+                        value={
+                          priority
+                        }
                       >
                         {priority}
                       </option>
@@ -2123,7 +1759,8 @@ export default function KanbanBoard({
                 <span
                   className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
                     PRIORITY_CLASSES[
-                      selectedTask.priority
+                      selectedTask
+                        .priority
                     ]
                   }`}
                 >
@@ -2186,12 +1823,15 @@ export default function KanbanBoard({
                   </div>
                 ) : (
                   <p className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-sm text-gray-400">
-                    Sem responsável atribuído.
+                    Sem responsável
+                    atribuído.
                   </p>
                 )}
 
                 <p className="mt-2 text-xs leading-5 text-gray-400">
-                  A tarefa suporta actualmente um único responsável através de{" "}
+                  A tarefa suporta
+                  actualmente um único
+                  responsável através de{" "}
                   <code className="mx-1 rounded bg-gray-100 px-1">
                     assigned_to
                   </code>
@@ -2203,9 +1843,7 @@ export default function KanbanBoard({
                 <button
                   type="button"
                   onClick={() =>
-                    setSelectedTaskId(
-                      null,
-                    )
+                    setSelectedTaskId(null)
                   }
                   className="rounded-lg bg-gray-900 px-6 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"
                 >
@@ -2226,9 +1864,7 @@ export default function KanbanBoard({
 
 type SearchBoxProps = {
   value: string;
-  onChange: (
-    value: string,
-  ) => void;
+  onChange: (value: string) => void;
 };
 
 function SearchBox({
@@ -2246,9 +1882,7 @@ function SearchBox({
         type="text"
         value={value}
         onChange={(event) =>
-          onChange(
-            event.target.value,
-          )
+          onChange(event.target.value)
         }
         placeholder="Pesquisar tarefas..."
         className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-9 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200"

@@ -112,13 +112,13 @@ export type ResourceMovement = {
   movement_date: string;
 
   movement_type:
-    | "Entrada"
-    | "Saída"
-    | "Transferência"
-    | "Devolução"
-    | "Consumo"
-    | "Manutenção"
-    | "Baixa";
+  | "Entrada"
+  | "Saída"
+  | "Transferência"
+  | "Devolução"
+  | "Consumo"
+  | "Manutenção"
+  | "Baixa";
 
   resource_id: string;
   resource_name: string;
@@ -151,7 +151,7 @@ export type ResourceStats = {
 export interface EquipmentPageProps {
   resources: Resource[];
   recentMovements: ResourceMovement[];
-  stats: ResourceStats;
+  stats?: ResourceStats | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -382,7 +382,33 @@ export default function EquipmentPage({
     };
   }, [resources]);
 
-  const displayStats = stats ?? calculatedStats;
+  const displayStats: ResourceStats = {
+    totalResources: stats?.totalResources ?? calculatedStats.totalResources ?? 0,
+
+    totalStockValue: stats?.totalStockValue ?? calculatedStats.totalStockValue ?? 0,
+
+    availableResources:
+      stats?.availableResources ?? calculatedStats.availableResources ?? 0,
+
+    resourcesInUse:
+      stats?.resourcesInUse ?? calculatedStats.resourcesInUse ?? 0,
+
+    resourcesInMaintenance:
+      stats?.resourcesInMaintenance ??
+      calculatedStats.resourcesInMaintenance ??
+      0,
+
+    resourcesMissingLocation:
+      stats?.resourcesMissingLocation ??
+      calculatedStats.resourcesMissingLocation ??
+      0,
+
+    overdueReturns:
+      stats?.overdueReturns ?? calculatedStats.overdueReturns ?? 0,
+
+    lowStockItems:
+      stats?.lowStockItems ?? calculatedStats.lowStockItems ?? 0,
+  };
 
   const filtered = useMemo(() => {
     const normalizedQuery =
@@ -476,34 +502,26 @@ export default function EquipmentPage({
           />
 
           <StatCard
-            title="Valor em Stock"
-            value={formatCurrency(
-              displayStats.totalStockValue,
-            )}
-            icon={<Package size={18} />}
-          />
-
-          <StatCard
             title="Disponíveis"
-            value={`${displayStats.availableResources}`}
+            value={`${displayStats.availableResources ?? 0}`}
             icon={<CheckCircle2 size={18} />}
           />
 
           <StatCard
             title="Em Utilização"
-            value={`${displayStats.resourcesInUse}`}
+            value={`${displayStats.resourcesInUse ?? 0}`}
             icon={<ArrowRightLeft size={18} />}
           />
 
           <StatCard
             title="Em Manutenção"
-            value={`${displayStats.resourcesInMaintenance}`}
+            value={`${displayStats.resourcesInMaintenance ?? 0}`}
             icon={<Wrench size={18} />}
           />
 
           <StatCard
             title="Stock Mínimo"
-            value={`${displayStats.lowStockItems}`}
+            value={`${displayStats.lowStockItems ?? 0}`}
             icon={<CircleAlert size={18} />}
           />
         </div>
@@ -512,68 +530,68 @@ export default function EquipmentPage({
         {(displayStats.lowStockItems > 0 ||
           displayStats.overdueReturns > 0 ||
           displayStats.resourcesMissingLocation > 0) && (
-          <div className="mb-6 grid gap-3 md:grid-cols-3">
-            {displayStats.lowStockItems > 0 && (
-              <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <CircleAlert
-                  size={18}
-                  className="mt-0.5 shrink-0 text-amber-600"
-                />
+            <div className="mb-6 grid gap-3 md:grid-cols-3">
+              {displayStats.lowStockItems > 0 && (
+                <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <CircleAlert
+                    size={18}
+                    className="mt-0.5 shrink-0 text-amber-600"
+                  />
 
-                <div>
-                  <p className="text-sm font-semibold text-amber-900">
-                    Stock mínimo atingido
-                  </p>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">
+                      Stock mínimo atingido
+                    </p>
 
-                  <p className="mt-1 text-xs text-amber-700">
-                    {displayStats.lowStockItems} recurso(s)
-                    consumível(eis) precisam de reposição.
-                  </p>
+                    <p className="mt-1 text-xs text-amber-700">
+                      {displayStats.lowStockItems} recurso(s)
+                      consumível(eis) precisam de reposição.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {displayStats.overdueReturns > 0 && (
-              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-                <CircleAlert
-                  size={18}
-                  className="mt-0.5 shrink-0 text-red-600"
-                />
+              {displayStats.overdueReturns > 0 && (
+                <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <CircleAlert
+                    size={18}
+                    className="mt-0.5 shrink-0 text-red-600"
+                  />
 
-                <div>
-                  <p className="text-sm font-semibold text-red-900">
-                    Devoluções em atraso
-                  </p>
+                  <div>
+                    <p className="text-sm font-semibold text-red-900">
+                      Devoluções em atraso
+                    </p>
 
-                  <p className="mt-1 text-xs text-red-700">
-                    {displayStats.overdueReturns} recurso(s)
-                    têm devolução prevista ultrapassada.
-                  </p>
+                    <p className="mt-1 text-xs text-red-700">
+                      {displayStats.overdueReturns} recurso(s)
+                      têm devolução prevista ultrapassada.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {displayStats.resourcesMissingLocation > 0 && (
-              <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <Warehouse
-                  size={18}
-                  className="mt-0.5 shrink-0 text-slate-500"
-                />
+              {displayStats.resourcesMissingLocation > 0 && (
+                <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <Warehouse
+                    size={18}
+                    className="mt-0.5 shrink-0 text-slate-500"
+                  />
 
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    Localização por confirmar
-                  </p>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Localização por confirmar
+                    </p>
 
-                  <p className="mt-1 text-xs text-slate-500">
-                    {displayStats.resourcesMissingLocation} recurso(s)
-                    sem localização confirmada.
-                  </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {displayStats.resourcesMissingLocation} recurso(s)
+                      sem localização confirmada.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
 
         {/* Toolbar */}
         <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -601,8 +619,8 @@ export default function EquipmentPage({
               onChange={(event) =>
                 setTypeFilter(
                   event.target.value as
-                    | ResourceType
-                    | "Todos os Tipos",
+                  | ResourceType
+                  | "Todos os Tipos",
                 )
               }
               aria-label="Filtrar por tipo"
@@ -624,8 +642,8 @@ export default function EquipmentPage({
               onChange={(event) =>
                 setConditionFilter(
                   event.target.value as
-                    | ResourceCondition
-                    | "Todos os Estados",
+                  | ResourceCondition
+                  | "Todos os Estados",
                 )
               }
               aria-label="Filtrar por estado de conservação"
@@ -661,14 +679,14 @@ export default function EquipmentPage({
           {(query ||
             typeFilter !== "Todos os Tipos" ||
             conditionFilter !== "Todos os Estados") && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="w-fit font-medium text-[#002950] hover:underline"
-            >
-              Limpar filtros
-            </button>
-          )}
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="w-fit font-medium text-[#002950] hover:underline"
+              >
+                Limpar filtros
+              </button>
+            )}
         </div>
 
         {/* Resources table */}
@@ -730,7 +748,7 @@ export default function EquipmentPage({
                     item.current_stock != null &&
                     item.minimum_stock != null &&
                     item.current_stock <=
-                      item.minimum_stock;
+                    item.minimum_stock;
 
                   return (
                     <tr
@@ -782,12 +800,11 @@ export default function EquipmentPage({
 
                       <td className="px-5 py-3.5 text-slate-600">
                         {item.brand || item.model
-                          ? `${item.brand ?? ""}${
-                              item.brand &&
-                              item.model
-                                ? " / "
-                                : ""
-                            }${item.model ?? ""}`
+                          ? `${item.brand ?? ""}${item.brand &&
+                            item.model
+                            ? " / "
+                            : ""
+                          }${item.model ?? ""}`
                           : "—"}
                       </td>
 
@@ -833,11 +850,10 @@ export default function EquipmentPage({
                         {consumable ? (
                           <div>
                             <p
-                              className={`font-medium ${
-                                lowStock
+                              className={`font-medium ${lowStock
                                   ? "text-amber-700"
                                   : "text-slate-900"
-                              }`}
+                                }`}
                             >
                               {formatNumber(
                                 item.current_stock,
@@ -861,10 +877,9 @@ export default function EquipmentPage({
                       <td className="px-5 py-3.5 text-slate-600">
                         {consumable
                           ? `${formatNumber(
-                              item.minimum_stock,
-                            )} ${
-                              item.unit_of_measure ?? ""
-                            }`
+                            item.minimum_stock,
+                          )} ${item.unit_of_measure ?? ""
+                          }`
                           : "—"}
                       </td>
 
@@ -952,16 +967,16 @@ export default function EquipmentPage({
 
               <h3 className="text-base font-semibold text-slate-900">
                 {query ||
-                typeFilter !== "Todos os Tipos" ||
-                conditionFilter !== "Todos os Estados"
+                  typeFilter !== "Todos os Tipos" ||
+                  conditionFilter !== "Todos os Estados"
                   ? "Nenhum recurso encontrado"
                   : "Nenhum recurso registado"}
               </h3>
 
               <p className="mt-1 max-w-md text-sm text-slate-500">
                 {query ||
-                typeFilter !== "Todos os Tipos" ||
-                conditionFilter !== "Todos os Estados"
+                  typeFilter !== "Todos os Tipos" ||
+                  conditionFilter !== "Todos os Estados"
                   ? "Não encontramos recursos que correspondam aos filtros ou à pesquisa."
                   : "Registe o primeiro recurso para começar a gerir materiais, equipamentos e ferramentas."}
               </p>
@@ -970,14 +985,14 @@ export default function EquipmentPage({
                 {(query ||
                   typeFilter !== "Todos os Tipos" ||
                   conditionFilter !== "Todos os Estados") && (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Limpar filtros
-                  </button>
-                )}
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Limpar filtros
+                    </button>
+                  )}
 
                 {!query &&
                   typeFilter === "Todos os Tipos" &&
@@ -1039,11 +1054,10 @@ export default function EquipmentPage({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className={`rounded-full px-2 py-1 text-[11px] font-medium ${
-                          MOVEMENT_STYLES[
-                            movement.movement_type
+                        className={`rounded-full px-2 py-1 text-[11px] font-medium ${MOVEMENT_STYLES[
+                          movement.movement_type
                           ]
-                        }`}
+                          }`}
                       >
                         {movement.movement_type}
                       </span>

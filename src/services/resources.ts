@@ -1368,10 +1368,7 @@ export type ResourceStats = {
 export async function getResourceStats(): Promise<ResourceStats> {
     const supabase = await getSupabase();
 
-    const [
-        resourcesResult,
-        stockResult,
-    ] = await Promise.all([
+    const [resourcesResult, stockResult] = await Promise.all([
         supabase
             .from("resources")
             .select(
@@ -1422,48 +1419,48 @@ export async function getResourceStats(): Promise<ResourceStats> {
 
     return {
         totalResources: resources.length,
-
         totalMaterials: resources.filter(
             (resource) => resource.resource_type === "material"
         ).length,
-
         totalEquipment: resources.filter(
             (resource) => resource.resource_type === "equipment"
         ).length,
-
         totalTools: resources.filter(
             (resource) => resource.resource_type === "tool"
         ).length,
-
         totalPpe: resources.filter(
             (resource) => resource.resource_type === "ppe"
         ).length,
-
         totalVehicles: resources.filter(
             (resource) => resource.resource_type === "vehicle"
         ).length,
 
+        totalStockValue,
+
         available: resources.filter(
-            (resource) => resource.operational_status === "available"
+            (resource) =>
+                resource.operational_status === "available"
         ).length,
 
         inUse: resources.filter(
-            (resource) => resource.operational_status === "in_use"
-        ).length,
-
-        overdue: resources.filter(
-            (resource) => resource.operational_status === "overdue"
-        ).length,
-
-        missing: resources.filter(
-            (resource) => resource.operational_status === "missing"
+            (resource) =>
+                resource.operational_status === "in_use"
         ).length,
 
         inMaintenance: resources.filter(
-            (resource) => resource.condition_status === "maintenance"
+            (resource) =>
+                resource.condition_status === "maintenance"
         ).length,
 
-        totalStockValue,
+        missing: resources.filter(
+            (resource) =>
+                resource.operational_status === "missing"
+        ).length,
+
+        overdue: resources.filter(
+            (resource) =>
+                resource.operational_status === "overdue"
+        ).length,
 
         lowStockCount,
     };

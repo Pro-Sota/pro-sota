@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-    CalendarDays,
     CheckCircle2,
     ChevronLeft,
     ChevronRight,
@@ -18,6 +17,7 @@ import type {
     AttendanceStatus,
     AttendanceWithProfile,
 } from "@/services/attendance";
+import CustomSelect from "@/app/components/custom_select";
 
 type ViewMode = "day" | "month";
 
@@ -42,8 +42,11 @@ type AttendanceProps = {
     selectedDate: string;
     selectedMonth: string;
     view: ViewMode;
+
     onCheckIn: (profileId: string) => Promise<void>;
     onCheckOut: (profileId: string) => Promise<void>;
+    onMarkLate: (profileId: string) => Promise<void>;
+    onMarkAbsent: (profileId: string) => Promise<void>;
 };
 
 const statusLabels: Record<AttendanceStatus, string> = {
@@ -114,9 +117,9 @@ function getMonthLabel(month: string): string {
 
     const date = new Date(year, monthNumber - 1, 1);
 
-    return monthFormatter.format(date).replace(/^./, (char) =>
-        char.toUpperCase(),
-    );
+    return monthFormatter
+        .format(date)
+        .replace(/^./, (char) => char.toUpperCase());
 }
 
 function getMonthDays(month: string): string[] {
@@ -245,6 +248,8 @@ export default function Attendance({
     view,
     onCheckIn,
     onCheckOut,
+    onMarkLate,
+    onMarkAbsent,
 }: AttendanceProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -326,9 +331,12 @@ export default function Attendance({
             const record =
                 attendanceByProfile.get(profile.profile_id);
 
+            const effectiveStatus =
+                record?.status ?? "Em falta";
+
             const matchesStatus =
                 statusFilter === "Todos" ||
-                record?.status === statusFilter;
+                effectiveStatus === statusFilter;
 
             return (
                 matchesSearch &&
@@ -361,11 +369,10 @@ export default function Attendance({
                     profile.profile_id,
                 );
 
-            if (record) {
-                summary[record.status] += 1;
-            } else {
-                summary["Em falta"] += 1;
-            }
+            const status =
+                record?.status ?? "Em falta";
+
+            summary[status] += 1;
         }
 
         return summary;
@@ -380,10 +387,7 @@ export default function Attendance({
     );
 
     function updateUrl(
-        values: Record<
-            string,
-            string | null
-        >,
+        values: Record<string, string | null>,
     ) {
         const params = new URLSearchParams(
             searchParams.toString(),
@@ -399,8 +403,12 @@ export default function Attendance({
             }
         }
 
+        const queryString = params.toString();
+
         router.push(
-            `/management/attendance?${params.toString()}`,
+            queryString
+                ? `/management/attendance?${queryString}`
+                : "/management/attendance",
         );
     }
 
@@ -486,6 +494,28 @@ export default function Attendance({
         }
     }
 
+    async function handleMarkLate(profileId: string) {
+        setActionLoading(`late-${profileId}`);
+
+        try {
+            await onMarkLate(profileId);
+            router.refresh();
+        } finally {
+            setActionLoading(null);
+        }
+    }
+
+    async function handleMarkAbsent(profileId: string) {
+        setActionLoading(`absent-${profileId}`);
+
+        try {
+            await onMarkAbsent(profileId);
+            router.refresh();
+        } finally {
+            setActionLoading(null);
+        }
+    }
+
     function renderAttendanceAction(
         profile: Profile,
     ) {
@@ -494,48 +524,115 @@ export default function Attendance({
                 profile.profile_id,
             );
 
-        if (!record?.check_in) {
-            const loading =
-                actionLoading ===
-                `check-in-${profile.profile_id}`;
+        const profileId = profile.profile_id;
 
+        if (record?.status === "Ausente") {
             return (
-                <button
-                    type="button"
-                    onClick={() =>
-                        handleCheckIn(
-                            profile.profile_id,
-                        )
-                    }
-                    disabled={loading}
-                    aria-label={`Registar entrada de ${profile.first_name} ${profile.last_name}`}
-                    className="inline-flex items-center justify-center rounded-lg border border-[#BD9655] px-3 py-2 text-xs font-semibold text-[#BD9655] transition hover:bg-[#BD9655] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    {loading
-                        ? "A registar..."
-                        : "Registar entrada"}
-                </button>
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600">
+                    <XCircle className="h-4 w-4" />
+                    Ausente registado
+                </span>
+            );
+        }
+
+        if (
+            record?.status === "Atrasado" &&
+            !record.check_in
+        ) {
+            return (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={() =>
+                            handleCheckIn(profileId)
+                        }
+                        disabled={
+                            actionLoading !== null
+                        }
+                        aria-label={`Registar entrada de ${profile.first_name} ${profile.last_name}`}
+                        className="inline-flex items-center justify-center rounded-lg bg-[#BD9655] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#a98245] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {actionLoading ===
+                        `check-in-${profileId}`
+                            ? "A registar..."
+                            : "Registar entrada"}
+                    </button>
+                </div>
+            );
+        }
+
+        if (!record?.check_in) {
+            return (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={() =>
+                            handleCheckIn(profileId)
+                        }
+                        disabled={
+                            actionLoading !== null
+                        }
+                        aria-label={`Registar entrada de ${profile.first_name} ${profile.last_name}`}
+                        className="inline-flex items-center justify-center rounded-lg border border-[#BD9655] px-3 py-2 text-xs font-semibold text-[#BD9655] transition hover:bg-[#BD9655] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {actionLoading ===
+                        `check-in-${profileId}`
+                            ? "A registar..."
+                            : "Registar entrada"}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            handleMarkLate(profileId)
+                        }
+                        disabled={
+                            actionLoading !== null
+                        }
+                        aria-label={`Marcar ${profile.first_name} ${profile.last_name} como atrasado`}
+                        className="inline-flex items-center justify-center rounded-lg border border-amber-500 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {actionLoading ===
+                        `late-${profileId}`
+                            ? "A registar..."
+                            : "Atrasado"}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            handleMarkAbsent(profileId)
+                        }
+                        disabled={
+                            actionLoading !== null
+                        }
+                        aria-label={`Marcar ${profile.first_name} ${profile.last_name} como ausente`}
+                        className="inline-flex items-center justify-center rounded-lg border border-red-500 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {actionLoading ===
+                        `absent-${profileId}`
+                            ? "A registar..."
+                            : "Ausente"}
+                    </button>
+                </div>
             );
         }
 
         if (!record.check_out) {
-            const loading =
-                actionLoading ===
-                `check-out-${profile.profile_id}`;
-
             return (
                 <button
                     type="button"
                     onClick={() =>
-                        handleCheckOut(
-                            profile.profile_id,
-                        )
+                        handleCheckOut(profileId)
                     }
-                    disabled={loading}
+                    disabled={
+                        actionLoading !== null
+                    }
                     aria-label={`Registar saída de ${profile.first_name} ${profile.last_name}`}
                     className="inline-flex items-center justify-center rounded-lg bg-[#BD9655] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#a98245] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                    {loading
+                    {actionLoading ===
+                    `check-out-${profileId}`
                         ? "A registar..."
                         : "Registar saída"}
                 </button>
@@ -677,7 +774,7 @@ export default function Attendance({
                         </div>
 
                         <div className="flex flex-col gap-3 sm:flex-row">
-                            <select
+                            <CustomSelect
                                 value={areaFilter}
                                 onChange={(event) =>
                                     setAreaFilter(
@@ -699,9 +796,9 @@ export default function Attendance({
                                         {area}
                                     </option>
                                 ))}
-                            </select>
+                            </CustomSelect>
 
-                            <select
+                            <CustomSelect
                                 value={statusFilter}
                                 onChange={(event) =>
                                     setStatusFilter(
@@ -731,7 +828,7 @@ export default function Attendance({
                                 <option value="Em falta">
                                     Em falta
                                 </option>
-                            </select>
+                            </CustomSelect>
                         </div>
                     </div>
                 </div>
@@ -760,9 +857,7 @@ export default function Attendance({
                                 getTodayDate() && (
                                 <button
                                     type="button"
-                                    onClick={
-                                        goToToday
-                                    }
+                                    onClick={goToToday}
                                     className="text-sm font-semibold text-[#BD9655] hover:underline"
                                 >
                                     Voltar a hoje
@@ -771,7 +866,7 @@ export default function Attendance({
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[850px] text-left">
+                            <table className="w-full min-w-[1100px] text-left">
                                 <thead className="bg-slate-50">
                                     <tr>
                                         <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -830,7 +925,7 @@ export default function Attendance({
                                                                     className="h-10 w-10 rounded-full object-cover"
                                                                 />
                                                             ) : (
-                                                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#002950]/10 text-xs font-semibold text-[#002950]">
+                                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#002950]/10 text-xs font-semibold text-[#002950]">
                                                                     {getInitials(
                                                                         profile.first_name,
                                                                         profile.last_name,

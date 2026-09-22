@@ -288,7 +288,8 @@ export async function createAttendance(
 
     const payload = {
         profile_id: input.profile_id,
-        attendance_date: input.attendance_date ?? getTodayDate(),
+        attendance_date:
+            input.attendance_date ?? getTodayDate(),
         check_in: input.check_in ?? null,
         check_out: input.check_out ?? null,
         status: input.status ?? 'Em falta',
@@ -356,30 +357,67 @@ export async function deleteAttendance(
 
 /**
  * Register check-in for a member.
+ *
+ * If the member was previously marked as "Atrasado",
+ * the status remains "Atrasado".
+ *
+ * If the member was explicitly marked "Ausente",
+ * check-in is blocked so the absence is not silently overwritten.
  */
 export async function registerCheckIn(
     profileId: string,
     attendanceDate = getTodayDate(),
-    status: AttendanceStatus = 'Presente',
+    status?: AttendanceStatus,
 ): Promise<AttendanceRecord> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const existingAttendance =
+        await getAttendanceForMemberAndDate(
+            profileId,
+            attendanceDate,
+        );
+
+    if (existingAttendance?.status === 'Ausente') {
+        throw new Error(
+            'Este membro foi marcado como ausente e não pode registar entrada sem alterar o registo de presença.',
+        );
+    }
+
+    if (existingAttendance?.check_in) {
+        throw new Error(
+            'A entrada deste membro já foi registada.',
+        );
+    }
 
     const checkIn = new Date().toISOString();
 
+    const finalStatus =
+        status ??
+        (existingAttendance?.status === 'Atrasado'
+            ? 'Atrasado'
+            : 'Presente');
+
+    if (existingAttendance) {
+        return updateAttendance(
+            existingAttendance.attendance_id,
+            {
+                check_in: checkIn,
+                status: finalStatus,
+            },
+        );
+    }
+
+    const cookieStore = await cookies();
+    const supabase = await createClient(cookieStore);
+
     const { data, error } = await supabase
         .from('attendance_records')
-        .upsert(
-            {
-                profile_id: profileId,
-                attendance_date: attendanceDate,
-                check_in: checkIn,
-                status,
-            },
-            {
-                onConflict: 'profile_id,attendance_date',
-            },
-        )
+        .insert({
+            profile_id: profileId,
+            attendance_date: attendanceDate,
+            check_in: checkIn,
+            check_out: null,
+            status: finalStatus,
+            notes: null,
+        })
         .select('*')
         .single();
 
@@ -389,6 +427,96 @@ export async function registerCheckIn(
     }
 
     return data as AttendanceRecord;
+}
+
+/**
+ * Mark a member as late for a specific date.
+ *
+ * This does not create a check-in time.
+ * The actual arrival can be registered afterwards.
+ */
+export async function registerLate(
+    profileId: string,
+    attendanceDate = getTodayDate(),
+): Promise<AttendanceRecord> {
+    const existingAttendance =
+        await getAttendanceForMemberAndDate(
+            profileId,
+            attendanceDate,
+        );
+
+    if (existingAttendance?.status === 'Ausente') {
+        throw new Error(
+            'Este membro já foi marcado como ausente.',
+        );
+    }
+
+    if (existingAttendance?.check_in) {
+        return updateAttendance(
+            existingAttendance.attendance_id,
+            {
+                status: 'Atrasado',
+            },
+        );
+    }
+
+    if (existingAttendance) {
+        return updateAttendance(
+            existingAttendance.attendance_id,
+            {
+                status: 'Atrasado',
+            },
+        );
+    }
+
+    return upsertAttendance({
+        profile_id: profileId,
+        attendance_date: attendanceDate,
+        check_in: null,
+        check_out: null,
+        status: 'Atrasado',
+        notes: null,
+    });
+}
+
+/**
+ * Mark a member as absent for a specific date.
+ */
+export async function registerAbsent(
+    profileId: string,
+    attendanceDate = getTodayDate(),
+): Promise<AttendanceRecord> {
+    const existingAttendance =
+        await getAttendanceForMemberAndDate(
+            profileId,
+            attendanceDate,
+        );
+
+    if (existingAttendance?.check_in) {
+        throw new Error(
+            'Não é possível marcar como ausente um membro que já registou entrada.',
+        );
+    }
+
+    if (existingAttendance) {
+        return updateAttendance(
+            existingAttendance.attendance_id,
+            {
+                status: 'Ausente',
+                check_in: null,
+                check_out: null,
+            },
+        );
+    }
+
+    return upsertAttendance({
+        profile_id: profileId,
+        attendance_date: attendanceDate,
+        check_in: null,
+        check_out: null,
+        status: 'Ausente',
+        notes: null,
+    });
 }
 
 /**
@@ -424,9 +552,12 @@ export async function registerCheckOut(
 
     const checkOut = new Date().toISOString();
 
-    return updateAttendance(existingAttendance.attendance_id, {
-        check_out: checkOut,
-    });
+    return updateAttendance(
+        existingAttendance.attendance_id,
+        {
+            check_out: checkOut,
+        },
+    );
 }
 
 /**
@@ -440,7 +571,8 @@ export async function upsertAttendance(
 
     const payload = {
         profile_id: input.profile_id,
-        attendance_date: input.attendance_date ?? getTodayDate(),
+        attendance_date:
+            input.attendance_date ?? getTodayDate(),
         check_in: input.check_in ?? null,
         check_out: input.check_out ?? null,
         status: input.status ?? 'Em falta',
