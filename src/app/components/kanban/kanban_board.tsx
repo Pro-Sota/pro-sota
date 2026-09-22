@@ -373,7 +373,7 @@ export default function KanbanBoard({
     try {
       setError(null);
 
-      await deleteTaskColumn(columnId);
+      await deleteTaskColumn(columnId, columnId);
 
       setColumns((previous) =>
         previous.filter(

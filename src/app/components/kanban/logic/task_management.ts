@@ -83,7 +83,7 @@ export class TaskManagement {
         return;
       }
 
-      const columnId = task.columnId;
+      const columnId: string = task.columnId ?? '';
 
       // Optimistically remove from UI
       onSuccess({ task, index: taskIndex, columnId });
@@ -247,7 +247,7 @@ export class TaskManagement {
 
     const completedTasks = tasks.filter(
       (task) =>
-        completedColumnIds.includes(task.columnId)
+        task.columnId !== null && completedColumnIds.includes(task.columnId)
     );
 
     return Math.round(

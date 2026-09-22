@@ -57,11 +57,15 @@ function mapTask(row: TaskRow): Task {
 
 function mapColumn(row: TaskColumnRow): TaskColumn {
   return {
-    id: row.column_id,
-    title: row.name,
-    projectId: row.project_id,
-    position: row.position,
-  };
+  id: row.column_id,
+  title: row.name,
+  projectId: row.project_id,
+  position: row.position,
+  name: undefined,
+  column_id: "",
+  is_completed: false,
+  projectName: null,
+};
 }
 
 /* -------------------------------------------------------------------------- */
@@ -82,6 +86,7 @@ function mapColumn(row: TaskColumnRow): TaskColumn {
  *
  * This function is intended to be called from Server Components.
  */
+
 export async function getTaskBoard(
   projectId?: string | null,
 ): Promise<TaskBoard> {
@@ -186,6 +191,10 @@ export async function getTaskBoard(
       title: "Sem lista",
       projectId: null,
       position: -1,
+      name: undefined,
+      column_id: "",
+      is_completed: false,
+      projectName: null
     };
 
     columns.unshift(

@@ -62,6 +62,7 @@ export type Task = {
 };
 
 export type TaskColumn = {
+  name: any;
   column_id: string;
   is_completed: boolean;
   id: string;
@@ -152,6 +153,7 @@ function mapColumn(
   position: row.position,
   column_id: "",
   is_completed: false,
+  name: undefined,
 };
 }
 
@@ -643,7 +645,7 @@ export async function updateTaskColumnPosition(
  * tasks.column_id uses ON DELETE SET NULL.
  */
 export async function deleteTaskColumn(
-  columnId: string,
+columnId: string, column_id: string,
 ): Promise<void> {
   if (!columnId) {
     throw new Error(

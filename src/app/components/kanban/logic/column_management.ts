@@ -1,19 +1,18 @@
-/**
- * Column Management Logic
- * Handles: create, update, delete, and reorder operations for task columns
- */
 
 import {
   TaskColumn,
   Task,
-  CreateTaskColumnInput,
-  UpdateTaskColumnInput,
   createTaskColumn,
-  updateTaskColumn,
+  renameTaskColumn,
   deleteTaskColumn,
   reorderTaskColumns,
-  reorderGlobalTaskColumns,
-} from '@/services/project_tasks';
+} from "@/services/project_tasks";
+
+export interface CreateColumnInput {
+  projectId: string | null;
+  title: string;
+  position?: number;
+}
 
 export interface ColumnManagementState {
   columns: TaskColumn[];
@@ -24,266 +23,346 @@ export interface ColumnManagementState {
 }
 
 export class ColumnManagement {
-  /**
-   * Create a new column
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Create                                                                   */
+  /* ------------------------------------------------------------------------ */
+
   static async createColumn(
-    input: CreateTaskColumnInput,
+    input: CreateColumnInput,
     existingColumns: TaskColumn[],
     onSuccess: (column: TaskColumn) => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
   ): Promise<void> {
     try {
-      const title = input.name.trim();
+      const title = input.title.trim();
 
       if (!title) {
-        onError('O nome da coluna é obrigatório.');
+        onError("O nome da coluna é obrigatório.");
         return;
       }
 
-      // Check for duplicate column names
-      if (
-        existingColumns.some(
-          (column) =>
-            column.name.toLowerCase() === title.toLowerCase()
-        )
-      ) {
-        onError('Já existe uma coluna com esse nome.');
+      const duplicate = existingColumns.some(
+        (column) =>
+          column.title.trim().toLowerCase() ===
+          title.toLowerCase(),
+      );
+
+      if (duplicate) {
+        onError("Já existe uma coluna com esse nome.");
         return;
       }
 
-      // Set position to last
-      const positionedInput: CreateTaskColumnInput = {
-        ...input,
-        name: title,
-        position: input.position ?? existingColumns.length,
-      };
+      const position =
+        input.position ??
+        existingColumns.length;
 
-      const newColumn = await createTaskColumn(positionedInput);
+      const newColumn = await createTaskColumn(
+        input.projectId,
+        title,
+        position,
+      );
+
       onSuccess(newColumn);
-    } catch (err) {
+    } catch (error) {
       const message =
-        err instanceof Error
-          ? err.message
-          : 'Não foi possível criar a coluna.';
+        error instanceof Error
+          ? error.message
+          : "Não foi possível criar a coluna.";
+
+      console.error(
+        "ColumnManagement.createColumn:",
+        error,
+      );
+
       onError(message);
-      console.error('Failed to create column:', err);
     }
   }
 
-  /**
-   * Update column name
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Rename                                                                   */
+  /* ------------------------------------------------------------------------ */
+
   static async updateColumnName(
     columnId: string,
     newName: string,
     existingColumns: TaskColumn[],
     onSuccess: (column: TaskColumn) => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
   ): Promise<void> {
     try {
+      if (!columnId) {
+        onError("O ID da coluna é obrigatório.");
+        return;
+      }
+
       const title = newName.trim();
 
       if (!title) {
-        onError('O nome da coluna é obrigatório.');
+        onError("O nome da coluna é obrigatório.");
         return;
       }
 
-      const oldColumn = existingColumns.find(
-        (column) => column.column_id === columnId
-      );
+      const oldColumn =
+        existingColumns.find(
+          (column) => column.id === columnId,
+        );
 
       if (!oldColumn) {
-        onError('Coluna não encontrada.');
+        onError("Coluna não encontrada.");
         return;
       }
 
-      // Skip if name hasn't changed
       if (
-        oldColumn.name.toLowerCase() === title.toLowerCase()
+        oldColumn.title
+          .trim()
+          .toLowerCase() === title.toLowerCase()
       ) {
         onSuccess(oldColumn);
         return;
       }
 
-      // Check for duplicate names (excluding current column)
-      if (
+      const duplicate =
         existingColumns.some(
           (column) =>
-            column.column_id !== columnId &&
-            column.name.toLowerCase() === title.toLowerCase()
-        )
-      ) {
-        onError('Já existe uma coluna com esse nome.');
+            column.id !== columnId &&
+            column.title
+              .trim()
+              .toLowerCase() ===
+              title.toLowerCase(),
+        );
+
+      if (duplicate) {
+        onError("Já existe uma coluna com esse nome.");
         return;
       }
 
-      const updatedColumn = await updateTaskColumn(
-        columnId,
-        { name: title }
-      );
+      const updatedColumn =
+        await renameTaskColumn(
+          columnId,
+          title,
+        );
 
       onSuccess(updatedColumn);
-    } catch (err) {
+    } catch (error) {
       const message =
-        err instanceof Error
-          ? err.message
-          : 'Não foi possível renomear a coluna.';
+        error instanceof Error
+          ? error.message
+          : "Não foi possível renomear a coluna.";
+
+      console.error(
+        "ColumnManagement.updateColumnName:",
+        error,
+      );
+
       onError(message);
-      console.error('Failed to rename column:', err);
     }
   }
 
-  /**
-   * Delete column with task migration
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Delete                                                                   */
+  /* ------------------------------------------------------------------------ */
+
   static async deleteColumn(
     columnId: string,
     tasks: Task[],
     existingColumns: TaskColumn[],
     onSuccess: () => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
   ): Promise<void> {
     try {
-      const columnTasks = tasks.filter(
-        (task) => task.columnId === columnId
-      );
-
-      // If column has tasks, find target column
-      if (columnTasks.length > 0) {
-        const targetColumn = existingColumns.find(
-          (column) => column.column_id !== columnId
-        );
-
-        if (!targetColumn) {
-          onError(
-            'Não é possível eliminar a única coluna que contém tarefas.'
-          );
-          return;
-        }
-
-        // Confirm with user
-        const confirmed = window.confirm(
-          `Esta coluna contém ${columnTasks.length} tarefa(s). As tarefas serão movidas para "${targetColumn.name}". Continuar?`
-        );
-
-        if (!confirmed) {
-          return;
-        }
-
-        // Delete with task migration
-        await deleteTaskColumn(
-          columnId,
-          targetColumn.column_id
-        );
-      } else {
-        // Delete empty column
-        await deleteTaskColumn(columnId);
+      if (!columnId) {
+        onError("O ID da coluna é obrigatório.");
+        return;
       }
 
+      const column =
+        existingColumns.find(
+          (item) => item.id === columnId,
+        );
+
+      if (!column) {
+        onError("Coluna não encontrada.");
+        return;
+      }
+
+      const columnTasks =
+        tasks.filter(
+          (task) =>
+            task.columnId === columnId,
+        );
+
+      /*
+       * Do not allow deleting a column that still contains tasks.
+       *
+       * This avoids leaving tasks without a visible list because the
+       * application no longer has a "Sem lista" column.
+       */
+      if (columnTasks.length > 0) {
+        onError(
+          `Esta coluna contém ${columnTasks.length} tarefa(s). Mova as tarefas para outra lista antes de eliminar a coluna.`,
+        );
+
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          `Tem a certeza de que pretende eliminar a lista "${column.title}"?`,
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      await deleteTaskColumn(
+        column.projectId ?? "",
+        columnId,
+      );
+
       onSuccess();
-    } catch (err) {
+    } catch (error) {
       const message =
-        err instanceof Error
-          ? err.message
-          : 'Não foi possível eliminar a coluna.';
+        error instanceof Error
+          ? error.message
+          : "Não foi possível eliminar a coluna.";
+
+      console.error(
+        "ColumnManagement.deleteColumn:",
+        error,
+      );
+
       onError(message);
-      console.error('Failed to delete column:', err);
     }
   }
 
-  /**
-   * Reorder columns for a project
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Reorder                                                                  */
+  /* ------------------------------------------------------------------------ */
+
   static async reorderColumns(
-    projectId: string,
+    projectId: string | null,
     orderedColumnIds: string[],
     isGlobal: boolean = false,
     onSuccess: () => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
   ): Promise<void> {
     try {
-      if (isGlobal) {
-        await reorderGlobalTaskColumns(orderedColumnIds);
-      } else {
-        await reorderTaskColumns(projectId, orderedColumnIds);
+      if (
+        !Array.isArray(
+          orderedColumnIds,
+        )
+      ) {
+        onError(
+          "A ordem das colunas é inválida.",
+        );
+
+        return;
       }
 
-      onSuccess();
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Não foi possível reordenar as colunas.';
-      onError(message);
-      console.error('Failed to reorder columns:', err);
-    }
-  }
+      if (
+        orderedColumnIds.length ===
+        0
+      ) {
+        onSuccess();
+        return;
+      }
 
-  /**
-   * Mark column as completed/archive
-   */
-  static async updateColumnStatus(
-    columnId: string,
-    isCompleted: boolean,
-    onSuccess: (column: TaskColumn) => void,
-    onError: (error: string) => void
-  ): Promise<void> {
-    try {
-      const updatedColumn = await updateTaskColumn(
-        columnId,
-        { isCompleted }
+      /*
+       * Global board:
+       *
+       * The current service can reorder the supplied column IDs directly.
+       *
+       * Project board:
+       * projectId is retained so callers can continue using this helper,
+       * but the service performs the actual updates using column IDs.
+       */
+      await reorderTaskColumns(
+        projectId,
+        orderedColumnIds,
       );
 
-      onSuccess(updatedColumn);
-    } catch (err) {
+      onSuccess();
+    } catch (error) {
       const message =
-        err instanceof Error
-          ? err.message
-          : 'Não foi possível atualizar o status da coluna.';
+        error instanceof Error
+          ? error.message
+          : "Não foi possível reordenar as colunas.";
+
+      console.error(
+        "ColumnManagement.reorderColumns:",
+        error,
+      );
+
       onError(message);
-      console.error('Failed to update column status:', err);
     }
   }
 
-  /**
-   * Get column by ID
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Lookup                                                                   */
+  /* ------------------------------------------------------------------------ */
+
   static getColumnById(
     columnId: string,
-    columns: TaskColumn[]
+    columns: TaskColumn[],
   ): TaskColumn | undefined {
-    return columns.find((col) => col.column_id === columnId);
+    return columns.find(
+      (column) =>
+        column.id === columnId,
+    );
   }
 
-  /**
-   * Get all completed columns
-   */
-  static getCompletedColumns(
-    columns: TaskColumn[]
+  /* ------------------------------------------------------------------------ */
+  /* Project columns                                                          */
+  /* ------------------------------------------------------------------------ */
+
+  static getProjectColumns(
+    columns: TaskColumn[],
   ): TaskColumn[] {
-    return columns.filter((col) => col.is_completed === true);
+    return columns.filter(
+      (column) =>
+        Boolean(column.projectId),
+    );
   }
 
-  /**
-   * Get all active columns
-   */
+  /* ------------------------------------------------------------------------ */
+  /* General columns                                                          */
+  /* ------------------------------------------------------------------------ */
+
+  static getGeneralColumns(
+    columns: TaskColumn[],
+  ): TaskColumn[] {
+    return columns.filter(
+      (column) =>
+        !column.projectId,
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Active columns                                                           */
+  /* ------------------------------------------------------------------------ */
+
   static getActiveColumns(
-    columns: TaskColumn[]
+    columns: TaskColumn[],
   ): TaskColumn[] {
-    return columns.filter((col) => col.is_completed === false);
+    return columns;
   }
 
-  /**
-   * Get column with task count
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Task count                                                               */
+  /* ------------------------------------------------------------------------ */
+
   static getColumnWithTaskCount(
     column: TaskColumn,
-    tasks: Task[]
-  ): TaskColumn & { taskCount: number } {
-    const taskCount = tasks.filter(
-      (task) => task.columnId === column.column_id
-    ).length;
+    tasks: Task[],
+  ): TaskColumn & {
+    taskCount: number;
+  } {
+    const taskCount =
+      tasks.filter(
+        (task) =>
+          task.columnId ===
+          column.id,
+      ).length;
 
     return {
       ...column,
@@ -291,34 +370,94 @@ export class ColumnManagement {
     };
   }
 
-  /**
-   * Validate column order
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Validate order                                                           */
+  /* ------------------------------------------------------------------------ */
+
   static validateColumnOrder(
     columnIds: string[],
-    existingColumns: TaskColumn[]
+    existingColumns: TaskColumn[],
   ): boolean {
-    if (columnIds.length !== existingColumns.length) {
+    if (
+      columnIds.length !==
+      existingColumns.length
+    ) {
       return false;
     }
 
-    const existingIds = new Set(
-      existingColumns.map((col) => col.column_id)
-    );
+    const existingIds =
+      new Set(
+        existingColumns.map(
+          (column) =>
+            column.id,
+        ),
+      );
 
-    return columnIds.every((id) => existingIds.has(id));
+    if (
+      new Set(columnIds).size !==
+      columnIds.length
+    ) {
+      return false;
+    }
+
+    return columnIds.every(
+      (id) =>
+        existingIds.has(id),
+    );
   }
 
-  /**
-   * Get available target columns for task movement
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Task movement                                                            */
+  /* ------------------------------------------------------------------------ */
+
   static getTargetColumnsForTask(
-    currentColumnId: string,
-    columns: TaskColumn[]
+    currentColumnId: string | null,
+    columns: TaskColumn[],
   ): TaskColumn[] {
     return columns.filter(
-      (col) => col.column_id !== currentColumnId
+      (column) =>
+        column.id !==
+        currentColumnId,
     );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Column display                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  static getColumnDisplayName(
+    column: TaskColumn,
+  ): string {
+    if (
+      column.projectId &&
+      column.projectName
+    ) {
+      return `${column.title} — ${column.projectName}`;
+    }
+
+    return column.title;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Check whether column belongs to project                                 */
+  /* ------------------------------------------------------------------------ */
+
+  static isProjectColumn(
+    column: TaskColumn,
+  ): boolean {
+    return Boolean(
+      column.projectId,
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Check whether column is general                                          */
+  /* ------------------------------------------------------------------------ */
+
+  static isGeneralColumn(
+    column: TaskColumn,
+  ): boolean {
+    return !column.projectId;
   }
 }
 
