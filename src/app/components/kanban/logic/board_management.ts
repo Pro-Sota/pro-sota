@@ -341,7 +341,7 @@ export class BoardManagement {
   ): {
     tasks: Array<{
       id: string;
-      columnId: string;
+      columnId: string | null;
       position: number;
     }>;
     columns: Array<{

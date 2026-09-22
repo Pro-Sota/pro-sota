@@ -62,6 +62,8 @@ export type Task = {
 };
 
 export type TaskColumn = {
+  column_id: string;
+  is_completed: boolean;
   id: string;
   title: string;
   projectId: string | null;
@@ -143,12 +145,14 @@ function mapColumn(
   projectName: string | null = null,
 ): TaskColumn {
   return {
-    id: row.column_id,
-    title: row.name,
-    projectId: row.project_id ?? null,
-    projectName,
-    position: row.position,
-  };
+  id: row.column_id,
+  title: row.name,
+  projectId: row.project_id ?? null,
+  projectName,
+  position: row.position,
+  column_id: "",
+  is_completed: false,
+};
 }
 
 /* -------------------------------------------------------------------------- */
