@@ -1,20 +1,96 @@
 import { createClient } from "@/app/lib/supabase/server";
 import { cookies } from "next/headers";
 
+
 export async function getProjects() {
   try {
-
     const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const supabase = await createClient(cookieStore);
 
-    const { data, error } = await supabase.from("projects").select("*");
-    if (error) throw new Error(error.message);
+    /* ---------------------------------------------------------------------- */
+    /* Current authenticated user                                             */
+    /* ---------------------------------------------------------------------- */
 
-    console.log("data: " + data)
-    return data;
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
+    if (userError) {
+      throw new Error(userError.message);
+    }
+
+    if (!user) {
+      return [];
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* User profile                                                            */
+    /* ---------------------------------------------------------------------- */
+
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabase
+      .from("profiles")
+      .select("profile_id")
+      .eq("profile_id", user.id)
+      .single();
+
+    if (profileError) {
+      throw new Error(profileError.message);
+    }
+
+    if (!profile) {
+      return [];
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* Projects                                                                */
+    /* ---------------------------------------------------------------------- */
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("projects")
+      .select(`
+        *,
+        project_members!inner (
+          profile_id
+        )
+      `)
+      .eq(
+        "project_members.profile_id",
+        profile.profile_id,
+      )
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (error) {
+      console.error(
+        "getProjects error:",
+        error,
+      );
+
+      throw new Error(error.message);
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* Remove project_members from returned project objects                    */
+    /* ---------------------------------------------------------------------- */
+
+    return (data ?? []).map(
+      ({ project_members, ...project }) =>
+        project,
+    );
   } catch (error) {
-    console.error(error);
+    console.error(
+      "getProjects error:",
+      error,
+    );
+
     throw error;
   }
 }
@@ -33,66 +109,127 @@ import type {
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
-
 function mapTask(row: TaskRow): Task {
   return {
-  id: row.task_id,
-  projectId: row.project_id,
-  title: row.title,
-  description: row.description ?? "",
-  columnId: row.column_id,
-  assignedTo: row.assigned_to,
-  priority: row.priority,
-  startDate: row.start_date,
-  dueDate: row.due_date,
-  estimatedHours: row.estimated_hours,
-  actualHours: row.actual_hours,
-  position: row.position,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  labels: [],
-  members: [],
-};
+    id: row.task_id,
+    projectId: row.project_id,
+    title: row.title,
+    description: row.description ?? "",
+    columnId: row.column_id,
+    assignedTo: row.assigned_to,
+    priority: row.priority,
+    startDate: row.start_date,
+    dueDate: row.due_date,
+    estimatedHours: row.estimated_hours,
+    actualHours: row.actual_hours,
+    position: row.position,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    labels: [],
+    members: [],
+  };
 }
 
 function mapColumn(row: TaskColumnRow): TaskColumn {
   return {
-  id: row.column_id,
-  title: row.name,
-  projectId: row.project_id,
-  position: row.position,
-  name: undefined,
-  column_id: "",
-  is_completed: false,
-  projectName: null,
-};
+    id: row.column_id,
+    title: row.name,
+    projectId: row.project_id,
+    position: row.position,
+    name: undefined,
+    column_id: "",
+    is_completed: false,
+    projectName: null,
+  };
 }
 
 /* -------------------------------------------------------------------------- */
-/* Server task board                                                          */
+/* Current authenticated user                                                 */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Get the Kanban board on the server.
- *
- * projectId provided:
- *   - Returns only tasks belonging to that project.
- *   - Returns only columns belonging to that project.
- *
- * projectId omitted/null:
- *   - Returns ALL tasks.
- *   - Returns all project columns.
- *   - Tasks without a column are represented by the virtual "Sem lista" column.
- *
- * This function is intended to be called from Server Components.
- */
+async function getCurrentProfileId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error) {
+    console.error(
+      "getCurrentProfileId auth error:",
+      error,
+    );
+
+    throw new Error(error.message);
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return user.id;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Task board                                                                 */
+/* -------------------------------------------------------------------------- */
 
 export async function getTaskBoard(
   projectId?: string | null,
 ): Promise<TaskBoard> {
-  const cookiesStore = await cookies();
-  const supabase = await createClient(cookiesStore);
+  const profileId =
+    await getCurrentProfileId();
 
+  if (!profileId) {
+    return {
+      tasks: [],
+      columns: [],
+    };
+  }
+
+  const cookieStore = await cookies();
+  const supabase = await createClient(
+    cookieStore,
+  );
+
+  /* ------------------------------------------------------------------------ */
+  /* Verify project membership                                                */
+  /* ------------------------------------------------------------------------ */
+
+  if (projectId) {
+  const {
+    data: membership,
+    error: membershipError,
+  } = await supabase
+    .from("project_members")
+    .select("profile_id")
+    .eq("project_id", projectId)
+    .eq("profile_id", profileId)
+    .limit(1);
+
+  if (membershipError) {
+    console.error(
+      "getTaskBoard membership error:",
+      membershipError.message,
+      membershipError.details,
+      membershipError.hint,
+      membershipError.code,
+    );
+
+    throw new Error(
+      membershipError.message,
+    );
+  }
+
+  if (!membership || membership.length === 0) {
+    return {
+      tasks: [],
+      columns: [],
+    };
+  }
+}
   /* ------------------------------------------------------------------------ */
   /* Tasks                                                                    */
   /* ------------------------------------------------------------------------ */
@@ -112,6 +249,52 @@ export async function getTaskBoard(
       "project_id",
       projectId,
     );
+  } else {
+    /*
+     * No projectId:
+     * only return tasks belonging to projects
+     * where the current user is a member.
+     */
+    const {
+      data: memberships,
+      error: membershipsError,
+    } = await supabase
+      .from("project_members")
+      .select("project_id")
+      .eq("profile_id", profileId);
+
+    if (membershipsError) {
+      console.error(
+        "getTaskBoard memberships error:",
+        membershipsError.message,
+        membershipsError.details,
+        membershipsError.hint,
+        membershipsError.code,
+      );
+
+      throw new Error(
+        membershipsError.message,
+      );
+    }
+
+    const projectIds = (
+      memberships ?? []
+    ).map(
+      (membership) =>
+        membership.project_id,
+    );
+
+    if (projectIds.length === 0) {
+      return {
+        tasks: [],
+        columns: [],
+      };
+    }
+
+    tasksQuery = tasksQuery.in(
+      "project_id",
+      projectIds,
+    );
   }
 
   const {
@@ -122,7 +305,10 @@ export async function getTaskBoard(
   if (taskError) {
     console.error(
       "getTaskBoard tasks error:",
-      taskError,
+      taskError.message,
+      taskError.details,
+      taskError.hint,
+      taskError.code,
     );
 
     throw new Error(
@@ -149,6 +335,49 @@ export async function getTaskBoard(
       "project_id",
       projectId,
     );
+  } else {
+    const {
+      data: memberships,
+      error: membershipsError,
+    } = await supabase
+      .from("project_members")
+      .select("project_id")
+      .eq("profile_id", profileId);
+
+    if (membershipsError) {
+      console.error(
+        "getTaskBoard column memberships error:",
+        membershipsError.message,
+        membershipsError.details,
+        membershipsError.hint,
+        membershipsError.code,
+      );
+
+      throw new Error(
+        membershipsError.message,
+      );
+    }
+
+    const projectIds = (
+      memberships ?? []
+    ).map(
+      (membership) =>
+        membership.project_id,
+    );
+
+    if (projectIds.length === 0) {
+      return {
+        tasks: (taskData ?? []).map(
+          mapTask,
+        ),
+        columns: [],
+      };
+    }
+
+    columnsQuery = columnsQuery.in(
+      "project_id",
+      projectIds,
+    );
   }
 
   const {
@@ -159,13 +388,20 @@ export async function getTaskBoard(
   if (columnError) {
     console.error(
       "getTaskBoard columns error:",
-      columnError,
+      columnError.message,
+      columnError.details,
+      columnError.hint,
+      columnError.code,
     );
 
     throw new Error(
       columnError.message,
     );
   }
+
+  /* ------------------------------------------------------------------------ */
+  /* Map rows                                                                 */
+  /* ------------------------------------------------------------------------ */
 
   const tasks = (
     (taskData ?? []) as TaskRow[]
@@ -186,20 +422,16 @@ export async function getTaskBoard(
     );
 
   if (hasUnassignedTasks) {
-    const unassignedColumn: TaskColumn = {
+    columns.unshift({
       id: "__unassigned__",
       title: "Sem lista",
-      projectId: null,
+      projectId: projectId ?? null,
       position: -1,
       name: undefined,
       column_id: "",
       is_completed: false,
-      projectName: null
-    };
-
-    columns.unshift(
-      unassignedColumn,
-    );
+      projectName: null,
+    });
   }
 
   return {
@@ -209,24 +441,20 @@ export async function getTaskBoard(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Server-only helpers                                                        */
+/* All accessible tasks                                                       */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Get all tasks.
- *
- * This is equivalent to getTaskBoard() but is useful when a page
- * only needs the task collection.
- */
 export async function getAllTasks(): Promise<Task[]> {
-  const board = await getTaskBoard();
+  const board =
+    await getTaskBoard();
 
   return board.tasks;
 }
 
-/**
- * Get tasks belonging to one project.
- */
+/* -------------------------------------------------------------------------- */
+/* Project task board                                                         */
+/* -------------------------------------------------------------------------- */
+
 export async function getProjectTaskBoard(
   projectId: string,
 ): Promise<TaskBoard> {
