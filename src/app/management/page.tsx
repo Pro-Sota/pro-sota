@@ -16,7 +16,7 @@ export default async function Page() {
   if(!session?.user){
     redirect("/login")
   }
-
+  
    await new Promise((resolve) => setTimeout(resolve, 3000));
   const dashboardData = await getDashboardData();
 

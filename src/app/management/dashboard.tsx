@@ -96,7 +96,7 @@ export default function Dashboard({ data }: DashboardProps) {
 
   const stats = [
     {
-      title: "projectos activos",
+      title: "Projectos Activos",
       value: activeProjects.length,
       icon: Briefcase,
       href: "/management/projects",
@@ -249,7 +249,7 @@ export default function Dashboard({ data }: DashboardProps) {
                     }}
                   />
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto h-[400px]">
                     <table className="min-w-[700px] w-full border-separate border-spacing-0 text-sm">
                       <thead>
                         <tr className="bg-gray-50">
@@ -271,7 +271,7 @@ export default function Dashboard({ data }: DashboardProps) {
                         </tr>
                       </thead>
 
-                      <tbody>
+                      <tbody className="overflow-y-auto">
                         {projects.map((proj) => {
                           // Replace these with your actual project fields
                           const progress = 0;
@@ -311,7 +311,7 @@ export default function Dashboard({ data }: DashboardProps) {
                             <tr
                               key={proj.project_id}
                               onClick={() => handleProjClick(proj.project_id)}
-                              className="group cursor-pointer transition-colors hover:bg-gray-50"
+                              className="group cursor-pointer transition-colors hover:bg-gray-50 "
                             >
                               {/* Project */}
                               <td className="border-b border-gray-100 px-5 py-5">

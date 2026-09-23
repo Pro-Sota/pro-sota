@@ -107,7 +107,7 @@ function formatDate(date: string) {
 }
 
 export default function LeadsInit({ leads }: LeadsInitProps) {
-    const  router = useRouter();
+    const router = useRouter();
     const [search, setSearch] = useState("");
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
     const [activeView, setActiveView] = useState<LeadView>("active");
@@ -404,8 +404,8 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
                                             onClick={() =>
                                                 setActiveView(view)
                                             }
-                                            className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition ${activeView === view
-                                                ? "bg-neutral-950 text-white"
+                                            className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${activeView === view
+                                                ? "bg-[#002950] text-white"
                                                 : "text-neutral-600 hover:bg-neutral-100"
                                                 }`}
                                         >
@@ -966,15 +966,15 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
                     </>
                 )}
                 <CreateLeadModal
-    open={showCreateLeadModal}
-    onClose={() => setShowCreateLeadModal(false)}
-    onCreated={() => {
-        setShowCreateLeadModal(false);
-        router.refresh();
-    }}
-/>
+                    open={showCreateLeadModal}
+                    onClose={() => setShowCreateLeadModal(false)}
+                    onCreated={() => {
+                        setShowCreateLeadModal(false);
+                        router.refresh();
+                    }}
+                />
             </div>
-            
+
         </main>
     );
 }
