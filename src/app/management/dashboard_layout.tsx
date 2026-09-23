@@ -4,11 +4,15 @@ import { useState } from "react";
 import DashboardMenu from "@/app/components/management_menu";
 import MobileNavbar from "@/app/components/mobile_navbar";
 
-export default function DashboardLayout({
-  children,
-}: {
+type Props = {
   children: React.ReactNode;
-}) {
+  userRole: string | null;
+};
+
+export default function DashboardLayoutClient({
+  children,
+  userRole,
+}: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -17,6 +21,7 @@ export default function DashboardLayout({
       <DashboardMenu
         collapsed={collapsed}
         setCollapsedAction={setCollapsed}
+        userRole={userRole}
       />
 
       {/* Mobile Navbar */}

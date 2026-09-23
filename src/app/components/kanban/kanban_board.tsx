@@ -170,6 +170,7 @@ export default function KanbanBoard({
    * The server is responsible for supplying ALL columns
    * required by the board.
    */
+
   useEffect(() => {
     setTasks(initialBoard.tasks);
 
@@ -181,6 +182,7 @@ export default function KanbanBoard({
   /*
    * Keyboard handling for the task modal.
    */
+  
   useEffect(() => {
     if (!selectedTaskId) return;
 

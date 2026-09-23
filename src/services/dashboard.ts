@@ -271,6 +271,7 @@ type Document = Database["public"]["Tables"]["documents"]["Row"];
 type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
 
 export interface DashboardData {
+  currentUser: Profile | null;
   users: Profile[];
   projects: Project[];
   clients: Client[];
@@ -283,6 +284,16 @@ export interface DashboardData {
 export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await getSupabase();
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    console.error("Failed to get authenticated user:", userError);
+    throw new Error("Failed to get authenticated user");
+  }
+
   const [
     usersResult,
     projectsResult,
@@ -294,13 +305,15 @@ export async function getDashboardData(): Promise<DashboardData> {
   ] = await Promise.all([
     supabase.from("profiles").select("*"),
 
-    supabase.from("projects").select("*"),
+    supabase.from("projects")
+      .select("*, project_members!inner(*)")
+      .eq("project_members.profile_id", user!.id),
 
     supabase.from("clients").select("*"),
 
-    supabase.from("documents").select("*"),
+    supabase.from("documents").select("*").eq("uploaded_by", user?.id),
 
-    supabase.from("tasks").select("*"),
+    supabase.from("tasks").select("*").eq("assigned_to", user?.id),
 
     supabase
       .from("tasks")
@@ -314,6 +327,14 @@ export async function getDashboardData(): Promise<DashboardData> {
       .order("created_at", { ascending: false }),
   ]);
 
+  const currentUserResult = user
+    ? await supabase
+      .from("profiles")
+      .select("*")
+      .eq("profile_id", user.id)
+      .maybeSingle()
+    : { data: null, error: null };
+
   const errors = [
     usersResult.error,
     projectsResult.error,
@@ -322,6 +343,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     tasksResult.error,
     deadlinesResult.error,
     activitiesResult.error,
+    currentUserResult.error,
   ].filter(Boolean);
 
   if (errors.length > 0) {
@@ -336,6 +358,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   }
 
   return {
+    currentUser: currentUserResult.data ?? null,
     users: usersResult.data ?? [],
     projects: projectsResult.data ?? [],
     clients: clientsResult.data ?? [],
