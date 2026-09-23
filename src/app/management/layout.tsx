@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import DashboardLayout from "./dashboard_layout";
+import { requireUser } from "../lib/supabase/auth";
 
 export const metadata: Metadata = {
   title: {
@@ -18,5 +19,8 @@ export default function Layout({
 }: {
   children: React.ReactNode;
 }) {
+
+  const user = requireUser();
+  
   return <DashboardLayout>{children}</DashboardLayout>;
 }
