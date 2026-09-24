@@ -223,7 +223,7 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
             >
                 <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2.5">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-950 text-[10px] font-semibold text-white">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#002950] text-[10px] font-semibold text-white">
                             {initials(lead.name)}
                         </div>
 
@@ -359,7 +359,7 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
                                         setShowFilters((value) => !value)
                                     }
                                     className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition sm:flex-none ${showFilters
-                                        ? "border-neutral-950 bg-neutral-950 text-white"
+                                        ? "border-[#002950] bg-[#002950] text-white"
                                         : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
                                         }`}
                                 >
@@ -637,7 +637,7 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
                                                 {/* Lead */}
                                                 <td className="px-5 py-4">
                                                     <div className="flex min-w-[190px] items-center gap-3">
-                                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-950 text-[10px] font-semibold text-white">
+                                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#002950] text-[10px] font-semibold text-white">
                                                             {initials(lead.name)}
                                                         </div>
 
@@ -794,7 +794,7 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
                             <div className="min-h-0 flex-1 overflow-y-auto">
                                 <div className="p-5">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-neutral-950 text-sm font-semibold text-white">
+                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#002950] text-sm font-semibold text-white">
                                             {initials(selectedLead.name)}
                                         </div>
 

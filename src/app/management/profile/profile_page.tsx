@@ -118,7 +118,7 @@ export default function ProfileClient({
                                 {item.title}
                             </p>
 
-                            <h3 className="mt-4 text-4xl font-serif">
+                            <h3 className="mt-4 text-4xl font-sans">
                                 {item.value}
                             </h3>
                         </div>
@@ -128,7 +128,7 @@ export default function ProfileClient({
                 <div className="grid gap-6 xl:grid-cols-3">
                     {/* Information */}
                     <section className="rounded-3xl bg-white p-7 xl:col-span-1">
-                        <h2 className="mb-8 text-xl font-serif">
+                        <h2 className="mb-8 text-xl font-sans">
                             Informação pessoal
                         </h2>
 
@@ -168,7 +168,7 @@ export default function ProfileClient({
                     {/* Projects */}
                     <section className="rounded-3xl bg-white p-7 xl:col-span-2">
                         <div className="mb-8 flex items-center justify-between">
-                            <h2 className="text-xl font-serif">
+                            <h2 className="text-xl font-sans">
                                 Projectos atribuídos
                             </h2>
 

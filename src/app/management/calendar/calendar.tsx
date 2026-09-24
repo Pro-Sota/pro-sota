@@ -485,7 +485,7 @@ export default function CalendarPageInit({
                                 }
                                 className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                                     activeFilter === "all"
-                                        ? "bg-neutral-950 text-white"
+                                        ? "bg-[#002950] text-white"
                                         : "text-neutral-500 hover:bg-neutral-100"
                                 }`}
                             >
@@ -508,7 +508,7 @@ export default function CalendarPageInit({
                                     className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                                         activeFilter ===
                                         type
-                                            ? "bg-neutral-950 text-white"
+                                            ? "bg-[#002950] text-white"
                                             : "text-neutral-500 hover:bg-neutral-100"
                                     }`}
                                 >
@@ -584,7 +584,7 @@ export default function CalendarPageInit({
                                                     : "bg-white"
                                             } ${
                                                 isSelected
-                                                    ? "ring-2 ring-inset ring-neutral-900"
+                                                    ? "ring-2 ring-inset ring-[#002950]"
                                                     : ""
                                             }`}
                                         >
@@ -592,7 +592,7 @@ export default function CalendarPageInit({
                                                 <span
                                                     className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium ${
                                                         isToday
-                                                            ? "bg-neutral-950 text-white"
+                                                            ? "bg-[#002950] text-white"
                                                             : isCurrentMonth
                                                               ? "text-neutral-700"
                                                               : "text-neutral-300"
@@ -871,7 +871,7 @@ export default function CalendarPageInit({
                         </section>
 
                         {/* Quick summary */}
-                        <section className="rounded-2xl border border-neutral-200/80 bg-neutral-950 p-5 text-white">
+                        <section className="rounded-2xl border border-neutral-200/80 bg-[#002950] p-5 text-white">
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
                                     <CalendarDays className="h-5 w-5" />

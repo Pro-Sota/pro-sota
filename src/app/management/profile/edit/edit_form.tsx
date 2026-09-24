@@ -77,7 +77,7 @@ export default function EditForm({ profile }: { profile: Profile | null }) {
                 Voltar ao perfil
               </Link>
 
-              <h1 className="text-4xl font-serif">
+              <h1 className="text-4xl font-sans">
                 Editar Perfil
               </h1>
 
@@ -86,7 +86,7 @@ export default function EditForm({ profile }: { profile: Profile | null }) {
               </p>
             </div>
 
-            <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gray-900 text-3xl font-serif font-semibold text-slate-200">
+            <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gray-900 text-3xl font-sans font-semibold text-slate-200">
               {`${form.first_name[0] ?? ""}${form.last_name[0] ?? ""}`.toUpperCase()}
             </div>
           </div>
