@@ -50,61 +50,61 @@ const menuItems: SidebarItem[] = [
         name: "Visão geral",
         href: "/management",
         icon: HomeIcon,
-        roles: [ "Admin", "Director", "Utilizador"],
+        roles: ["Superadmin", "Admin", "Director", "Utilizador"],
     },
     {
         name: "Leads",
         href: "/management/leads",
         icon: UserPlus,
-        roles: ["Admin", "Director", "Utilizador"],
+        roles: ["Superadmin", "Admin", "Director", "Utilizador"],
     },
     {
         name: "Projectos",
         href: "/management/projects",
         icon: Folder,
-        roles: [ "Admin", "Director", "Utilizador"],
+        roles: ["Superadmin", "Admin", "Director", "Utilizador"],
     },
     {
         name: "Tarefas",
         href: "/management/tasks",
         icon: ListTodo,
-        roles: [ "Admin", "Director", "Utilizador"],
+        roles: ["Superadmin", "Admin", "Director", "Utilizador"],
     },
     {
         name: "Calendário",
         href: "/management/calendar",
         icon: CalendarDays,
-        roles: [ "Admin", "Director", "Utilizador"],
+        roles: ["Superadmin", "Admin", "Director", "Utilizador"],
     },
     {
         name: "Mensagens",
         href: "/management/messages",
         icon: MessageCircle,
-        roles: ["Admin", "Director", "Utilizador"],
+        roles: ["Superadmin", "Admin", "Director", "Utilizador"],
     },
     {
         name: "Clientes",
         href: "/management/clients",
         icon: Users,
-        roles: ["Admin", "Director"],
+        roles: ["Superadmin", "Admin", "Director"],
     },
     {
         name: "Equipa",
         href: "/management/team",
         icon: UsersRound,
-        roles: ["Admin", "Director"],
+        roles: ["Superadmin", "Admin", "Director"],
     },
     {
         name: "Presença",
         href: "/management/attendance",
         icon: Clock3,
-        roles: [ "Admin", "Director", "Utilizador"],
+        roles: ["Superadmin", "Admin", "Director", "Utilizador"],
     },
     {
         name: "Recursos de obra",
         href: "/management/work-resources",
         icon: WalletCards,
-        roles: ["Admin", "Director", "Utilizador"],
+        roles: ["Superadmin", "Admin", "Director", "Utilizador"],
     },
     {
         name: "Fornecedores",
@@ -119,13 +119,13 @@ const bottomItems: SidebarItem[] = [
         name: "Meu perfil",
         href: "/management/profile",
         icon: User,
-        roles: ["Admin", "Director", "Utilizador"],
+        roles: ["Superadmin", "Admin", "Director", "Utilizador"],
     },
     {
         name: "Notificações",
         href: "/management/notifications",
         icon: Bell,
-        roles: ["Admin", "Director", "Utilizador"],
+        roles: ["Superadmin", "Admin", "Director", "Utilizador"],
     },
 ];
 
@@ -133,6 +133,11 @@ function normalizeRole(role?: string | null): SystemRole {
     const normalizedRole = role?.trim().toLowerCase();
 
     switch (normalizedRole) {
+        case "superadmin":
+        case "super admin":
+        case "super_administrator":
+            return "Superadmin";
+
         case "admin":
         case "administrador":
         case "administrator":
@@ -154,7 +159,7 @@ function normalizeRole(role?: string | null): SystemRole {
 }
 
 function canAccessItem(item: SidebarItem, role: SystemRole) {
-    return item.roles.includes(role);
+    return role === "Superadmin" || item.roles.includes(role);
 }
 
 export default function ManagementMenu({
@@ -283,7 +288,7 @@ export default function ManagementMenu({
             </div>
 
             {/* Main Menu */}
-            <div className="flex-1 space-y-1 px-3 py-6">
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-6">
                 {visibleMenuItems.map((item) => (
                     <SidebarItem
                         key={item.href}
