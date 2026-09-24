@@ -2,7 +2,7 @@ import { createClient } from "@/app/lib/supabase/server";
 import { Database } from "@/app/lib/supabase/models";
 import { cookies } from "next/headers";
 
-type Phase = Database["public"]["Tables"]["phases"]["Row"];
+type Phase = Database["public"]["Tables"]["project_phases"]["Row"];
 
 // Get all phases for a project
 
@@ -11,7 +11,7 @@ export async function getProjectPhases(projectId: string) {
     const supabase = createClient(cookieStore);
 
     const { data, error } = await supabase
-        .from("phases")
+        .from("project_phases")
         .select("*")
         .eq("project_id", projectId)
         .order("sort_order", { ascending: true });
@@ -25,7 +25,7 @@ export async function getPhase(phaseId: string) {
     const supabase = createClient(cookieStore);
 
     const { data, error } = await supabase
-        .from("phases")
+        .from("project_phases")
         .select("*")
         .eq("phase_id", phaseId)
         .single();
@@ -39,7 +39,7 @@ export async function getProjectPhasesWithDeliverables(projectId: string) {
     const supabase = createClient(cookieStore);
 
     return supabase
-        .from("phases")
+        .from("project_phases")
         .select(`
       *,
       deliverables (*)
@@ -277,7 +277,7 @@ export async function getActiveProjectPhases(projectId: string) {
     const supabase = createClient(cookieStore);
 
     const { data, error } = await supabase
-        .from("phases")
+        .from("project_phases")
         .select("*")
         .eq("project_id", projectId)
         .eq("status", "in_progress")
@@ -292,7 +292,7 @@ export async function getCompletedProjectPhases(projectId: string) {
     const supabase = createClient(cookieStore);
 
     const { data, error } = await supabase
-        .from("phases")
+        .from("project_phases")
         .select("*")
         .eq("project_id", projectId)
         .eq("status", "completed")
@@ -308,7 +308,7 @@ export async function getProjectPhaseTree(projectId: string) {
     const supabase = createClient(cookieStore);
 
     const { data, error } = await supabase
-        .from("phases")
+        .from("project_phases")
         .select(`
       *,
       deliverables (
@@ -329,7 +329,7 @@ export async function getProjectProgress(projectId: string) {
     const supabase = createClient(cookieStore);
 
     const { data, error } = await supabase
-        .from("phases")
+        .from("project_phases")
         .select(`
       id,
       name,
@@ -357,7 +357,7 @@ export async function getPhaseProgress(phaseId: string) {
     const supabase = createClient(cookieStore);
 
     const { data, error } = await supabase
-        .from("phases")
+        .from("project_phases")
         .select(`
       id,
       name,

@@ -20,10 +20,15 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { userRole } = await requireUser();
+  const { userRole, userDepartment } = await requireUser();
+  const safeUserRole = userRole ?? null;
+  const safeUserDepartment = userDepartment ?? null;
 
   return (
-    <DashboardLayoutClient userRole={userRole}>
+    <DashboardLayoutClient
+      userRole={safeUserRole}
+      userDepartment={safeUserDepartment}
+    >
       {children}
     </DashboardLayoutClient>
   );

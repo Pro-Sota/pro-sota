@@ -7,11 +7,13 @@ import MobileNavbar from "@/app/components/mobile_navbar";
 type Props = {
   children: React.ReactNode;
   userRole: string | null;
+  userDepartment: string | null;
 };
 
 export default function DashboardLayoutClient({
   children,
   userRole,
+  userDepartment,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -22,6 +24,7 @@ export default function DashboardLayoutClient({
         collapsed={collapsed}
         setCollapsedAction={setCollapsed}
         userRole={userRole}
+        userDepartment={userDepartment}
       />
 
       {/* Mobile Navbar */}

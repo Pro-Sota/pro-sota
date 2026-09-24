@@ -1,9 +1,9 @@
-import { getProjectPhases } from "@/services/phases";
+import { getProjectPhases } from "@/services/project_phases";
 import PhasesPageInner from "./phases_inner";
 import { Database } from "@/app/lib/supabase/models";
 
 
-type Phase = Database["public"]["Tables"]["phases"]["Row"];
+type Phase = Database["public"]["Tables"]["project_phases"]["Row"];
 
 export default async function PhaseDetail({
   params,

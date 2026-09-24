@@ -46,7 +46,7 @@ const STATUS = {
     },
 } as const;
 
-type Phase = Database["public"]["Tables"]["phases"]["Row"];
+type Phase = Database["public"]["Tables"]["project_phases"]["Row"];
 
 interface props {
     phases: Phase[];
@@ -58,7 +58,16 @@ export default function PhasesPageInner({ phases }: props) {
     const params = useParams();
     const projectId = params.projectId as string;
 
-    const [loading, setLoading] = useState(true);
+
+    const sortedPhases = useMemo(
+        () =>
+            [...phases].sort(
+                (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+            ),
+        [phases]
+    );
+
+  
 
     const deliverables: StatusItem[] = [];
     const milestones: StatusItem[] = [];
@@ -67,8 +76,12 @@ export default function PhasesPageInner({ phases }: props) {
         0,
         phases.findIndex((p) => p.sort_order === 1)
     );
-    const currentPhase = phases[currentIndex] as Phase | undefined;
-    const overallProgress = computeOverallProgress(phases);
+  const currentPhase =
+        sortedPhases.find((phase) => phase.status === "in_progress") ??
+        sortedPhases.find((phase) => phase.status === "not_started") ??
+        sortedPhases[sortedPhases.length - 1];
+
+    const overallProgress = computeOverallProgress(sortedPhases);
 
     const [selectedPhaseName, setSelectedPhaseName] = useState<
         string | undefined
@@ -118,13 +131,22 @@ export default function PhasesPageInner({ phases }: props) {
                                     Metodologia do projecto · {phases.length} fases definidas
                                 </p>
                             </div>
-                            <button
-                                onClick={handleViewDetails}
-                                disabled={!selectedPhase}
-                                className="cursor-pointer font-medium inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg bg-[#BD9655] text-[#002950] hover:bg-[#BD9655]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
-                            >
-                                Ver detalhes da fase
-                            </button>
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={handleViewDetails}
+                                    disabled={!selectedPhase}
+                                    className="cursor-pointer font-medium inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg bg-[#BD9655] text-[#002950] hover:bg-[#BD9655]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
+                                >
+                                    Add a phase
+                                </button>
+                                <button
+                                    onClick={handleViewDetails}
+                                    disabled={!selectedPhase}
+                                    className="cursor-pointer font-medium inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg bg-[#BD9655] text-[#002950] hover:bg-[#BD9655]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
+                                >
+                                    Ver detalhes da fase
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -185,8 +207,8 @@ export default function PhasesPageInner({ phases }: props) {
                         <div className="px-6 sm:px-8 py-6 sm:py-8">
                             {phases.length > 0 ? (
                                 <PhaseTimeline
-                                    phases={phases}
-                                    selectedPhaseName={selectedPhase?.name}
+                                    phases={sortedPhases}
+                                    selectedPhaseId={selectedPhase?.phase_id}
                                     onSelectPhaseAction={setSelectedPhaseName}
                                 />
                             ) : (

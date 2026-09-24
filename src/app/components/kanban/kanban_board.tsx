@@ -117,8 +117,13 @@ export default function KanbanBoard({
   projectId = null,
   initialBoard,
 }: KanbanBoardProps) {
-  const initialColumns =
-    initialBoard.columns as unknown as KanbanColumn[];
+  const initialColumns = (
+    initialBoard.columns as unknown as KanbanColumn[]
+  ).filter((column) =>
+    projectId
+      ? column.projectId === projectId
+      : column.projectId === null,
+  );
 
   const [tasks, setTasks] = useState<Task[]>(
     initialBoard.tasks,
@@ -172,17 +177,28 @@ export default function KanbanBoard({
    */
 
   useEffect(() => {
-    setTasks(initialBoard.tasks);
-
-    setColumns(
-      initialBoard.columns as unknown as KanbanColumn[],
+    const scopedColumns = (
+      initialBoard.columns as unknown as KanbanColumn[]
+    ).filter((column) =>
+      projectId
+        ? column.projectId === projectId
+        : column.projectId === null,
     );
-  }, [initialBoard]);
+
+    const scopedTasks = initialBoard.tasks.filter((task) =>
+      projectId
+        ? task.projectId === projectId
+        : task.projectId === null,
+    );
+
+    setTasks(scopedTasks);
+    setColumns(scopedColumns);
+  }, [initialBoard, projectId]);
 
   /*
    * Keyboard handling for the task modal.
    */
-  
+
   useEffect(() => {
     if (!selectedTaskId) return;
 
@@ -218,9 +234,9 @@ export default function KanbanBoard({
       previous.map((task) =>
         task.id === taskId
           ? {
-              ...task,
-              ...updates,
-            }
+            ...task,
+            ...updates,
+          }
           : task,
       ),
     );
@@ -255,31 +271,28 @@ export default function KanbanBoard({
   ): boolean => {
     if (!column) return false;
 
-    if (projectId) {
-      return column.projectId === projectId;
-    }
-
-    return column.projectId === null;
+    return projectId
+      ? column.projectId === projectId
+      : column.projectId === null;
   };
 
   /*
    * Search
    */
-
   const matchesSearch = (task: Task) => {
-    if (!searchQuery.trim()) {
-      return true;
-    }
+    const query = searchQuery.trim().toLowerCase();
 
-    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
 
-    return (
-      task.title.toLowerCase().includes(query) ||
-      task.description.toLowerCase().includes(query) ||
-      task.priority.toLowerCase().includes(query)
+    return [
+      task.title,
+      task.description ?? "",
+      task.priority,
+      task.assignedTo ?? "",
+    ].some((value) =>
+      value.toLowerCase().includes(query),
     );
   };
-
   const filteredTasks = useMemo(
     () => tasks.filter(matchesSearch),
     [tasks, searchQuery],
@@ -302,30 +315,34 @@ export default function KanbanBoard({
     try {
       setError(null);
 
-      /*
-       * On the general board, projectId is intentionally
-       * empty so the service creates a general column.
-       *
-       * On a project board, the current project ID is used.
-       */
       const newColumn = await createTaskColumn(
         projectId ?? "",
         title,
         columns.length,
       );
 
+      const normalizedColumn =
+        newColumn as unknown as KanbanColumn;
+
+      if (
+        projectId
+          ? normalizedColumn.projectId !== projectId
+          : normalizedColumn.projectId !== null
+      ) {
+        throw new Error(
+          "A lista criada pertence a um contexto diferente.",
+        );
+      }
+
       setColumns((previous) => [
         ...previous,
-        newColumn as unknown as KanbanColumn,
+        normalizedColumn,
       ]);
 
       setListInput("");
       setIsAddingList(false);
     } catch (err) {
-      console.error(
-        "Failed to create column:",
-        err,
-      );
+      console.error("Failed to create column:", err);
 
       setError(
         err instanceof Error
@@ -449,10 +466,10 @@ export default function KanbanBoard({
         previous.map((column) =>
           column.id === editingColumnId
             ? {
-                ...(updatedColumn as unknown as KanbanColumn),
-                projectName:
-                  column.projectName,
-              }
+              ...(updatedColumn as unknown as KanbanColumn),
+              projectName:
+                column.projectName,
+            }
             : column,
         ),
       );
@@ -671,59 +688,49 @@ export default function KanbanBoard({
     targetColumnId: string,
     targetTaskId?: string,
   ) => {
-    const targetColumn =
-      getColumn(targetColumnId);
+    const targetColumn = getColumn(targetColumnId);
 
     if (!targetColumn) {
+      setError("A lista seleccionada não existe.");
+      return;
+    }
+
+    const taskBelongsToCurrentBoard = projectId
+      ? task.projectId === projectId
+      : task.projectId === null;
+
+    const columnBelongsToCurrentBoard = projectId
+      ? targetColumn.projectId === projectId
+      : targetColumn.projectId === null;
+
+    if (
+      !taskBelongsToCurrentBoard ||
+      !columnBelongsToCurrentBoard
+    ) {
       setError(
-        "A lista seleccionada não existe.",
+        "Não é possível mover tarefas entre contextos diferentes.",
       );
       return;
     }
 
-    const sourceColumnId =
-      task.columnId;
-
+    const sourceColumnId = task.columnId;
     const previousTasks = tasks;
 
-    /*
-     * Tasks are organised by column only.
-     *
-     * The general board can therefore display and move
-     * tasks across the visible columns, including project
-     * columns.
-     */
     const sourceTasks = tasks
-      .filter(
-        (item) =>
-          item.columnId ===
-          sourceColumnId,
-      )
-      .sort(
-        (a, b) =>
-          a.position - b.position,
-      );
+      .filter((item) => item.columnId === sourceColumnId)
+      .sort((a, b) => a.position - b.position);
 
     const targetTasks = tasks
-      .filter(
-        (item) =>
-          item.columnId ===
-          targetColumnId,
-      )
-      .sort(
-        (a, b) =>
-          a.position - b.position,
-      );
+      .filter((item) => item.columnId === targetColumnId)
+      .sort((a, b) => a.position - b.position);
 
-    const sourceWithoutTask =
-      sourceTasks.filter(
-        (item) => item.id !== task.id,
-      );
+    const sourceWithoutTask = sourceTasks.filter(
+      (item) => item.id !== task.id,
+    );
 
     let nextTargetTasks =
-      sourceColumnId ===
-      targetColumnId
-        ? sourceWithoutTask
+      sourceColumnId === targetColumnId
+        ? [...sourceWithoutTask]
         : [...targetTasks];
 
     const movedTask: Task = {
@@ -731,15 +738,12 @@ export default function KanbanBoard({
       columnId: targetColumnId,
     };
 
-    let insertionIndex =
-      nextTargetTasks.length;
+    let insertionIndex = nextTargetTasks.length;
 
     if (targetTaskId) {
-      const targetIndex =
-        nextTargetTasks.findIndex(
-          (item) =>
-            item.id === targetTaskId,
-        );
+      const targetIndex = nextTargetTasks.findIndex(
+        (item) => item.id === targetTaskId,
+      );
 
       if (targetIndex >= 0) {
         insertionIndex = targetIndex;
@@ -752,56 +756,38 @@ export default function KanbanBoard({
       movedTask,
     );
 
-    const affectedColumnIds =
-      new Set<string | null>([
-        sourceColumnId,
-        targetColumnId,
-      ]);
-
-    let nextTasks = tasks.filter(
-      (item) =>
-        !affectedColumnIds.has(
-          item.columnId,
-        ),
+    const sourceReordered = sourceWithoutTask.map(
+      (item, index) => ({
+        ...item,
+        position: index,
+      }),
     );
 
-    const sourceReordered =
-      sourceWithoutTask.map(
-        (item, index) => ({
-          ...item,
-          position: index,
-        }),
-      );
+    const targetReordered = nextTargetTasks.map(
+      (item, index) => ({
+        ...item,
+        position: index,
+      }),
+    );
 
-    const targetReordered =
-      nextTargetTasks.map(
-        (item, index) => ({
-          ...item,
-          position: index,
-        }),
-      );
+    const affectedColumnIds = new Set([
+      sourceColumnId,
+      targetColumnId,
+    ]);
 
-    if (
-      sourceColumnId ===
-      targetColumnId
-    ) {
-      nextTasks.push(
-        ...targetReordered,
-      );
+    let nextTasks = tasks.filter(
+      (item) => !affectedColumnIds.has(item.columnId),
+    );
+
+    if (sourceColumnId === targetColumnId) {
+      nextTasks.push(...targetReordered);
     } else {
-      nextTasks.push(
-        ...sourceReordered,
-      );
-
-      nextTasks.push(
-        ...targetReordered,
-      );
+      nextTasks.push(...sourceReordered);
+      nextTasks.push(...targetReordered);
     }
 
     nextTasks.sort((a, b) =>
-      a.createdAt.localeCompare(
-        b.createdAt,
-      ),
+      a.createdAt.localeCompare(b.createdAt),
     );
 
     setTasks(nextTasks);
@@ -815,40 +801,21 @@ export default function KanbanBoard({
         movedTask.position,
       );
 
-      /*
-       * Reorder source column.
-       */
-      if (
-        sourceColumnId !==
-        targetColumnId
-      ) {
+      if (sourceColumnId !== targetColumnId) {
         await reorderTasks(
           task.projectId,
           sourceColumnId,
-          sourceReordered.map(
-            (item) => item.id,
-          ),
+          sourceReordered.map((item) => item.id),
         );
       }
 
-      /*
-       * Reorder target column.
-       *
-       * The target column may belong to a project
-       * while the task itself may be a general task.
-       */
       await reorderTasks(
         targetColumn.projectId,
         targetColumnId,
-        targetReordered.map(
-          (item) => item.id,
-        ),
+        targetReordered.map((item) => item.id),
       );
     } catch (err) {
-      console.error(
-        "Failed to move task:",
-        err,
-      );
+      console.error("Failed to move task:", err);
 
       setTasks(previousTasks);
 
@@ -865,55 +832,64 @@ export default function KanbanBoard({
    */
 
   const handleAddTask = async (
-    columnId: string,
-  ) => {
-    const value = (
-      taskInputs[columnId] ?? ""
-    ).trim();
+  columnId: string,
+) => {
+  const value = (
+    taskInputs[columnId] ?? ""
+  ).trim();
 
-    if (!value) return;
+  if (!value) return;
 
-    const column = getColumn(columnId);
+  const column = getColumn(columnId);
 
-    if (!column) return;
+  if (!column) {
+    setError("A lista seleccionada não existe.");
+    return;
+  }
 
-    try {
-      setError(null);
+  const columnBelongsToCurrentBoard = projectId
+    ? column.projectId === projectId
+    : column.projectId === null;
 
-      const newTask = await createTask({
-        projectId: projectId ?? null,
-        title: value,
-        columnId,
-        priority: "Medium",
-        position: tasks.filter(
-          (task) =>
-            task.columnId === columnId,
-        ).length,
-      });
+  if (!columnBelongsToCurrentBoard) {
+    setError(
+      "Não é possível criar uma tarefa nesta lista.",
+    );
+    return;
+  }
 
-      setTasks((previous) => [
-        ...previous,
-        newTask,
-      ]);
+  try {
+    setError(null);
 
-      setTaskInputs((previous) => ({
-        ...previous,
-        [columnId]: "",
-      }));
-    } catch (err) {
-      console.error(
-        "Failed to create task:",
-        err,
-      );
+    const newTask = await createTask({
+      projectId: projectId ?? null,
+      title: value,
+      columnId,
+      priority: "Medium",
+      position: tasks.filter(
+        (task) => task.columnId === columnId,
+      ).length,
+    });
 
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível criar a tarefa.",
-      );
-    }
-  };
+    setTasks((previous) => [
+      ...previous,
+      newTask,
+    ]);
 
+    setTaskInputs((previous) => ({
+      ...previous,
+      [columnId]: "",
+    }));
+  } catch (err) {
+    console.error("Failed to create task:", err);
+
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Não foi possível criar a tarefa.",
+    );
+  }
+};
   /*
    * Delete task
    */
@@ -1243,7 +1219,7 @@ export default function KanbanBoard({
                 <p className="mt-1 text-sm text-gray-600">
                   {projectId
                     ? "Organize as tarefas deste projecto."
-                    : "Consulte as tarefas gerais da equipa através das listas disponíveis."}
+                    : "Consulte as tarefas gerais da equipa."}
                 </p>
               </div>
 
@@ -1267,17 +1243,8 @@ export default function KanbanBoard({
                     a.position -
                     b.position,
                 );
+              const displayedTitle = column.title;
 
-              const isProjectColumn =
-                Boolean(column.projectId);
-
-              const displayedTitle =
-                !projectId &&
-                isProjectColumn &&
-                column.projectName
-                  ? `${column.title} — ${column.projectName}`
-                  : column.title;
-                
               return (
                 <div
                   key={column.id}
@@ -1292,7 +1259,7 @@ export default function KanbanBoard({
                     setDragOverColumnId(
                       (previous) =>
                         previous ===
-                        column.id
+                          column.id
                           ? null
                           : previous,
                     )
@@ -1303,12 +1270,11 @@ export default function KanbanBoard({
                       column.id,
                     )
                   }
-                  className={`flex min-h-[600px] w-80 shrink-0 flex-col rounded-lg border bg-white shadow-sm transition ${
-                    dragOverColumnId ===
+                  className={`flex min-h-[600px] w-80 shrink-0 flex-col rounded-lg border bg-white shadow-sm transition ${dragOverColumnId ===
                     column.id
-                      ? "border-gray-400 ring-2 ring-gray-200"
-                      : "border-gray-200"
-                  }`}
+                    ? "border-gray-400 ring-2 ring-gray-200"
+                    : "border-gray-200"
+                    }`}
                 >
                   {/* COLUMN HEADER */}
 
@@ -1325,13 +1291,12 @@ export default function KanbanBoard({
                               column.id,
                             )
                           }
-                          className={`select-none text-gray-300 transition ${
-                            canManageColumns(
-                              column,
-                            )
-                              ? "cursor-grab hover:text-gray-500 active:cursor-grabbing"
-                              : "cursor-default"
-                          }`}
+                          className={`select-none text-gray-300 transition ${canManageColumns(
+                            column,
+                          )
+                            ? "cursor-grab hover:text-gray-500 active:cursor-grabbing"
+                            : "cursor-default"
+                            }`}
                           title={
                             canManageColumns(
                               column,
@@ -1344,7 +1309,7 @@ export default function KanbanBoard({
                         </span>
 
                         {editingColumnId ===
-                        column.id ? (
+                          column.id ? (
                           <input
                             autoFocus
                             value={
@@ -1390,13 +1355,12 @@ export default function KanbanBoard({
                                 column,
                               )
                             }
-                            className={`truncate text-sm font-semibold text-gray-900 transition ${
-                              canManageColumns(
-                                column,
-                              )
-                                ? "cursor-text hover:text-gray-600"
-                                : "cursor-default"
-                            }`}
+                            className={`truncate text-sm font-semibold text-gray-900 transition ${canManageColumns(
+                              column,
+                            )
+                              ? "cursor-text hover:text-gray-600"
+                              : "cursor-default"
+                              }`}
                             title={
                               canManageColumns(
                                 column,
@@ -1418,33 +1382,26 @@ export default function KanbanBoard({
                         {canManageColumns(
                           column,
                         ) && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDeleteColumn(
-                                column.id,
-                              )
-                            }
-                            aria-label="Eliminar lista"
-                            title="Eliminar lista"
-                            className={`${ICON_BTN} text-gray-400 hover:bg-red-50 hover:text-red-500`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDeleteColumn(
+                                  column.id,
+                                )
+                              }
+                              aria-label="Eliminar lista"
+                              title="Eliminar lista"
+                              className={`${ICON_BTN} text-gray-400 hover:bg-red-50 hover:text-red-500`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                       </div>
                     </div>
 
-                    {isProjectColumn ? (
-                      <p className="mt-2 truncate text-[11px] font-medium text-gray-400">
-                        {column.projectName ??
-                          "Lista de projecto"}
-                      </p>
-                    ) : (
-                      <p className="mt-2 truncate text-[11px] text-gray-400">
-                        Lista geral
-                      </p>
-                    )}
+                    <p className="mt-2 truncate text-[11px] text-gray-400">
+                      {projectId ? "Tarefas do projecto" : "Tarefas gerais"}
+                    </p>
                   </div>
 
                   {/* TASKS */}
@@ -1452,10 +1409,10 @@ export default function KanbanBoard({
                   <div className="flex-1 space-y-3 overflow-y-auto overflow-x-visible px-4 py-4 sm:px-5">
                     {columnTasks.length ===
                       0 && (
-                      <p className="rounded-lg border-2 border-dashed border-gray-200 py-8 text-center text-xs text-gray-400">
-                        Sem tarefas
-                      </p>
-                    )}
+                        <p className="rounded-lg border-2 border-dashed border-gray-200 py-8 text-center text-xs text-gray-400">
+                          Sem tarefas
+                        </p>
+                      )}
 
                     {columnTasks.map(
                       (task) => (
@@ -1505,7 +1462,7 @@ export default function KanbanBoard({
                       type="text"
                       value={
                         taskInputs[
-                          column.id
+                        column.id
                         ] ?? ""
                       }
                       onChange={(event) =>
@@ -1759,12 +1716,11 @@ export default function KanbanBoard({
                 </select>
 
                 <span
-                  className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                    PRIORITY_CLASSES[
-                      selectedTask
-                        .priority
-                    ]
-                  }`}
+                  className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_CLASSES[
+                    selectedTask
+                      .priority
+                  ]
+                    }`}
                 >
                   {
                     selectedTask.priority
@@ -2004,11 +1960,10 @@ function TaskCard({
 
       <div className="mt-2.5">
         <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
-            PRIORITY_CLASSES[
-              task.priority
-            ]
-          }`}
+          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${PRIORITY_CLASSES[
+            task.priority
+          ]
+            }`}
         >
           {task.priority}
         </span>
@@ -2017,13 +1972,12 @@ function TaskCard({
       <div className="mt-3 flex items-center justify-between gap-2">
         {task.dueDate ? (
           <span
-            className={`inline-flex items-center gap-1 text-[11px] font-medium ${
-              isOverdue(
-                task.dueDate,
-              )
-                ? "text-red-600"
-                : "text-gray-400"
-            }`}
+            className={`inline-flex items-center gap-1 text-[11px] font-medium ${isOverdue(
+              task.dueDate,
+            )
+              ? "text-red-600"
+              : "text-gray-400"
+              }`}
           >
             {isOverdue(
               task.dueDate,

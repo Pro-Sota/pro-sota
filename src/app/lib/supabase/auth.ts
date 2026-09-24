@@ -11,6 +11,7 @@ type ProfileWithRole = {
   profile_id: string;
   role_id: number | null;
   roles: Role | Role[] | null;
+  department: string | null;
 };
 
 export async function getAuthenticatedUser() {
@@ -43,6 +44,7 @@ export async function requireUser() {
     .from("profiles")
     .select(`
       profile_id,
+      department,
       role_id,
       roles (
         role_id,
@@ -75,13 +77,18 @@ export async function requireUser() {
     ? roles[0]?.name ?? null
     : roles?.name ?? null;
 
+  const userDepartment = profile?.department;
+
   console.log("Authenticated user:", user.id);
   console.log("Profile role_id:", profile?.role_id);
   console.log("Resolved role:", userRole);
+  console.log("Resolved department:", userDepartment);
+
 
   return {
     user,
     profile,
     userRole,
+    userDepartment
   };
 }

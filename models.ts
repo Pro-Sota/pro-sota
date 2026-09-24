@@ -138,6 +138,166 @@ export type Database = {
           },
         ]
       }
+      attendance_records: {
+        Row: {
+          attendance_date: string
+          attendance_id: string
+          check_in: string | null
+          check_out: string | null
+          created_at: string
+          notes: string | null
+          profile_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_date?: string
+          attendance_id?: string
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          notes?: string | null
+          profile_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_date?: string
+          attendance_id?: string
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          notes?: string | null
+          profile_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      calendar_event_participants: {
+        Row: {
+          created_at: string
+          event_id: string
+          event_participant_id: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          event_participant_id?: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          event_participant_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_event_participants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "calendar_event_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      calendar_events: {
+        Row: {
+          all_day: boolean
+          client_id: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          end_at: string | null
+          event_id: string
+          event_type: string
+          location: string | null
+          project_id: string | null
+          start_at: string
+          task_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          all_day?: boolean
+          client_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          end_at?: string | null
+          event_id?: string
+          event_type: string
+          location?: string | null
+          project_id?: string | null
+          start_at: string
+          task_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          all_day?: boolean
+          client_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          end_at?: string | null
+          event_id?: string
+          event_type?: string
+          location?: string | null
+          project_id?: string | null
+          start_at?: string
+          task_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "calendar_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "calendar_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "calendar_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["task_id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address_line_1: string | null
@@ -509,6 +669,76 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string
+          description: string
+          expires_at: string | null
+          is_read: boolean
+          metadata: Json
+          notification_id: string
+          project_id: string | null
+          read_at: string | null
+          recipient_id: string
+          task_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string
+          description: string
+          expires_at?: string | null
+          is_read?: boolean
+          metadata?: Json
+          notification_id?: string
+          project_id?: string | null
+          read_at?: string | null
+          recipient_id: string
+          task_id?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string
+          description?: string
+          expires_at?: string | null
+          is_read?: boolean
+          metadata?: Json
+          notification_id?: string
+          project_id?: string | null
+          read_at?: string | null
+          recipient_id?: string
+          task_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["task_id"]
+          },
+        ]
+      }
       permissions: {
         Row: {
           created_at: string
@@ -581,12 +811,120 @@ export type Database = {
             foreignKeyName: "steps_phase_id_fkey"
             columns: ["phase_id"]
             isOneToOne: false
-            referencedRelation: "phases"
+            referencedRelation: "project_phases"
             referencedColumns: ["phase_id"]
           },
         ]
       }
-      phases: {
+      profiles: {
+        Row: {
+          bio: string | null
+          created_at: string | null
+          department: string | null
+          dob: string | null
+          email: string | null
+          first_name: string
+          job_title: string | null
+          last_name: string
+          nationality: string | null
+          phone_number: string | null
+          profile_id: string
+          profile_picture: string | null
+          role_id: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string | null
+          department?: string | null
+          dob?: string | null
+          email?: string | null
+          first_name: string
+          job_title?: string | null
+          last_name: string
+          nationality?: string | null
+          phone_number?: string | null
+          profile_id: string
+          profile_picture?: string | null
+          role_id?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string | null
+          department?: string | null
+          dob?: string | null
+          email?: string | null
+          first_name?: string
+          job_title?: string | null
+          last_name?: string
+          nationality?: string | null
+          phone_number?: string | null
+          profile_id?: string
+          profile_picture?: string | null
+          role_id?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["role_id"]
+          },
+        ]
+      }
+      project_members: {
+        Row: {
+          joined_at: string | null
+          profile_id: string | null
+          project_id: string | null
+          project_members_id: string
+          role_id: number | null
+        }
+        Insert: {
+          joined_at?: string | null
+          profile_id?: string | null
+          project_id?: string | null
+          project_members_id?: string
+          role_id?: number | null
+        }
+        Update: {
+          joined_at?: string | null
+          profile_id?: string | null
+          project_id?: string | null
+          project_members_id?: string
+          role_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "project_roles"
+            referencedColumns: ["role_id"]
+          },
+          {
+            foreignKeyName: "user_projects_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "user_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+        ]
+      }
+      project_phases: {
         Row: {
           actual_end: string | null
           actual_start: string | null
@@ -642,102 +980,68 @@ export type Database = {
           },
         ]
       }
-      profiles: {
+      project_resource_stock: {
         Row: {
-          bio: string | null
-          created_at: string | null
-          department: string | null
-          dob: string | null
-          email: string | null
-          first_name: string
-          job_title: string | null
-          last_name: string
-          nationality: string | null
-          phone_number: string | null
-          profile_id: string
-          profile_picture: string | null
-          status: string | null
-          updated_at: string | null
+          consumed_quantity: number
+          project_id: string
+          project_stock_id: string
+          quantity: number
+          reserved_quantity: number
+          resource_id: string
+          updated_at: string
         }
         Insert: {
-          bio?: string | null
-          created_at?: string | null
-          department?: string | null
-          dob?: string | null
-          email?: string | null
-          first_name: string
-          job_title?: string | null
-          last_name: string
-          nationality?: string | null
-          phone_number?: string | null
-          profile_id: string
-          profile_picture?: string | null
-          status?: string | null
-          updated_at?: string | null
+          consumed_quantity?: number
+          project_id: string
+          project_stock_id?: string
+          quantity?: number
+          reserved_quantity?: number
+          resource_id: string
+          updated_at?: string
         }
         Update: {
-          bio?: string | null
-          created_at?: string | null
-          department?: string | null
-          dob?: string | null
-          email?: string | null
-          first_name?: string
-          job_title?: string | null
-          last_name?: string
-          nationality?: string | null
-          phone_number?: string | null
-          profile_id?: string
-          profile_picture?: string | null
-          status?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      project_members: {
-        Row: {
-          joined_at: string | null
-          profile_id: string | null
-          project_id: string | null
-          project_members_id: string
-          role_id: number | null
-        }
-        Insert: {
-          joined_at?: string | null
-          profile_id?: string | null
-          project_id?: string | null
-          project_members_id?: string
-          role_id?: number | null
-        }
-        Update: {
-          joined_at?: string | null
-          profile_id?: string | null
-          project_id?: string | null
-          project_members_id?: string
-          role_id?: number | null
+          consumed_quantity?: number
+          project_id?: string
+          project_stock_id?: string
+          quantity?: number
+          reserved_quantity?: number
+          resource_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "project_members_role_id_fkey"
-            columns: ["role_id"]
-            isOneToOne: false
-            referencedRelation: "roles"
-            referencedColumns: ["role_id"]
-          },
-          {
-            foreignKeyName: "user_projects_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "user_projects_project_id_fkey"
+            foreignKeyName: "project_resource_stock_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["project_id"]
           },
+          {
+            foreignKeyName: "project_resource_stock_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["resource_id"]
+          },
         ]
+      }
+      project_roles: {
+        Row: {
+          created_at: string
+          name: string | null
+          role_id: number
+        }
+        Insert: {
+          created_at?: string
+          name?: string | null
+          role_id?: number
+        }
+        Update: {
+          created_at?: string
+          name?: string | null
+          role_id?: number
+        }
+        Relationships: []
       }
       projects: {
         Row: {
@@ -841,6 +1145,578 @@ export type Database = {
           },
         ]
       }
+      resource_assignments: {
+        Row: {
+          assigned_at: string
+          assignment_id: string
+          created_at: string
+          created_by: string | null
+          delivery_condition: string | null
+          expected_return_at: string | null
+          location_id: string | null
+          notes: string | null
+          profile_id: string | null
+          project_id: string | null
+          received_at: string | null
+          received_confirmed: boolean
+          resource_id: string
+          return_condition: string | null
+          returned_at: string | null
+        }
+        Insert: {
+          assigned_at?: string
+          assignment_id?: string
+          created_at?: string
+          created_by?: string | null
+          delivery_condition?: string | null
+          expected_return_at?: string | null
+          location_id?: string | null
+          notes?: string | null
+          profile_id?: string | null
+          project_id?: string | null
+          received_at?: string | null
+          received_confirmed?: boolean
+          resource_id: string
+          return_condition?: string | null
+          returned_at?: string | null
+        }
+        Update: {
+          assigned_at?: string
+          assignment_id?: string
+          created_at?: string
+          created_by?: string | null
+          delivery_condition?: string | null
+          expected_return_at?: string | null
+          location_id?: string | null
+          notes?: string | null
+          profile_id?: string | null
+          project_id?: string | null
+          received_at?: string | null
+          received_confirmed?: boolean
+          resource_id?: string
+          return_condition?: string | null
+          returned_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "resource_assignments_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "resource_locations"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "resource_assignments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "resource_assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "resource_assignments_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["resource_id"]
+          },
+        ]
+      }
+      resource_attachments: {
+        Row: {
+          attachment_id: string
+          attachment_type: string
+          created_at: string
+          file_name: string
+          file_type: string | null
+          file_url: string
+          resource_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          attachment_id?: string
+          attachment_type?: string
+          created_at?: string
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          resource_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          attachment_id?: string
+          attachment_type?: string
+          created_at?: string
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          resource_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_attachments_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["resource_id"]
+          },
+          {
+            foreignKeyName: "resource_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      resource_delivery_terms: {
+        Row: {
+          accepted: boolean
+          accepted_at: string | null
+          accepted_by: string | null
+          assignment_id: string | null
+          condition: string | null
+          created_at: string
+          created_by: string | null
+          delivered_at: string
+          delivery_id: string
+          document_url: string | null
+          notes: string | null
+          photo_url: string | null
+          resource_id: string
+        }
+        Insert: {
+          accepted?: boolean
+          accepted_at?: string | null
+          accepted_by?: string | null
+          assignment_id?: string | null
+          condition?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string
+          delivery_id?: string
+          document_url?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          resource_id: string
+        }
+        Update: {
+          accepted?: boolean
+          accepted_at?: string | null
+          accepted_by?: string | null
+          assignment_id?: string | null
+          condition?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string
+          delivery_id?: string
+          document_url?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          resource_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_delivery_terms_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "resource_delivery_terms_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "resource_assignments"
+            referencedColumns: ["assignment_id"]
+          },
+          {
+            foreignKeyName: "resource_delivery_terms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "resource_delivery_terms_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["resource_id"]
+          },
+        ]
+      }
+      resource_locations: {
+        Row: {
+          created_at: string
+          location_id: string
+          location_type: string
+          name: string
+          notes: string | null
+          profile_id: string | null
+          project_id: string | null
+          supplier_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          location_id?: string
+          location_type: string
+          name: string
+          notes?: string | null
+          profile_id?: string | null
+          project_id?: string | null
+          supplier_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          location_id?: string
+          location_type?: string
+          name?: string
+          notes?: string | null
+          profile_id?: string | null
+          project_id?: string | null
+          supplier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_locations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "resource_locations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "resource_locations_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      resource_maintenance: {
+        Row: {
+          completed_at: string | null
+          condition_after: string | null
+          condition_before: string | null
+          cost: number | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          maintenance_id: string
+          maintenance_type: string
+          notes: string | null
+          resource_id: string
+          scheduled_date: string | null
+          started_at: string | null
+          supplier_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          condition_after?: string | null
+          condition_before?: string | null
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          maintenance_id?: string
+          maintenance_type: string
+          notes?: string | null
+          resource_id: string
+          scheduled_date?: string | null
+          started_at?: string | null
+          supplier_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          condition_after?: string | null
+          condition_before?: string | null
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          maintenance_id?: string
+          maintenance_type?: string
+          notes?: string | null
+          resource_id?: string
+          scheduled_date?: string | null
+          started_at?: string | null
+          supplier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_maintenance_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["resource_id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      resource_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          destination_location_id: string | null
+          movement_date: string
+          movement_id: string
+          movement_type: string
+          notes: string | null
+          origin_location_id: string | null
+          profile_id: string | null
+          project_id: string | null
+          quantity: number | null
+          resource_id: string
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          destination_location_id?: string | null
+          movement_date?: string
+          movement_id?: string
+          movement_type: string
+          notes?: string | null
+          origin_location_id?: string | null
+          profile_id?: string | null
+          project_id?: string | null
+          quantity?: number | null
+          resource_id: string
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          destination_location_id?: string | null
+          movement_date?: string
+          movement_id?: string
+          movement_type?: string
+          notes?: string | null
+          origin_location_id?: string | null
+          profile_id?: string | null
+          project_id?: string | null
+          quantity?: number | null
+          resource_id?: string
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "resource_movements_destination_location_id_fkey"
+            columns: ["destination_location_id"]
+            isOneToOne: false
+            referencedRelation: "resource_locations"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "resource_movements_origin_location_id_fkey"
+            columns: ["origin_location_id"]
+            isOneToOne: false
+            referencedRelation: "resource_locations"
+            referencedColumns: ["location_id"]
+          },
+          {
+            foreignKeyName: "resource_movements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "resource_movements_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "resource_movements_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["resource_id"]
+          },
+        ]
+      }
+      resource_stock: {
+        Row: {
+          average_unit_cost: number
+          batch_number: string | null
+          created_at: string
+          current_quantity: number
+          expiry_date: string | null
+          minimum_quantity: number
+          quantity_in_projects: number
+          reserved_quantity: number
+          resource_id: string
+          stock_id: string
+          supplier_id: string | null
+          unit: string
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          average_unit_cost?: number
+          batch_number?: string | null
+          created_at?: string
+          current_quantity?: number
+          expiry_date?: string | null
+          minimum_quantity?: number
+          quantity_in_projects?: number
+          reserved_quantity?: number
+          resource_id: string
+          stock_id?: string
+          supplier_id?: string | null
+          unit: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          average_unit_cost?: number
+          batch_number?: string | null
+          created_at?: string
+          current_quantity?: number
+          expiry_date?: string | null
+          minimum_quantity?: number
+          quantity_in_projects?: number
+          reserved_quantity?: number
+          resource_id?: string
+          stock_id?: string
+          supplier_id?: string | null
+          unit?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_stock_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: true
+            referencedRelation: "resources"
+            referencedColumns: ["resource_id"]
+          },
+          {
+            foreignKeyName: "resource_stock_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "resource_stock_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "resource_locations"
+            referencedColumns: ["location_id"]
+          },
+        ]
+      }
+      resources: {
+        Row: {
+          acquisition_date: string | null
+          brand: string | null
+          category: string | null
+          condition_status: string
+          created_at: string
+          created_by: string | null
+          model: string | null
+          name: string
+          notes: string | null
+          operational_status: string
+          replacement_value: number | null
+          resource_code: string
+          resource_id: string
+          resource_type: string
+          serial_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          acquisition_date?: string | null
+          brand?: string | null
+          category?: string | null
+          condition_status?: string
+          created_at?: string
+          created_by?: string | null
+          model?: string | null
+          name: string
+          notes?: string | null
+          operational_status?: string
+          replacement_value?: number | null
+          resource_code: string
+          resource_id?: string
+          resource_type: string
+          serial_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acquisition_date?: string | null
+          brand?: string | null
+          category?: string | null
+          condition_status?: string
+          created_at?: string
+          created_by?: string | null
+          model?: string | null
+          name?: string
+          notes?: string | null
+          operational_status?: string
+          replacement_value?: number | null
+          resource_code?: string
+          resource_id?: string
+          resource_type?: string
+          serial_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           permission_id: number
@@ -866,7 +1742,7 @@ export type Database = {
             foreignKeyName: "role_permissions_role_id_fkey"
             columns: ["role_id"]
             isOneToOne: false
-            referencedRelation: "roles"
+            referencedRelation: "project_roles"
             referencedColumns: ["role_id"]
           },
         ]

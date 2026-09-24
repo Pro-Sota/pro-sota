@@ -199,37 +199,37 @@ export async function getTaskBoard(
   /* ------------------------------------------------------------------------ */
 
   if (projectId) {
-  const {
-    data: membership,
-    error: membershipError,
-  } = await supabase
-    .from("project_members")
-    .select("profile_id")
-    .eq("project_id", projectId)
-    .eq("profile_id", profileId)
-    .limit(1);
+    const {
+      data: membership,
+      error: membershipError,
+    } = await supabase
+      .from("project_members")
+      .select("profile_id")
+      .eq("project_id", projectId)
+      .eq("profile_id", profileId)
+      .limit(1);
 
-  if (membershipError) {
-    console.error(
-      "getTaskBoard membership error:",
-      membershipError.message,
-      membershipError.details,
-      membershipError.hint,
-      membershipError.code,
-    );
+    if (membershipError) {
+      console.error(
+        "getTaskBoard membership error:",
+        membershipError.message,
+        membershipError.details,
+        membershipError.hint,
+        membershipError.code,
+      );
 
-    throw new Error(
-      membershipError.message,
-    );
+      throw new Error(
+        membershipError.message,
+      );
+    }
+
+    if (!membership || membership.length === 0) {
+      return {
+        tasks: [],
+        columns: [],
+      };
+    }
   }
-
-  if (!membership || membership.length === 0) {
-    return {
-      tasks: [],
-      columns: [],
-    };
-  }
-}
   /* ------------------------------------------------------------------------ */
   /* Tasks                                                                    */
   /* ------------------------------------------------------------------------ */
@@ -320,15 +320,16 @@ export async function getTaskBoard(
   /* Columns                                                                  */
   /* ------------------------------------------------------------------------ */
 
-  let columnsQuery = supabase
+  const columnsQuery = supabase
     .from("task_columns")
     .select("*")
-    .order("position", {
-      ascending: true,
-    })
-    .order("created_at", {
-      ascending: true,
-    });
+    .order("position", { ascending: true });
+
+  if (projectId) {
+    columnsQuery.eq("project_id", projectId);
+  } else {
+    columnsQuery.is("project_id", null);
+  }
 
   if (projectId) {
     columnsQuery = columnsQuery.eq(
