@@ -23,7 +23,7 @@ export default function ProjectCard({
         <article className="group flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg sm:p-5">
             {/* Header */}
             <div className="flex items-start justify-between gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 transition-colors duration-300 group-hover:bg-slate-900 sm:h-12 sm:w-12">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 transition-colors duration-300 group-hover:bg-[#002950]/90 sm:h-12 sm:w-12">
                     <Briefcase
                         size={20}
                         strokeWidth={2}
@@ -87,7 +87,7 @@ export default function ProjectCard({
                 <button
                     type="button"
                     aria-label={`Ver projecto ${project.title}`}
-                    className="group/button flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2.5 text-sm font-medium text-white transition-all hover:bg-slate-800 active:scale-[0.98]"
+                    className="group/button flex w-full items-center justify-center gap-2 rounded-lg bg-[#002950] px-3 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#002950]/90 - active:scale-[0.98]"
                 >
                     <span>Ver projecto</span>
 

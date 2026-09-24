@@ -346,7 +346,7 @@ export default function TeamPage({ team }: TeamPageProps) {
                                     {/* Card header */}
                                     <div className="flex items-start justify-between">
                                         <div className="flex min-w-0 items-center gap-3">
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#BD9655] text-sm font-bold text-[#002950]">
+                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#002950] text-sm font-bold text-white">
                                                 {initials || "?"}
                                             </div>
 

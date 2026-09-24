@@ -490,7 +490,7 @@ function Avatar({ name }: { name: string }) {
       .toUpperCase() || "?";
 
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#BD9655] text-xs font-bold text-[#002950]">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#002950] text-xs font-bold text-white">
       {initials}
     </div>
   );

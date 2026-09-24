@@ -950,7 +950,7 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
 
                                     <button
                                         type="button"
-                                        className="flex h-10 items-center justify-center gap-2 rounded-xl bg-neutral-950 text-sm font-medium text-white transition hover:bg-neutral-800"
+                                        className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[#002950] text-sm font-medium text-white transition hover:bg-neutral-800"
                                     >
                                         {selectedLead.status === "lost"
                                             ? "Reabrir lead"
