@@ -783,7 +783,7 @@ export default function ApprovalsAndReviews({
                     projectId={projectId}
                     editingId=""
                     onClose={() => setShowNewModal(false)}
-                    documents={[]}
+                    documents={userDocuments}
                 />
             )}
         </div>
