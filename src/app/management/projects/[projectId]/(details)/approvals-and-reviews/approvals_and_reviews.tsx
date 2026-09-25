@@ -2,465 +2,790 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { FileText, Plus, Search } from "lucide-react";
+import {
+    CheckCircle2,
+    Clock3,
+    FileText,
+    Plus,
+    Search,
+    XCircle,
+    RotateCcw,
+} from "lucide-react";
 
 import {
-    KANBAN_COLUMNS,
     Submission,
     SubmissionStatus,
     SubmissionType,
 } from "./types";
 
 import CustomSelect from "@/app/components/custom_select";
-import SubmissionCard from "./submission_card";
 import SubmissionModal from "./submission_modal";
-
-import {
-    deleteSubmission,
-    updateSubmissionStatus,
-    type Submission as ServiceSubmission,
-} from "@/services/submissions";
+import { UserProjectDocument } from "@/services/documents";
 
 interface Props {
-    allSubmissions: Submission[];
+    submissions: Submission[];
+    userDocuments: UserProjectDocument[];
 }
 
-const normalizeSubmission = (
-    submission: ServiceSubmission,
-): Submission => ({
-    id: submission.id,
-    project_id: submission.project_id,
-    title: submission.title,
-    description: submission.description,
-    type: submission.type,
-    status: submission.status,
-    submitted_by:
-        submission.submitted_by_name ||
-        submission.submitted_by_user_id ||
-        "Utilizador",
-    submitted_date: submission.submitted_date,
-    due_date: submission.due_date,
-    notes: submission.admin_notes,
-    created_at: submission.created_at,
-    updated_at: submission.updated_at,
-});
+type ViewFilter =
+    | "all"
+    | "pending"
+    | "under_review"
+    | "approved"
+    | "changes_requested"
+    | "rejected";
+
+type StatusConfig = {
+    title: string;
+    description: string;
+    icon: typeof Clock3;
+    className: string;
+    iconClassName: string;
+    badgeClassName: string;
+};
+
+const STATUS_CONFIG: Record<
+    SubmissionStatus,
+    StatusConfig
+> = {
+    draft: {
+        title: "Rascunho",
+        description: "Ainda não submetida para revisão.",
+        icon: FileText,
+        className: "border-gray-200 bg-gray-50",
+        iconClassName: "text-gray-500",
+        badgeClassName:
+            "bg-gray-100 text-gray-600",
+    },
+
+    pending: {
+        title: "Pendente",
+        description: "A aguardar revisão.",
+        icon: Clock3,
+        className: "border-amber-200 bg-amber-50",
+        iconClassName: "text-amber-600",
+        badgeClassName:
+            "bg-amber-100 text-amber-700",
+    },
+
+    under_review: {
+        title: "Em revisão",
+        description: "A submissão está a ser analisada.",
+        icon: Clock3,
+        className: "border-blue-200 bg-blue-50",
+        iconClassName: "text-blue-600",
+        badgeClassName:
+            "bg-blue-100 text-blue-700",
+    },
+
+    approved: {
+        title: "Aprovada",
+        description: "A submissão foi aprovada.",
+        icon: CheckCircle2,
+        className:
+            "border-emerald-200 bg-emerald-50",
+        iconClassName: "text-emerald-600",
+        badgeClassName:
+            "bg-emerald-100 text-emerald-700",
+    },
+
+    rejected: {
+        title: "Rejeitada",
+        description: "A submissão não foi aprovada.",
+        icon: XCircle,
+        className: "border-red-200 bg-red-50",
+        iconClassName: "text-red-600",
+        badgeClassName:
+            "bg-red-100 text-red-700",
+    },
+
+    changes_requested: {
+        title: "Alterações solicitadas",
+        description:
+            "É necessário fazer alterações antes de uma nova revisão.",
+        icon: RotateCcw,
+        className:
+            "border-orange-200 bg-orange-50",
+        iconClassName: "text-orange-600",
+        badgeClassName:
+            "bg-orange-100 text-orange-700",
+    },
+};
+
+const TYPE_LABELS: Record<
+    SubmissionType,
+    string
+> = {
+    design: "Design",
+    technical: "Técnico",
+    client_approval: "Aprovação do cliente",
+};
+
+const FILTERS: {
+    value: ViewFilter;
+    label: string;
+}[] = [
+        {
+            value: "all",
+            label: "Todas",
+        },
+        {
+            value: "pending",
+            label: "Pendentes",
+        },
+        {
+            value: "under_review",
+            label: "Em revisão",
+        },
+        {
+            value: "approved",
+            label: "Aprovadas",
+        },
+        {
+            value: "changes_requested",
+            label: "Alterações solicitadas",
+        },
+        {
+            value: "rejected",
+            label: "Rejeitadas",
+        },
+    ];
+
 
 export default function ApprovalsAndReviews({
-    allSubmissions,
+    submissions: initialSubmissions, userDocuments
 }: Props) {
     const params = useParams();
+
     const projectId = params.projectId as string;
 
     const [submissions, setSubmissions] =
-        useState<Submission[]>(allSubmissions);
+        useState<Submission[]>(
+            initialSubmissions,
+        );
 
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] =
+        useState("");
+
     const [typeFilter, setTypeFilter] =
         useState<SubmissionType | "all">("all");
 
-    const [showNewModal, setShowNewModal] = useState(false);
-    const [editingId, setEditingId] = useState<string | null>(null);
+    const [statusFilter, setStatusFilter] =
+        useState<ViewFilter>("all");
 
-    const [toasts, setToasts] = useState<
-        {
-            id: string;
-            message: string;
-            type: "success" | "error";
-        }[]
-    >([]);
+    const [showNewModal, setShowNewModal] =
+        useState(false);
 
-    /*
-     * Keep the client-side list synchronized with the
-     * server-provided submissions.
-     */
     useEffect(() => {
-        setSubmissions(allSubmissions);
-    }, [allSubmissions]);
+        setSubmissions(initialSubmissions);
+    }, [initialSubmissions]);
 
-    const showToast = (
-        message: string,
-        type: "success" | "error" = "success",
-    ) => {
-        const id = Date.now().toString();
+    const statistics = useMemo(() => {
+        return {
+            total: submissions.filter(
+                (submission) =>
+                    submission.status !== "draft",
+            ).length,
 
-        setToasts((prev) => [
-            ...prev,
-            {
-                id,
-                message,
-                type,
-            },
-        ]);
+            pending: submissions.filter(
+                (submission) =>
+                    submission.status === "pending",
+            ).length,
 
-        setTimeout(() => {
-            setToasts((prev) =>
-                prev.filter((toast) => toast.id !== id),
-            );
-        }, 3000);
-    };
+            underReview: submissions.filter(
+                (submission) =>
+                    submission.status === "under_review",
+            ).length,
 
-    /*
-     * Search and type filtering.
-     */
+            approved: submissions.filter(
+                (submission) =>
+                    submission.status === "approved",
+            ).length,
+
+            changesRequested: submissions.filter(
+                (submission) =>
+                    submission.status ===
+                    "changes_requested",
+            ).length,
+
+            rejected: submissions.filter(
+                (submission) =>
+                    submission.status === "rejected",
+            ).length,
+        };
+    }, [submissions]);
+
     const filteredSubmissions = useMemo(() => {
-        const query = searchQuery.trim().toLowerCase();
+        const query = searchQuery
+            .trim()
+            .toLowerCase();
 
-        return submissions.filter((submission) => {
-            const matchesSearch =
-                !query ||
-                submission.title.toLowerCase().includes(query) ||
-                submission.description
-                    ?.toLowerCase()
-                    .includes(query);
-
-            const matchesType =
-                typeFilter === "all" ||
-                submission.type === typeFilter;
-
-            return matchesSearch && matchesType;
-        });
-    }, [submissions, searchQuery, typeFilter]);
-
-    /*
-     * Group submissions by workflow status.
-     */
-    const columnData = useMemo(() => {
-        return KANBAN_COLUMNS.map((column) => ({
-            ...column,
-            items: filteredSubmissions.filter(
+        return submissions
+            .filter(
                 (submission) =>
-                    submission.status === column.id,
-            ),
-        }));
-    }, [filteredSubmissions]);
+                    submission.status !== "draft",
+            )
+            .filter((submission) => {
+                const matchesSearch =
+                    !query ||
+                    submission.title
+                        .toLowerCase()
+                        .includes(query) ||
+                    Boolean(
+                        submission.description
+                            ?.toLowerCase()
+                            .includes(query),
+                    );
 
-    /*
-     * Status changes are kept here because the page can later
-     * be shared with reviewers.
-     */
-    const handleStatusChange = async (
-        submissionId: string,
-        newStatus: SubmissionStatus,
-    ) => {
-        const updated = await updateSubmissionStatus(
-            submissionId,
-            newStatus,
-        );
+                const matchesType =
+                    typeFilter === "all" ||
+                    submission.type === typeFilter;
 
-        if (!updated) {
-            showToast(
-                "Erro ao atualizar o estado da submissão.",
-                "error",
-            );
-            return;
-        }
+                const matchesStatus =
+                    statusFilter === "all" ||
+                    submission.status ===
+                    statusFilter;
 
-        const normalized = normalizeSubmission(updated);
+                return (
+                    matchesSearch &&
+                    matchesType &&
+                    matchesStatus
+                );
+            });
+    }, [
+        submissions,
+        searchQuery,
+        typeFilter,
+        statusFilter,
+    ]);
 
-        setSubmissions((prev) =>
-            prev.map((submission) =>
-                submission.id === submissionId
-                    ? normalized
-                    : submission,
-            ),
-        );
-
-        showToast("Estado da submissão atualizado.");
-    };
-
-    /*
-     * Delete submission.
-     *
-     * This keeps the confirmation inside the page for now.
-     * You can replace this with your reusable confirmation
-     * dialog later without changing the rest of the flow.
-     */
-    const handleDelete = async (submissionId: string) => {
-        const confirmed = window.confirm(
-            "Tem a certeza de que deseja eliminar esta submissão?",
-        );
-
-        if (!confirmed) return;
-
-        const success = await deleteSubmission(submissionId);
-
-        if (!success) {
-            showToast(
-                "Erro ao eliminar a submissão.",
-                "error",
-            );
-            return;
-        }
-
-        setSubmissions((prev) =>
-            prev.filter(
-                (submission) =>
-                    submission.id !== submissionId,
-            ),
-        );
-
-        showToast("Submissão eliminada.");
-    };
-
-    /*
-     * Open create modal.
-     */
     const handleCreate = () => {
-        setEditingId(null);
         setShowNewModal(true);
     };
 
-    /*
-     * Open edit modal.
-     */
-    const handleEdit = (submission: Submission) => {
-        setEditingId(submission.id);
-        setShowNewModal(true);
+    const formatDate = (
+        value: string | null | undefined,
+    ) => {
+        if (!value) {
+            return null;
+        }
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+            return null;
+        }
+
+        return new Intl.DateTimeFormat(
+            "pt-PT",
+            {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+            },
+        ).format(date);
     };
 
-    /*
-     * Called by SubmissionModal after a successful operation.
-     *
-     * The server page is the source of truth, so refresh it.
-     */
-    const handleSubmissionSaved = () => {
-        setShowNewModal(false);
-        setEditingId(null);
+    const getSubmissionDate = (
+        submission: Submission,
+    ) => {
+        const possibleSubmission =
+            submission as Submission & {
+                submitted_at?: string | null;
+                created_at?: string | null;
+            };
 
-        window.location.reload();
+        return (
+            possibleSubmission.submitted_at ??
+            possibleSubmission.created_at ??
+            null
+        );
+    };
+
+    const renderStatusMessage = (
+        status: SubmissionStatus,
+    ) => {
+        switch (status) {
+            case "approved":
+                return "A submissão foi aprovada.";
+
+            case "rejected":
+                return "A submissão não foi aprovada.";
+
+            case "changes_requested":
+                return "Foram solicitadas alterações antes de uma nova revisão.";
+
+            case "under_review":
+                return "A submissão está a ser analisada.";
+
+            case "pending":
+                return "A submissão foi enviada e aguarda revisão.";
+
+            default:
+                return "";
+        }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* =====================================================
-                Header
-            ===================================================== */}
+        <div className="min-h-screen bg-[#F7F7F5]">
+            {/* ------------------------------------------------------------------ */}
+            {/* Header                                                             */}
+            {/* ------------------------------------------------------------------ */}
+
             <div className="border-b border-gray-200 bg-white">
                 <div className="mx-auto max-w-7xl px-6 py-8">
-                    <div className="flex flex-col gap-6">
-                        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                            <div>
-                                <h1 className="text-3xl font-bold text-gray-900">
-                                    Submissões &amp; Aprovações
-                                </h1>
+                    <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900">
+                                Submissões &amp; Revisões
+                            </h1>
 
-                                <p className="mt-1 text-gray-600">
-                                    Envie os seus ficheiros e acompanhe
-                                    o estado das revisões do projeto.
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={handleCreate}
-                                className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2 font-medium text-[#002950] transition hover:bg-[#BD9655]/90"
-                            >
-                                <Plus size={18} />
-                                Nova Submissão
-                            </button>
+                            <p className="mt-1 max-w-2xl text-gray-600">
+                                Envie documentos para revisão,
+                                acompanhe o processo e consulte
+                                o resultado das suas submissões.
+                            </p>
                         </div>
+
+                        <button
+                            type="button"
+                            onClick={handleCreate}
+                            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2.5 font-medium text-[#002950] transition hover:bg-[#BD9655]/90"
+                        >
+                            <Plus size={18} />
+                            Nova submissão
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* =====================================================
-                Content
-            ===================================================== */}
             <div className="mx-auto max-w-7xl px-6 py-8">
-                {/* Filters */}
-                <div className="mb-8 flex flex-col gap-3 sm:flex-row">
-                    <div className="relative flex-1">
-                        <Search
-                            size={16}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        />
+                {/* ------------------------------------------------------------------ */}
+                {/* Summary                                                             */}
+                {/* ------------------------------------------------------------------ */}
 
-                        <input
-                            type="text"
-                            placeholder="Procurar por título ou descrição..."
-                            value={searchQuery}
-                            onChange={(event) =>
-                                setSearchQuery(
-                                    event.target.value,
-                                )
-                            }
-                            className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                        />
-                    </div>
+                <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setStatusFilter("all")
+                        }
+                        className="cursor-pointer rounded-xl border border-gray-200 bg-white p-5 text-left transition hover:border-gray-300"
+                    >
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-gray-500">
+                                Submissões
+                            </p>
 
-                    <CustomSelect
-                        value={typeFilter}
-                        onChange={(event) =>
-                            setTypeFilter(
-                                event.target.value as
-                                    | SubmissionType
-                                    | "all",
+                            <FileText
+                                size={18}
+                                className="text-gray-400"
+                            />
+                        </div>
+
+                        <p className="mt-2 text-2xl font-bold text-gray-900">
+                            {statistics.total}
+                        </p>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setStatusFilter(
+                                "pending",
                             )
                         }
-                        className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                        className="cursor-pointer rounded-xl border border-gray-200 bg-white p-5 text-left transition hover:border-gray-300"
                     >
-                        <option value="all">
-                            Todos os tipos
-                        </option>
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-gray-500">
+                                Pendentes
+                            </p>
 
-                        <option value="design">
-                            Design
-                        </option>
+                            <Clock3
+                                size={18}
+                                className="text-amber-500"
+                            />
+                        </div>
 
-                        <option value="technical">
-                            Técnico
-                        </option>
+                        <p className="mt-2 text-2xl font-bold text-gray-900">
+                            {statistics.pending}
+                        </p>
+                    </button>
 
-                        <option value="client_approval">
-                            Aprovação do cliente
-                        </option>
-                    </CustomSelect>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setStatusFilter(
+                                "under_review",
+                            )
+                        }
+                        className="cursor-pointer rounded-xl border border-gray-200 bg-white p-5 text-left transition hover:border-gray-300"
+                    >
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-gray-500">
+                                Em revisão
+                            </p>
+
+                            <Clock3
+                                size={18}
+                                className="text-blue-500"
+                            />
+                        </div>
+
+                        <p className="mt-2 text-2xl font-bold text-gray-900">
+                            {statistics.underReview}
+                        </p>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setStatusFilter(
+                                "approved",
+                            )
+                        }
+                        className="cursor-pointer rounded-xl border border-gray-200 bg-white p-5 text-left transition hover:border-gray-300"
+                    >
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-gray-500">
+                                Aprovadas
+                            </p>
+
+                            <CheckCircle2
+                                size={18}
+                                className="text-emerald-500"
+                            />
+                        </div>
+
+                        <p className="mt-2 text-2xl font-bold text-gray-900">
+                            {statistics.approved}
+                        </p>
+                    </button>
                 </div>
 
-                {/* =================================================
-                    Empty state
-                ================================================= */}
+                {/* ------------------------------------------------------------------ */}
+                {/* Filters                                                             */}
+                {/* ------------------------------------------------------------------ */}
+
+                <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row">
+                        <div className="relative flex-1">
+                            <Search
+                                size={16}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            />
+
+                            <input
+                                type="text"
+                                placeholder="Procurar por título ou descrição..."
+                                value={searchQuery}
+                                onChange={(event) =>
+                                    setSearchQuery(
+                                        event.target.value,
+                                    )
+                                }
+                                className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </div>
+
+                        <CustomSelect
+                            value={typeFilter}
+                            onChange={(event) =>
+                                setTypeFilter(
+                                    event.target
+                                        .value as
+                                    | SubmissionType
+                                    | "all",
+                                )
+                            }
+                            className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                        >
+                            <option value="all">
+                                Todos os tipos
+                            </option>
+
+                            <option value="design">
+                                Design
+                            </option>
+
+                            <option value="technical">
+                                Técnico
+                            </option>
+
+                            <option value="client_approval">
+                                Aprovação do cliente
+                            </option>
+                        </CustomSelect>
+
+                        <CustomSelect
+                            value={statusFilter}
+                            onChange={(event) =>
+                                setStatusFilter(
+                                    event.target
+                                        .value as ViewFilter,
+                                )
+                            }
+                            className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                        >
+                            {FILTERS.map((filter) => (
+                                <option
+                                    key={filter.value}
+                                    value={filter.value}
+                                >
+                                    {filter.label}
+                                </option>
+                            ))}
+                        </CustomSelect>
+                    </div>
+                </div>
+
+                {/* ------------------------------------------------------------------ */}
+                {/* Submission list                                                     */}
+                {/* ------------------------------------------------------------------ */}
+
                 {filteredSubmissions.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center">
+                    <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center">
                         <FileText
                             className="mx-auto mb-4 text-gray-300"
                             size={48}
                         />
 
-                        <p className="text-lg text-gray-600">
+                        <p className="text-lg font-medium text-gray-700">
                             {submissions.length === 0
                                 ? "Ainda não existem submissões."
                                 : "Nenhuma submissão encontrada."}
                         </p>
 
-                        {submissions.length === 0 && (
+                        {submissions.length === 0 ? (
                             <>
                                 <p className="mx-auto mt-2 max-w-md text-sm text-gray-400">
-                                    Envie um ficheiro para iniciar
-                                    o processo de revisão deste
-                                    projeto.
+                                    Envie o primeiro documento
+                                    deste projeto para iniciar
+                                    o processo de revisão.
                                 </p>
 
                                 <button
                                     type="button"
                                     onClick={handleCreate}
-                                    className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2 font-medium text-[#002950] transition hover:bg-[#BD9655]/90"
+                                    className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2.5 font-medium text-[#002950] transition hover:bg-[#BD9655]/90"
                                 >
                                     <Plus size={16} />
                                     Criar primeira submissão
                                 </button>
                             </>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearchQuery("");
+                                    setTypeFilter("all");
+                                    setStatusFilter("all");
+                                }}
+                                className="mt-4 text-sm font-medium text-[#002950] underline underline-offset-4"
+                            >
+                                Limpar filtros
+                            </button>
                         )}
                     </div>
                 ) : (
-                    /* =================================================
-                       Kanban
-                    ================================================= */
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        {columnData.map((column) => (
-                            <div key={column.id}>
-                                {/* Column header */}
-                                <div
-                                    className="mb-4 flex items-center gap-2 border-b-2 pb-3"
-                                    style={{
-                                        borderColor:
-                                            "rgb(209 213 219)",
-                                    }}
-                                >
-                                    <column.icon
-                                        size={18}
-                                        className={
-                                            column.textColor
+                    <div className="space-y-4">
+                        {filteredSubmissions.map(
+                            (submission) => {
+                                const config =
+                                    STATUS_CONFIG[
+                                    submission.status
+                                    ];
+
+                                const StatusIcon =
+                                    config.icon;
+
+                                const submittedDate =
+                                    formatDate(
+                                        getSubmissionDate(
+                                            submission,
+                                        ),
+                                    );
+
+                                return (
+                                    <div
+                                        key={
+                                            submission.id
                                         }
-                                    />
+                                        className="rounded-xl border border-gray-200 bg-white p-5 transition hover:border-gray-300"
+                                    >
+                                        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                                            {/* Main information */}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-start gap-4">
+                                                    <div
+                                                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${config.className}`}
+                                                    >
+                                                        <StatusIcon
+                                                            size={
+                                                                21
+                                                            }
+                                                            className={
+                                                                config.iconClassName
+                                                            }
+                                                        />
+                                                    </div>
 
-                                    <h2 className="font-semibold text-gray-900">
-                                        {column.title}
-                                    </h2>
+                                                    <div className="min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <h2 className="font-semibold text-gray-900">
+                                                                {
+                                                                    submission.title
+                                                                }
+                                                            </h2>
 
-                                    <span className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600">
-                                        {column.items.length}
-                                    </span>
-                                </div>
+                                                            <span
+                                                                className={`rounded-full px-2.5 py-1 text-xs font-medium ${config.badgeClassName}`}
+                                                            >
+                                                                {
+                                                                    config.title
+                                                                }
+                                                            </span>
+                                                        </div>
 
-                                {/* Cards */}
-                                <div className="space-y-3">
-                                    {column.items.length === 0 ? (
-                                        <div className="py-8 text-center text-gray-400">
-                                            <p className="text-xs">
-                                                Nenhuma submissão
-                                            </p>
+                                                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+                                                            <span>
+                                                                {
+                                                                    TYPE_LABELS[
+                                                                    submission
+                                                                        .type
+                                                                    ]
+                                                                }
+                                                            </span>
+
+                                                            {submittedDate && (
+                                                                <>
+                                                                    <span className="text-gray-300">
+                                                                        •
+                                                                    </span>
+
+                                                                    <span>
+                                                                        Enviada
+                                                                        em{" "}
+                                                                        {
+                                                                            submittedDate
+                                                                        }
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {submission.description && (
+                                                    <p className="mt-4 max-w-3xl text-sm leading-6 text-gray-600">
+                                                        {
+                                                            submission.description
+                                                        }
+                                                    </p>
+                                                )}
+
+                                                <div
+                                                    className={`mt-4 rounded-lg border px-4 py-3 ${config.className}`}
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <StatusIcon
+                                                            size={
+                                                                17
+                                                            }
+                                                            className={`mt-0.5 shrink-0 ${config.iconClassName}`}
+                                                        />
+
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-800">
+                                                                {
+                                                                    config.title
+                                                                }
+                                                            </p>
+
+                                                            <p className="mt-0.5 text-sm text-gray-600">
+                                                                {renderStatusMessage(
+                                                                    submission.status,
+                                                                )}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Result / action */}
+                                            <div className="flex shrink-0 flex-col gap-2 lg:w-44">
+                                                <button
+                                                    type="button"
+                                                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                                                >
+                                                    Ver submissão
+                                                </button>
+
+                                                {submission.status ===
+                                                    "changes_requested" && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={
+                                                                handleCreate
+                                                            }
+                                                            className="w-full rounded-lg bg-[#BD9655] px-4 py-2.5 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90"
+                                                        >
+                                                            Nova versão
+                                                        </button>
+                                                    )}
+                                            </div>
                                         </div>
-                                    ) : (
-                                        column.items.map(
-                                            (submission) => (
-                                                <SubmissionCard
-                                                    key={
-                                                        submission.id
-                                                    }
-                                                    submission={
-                                                        submission
-                                                    }
-                                                    onStatusChange={(
-                                                        status,
-                                                    ) =>
-                                                        handleStatusChange(
-                                                            submission.id,
-                                                            status,
-                                                        )
-                                                    }
-                                                    onEdit={() =>
-                                                        handleEdit(
-                                                            submission,
-                                                        )
-                                                    }
-                                                    onDelete={() =>
-                                                        handleDelete(
-                                                            submission.id,
-                                                        )
-                                                    }
-                                                />
-                                            ),
-                                        )
-                                    )}
-                                </div>
+                                    </div>
+                                );
+                            },
+                        )}
+                    </div>
+                )}
+
+                {/* ------------------------------------------------------------------ */}
+                {/* Review explanation                                                  */}
+                {/* ------------------------------------------------------------------ */}
+
+                {filteredSubmissions.length > 0 && (
+                    <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5">
+                        <div className="flex items-start gap-3">
+                            <FileText
+                                size={19}
+                                className="mt-0.5 shrink-0 text-[#BD9655]"
+                            />
+
+                            <div>
+                                <h3 className="font-medium text-gray-900">
+                                    Como funciona a revisão?
+                                </h3>
+
+                                <p className="mt-1 text-sm leading-6 text-gray-600">
+                                    Depois de enviar uma submissão,
+                                    a equipa responsável irá analisar
+                                    os ficheiros e atualizar o estado.
+                                    Quando a revisão terminar, poderá
+                                    consultar aqui o resultado e os
+                                    comentários associados.
+                                </p>
                             </div>
-                        ))}
+                        </div>
                     </div>
                 )}
             </div>
 
-            {/* =====================================================
-                Submission modal
-            ===================================================== */}
+            {/* ------------------------------------------------------------------ */}
+            {/* New submission modal                                                */}
+            {/* ------------------------------------------------------------------ */}
+
             {showNewModal && (
                 <SubmissionModal
                     projectId={projectId}
-                    editingId={editingId || ""}
-                    onClose={() => {
-                        setShowNewModal(false);
-                        setEditingId(null);
-                    }}
+                    editingId=""
+                    onClose={() => setShowNewModal(false)}
+                    documents={[]}
                 />
             )}
-
-            {/* =====================================================
-                Toasts
-            ===================================================== */}
-            <div className="fixed bottom-6 right-6 z-40 space-y-2">
-                {toasts.map((toast) => (
-                    <div
-                        key={toast.id}
-                        className={`rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg ${
-                            toast.type === "success"
-                                ? "bg-emerald-600"
-                                : "bg-red-600"
-                        }`}
-                    >
-                        {toast.message}
-                    </div>
-                ))}
-            </div>
         </div>
     );
 }

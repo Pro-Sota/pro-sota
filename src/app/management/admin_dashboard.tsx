@@ -67,6 +67,7 @@ type Task = Database["public"]["Tables"]["tasks"]["Row"];
 type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
 
 interface DashboardData {
+  currentUser: Profile;
   users: Profile[];
   projects: Project[];
   clients: Client[];
@@ -80,7 +81,7 @@ interface DashboardProps {
   data: DashboardData;
 }
 
-export default function Dashboard({ data }: DashboardProps) {
+export default function AdminDashboard({ data }: DashboardProps) {
   const router = useRouter();
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
 
@@ -159,7 +160,7 @@ export default function Dashboard({ data }: DashboardProps) {
           {/* Header */}
           <div className="border-b border-gray-200 pb-6">
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900">
-              Dashboard
+              Ola, {data.currentUser.first_name}
             </h1>
 
             <p className="mt-2 text-sm text-gray-600">

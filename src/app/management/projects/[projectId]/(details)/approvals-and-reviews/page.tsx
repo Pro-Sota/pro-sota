@@ -1,21 +1,90 @@
-import { fetchAllProjectSubmissions } from "@/services/submissions";
-import type { Submission } from "./types";
+import {
+  getCurrentUserProjectSubmissions,
+} from "@/services/submissions";
+
 import ApprovalsAndReviews from "./approvals_and_reviews";
-import SubmissionsReviewPage from "./approvals_and_reviews_admin";
+import { getCurrentUserProjectDocuments } from "@/services/documents";
 
+type Props = {
+  params: Promise<{
+    projectId: string;
+  }>;
+};
 
-export default async function ApprovalsAndReviewsPage({
+export type UserProjectDocument = {
+  document_id: string;
+  project_id: string;
+  name: string | null;
+  file_path: string | null;
+  file_size: number | null;
+  mime_type: string | null;
+  created_at: string;
+};
+
+export default async function Page({
   params,
-}: {
-  params: Promise<{ projectId: string }>;
-}) {
-  const { projectId } = await params;
+}: Props) {
+  const { projectId } =
+    await params;
 
-  const allSubmitions = await fetchAllProjectSubmissions(projectId);
-  const submissions = allSubmitions as unknown as Submission[];
+  const submissions =
+    await getCurrentUserProjectSubmissions(
+      projectId,
+    );
 
-  // return <ApprovalsAndReviews submissions={submissions} />;
+  const userDocuments =
+    await getCurrentUserProjectDocuments(
+      projectId,
+    );
 
-  return <SubmissionsReviewPage allSubmissions={allSubmitions}  />  
+  return (
+    <ApprovalsAndReviews
+      userDocuments={userDocuments}
+      submissions={submissions.map(
+        (submission) => ({
+          id: submission.id,
+          project_id:
+            submission.project_id,
+          title: submission.title,
+          description:
+            submission.description ??
+            undefined,
+          type:
+            submission.type ===
+              "design" ||
+              submission.type ===
+              "technical" ||
+              submission.type ===
+              "client_approval"
+              ? submission.type
+              : "technical",
+          status:
+            submission.status ===
+              "pending" ||
+              submission.status ===
+              "approved" ||
+              submission.status ===
+              "rejected" ||
+              submission.status ===
+              "changes_requested"
+              ? submission.status
+              : "pending",
+          submitted_by:
+            submission.submitted_by_name,
+          submitted_date:
+            submission.submitted_date,
+          due_date:
+            submission.due_date ?? "",
+          notes:
+            submission.notes ??
+            undefined,
+          created_at:
+            submission.created_at,
+          updated_at:
+            submission.updated_at,
+        }),
+      )}
 
+    />
+  );
 }

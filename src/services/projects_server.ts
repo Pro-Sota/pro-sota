@@ -320,7 +320,7 @@ export async function getTaskBoard(
   /* Columns                                                                  */
   /* ------------------------------------------------------------------------ */
 
-  const columnsQuery = supabase
+  let columnsQuery = supabase
     .from("task_columns")
     .select("*")
     .order("position", { ascending: true });

@@ -1,21 +1,66 @@
 "use client";
 
-import { useState } from "react";
-import { X, FileText, Upload } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+    Check,
+    FileText,
+    Search,
+    X,
+} from "lucide-react";
 
-interface Props {
-    projectId: string;
-    onClose: (isShow: boolean) => void;
-    editingId: string;
-}
+import CustomSelect from "@/app/components/custom_select";
 
-type Speciality = "" | "architecture" | "engineering";
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
+
+type Speciality =
+    | ""
+    | "architecture"
+    | "engineering";
 
 type SubmissionType =
     | ""
     | "design"
     | "technical"
     | "client_approval";
+
+export interface SubmissionDocument {
+    document_id: string;
+    folder_id: string;
+    project_id: string;
+    name: string;
+    file_path: string;
+    version?: number | null;
+    uploaded_by?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+}
+
+interface Props {
+    projectId: string;
+
+    documents: SubmissionDocument[];
+
+    onClose: (isShow: boolean) => void;
+
+    editingId: string;
+
+    onSubmit?: (data: {
+        project_id: string;
+        title: string;
+        description: string | null;
+        speciality: Exclude<
+            Speciality,
+            ""
+        >;
+        type: Exclude<
+            SubmissionType,
+            ""
+        >;
+        document_ids: string[];
+    }) => Promise<void>;
+}
 
 interface SubmissionFormData {
     title: string;
@@ -27,7 +72,7 @@ interface FormErrors {
     title?: string;
     speciality?: string;
     type?: string;
-    file?: string;
+    documents?: string;
     general?: string;
 }
 
@@ -37,19 +82,41 @@ const initialFormData: SubmissionFormData = {
     type: "",
 };
 
+const TYPE_LABELS: Record<
+    Exclude<SubmissionType, "">,
+    string
+> = {
+    design: "Projecto / Design",
+    technical: "Documentação técnica",
+    client_approval: "Aprovação do cliente",
+};
+
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
+
 export default function SubmissionModal({
     projectId,
+    documents,
     onClose,
     editingId,
+    onSubmit,
 }: Props) {
     const [formData, setFormData] =
-        useState<SubmissionFormData>(initialFormData);
+        useState<SubmissionFormData>(
+            initialFormData,
+        );
 
     const [speciality, setSpeciality] =
         useState<Speciality>("");
 
-    const [file, setFile] =
-        useState<File | null>(null);
+    const [
+        selectedDocumentIds,
+        setSelectedDocumentIds,
+    ] = useState<string[]>([]);
+
+    const [documentSearch, setDocumentSearch] =
+        useState("");
 
     const [errors, setErrors] =
         useState<FormErrors>({});
@@ -57,12 +124,57 @@ export default function SubmissionModal({
     const [isSaving, setIsSaving] =
         useState(false);
 
+    /* ---------------------------------------------------------------------- */
+    /* Filter documents                                                       */
+    /* ---------------------------------------------------------------------- */
+
+    const filteredDocuments = useMemo(() => {
+        const query =
+            documentSearch
+                .trim()
+                .toLowerCase();
+
+        if (!query) {
+            return documents;
+        }
+
+        return documents.filter(
+            (document) =>
+                document.name
+                    .toLowerCase()
+                    .includes(query),
+        );
+    }, [
+        documents,
+        documentSearch,
+    ]);
+
+    /* ---------------------------------------------------------------------- */
+    /* Selected documents                                                     */
+    /* ---------------------------------------------------------------------- */
+
+    const selectedDocuments = useMemo(
+        () =>
+            documents.filter((document) =>
+                selectedDocumentIds.includes(
+                    document.document_id,
+                ),
+            ),
+        [
+            documents,
+            selectedDocumentIds,
+        ],
+    );
+
+    /* ---------------------------------------------------------------------- */
+    /* Handlers                                                                */
+    /* ---------------------------------------------------------------------- */
+
     const handleSpecialityChange = (
-        value: Speciality
+        value: Speciality,
     ) => {
         setSpeciality(value);
 
-        // Changing the speciality resets the submission type
         setFormData((prev) => ({
             ...prev,
             type: "",
@@ -77,7 +189,7 @@ export default function SubmissionModal({
     };
 
     const handleTypeChange = (
-        value: SubmissionType
+        value: SubmissionType,
     ) => {
         setFormData((prev) => ({
             ...prev,
@@ -92,7 +204,7 @@ export default function SubmissionModal({
     };
 
     const handleTitleChange = (
-        value: string
+        value: string,
     ) => {
         setFormData((prev) => ({
             ...prev,
@@ -108,417 +220,668 @@ export default function SubmissionModal({
         }
     };
 
-    const handleFileChange = (
-        event: React.ChangeEvent<HTMLInputElement>
+    const toggleDocument = (
+        documentId: string,
     ) => {
-        const selectedFile =
-            event.target.files?.[0] ?? null;
+        setSelectedDocumentIds((prev) => {
+            if (prev.includes(documentId)) {
+                return prev.filter(
+                    (id) => id !== documentId,
+                );
+            }
 
-        setFile(selectedFile);
-
-        if (selectedFile) {
-            setErrors((prev) => ({
+            return [
                 ...prev,
-                file: undefined,
-                general: undefined,
-            }));
-        }
-
-        // Allows selecting the same file again later
-        event.target.value = "";
-    };
-
-    const handleRemoveFile = () => {
-        setFile(null);
+                documentId,
+            ];
+        });
 
         setErrors((prev) => ({
             ...prev,
-            file: undefined,
+            documents: undefined,
             general: undefined,
         }));
     };
 
-    const handleSaveSubmission = async () => {
-        const newErrors: FormErrors = {};
-
-        if (!formData.title.trim()) {
-            newErrors.title =
-                "O título da submissão é obrigatório.";
-        }
-
-        if (!speciality) {
-            newErrors.speciality =
-                "Escolha uma especialidade.";
-        }
-
-        if (!formData.type) {
-            newErrors.type =
-                "Escolha o tipo de submissão.";
-        }
-
-        if (!file) {
-            newErrors.file =
-                "Adicione um ficheiro.";
-        }
-
-        const hasFieldErrors =
-            Object.keys(newErrors).length > 0;
-
-        if (hasFieldErrors) {
-            newErrors.general =
-                "Preencha todos os campos obrigatórios.";
-
-            setErrors(newErrors);
-            return;
-        }
-
-        setErrors({});
-        setIsSaving(true);
-
-        try {
-            const submissionData = {
-                project_id: projectId,
-                title: formData.title.trim(),
-                description:
-                    formData.description.trim() || null,
-                speciality,
-                type: formData.type,
-            };
-
-            console.log("Creating submission:", {
-                submissionData,
-                file,
-                editingId,
-            });
-
-            /*
-             * TODO:
-             *
-             * await createSubmissionWithFile(
-             *     submissionData,
-             *     file
-             * );
-             */
-
-            onClose(false);
-        } catch (error) {
-            console.error(
-                "Failed to save submission:",
-                error
-            );
-
-            setErrors({
-                general:
-                    "Não foi possível guardar a submissão.",
-            });
-        } finally {
-            setIsSaving(false);
-        }
+    const removeDocument = (
+        documentId: string,
+    ) => {
+        setSelectedDocumentIds((prev) =>
+            prev.filter(
+                (id) => id !== documentId,
+            ),
+        );
     };
+
+    /* ---------------------------------------------------------------------- */
+    /* Save                                                                    */
+    /* ---------------------------------------------------------------------- */
+
+    const handleSaveSubmission =
+        async () => {
+            const newErrors: FormErrors = {};
+
+            if (!formData.title.trim()) {
+                newErrors.title =
+                    "O título da submissão é obrigatório.";
+            }
+
+            if (!speciality) {
+                newErrors.speciality =
+                    "Escolha uma especialidade.";
+            }
+
+            if (!formData.type) {
+                newErrors.type =
+                    "Escolha o tipo de submissão.";
+            }
+
+            if (
+                selectedDocumentIds.length ===
+                0
+            ) {
+                newErrors.documents =
+                    "Seleccione pelo menos um documento.";
+            }
+
+            if (
+                Object.keys(newErrors).length >
+                0
+            ) {
+                newErrors.general =
+                    "Preencha todos os campos obrigatórios.";
+
+                setErrors(newErrors);
+
+                return;
+            }
+
+            setErrors({});
+            setIsSaving(true);
+
+            try {
+                const submissionData = {
+                    project_id: projectId,
+                    title: formData.title.trim(),
+                    description:
+                        formData.description.trim() ||
+                        null,
+                    speciality:
+                        speciality as Exclude<
+                            Speciality,
+                            ""
+                        >,
+                    type: formData.type as Exclude<
+                        SubmissionType,
+                        ""
+                    >,
+                    document_ids:
+                        selectedDocumentIds,
+                };
+
+                if (onSubmit) {
+                    await onSubmit(
+                        submissionData,
+                    );
+                }
+
+                onClose(false);
+            } catch (error) {
+                console.error(
+                    "Failed to save submission:",
+                    error,
+                );
+
+                setErrors({
+                    general:
+                        "Não foi possível guardar a submissão.",
+                });
+            } finally {
+                setIsSaving(false);
+            }
+        };
+
+    /* ---------------------------------------------------------------------- */
+    /* Render                                                                  */
+    /* ---------------------------------------------------------------------- */
 
     return (
         <div
-            className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
-            onClick={() => onClose(false)
-            }
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => {
+                if (!isSaving) {
+                    onClose(false);
+                }
+            }}
         >
             <div
-                className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
-                onClick={(e) => e.stopPropagation()}
+                className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+                onClick={(event) =>
+                    event.stopPropagation()
+                }
             >
                 {/* HEADER */}
-                <h2 className="text-xl font-bold text-gray-900 mb-4">
-                    {editingId
-                        ? "Editar Submissão"
-                        : "Nova Submissão"}
-                </h2>
 
-                <div className="space-y-4">
-
-                    {/* TITLE */}
+                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
                     <div>
-                        <label
-                            htmlFor="submission-title"
-                            className="block text-sm font-medium text-gray-700 mb-1"
-                        >
-                            Título *
-                        </label>
+                        <h2 className="text-xl font-bold text-gray-900">
+                            {editingId
+                                ? "Nova versão da submissão"
+                                : "Nova submissão"}
+                        </h2>
 
-                        <input
-                            id="submission-title"
-                            type="text"
-                            value={formData.title}
-                            onChange={(e) =>
-                                handleTitleChange(
-                                    e.target.value
-                                )
-                            }
-                            placeholder="ex: Plano Elétrico - Revisão 02"
-                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.title
-                                ? "border-red-500 focus:ring-red-500"
-                                : "border-gray-200 focus:ring-slate-500"
-                                }`}
-                        />
-
-                        {errors.title && (
-                            <p className="mt-1 text-xs text-red-600">
-                                {errors.title}
-                            </p>
-                        )}
+                        <p className="mt-1 text-sm text-gray-500">
+                            Seleccione documentos que já
+                            existem neste projeto.
+                        </p>
                     </div>
 
-                    {/* DESCRIPTION */}
-                    <div>
-                        <label
-                            htmlFor="submission-description"
-                            className="block text-sm font-medium text-gray-700 mb-1"
-                        >
-                            Descrição
-                        </label>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            onClose(false)
+                        }
+                        disabled={isSaving}
+                        className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+                        aria-label="Fechar"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
 
-                        <textarea
-                            id="submission-description"
-                            value={formData.description}
-                            onChange={(e) =>
-                                setFormData((prev) => ({
-                                    ...prev,
-                                    description:
-                                        e.target.value,
-                                }))
-                            }
-                            placeholder="Detalhes adicionais..."
-                            rows={3}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 resize-none"
-                        />
-                    </div>
+                <div className="overflow-y-auto px-6 py-6">
+                    <div className="space-y-5">
+                        {/* TITLE */}
 
-                    {/* SPECIALITY */}
-                    <div>
-                        <label
-                            htmlFor="submission-speciality"
-                            className="block text-sm font-medium text-gray-700 mb-1"
-                        >
-                            Especialidade *
-                        </label>
-
-                        <select
-                            id="submission-speciality"
-                            value={speciality}
-                            onChange={(e) =>
-                                handleSpecialityChange(
-                                    e.target.value as Speciality
-                                )
-                            }
-                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.speciality
-                                ? "border-red-500 focus:ring-red-500"
-                                : "border-gray-200 focus:ring-slate-500"
-                                }`}
-                        >
-                            <option value="">
-                                Escolha a especialidade
-                            </option>
-
-                            <option value="architecture">
-                                Especialidade I - Arquitectura
-                            </option>
-
-                            <option value="engineering">
-                                Especialidade II - Engenharia
-                            </option>
-                        </select>
-
-                        {errors.speciality && (
-                            <p className="mt-1 text-xs text-red-600">
-                                {errors.speciality}
-                            </p>
-                        )}
-                    </div>
-
-                    {/* TYPE */}
-                    {speciality !== "" && (
                         <div>
                             <label
-                                htmlFor="submission-type"
-                                className="block text-sm font-medium text-gray-700 mb-1"
+                                htmlFor="submission-title"
+                                className="mb-1 block text-sm font-medium text-gray-700"
                             >
-                                Tipo de submissão *
+                                Título *
                             </label>
 
-                            <select
-                                id="submission-type"
-                                value={formData.type}
-                                onChange={(e) =>
-                                    handleTypeChange(
-                                        e.target.value as SubmissionType
+                            <input
+                                id="submission-title"
+                                type="text"
+                                value={
+                                    formData.title
+                                }
+                                onChange={(event) =>
+                                    handleTitleChange(
+                                        event.target
+                                            .value,
                                     )
                                 }
-                                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.type
-                                    ? "border-red-500 focus:ring-red-500"
-                                    : "border-gray-200 focus:ring-slate-500"
-                                    }`}
-                            >
-                                <option value="">
-                                    Escolha o tipo
-                                </option>
+                                placeholder="ex: Plano Elétrico - Revisão 02"
+                                className={`w-full rounded-lg border px-3 py-2.5 outline-none transition focus:ring-2 ${
+                                    errors.title
+                                        ? "border-red-500 focus:ring-red-100"
+                                        : "border-gray-200 focus:border-slate-400 focus:ring-slate-100"
+                                }`}
+                            />
 
-                                {speciality ===
-                                    "architecture" && (
-                                        <>
-                                            <option value="design">
-                                                Projecto / Design
-                                            </option>
-
-                                            <option value="client_approval">
-                                                Aprovação do cliente
-                                            </option>
-                                        </>
-                                    )}
-
-                                {speciality ===
-                                    "engineering" && (
-                                        <>
-                                            <option value="technical">
-                                                Documentação técnica
-                                            </option>
-
-                                            <option value="client_approval">
-                                                Aprovação do cliente
-                                            </option>
-                                        </>
-                                    )}
-                            </select>
-
-                            {errors.type && (
+                            {errors.title && (
                                 <p className="mt-1 text-xs text-red-600">
-                                    {errors.type}
+                                    {
+                                        errors.title
+                                    }
                                 </p>
                             )}
                         </div>
-                    )}
 
-                    {/* FILE */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Ficheiro *
-                        </label>
+                        {/* DESCRIPTION */}
 
-                        {!file ? (
+                        <div>
                             <label
-                                htmlFor="submission-file"
-                                className={`flex flex-col items-center justify-center w-full min-h-28 border-2 border-dashed rounded-lg cursor-pointer transition ${errors.file
-                                    ? "border-red-500 bg-red-50/30 hover:border-red-600"
-                                    : "border-gray-200 hover:border-slate-400 hover:bg-gray-50"
-                                    }`}
+                                htmlFor="submission-description"
+                                className="mb-1 block text-sm font-medium text-gray-700"
                             >
-                                <Upload
-                                    size={22}
-                                    className={`mb-2 ${errors.file
-                                        ? "text-red-500"
-                                        : "text-gray-500"
-                                        }`}
-                                />
-
-                                <span className="text-sm font-medium text-gray-700">
-                                    Adicionar ficheiro
-                                </span>
-
-                                <span className="text-xs text-gray-500 mt-1">
-                                    Seleccione um único ficheiro
-                                </span>
-
-                                <input
-                                    id="submission-file"
-                                    type="file"
-                                    onChange={
-                                        handleFileChange
-                                    }
-                                    className="hidden"
-                                />
+                                Descrição
                             </label>
-                        ) : (
-                            <div className="flex items-center justify-between gap-3 p-3 border border-gray-200 rounded-lg">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <FileText
-                                        size={20}
-                                        className="text-gray-500 shrink-0"
-                                    />
 
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-medium text-gray-800 truncate">
-                                            {file.name}
-                                        </p>
+                            <textarea
+                                id="submission-description"
+                                value={
+                                    formData.description
+                                }
+                                onChange={(event) =>
+                                    setFormData(
+                                        (prev) => ({
+                                            ...prev,
+                                            description:
+                                                event
+                                                    .target
+                                                    .value,
+                                        }),
+                                    )
+                                }
+                                placeholder="Indique o que pretende que seja revisto..."
+                                rows={3}
+                                className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2.5 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </div>
 
-                                        <p className="text-xs text-gray-500">
-                                            {(
-                                                file.size /
-                                                1024 /
-                                                1024
-                                            ).toFixed(2)}{" "}
-                                            MB
-                                        </p>
-                                    </div>
-                                </div>
+                        {/* SPECIALITY */}
 
-                                <button
-                                    type="button"
-                                    onClick={
-                                        handleRemoveFile
+                        <div>
+                            <label
+                                htmlFor="submission-speciality"
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                            >
+                                Especialidade *
+                            </label>
+
+                            <CustomSelect
+                                id="submission-speciality"
+                                value={speciality}
+                                onChange={(event) =>
+                                    handleSpecialityChange(
+                                        event.target
+                                            .value as Speciality,
+                                    )
+                                }
+                                className={`w-full rounded-lg border px-3 py-2.5 outline-none transition focus:ring-2 ${
+                                    errors.speciality
+                                        ? "border-red-500 focus:ring-red-100"
+                                        : "border-gray-200 focus:border-slate-400 focus:ring-slate-100"
+                                }`}
+                            >
+                                <option value="">
+                                    Escolha a especialidade
+                                </option>
+
+                                <option value="architecture">
+                                    Especialidade I -
+                                    Arquitectura
+                                </option>
+
+                                <option value="engineering">
+                                    Especialidade II -
+                                    Engenharia
+                                </option>
+                            </CustomSelect>
+
+                            {errors.speciality && (
+                                <p className="mt-1 text-xs text-red-600">
+                                    {
+                                        errors.speciality
                                     }
-                                    disabled={isSaving}
-                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded-md transition shrink-0 disabled:opacity-50"
-                                    aria-label={`Remover ${file.name}`}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* TYPE */}
+
+                        {speciality && (
+                            <div>
+                                <label
+                                    htmlFor="submission-type"
+                                    className="mb-1 block text-sm font-medium text-gray-700"
                                 >
-                                    <X size={16} />
-                                </button>
+                                    Tipo de submissão *
+                                </label>
+
+                                <select
+                                    id="submission-type"
+                                    value={
+                                        formData.type
+                                    }
+                                    onChange={(event) =>
+                                        handleTypeChange(
+                                            event.target
+                                                .value as SubmissionType,
+                                        )
+                                    }
+                                    className={`w-full rounded-lg border px-3 py-2.5 outline-none transition focus:ring-2 ${
+                                        errors.type
+                                            ? "border-red-500 focus:ring-red-100"
+                                            : "border-gray-200 focus:border-slate-400 focus:ring-slate-100"
+                                    }`}
+                                >
+                                    <option value="">
+                                        Escolha o tipo
+                                    </option>
+
+                                    {speciality ===
+                                        "architecture" && (
+                                        <>
+                                            <option value="design">
+                                                Projecto /
+                                                Design
+                                            </option>
+
+                                            <option value="client_approval">
+                                                Aprovação do
+                                                cliente
+                                            </option>
+                                        </>
+                                    )}
+
+                                    {speciality ===
+                                        "engineering" && (
+                                        <>
+                                            <option value="technical">
+                                                Documentação
+                                                técnica
+                                            </option>
+
+                                            <option value="client_approval">
+                                                Aprovação do
+                                                cliente
+                                            </option>
+                                        </>
+                                    )}
+                                </select>
+
+                                {formData.type && (
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        {
+                                            TYPE_LABELS[
+                                                formData.type as Exclude<
+                                                    SubmissionType,
+                                                    ""
+                                                >
+                                            ]
+                                        }
+                                    </p>
+                                )}
+
+                                {errors.type && (
+                                    <p className="mt-1 text-xs text-red-600">
+                                        {
+                                            errors.type
+                                        }
+                                    </p>
+                                )}
                             </div>
                         )}
 
-                        {errors.file && (
-                            <p className="mt-1 text-xs text-red-600">
-                                {errors.file}
-                            </p>
-                        )}
+                        {/* DOCUMENTS */}
+
+                        <div>
+                            <div className="mb-2 flex items-center justify-between">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        Documentos *
+                                    </label>
+
+                                    <p className="mt-0.5 text-xs text-gray-500">
+                                        Seleccione documentos
+                                        que já foram carregados
+                                        neste projeto.
+                                    </p>
+                                </div>
+
+                                <span className="text-xs font-medium text-gray-500">
+                                    {
+                                        selectedDocumentIds.length
+                                    }{" "}
+                                    selecionado
+                                    {selectedDocumentIds.length ===
+                                    1
+                                        ? ""
+                                        : "s"}
+                                </span>
+                            </div>
+
+                            {/* SEARCH */}
+
+                            <div className="relative mb-3">
+                                <Search
+                                    size={16}
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                />
+
+                                <input
+                                    type="text"
+                                    value={
+                                        documentSearch
+                                    }
+                                    onChange={(event) =>
+                                        setDocumentSearch(
+                                            event.target
+                                                .value,
+                                        )
+                                    }
+                                    placeholder="Procurar documentos..."
+                                    className="w-full rounded-lg border border-gray-200 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                                />
+                            </div>
+
+                            {/* DOCUMENT LIST */}
+
+                            <div
+                                className={`max-h-64 overflow-y-auto rounded-lg border ${
+                                    errors.documents
+                                        ? "border-red-300"
+                                        : "border-gray-200"
+                                }`}
+                            >
+                                {documents.length ===
+                                0 ? (
+                                    <div className="px-5 py-10 text-center">
+                                        <FileText
+                                            size={32}
+                                            className="mx-auto mb-3 text-gray-300"
+                                        />
+
+                                        <p className="text-sm font-medium text-gray-700">
+                                            Não existem
+                                            documentos
+                                            disponíveis.
+                                        </p>
+
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Carregue primeiro
+                                            os documentos na
+                                            pasta de documentos
+                                            do projeto.
+                                        </p>
+                                    </div>
+                                ) : filteredDocuments.length ===
+                                  0 ? (
+                                    <div className="px-5 py-8 text-center">
+                                        <p className="text-sm text-gray-500">
+                                            Nenhum documento
+                                            encontrado.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-gray-100">
+                                        {filteredDocuments.map(
+                                            (
+                                                document,
+                                            ) => {
+                                                const selected =
+                                                    selectedDocumentIds.includes(
+                                                        document.document_id,
+                                                    );
+
+                                                return (
+                                                    <button
+                                                        key={
+                                                            document.document_id
+                                                        }
+                                                        type="button"
+                                                        onClick={() =>
+                                                            toggleDocument(
+                                                                document.document_id,
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            isSaving
+                                                        }
+                                                        className={`flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition ${
+                                                            selected
+                                                                ? "bg-slate-50"
+                                                                : "hover:bg-gray-50"
+                                                        } disabled:cursor-default disabled:opacity-60`}
+                                                    >
+                                                        <div
+                                                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                                                                selected
+                                                                    ? "bg-[#002950] text-white"
+                                                                    : "bg-gray-100 text-gray-500"
+                                                            }`}
+                                                        >
+                                                            {selected ? (
+                                                                <Check
+                                                                    size={
+                                                                        17
+                                                                    }
+                                                                />
+                                                            ) : (
+                                                                <FileText
+                                                                    size={
+                                                                        17
+                                                                    }
+                                                                />
+                                                            )}
+                                                        </div>
+
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="truncate text-sm font-medium text-gray-800">
+                                                                {
+                                                                    document.name
+                                                                }
+                                                            </p>
+
+                                                            <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-gray-500">
+                                                                {document.version && (
+                                                                    <span>
+                                                                        Versão{" "}
+                                                                        {
+                                                                            document.version
+                                                                        }
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div
+                                                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
+                                                                selected
+                                                                    ? "border-[#002950] bg-[#002950]"
+                                                                    : "border-gray-300 bg-white"
+                                                            }`}
+                                                        >
+                                                            {selected && (
+                                                                <Check
+                                                                    size={
+                                                                        13
+                                                                    }
+                                                                    className="text-white"
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            },
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {errors.documents && (
+                                <p className="mt-1 text-xs text-red-600">
+                                    {
+                                        errors.documents
+                                    }
+                                </p>
+                            )}
+
+                            {/* SELECTED DOCUMENTS */}
+
+                            {selectedDocuments.length >
+                                0 && (
+                                <div className="mt-3">
+                                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                                        Documentos
+                                        seleccionados
+                                    </p>
+
+                                    <div className="space-y-2">
+                                        {selectedDocuments.map(
+                                            (
+                                                document,
+                                            ) => (
+                                                <div
+                                                    key={
+                                                        document.document_id
+                                                    }
+                                                    className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                                                >
+                                                    <FileText
+                                                        size={
+                                                            16
+                                                        }
+                                                        className="shrink-0 text-gray-500"
+                                                    />
+
+                                                    <p className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                                                        {
+                                                            document.name
+                                                        }
+                                                    </p>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            removeDocument(
+                                                                document.document_id,
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            isSaving
+                                                        }
+                                                        className="shrink-0 rounded-md p-1 text-gray-400 transition hover:bg-white hover:text-red-600 disabled:opacity-50"
+                                                        aria-label={`Remover ${document.name}`}
+                                                    >
+                                                        <X
+                                                            size={
+                                                                15
+                                                            }
+                                                        />
+                                                    </button>
+                                                </div>
+                                            ),
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* GENERAL ERROR */}
-                {errors.general && (
-                    <div className="mt-5 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-600">
-                            {errors.general}
-                        </p>
-                    </div>
-                )}
+                {/* FOOTER */}
 
-                {/* ACTIONS */}
-                <div className="flex gap-3 mt-4 pt-5 border-t border-gray-200">
+                <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
                     <button
                         type="button"
-                        onClick={() => onClose(false)
+                        onClick={() =>
+                            onClose(false)
                         }
                         disabled={isSaving}
-                        className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition disabled:opacity-50"
+                        className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         Cancelar
                     </button>
 
                     <button
                         type="button"
-                        onClick={
-                            handleSaveSubmission
-                        }
+                        onClick={handleSaveSubmission}
                         disabled={isSaving}
-                        className="flex-1 px-4 py-2 text-white bg-slate-800 hover:bg-slate-900 rounded-lg font-medium transition disabled:opacity-50"
+                        className="rounded-lg bg-[#002950] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#001f3d] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {isSaving
                             ? "A guardar..."
                             : editingId
-                                ? "Guardar"
-                                : "Criar"}
+                              ? "Guardar versão"
+                              : "Guardar submissão"}
                     </button>
                 </div>
             </div>
         </div>
     );
 }
-

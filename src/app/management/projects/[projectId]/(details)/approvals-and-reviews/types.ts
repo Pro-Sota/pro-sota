@@ -14,7 +14,12 @@ export type KanbanColumn = {
   badgeColor: string;
 };
 
-export type SubmissionStatus = "pending" | "approved" | "rejected" | "changes_requested";
+export type SubmissionStatus = "draft" |
+  "pending" |
+  "under_review" |
+  "approved" |
+  "rejected" |
+  "changes_requested"
 export type SubmissionType = "design" | "technical" | "client_approval";
 
 export interface Submission {
