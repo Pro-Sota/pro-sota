@@ -24,6 +24,7 @@ export type SubmissionType =
   | "other";
 
 export type Submission = {
+  submitted_at(submitted_at: any): import("react").ReactNode;
   id: string;
   project_id: string;
   title: string;

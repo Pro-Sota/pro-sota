@@ -21,6 +21,7 @@ import {
 import CustomSelect from "@/app/components/custom_select";
 import SubmissionModal from "./submission_modal";
 import { UserProjectDocument } from "@/services/documents";
+import Link from "next/link";
 
 interface Props {
     submissions: Submission[];
@@ -158,6 +159,7 @@ export default function ApprovalsAndReviews({
     const params = useParams();
 
     const projectId = params.projectId as string;
+    const submissionId = params.submissionId as string;
 
     const [submissions, setSubmissions] =
         useState<Submission[]>(
@@ -606,7 +608,7 @@ export default function ApprovalsAndReviews({
                                             submission,
                                         ),
                                     );
-
+                                const submissionLinkUrl = `/management/projects/${projectId}/approvals-and-reviews/${submission.id}`
                                 return (
                                     <div
                                         key={
@@ -715,12 +717,13 @@ export default function ApprovalsAndReviews({
 
                                             {/* Result / action */}
                                             <div className="flex shrink-0 flex-col gap-2 lg:w-44">
-                                                <button
+                                                <Link
                                                     type="button"
+                                                    href={submissionLinkUrl}
                                                     className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
                                                 >
                                                     Ver submissão
-                                                </button>
+                                                </Link>
 
                                                 {submission.status ===
                                                     "changes_requested" && (
@@ -760,10 +763,10 @@ export default function ApprovalsAndReviews({
                                     Como funciona a revisão?
                                 </h3>
 
-                                <p className="mt-1 text-sm leading-6 text-gray-600">
+                                <p className="mt-1 text-sm word-break text-gray-600">
                                     Depois de enviar uma submissão,
-                                    a equipa responsável irá analisar
-                                    os ficheiros e atualizar o estado.
+                                    a sua submissão será analisada e atualizar o estado.
+
                                     Quando a revisão terminar, poderá
                                     consultar aqui o resultado e os
                                     comentários associados.
