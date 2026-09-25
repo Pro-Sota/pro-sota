@@ -18,6 +18,8 @@ import { useState } from "react";
 import CreateMeetingModal from "../components/create_meeting_modal";
 import { Database } from "../lib/supabase/models";
 
+import UploadDocument from "./projects/[projectId]/(details)/documents/components/upload_document";
+
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 type Document = Database["public"]["Tables"]["documents"]["Row"];
@@ -83,6 +85,8 @@ export default function Dashboard({ data }: DashboardProps) {
   const router = useRouter();
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
 
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
   const currentUser = data.currentUser;
   const projects = data.projects ?? [];
   const tasks = data.tasks ?? [];
@@ -132,7 +136,7 @@ export default function Dashboard({ data }: DashboardProps) {
     {
       label: "Carregar documento",
       icon: Upload,
-      href: "/management/documents/upload",
+      href: "",
       variant: "secondary" as const,
     },
     {
@@ -209,9 +213,14 @@ export default function Dashboard({ data }: DashboardProps) {
                 <button
                   key={action.label}
                   type="button"
-                  onClick={() => {
+                                    onClick={() => {
                     if (action.label === "Agendar reunião") {
                       setIsMeetingModalOpen(true);
+                      return;
+                    }
+
+                    if (action.label === "Carregar documento") {
+                      setIsUploadModalOpen(true);
                       return;
                     }
 
@@ -529,6 +538,17 @@ export default function Dashboard({ data }: DashboardProps) {
           </div>
         </div>
       </div>
+
+      {isUploadModalOpen && (
+        <UploadDocument
+          projects={projects.map((project) => ({
+            project_id: project.project_id,
+            project_name: project.title,
+          }))}
+          open={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+        />
+      )}
 
       <CreateMeetingModal
         open={isMeetingModalOpen}

@@ -12,6 +12,8 @@ import {
     X,
 } from "lucide-react";
 
+import CreateMeetingModal from "@/app/components/create_meeting_modal";
+
 export type EventType =
     | "project"
     | "task"
@@ -156,6 +158,8 @@ export default function CalendarPageInit({
     >("all");
 
     const [search, setSearch] = useState("");
+
+    const [isEventModalOpen, setIsEventModalOpen] = useState(false);
 
     const calendarDays = useMemo(
         () => getCalendarDays(currentDate),
@@ -367,6 +371,7 @@ export default function CalendarPageInit({
 
                     <button
                         type="button"
+                        onClick={() => setIsEventModalOpen(true)}
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-4 text-sm font-semibold text-[#002950] transition hover:bg-[#a9854b] focus:outline-none focus:ring-4 focus:ring-[#BD9655]/20"
                     >
                         <Plus className="h-4 w-4" />
@@ -917,6 +922,14 @@ export default function CalendarPageInit({
                     </aside>
                 </div>
             </div>
+
+            {isEventModalOpen && (
+                <CreateMeetingModal
+                    open={isEventModalOpen}
+                    onClose={() => setIsEventModalOpen(false)}
+                    mode="event"
+                />
+            )}
         </main>
     );
 }

@@ -10,10 +10,13 @@ import {
   FileText,
   Video,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { createCalendarEventAction } from "@/app/actions/calendar";
 
 type CreateMeetingModalProps = {
   open: boolean;
   onClose: () => void;
+  mode?: "meeting" | "event";
 };
 
 const meetingTypes = [
@@ -25,12 +28,20 @@ const meetingTypes = [
   "Outro",
 ];
 
+const eventTypes = ["Reunião", "Visita à obra", "Prazo"];
+
 export default function CreateMeetingModal({
   open,
   onClose,
+  mode = "meeting",
 }: CreateMeetingModalProps) {
+  const router = useRouter();
+  const types = mode === "event" ? eventTypes : meetingTypes;
+
   const [title, setTitle] = useState("");
-  const [type, setType] = useState("Reunião de projecto");
+  const [type, setType] = useState(
+    mode === "event" ? "Reunião" : "Reunião de projecto"
+  );
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -39,12 +50,13 @@ export default function CreateMeetingModal({
   const [participants, setParticipants] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !submitting) {
         onClose();
       }
     };
@@ -54,7 +66,7 @@ export default function CreateMeetingModal({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, onClose]);
+  }, [open, onClose, submitting]);
 
   useEffect(() => {
     if (!open) return;
@@ -68,50 +80,66 @@ export default function CreateMeetingModal({
 
   if (!open) return null;
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (submitting) return;
+
+    setError("");
+
     if (!title.trim() || !date || !startTime || !endTime) {
+      setError("Preencha o título, a data e as horas.");
       return;
     }
+
+    // Horas de Angola, tal como no calendário existente.
+    const startsAt = new Date(`${date}T${startTime}:00+01:00`);
+    const endsAt = new Date(`${date}T${endTime}:00+01:00`);
+
+    if (
+      !Number.isFinite(startsAt.getTime()) ||
+      !Number.isFinite(endsAt.getTime()) ||
+      endsAt <= startsAt
+    ) {
+      setError("A hora de fim deve ser posterior à hora de início.");
+      return;
+    }
+
+    const eventType =
+      mode === "meeting" || type === "Reunião"
+        ? "meeting"
+        : type === "Visita à obra"
+          ? "site_visit"
+          : "deadline";
+
+    const description = [
+      mode === "meeting" ? `Tipo de reunião: ${type}` : "",
+      meetingLink.trim() ? `Videoconferência: ${meetingLink.trim()}` : "",
+      participants.trim() ? `Participantes: ${participants.trim()}` : "",
+      notes.trim(),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
 
     setSubmitting(true);
 
     try {
-      /*
-       * Connect your Supabase calendar/meetings service here.
-       *
-       * Example:
-       *
-       * await createMeeting({
-       *   title,
-       *   type,
-       *   date,
-       *   start_time: startTime,
-       *   end_time: endTime,
-       *   location,
-       *   meeting_link: meetingLink,
-       *   participants,
-       *   notes,
-       * });
-       */
-
-      console.log("Meeting:", {
-        title,
-        type,
-        date,
-        startTime,
-        endTime,
-        location,
-        meetingLink,
-        participants,
-        notes,
+      const result = await createCalendarEventAction({
+        title: title.trim(),
+        event_type: eventType,
+        start_at: startsAt.toISOString(),
+        end_at: endsAt.toISOString(),
+        location: location.trim() || null,
+        description: description || null,
       });
 
-      onClose();
+      if (!result.success) {
+        setError(result.error || "Não foi possível guardar o evento.");
+        return;
+      }
 
       setTitle("");
-      setType("Reunião de projecto");
+      setType(mode === "event" ? "Reunião" : "Reunião de projecto");
       setDate("");
       setStartTime("");
       setEndTime("");
@@ -119,6 +147,11 @@ export default function CreateMeetingModal({
       setMeetingLink("");
       setParticipants("");
       setNotes("");
+
+      router.refresh();
+      onClose();
+    } catch {
+      setError("Não foi possível contactar o servidor. Tente novamente.");
     } finally {
       setSubmitting(false);
     }
@@ -128,7 +161,7 @@ export default function CreateMeetingModal({
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
+        if (event.target === event.currentTarget && !submitting) {
           onClose();
         }
       }}
@@ -152,11 +185,11 @@ export default function CreateMeetingModal({
                   id="create-meeting-title"
                   className="text-lg font-semibold text-gray-900"
                 >
-                  Agendar reunião
+                  {mode === "event" ? "Novo evento" : "Agendar reunião"}
                 </h2>
 
                 <p className="mt-0.5 text-sm text-gray-500">
-                  Crie uma nova reunião para a equipa.
+                  {mode === "event" ? "Adicione um evento ao calendário." : "Crie uma nova reunião para a equipa."}
                 </p>
               </div>
             </div>
@@ -165,6 +198,7 @@ export default function CreateMeetingModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={submitting}
             aria-label="Fechar"
             className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
           >
@@ -181,7 +215,7 @@ export default function CreateMeetingModal({
             {/* Basic information */}
             <div>
               <h3 className="text-sm font-semibold text-gray-900">
-                Informações da reunião
+                {mode === "event" ? "Informações do evento" : "Informações da reunião"}
               </h3>
 
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -218,7 +252,7 @@ export default function CreateMeetingModal({
                     onChange={(event) => setType(event.target.value)}
                     className="w-full cursor-pointer rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#002950] focus:ring-2 focus:ring-[#002950]/10"
                   >
-                    {meetingTypes.map((item) => (
+                    {types.map((item) => (
                       <option key={item} value={item}>
                         {item}
                       </option>
@@ -412,11 +446,20 @@ export default function CreateMeetingModal({
             </div>
           </div>
 
-          {/* Footer */}
+          {error && (
+            <div
+              role="alert"
+              className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {error}
+            </div>
+          )}
+
           <div className="mt-8 flex flex-col-reverse gap-3 border-t border-gray-200 pt-5 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={onClose}
+              disabled={submitting}
               className="cursor-pointer rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
             >
               Cancelar
@@ -433,7 +476,7 @@ export default function CreateMeetingModal({
               }
               className="cursor-pointer rounded-lg bg-[#BD9655] px-5 py-2.5 text-sm font-semibold text-[#002950] transition hover:bg-[#C8A66E] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
             >
-              {submitting ? "A agendar..." : "Agendar reunião"}
+              {submitting ? "A guardar..." : mode === "event" ? "Criar evento" : "Agendar reunião"}
             </button>
           </div>
         </form>

@@ -36,12 +36,44 @@ type UploadMode = "new" | "version";
 
 const DOCUMENTS_BUCKET = "documents";
 
-export default function UploadDocument() {
-  const { projectId } = useParams<{ projectId: string }>();
+type UploadDocumentProps = {
+  projectId?: string;
+  projects?:{
+    project_id: string;
+    project_name: string;
+  }[];
+  open?: boolean;
+  onClose?: () => void;
+};
+
+export default function UploadDocument({
+  projectId: providedProjectId,
+  projects = [],
+  open: controlledOpen,
+  onClose,
+}: UploadDocumentProps = {}) {
+  const params = useParams();
+  const routeProjectId =
+    typeof params.projectId === "string" ? params.projectId : "";
+
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const projectId =
+    providedProjectId || routeProjectId || selectedProjectId;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+
+  function setOpen(value: boolean) {
+    if (controlledOpen === undefined) {
+      setInternalOpen(value);
+    }
+
+    if (!value) {
+      onClose?.();
+    }
+  }
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -60,52 +92,66 @@ export default function UploadDocument() {
 
   const supabase = useMemo(() => createClient(), []);
 
-  useEffect(() => {
+   useEffect(() => {
     if (!open || !projectId) return;
+
+    let cancelled = false;
 
     async function loadData() {
       setLoadingData(true);
       setError("");
 
-      const [
-        { data: folderData, error: folderError },
-        { data: documentData, error: documentError },
-      ] = await Promise.all([
-        supabase
-          .from("folders")
-          .select("*")
-          .eq("project_id", projectId)
-          .order("sort_order", { ascending: true })
-          .order("name", { ascending: true }),
+      try {
+        const [
+          { data: folderData, error: folderError },
+          { data: documentData, error: documentError },
+        ] = await Promise.all([
+          supabase
+            .from("folders")
+            .select("*")
+            .eq("project_id", projectId)
+            .order("sort_order", { ascending: true })
+            .order("name", { ascending: true }),
 
-        supabase
-          .from("documents")
-          .select("document_id, project_id, folder_id, name")
-          .eq("project_id", projectId)
-          .order("name", { ascending: true }),
-      ]);
+          supabase
+            .from("documents")
+            .select("document_id, project_id, folder_id, name")
+            .eq("project_id", projectId)
+            .order("name", { ascending: true }),
+        ]);
 
-      if (folderError) {
-        console.error("Load folders error:", folderError);
-        setError("Não foi possível carregar as pastas.");
-        setLoadingData(false);
-        return;
+        if (cancelled) return;
+
+        if (folderError) {
+          throw new Error("Não foi possível carregar as pastas.");
+        }
+
+        if (documentError) {
+          throw new Error("Não foi possível carregar os documentos.");
+        }
+
+        setFolders(folderData ?? []);
+        setDocuments(documentData ?? []);
+      } catch (error) {
+        if (!cancelled) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar os dados do projecto."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingData(false);
+        }
       }
-
-      if (documentError) {
-        console.error("Load documents error:", documentError);
-        setError("Não foi possível carregar os documentos.");
-        setLoadingData(false);
-        return;
-      }
-
-      setFolders(folderData ?? []);
-      setDocuments(documentData ?? []);
-
-      setLoadingData(false);
     }
 
-    loadData();
+    void loadData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, projectId, supabase]);
 
   const folderOptions = useMemo(() => {
@@ -373,15 +419,17 @@ export default function UploadDocument() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Carregar documento"
-        className="flex cursor-pointer items-center gap-2 rounded-sm font-medium bg-[#BD9655] px-3 py-2 text-sm text-[#002950] transition hover:bg-[#Bd9655]/90"
-      >
-        <FilePlus className="h-4 w-4" />
-        Carregar documento
-      </button>
+      {controlledOpen === undefined && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Carregar documento"
+          className="flex cursor-pointer items-center gap-2 rounded-sm font-medium bg-[#BD9655] px-3 py-2 text-sm text-[#002950] transition hover:bg-[#Bd9655]/90"
+        >
+          <FilePlus className="h-4 w-4" />
+          Carregar documento
+        </button>
+      )}
 
       {open && (
         <div
@@ -424,6 +472,49 @@ export default function UploadDocument() {
             </div>
 
             <div className="space-y-5 px-6 py-5">
+                {!providedProjectId && !routeProjectId && (
+                <div>
+                  <label
+                    htmlFor="document-project"
+                    className="mb-1.5 block text-sm font-medium text-gray-700"
+                  >
+                    Projecto
+                  </label>
+
+                  <select
+                    id="document-project"
+                    value={selectedProjectId}
+                    disabled={uploading}
+                    onChange={(event) => {
+                      const nextProjectId = event.target.value;
+
+                      setSelectedProjectId(nextProjectId);
+                      setFolders([]);
+                      setDocuments([]);
+                      setLoadingData(Boolean(nextProjectId));
+                      resetForm();
+                    }}
+                    className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-[#BD9655] disabled:opacity-50"
+                  >
+                    <option value="">Seleccione um projecto</option>
+
+                    {projects.map((project) => (
+                      <option
+                        key={project.project_id}
+                        value={project.project_id}
+                      >
+                        {project.project_name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {projects.length === 0 && (
+                    <p className="mt-1.5 text-xs text-amber-600">
+                      Não existem projectos disponíveis para carregamento.
+                    </p>
+                  )}
+                </div>
+              )}
               {/* Upload type */}
               <div>
                 <p className="mb-2 text-sm font-medium text-gray-700">
@@ -507,7 +598,7 @@ export default function UploadDocument() {
                     onChange={(event) =>
                       handleFolderChange(event.target.value)
                     }
-                    disabled={loadingData || uploading}
+                    disabled={loadingData || uploading || !projectId}
                     className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-900 outline-none transition focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/20 disabled:cursor-not-allowed disabled:bg-gray-50"
                   >
                     <option value="">
@@ -529,7 +620,7 @@ export default function UploadDocument() {
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 </div>
 
-                {!loadingData && folders.length === 0 && (
+                {projectId &&!loadingData && folders.length === 0 && (
                   <p className="mt-1.5 text-xs text-amber-600">
                     Crie uma pasta antes de carregar um documento.
                   </p>
@@ -671,7 +762,7 @@ export default function UploadDocument() {
                 disabled={
                   uploading ||
                   loadingData ||
-                  !file ||
+                  !projectId || !file ||
                   !selectedFolderId ||
                   (uploadMode === "version" && !selectedDocumentId)
                 }
