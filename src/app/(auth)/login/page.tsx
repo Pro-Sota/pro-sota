@@ -114,7 +114,7 @@ export default function LoginForm() {
             <div className="mb-6 h-1 w-14 bg-[#BD9655]" />
 
             <h2 className="text-4xl font-semibold leading-tight tracking-tight text-white xl:text-5xl">
-              Onde a visão se transforma em arquitectura e engenharia.
+              Projectamos com visão e construimos com paixão.
             </h2>
 
             <p className="mt-6 max-w-md text-base leading-7 text-slate-300">
