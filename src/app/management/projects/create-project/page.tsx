@@ -18,6 +18,9 @@ import {
 
 import { createProject } from "@/services/new_project";
 
+import { getClientOptions } from "@/services/clients";
+import type { ClientOption } from "@/services/clients";
+
 import {
   Breadcrumb,
   CancelConfirmDialog,
@@ -68,6 +71,43 @@ export default function NewProjectPage() {
     useState<ProjectFormState>(INITIAL_PROJECT);
 
   // ---------------------------------------------------------------------------
+
+  const [clients, setClients] =useState<ClientOption[]>([]);
+  const [loadingClients, setLoadingClients] = useState(true);
+  const [clientsError, setClientsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadClients() {
+      try {
+        const options = await getClientOptions();
+
+        if (!cancelled) {
+          setClients(options);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setClientsError(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar os clientes."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingClients(false);
+        }
+      }
+    }
+
+    void loadClients();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // PAGE STATE
   // ---------------------------------------------------------------------------
 
@@ -793,7 +833,7 @@ const isComplete = useMemo(() => {
             >
               <div className="border-b border-slate-100 px-6 py-5">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#002950] text-xs font-semibold text-white">
                     01
                   </div>
 
@@ -832,7 +872,7 @@ const isComplete = useMemo(() => {
             >
               <div className="border-b border-slate-100 px-6 py-5">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#002950] text-xs font-semibold text-white">
                     02
                   </div>
 
@@ -860,29 +900,51 @@ const isComplete = useMemo(() => {
                 <select
                   id="client_id"
                   name="client_id"
-                  value={
-                    (form as any)
-                      .client_id ?? ""
-                  }
+                  value={form.client_id ?? ""}
                   onChange={(event) =>
                     handleFormChange({
-                      client_id:
-                        event.target.value ||
-                        null,
-                    } as Partial<ProjectFormState>)
+                      client_id: event.target.value || null,
+                    })
                   }
-                  className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                  disabled={loadingClients || submitting || !!clientsError}
+                  aria-describedby={clientsError ? "clients-error" : undefined}
+                  className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
                 >
                   <option value="">
-                    Seleccionar cliente
+                    {loadingClients
+                      ? "A carregar clientes..."
+                      : clientsError
+                        ? "Não foi possível carregar os clientes"
+                        : clients.length === 0
+                          ? "Não existem clientes disponíveis"
+                          : "Seleccionar cliente"}
                   </option>
+
+                  {clients.map((client) => (
+                    <option
+                      key={client.client_id}
+                      value={client.client_id}
+                    >
+                      {client.label}
+                    </option>
+                  ))}
                 </select>
+
+                {clientsError && (
+                  <p
+                    id="clients-error"
+                    role="alert"
+                    className="mt-2 text-sm text-red-600"
+                  >
+                    {clientsError}
+                  </p>
+                )}
 
                 <button
                   type="button"
                   onClick={() =>
                     router.push(
-                      "/management/clients/create"
+                      "/management/clients/create-client"
                     )
                   }
                   className="mt-3 text-sm font-medium text-slate-700 underline underline-offset-4 transition hover:text-slate-900"
@@ -911,7 +973,7 @@ const isComplete = useMemo(() => {
             >
               <div className="border-b border-slate-100 px-6 py-5">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#002950] text-xs font-semibold text-white">
                     03
                   </div>
 
@@ -950,7 +1012,7 @@ const isComplete = useMemo(() => {
             >
               <div className="border-b border-slate-100 px-6 py-5">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#002950] text-xs font-semibold text-white">
                     04
                   </div>
 

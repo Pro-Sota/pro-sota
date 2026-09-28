@@ -570,6 +570,23 @@ function canAccessItem(
     return true;
 }
 
+export function getVisibleNavigation(
+  userRole?: string | null,
+  userDepartment?: string | null,
+) {
+  const role = normalizeRole(userRole);
+  const department = normalizeDepartment(userDepartment);
+
+  return {
+    menuItems: menuItems.filter((item) =>
+      canAccessItem(item, role, department)
+    ),
+    bottomItems: bottomItems.filter((item) =>
+      canAccessItem(item, role, department)
+    ),
+  };
+}
+
 export default function ManagementMenu({
     collapsed,
     setCollapsedAction,

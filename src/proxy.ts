@@ -1,33 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { createClient } from "@/app/lib/supabase/middleware";
 
 export async function proxy(request: NextRequest) {
-  const { supabase, response } = createClient(request);
+  let response = NextResponse.next();
+  const pathname = request.nextUrl.pathname;
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  if (pathname === "/management" || pathname.startsWith("/management/")) {
+    const session = createClient(request);
+    const { data: { user }, error } = await session.supabase.auth.getUser();
 
-  if (error) {
-    console.error("Supabase proxy auth error:", error);
+    if (error) {
+      console.error("Supabase proxy auth error:", error);
+    }
+
+    response = session.response;
+
+    if (!user) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set(
+        "redirectTo",
+        `${pathname}${request.nextUrl.search}`
+      );
+      const redirect = NextResponse.redirect(loginUrl);
+      for (const cookie of response.cookies.getAll()) {
+        redirect.cookies.set(cookie);
+      }
+      response = redirect;
+    }
   }
 
-  if (!user) {
-    const loginUrl = new URL("/login", request.url);
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self' https://fonts.gstatic.com",
+    "connect-src 'self' https://xwmkjdemnoxixetzlhaz.supabase.co wss://xwmkjdemnoxixetzlhaz.supabase.co",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
 
-    loginUrl.searchParams.set(
-      "redirectTo",
-      `${request.nextUrl.pathname}${request.nextUrl.search}`
-    );
-
-    return NextResponse.redirect(loginUrl);
-  }
-
+  response.headers.set("Content-Security-Policy", csp);
+  response.headers.set("x-nonce", nonce);
   return response;
 }
 
 export const config = {
-  matcher: ["/management/:path*"],
+  matcher: "/((?!_next/static|_next/image|favicon.ico).*)",
 };

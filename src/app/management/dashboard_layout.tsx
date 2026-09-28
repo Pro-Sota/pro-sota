@@ -28,7 +28,10 @@ export default function DashboardLayoutClient({
       />
 
       {/* Mobile Navbar */}
-      <MobileNavbar />
+      <MobileNavbar
+        userRole={userRole}
+        userDepartment={userDepartment}
+      />
 
       <main
         className={`min-h-screen overflow-auto transition-all duration-300 ${

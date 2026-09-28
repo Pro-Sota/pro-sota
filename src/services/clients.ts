@@ -8,6 +8,48 @@ export type ClientWithProjectCount = Client & {
   projectCount: number;
 };
 
+export type ClientOption = {
+  client_id: string;
+  label: string;
+};
+
+export async function getClientOptions(): Promise<ClientOption[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("clients")
+    .select(
+      "client_id, name, first_name, last_name, organization_name"
+    )
+    .is("deleted_at", null);
+
+  if (error) {
+    console.error("Erro ao carregar a lista de clientes:", error);
+    throw new Error("Não foi possível carregar os clientes.");
+  }
+
+  return (data ?? [])
+    .map((client) => {
+      const fullName = [
+        client.first_name,
+        client.last_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      return {
+        client_id: client.client_id,
+        label:
+          client.organization_name?.trim() ||
+          client.name?.trim() ||
+          fullName ||
+          "Cliente sem nome",
+      };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label, "pt"));
+}
+
 export async function getClients(): Promise<ClientWithProjectCount[]> {
   const supabase = createClient();
 

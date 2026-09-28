@@ -2,24 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  Bell,
-  Folder,
-  Handshake,
-  HomeIcon,
-  LucideIcon,
-  MessageCircle,
-  Settings,
-  X,
-  Menu,
-  User,
-  Users,
-  UsersRound,
-  WalletCards,
-} from "lucide-react";
-import LogoutButton from "../(auth)/logout/page";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import LogoutButton from "../(auth)/logout/page";
+import { getVisibleNavigation } from "./management_menu";
 
 type NavItemProps = {
   item: {
@@ -32,32 +20,26 @@ type NavItemProps = {
 };
 
 type Props = {
-  collapsed?: boolean;
-  setCollapsedAction?: (value: boolean) => void;
+  userRole?: string | null;
+  userDepartment?: string | null;
 };
 
-const menuItems = [
-  { name: "Dashboard", href: "/management", icon: HomeIcon },
-  { name: "Projectos", href: "/management/projects", icon: Folder },
-  { name: "Messages", href: "/management/messages", icon: MessageCircle },
-  { name: "Clientes", href: "/management/clients", icon: Users },
-  { name: "Sota Team", href: "/management/team", icon: UsersRound },
-  { name: "Equipamentos", href: "/management/equipments", icon: WalletCards },
-  { name: "Fornecedores", href: "/management/suppliers", icon: Handshake },
-];
-
-const bottomItems = [
-  { name: "Meu perfil", href: "/management/profile", icon: User },
-  { name: "Notificações", href: "/management/notifications", icon: Bell },
-  { name: "Definições", href: "/management/settings", icon: Settings },
-];
-
-export default function MobileNavbar({ collapsed, setCollapsedAction }: Props) {
+export default function MobileNavbar({
+  userRole,
+  userDepartment,
+}: Props) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
+  const { menuItems, bottomItems } = getVisibleNavigation(
+    userRole,
+    userDepartment
+  );
+
   const isActiveRoute = (href: string) =>
-    href === "/management" ? pathname === href : pathname.startsWith(href);
+    href === "/management"
+      ? pathname === href
+      : pathname === href || pathname.startsWith(`${href}/`);
 
   const handleNavClick = () => {
     setIsOpen(false);
@@ -66,22 +48,33 @@ export default function MobileNavbar({ collapsed, setCollapsedAction }: Props) {
   return (
     <>
       {/* Mobile Navbar - Only visible on mobile */}
-      <nav className="md:hidden fixed top-0 left-0 right-0 bg-neutral-900 border-b border-neutral-800 z-50">
+      <nav
+        aria-label="Navegação principal no telefone"
+        className="fixed inset-x-0 top-0 z-50 border-b border-[#BD9655] bg-[#F7F7F5] md:hidden"
+      >
         <div className="flex items-center justify-between px-4 h-16">
-          <div
-            className="flex items-center justify-between px-4"
+          <Link
+            href="/management"
+            onClick={handleNavClick}
+            aria-label="Ir para a visão geral"
+            className="min-w-0"
           >
             <Image
               src="/images/logo.png"
-              alt="Logo"
+              alt="Pro-Sota"
               width={150}
               height={60}
               priority
+              className="h-auto w-[125px] max-w-full object-contain"
             />
-          </div>
+          </Link>
           <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="text-gray-400 hover:text-white transition"
+            type="button"
+            onClick={() => setIsOpen((open) => !open)}
+            aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
+            aria-expanded={isOpen}
+            aria-controls="mobile-navigation"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[#002950] transition hover:bg-[#BD9655]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -89,7 +82,10 @@ export default function MobileNavbar({ collapsed, setCollapsedAction }: Props) {
 
         {/* Dropdown Menu */}
         {isOpen && (
-          <div className="bg-neutral-800 border-t border-neutral-700 px-2 py-2 space-y-1">
+          <div
+            id="mobile-navigation"
+            className="max-h-[calc(100dvh-4rem)] space-y-1 overflow-y-auto overscroll-contain border-t border-[#BD9655] bg-[#F7F7F5] px-3 py-3"
+          >
             {/* Main Menu Items */}
             {menuItems.map((item) => (
               <NavItem
@@ -100,7 +96,7 @@ export default function MobileNavbar({ collapsed, setCollapsedAction }: Props) {
               />
             ))}
 
-            <div className="border-t border-neutral-700 my-2 pt-2">
+            <div className="my-2 space-y-1 border-t border-[#BD9655] pt-2">
               {/* Bottom Menu Items */}
               {bottomItems.map((item) => (
                 <NavItem
@@ -134,15 +130,15 @@ function NavItem({ item, active, onClick }: NavItemProps) {
       href={item.href}
       aria-current={active ? "page" : undefined}
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-300 ${
+      className={`flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] ${
         active
-          ? "bg-neutral-700 text-white border-l-4 border-yellow-500"
-          : "text-gray-300 hover:bg-neutral-700 hover:text-white"
+          ? "border-l-4 border-[#BD9655] bg-[#BD9655] text-[#002950]"
+          : "text-gray-600 hover:bg-gray-100 hover:text-[#002950]"
       }`}
     >
       <Icon
         className={`h-5 w-5 flex-shrink-0 ${
-          active ? "text-yellow-500" : "text-gray-400"
+          active ? "text-[#002950]" : "text-gray-600"
         }`}
       />
       <span className="whitespace-nowrap">{item.name}</span>

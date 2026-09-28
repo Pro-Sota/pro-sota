@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
     ArrowDownUp,
     Building2,
@@ -19,6 +19,7 @@ import {
 
 import { StatCard } from "@/app/components/StatCard";
 import type { Lead, LeadStatus } from "@/services/leads";
+import { updateLeadStatus } from "@/services/leads";
 import CreateLeadModal from "./create_lead_modal";
 import { useRouter } from "next/navigation";
 
@@ -106,7 +107,17 @@ function formatDate(date: string) {
     }).format(new Date(date));
 }
 
-export default function LeadsInit({ leads }: LeadsInitProps) {
+const nextLeadStatus: Record<LeadStatus, LeadStatus | null> = {
+    new: "contacted",
+    contacted: "qualified",
+    qualified: "proposal",
+    proposal: "negotiation",
+    negotiation: "won",
+    won: null,
+    lost: "new",
+};
+
+export default function LeadsInit({ leads: initialLeads }: LeadsInitProps) {
     const router = useRouter();
     const [search, setSearch] = useState("");
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -114,6 +125,60 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
     const [showFilters, setShowFilters] = useState(false);
     const [sortBy, setSortBy] = useState<"newest" | "budget">("newest");
     const [showCreateLeadModal, setShowCreateLeadModal] = useState(false);
+
+    const [updatedLeads, setUpdatedLeads] = useState<Record<string, Lead>>({});
+    const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+    const [moveError, setMoveError] = useState<string | null>(null);
+    const updateInProgress = useRef(false);
+
+    const draggingLeadId = useRef<string | null>(null);
+    const suppressCardClick = useRef(false);
+    const [dragOverStatus, setDragOverStatus] =
+        useState<LeadStatus | null>(null);
+
+    const leads = useMemo(
+        () => initialLeads.map((lead) => updatedLeads[lead.lead_id] ?? lead),
+        [initialLeads, updatedLeads]
+    );
+
+    async function changeLeadStatus(
+        leadId: string,
+        nextStatus: LeadStatus
+    ) {
+        if (updateInProgress.current) return;
+
+        const lead = leads.find((item) => item.lead_id === leadId);
+
+        if (!lead || lead.status === nextStatus) return;
+
+        updateInProgress.current = true;
+        setUpdatingLeadId(leadId);
+        setMoveError(null);
+
+        try {
+            const updatedLead = await updateLeadStatus(leadId, nextStatus);
+
+            setUpdatedLeads((current) => ({
+                ...current,
+                [updatedLead.lead_id]: updatedLead,
+            }));
+
+            setSelectedLead((current) =>
+                current?.lead_id === updatedLead.lead_id
+                    ? updatedLead
+                    : current
+            );
+        } catch (error) {
+            setMoveError(
+                error instanceof Error
+                    ? error.message
+                    : "Não foi possível mudar o estado da lead."
+            );
+        } finally {
+            updateInProgress.current = false;
+            setUpdatingLeadId(null);
+        }
+    }
 
     const activeLeads = useMemo(
         () =>
@@ -218,8 +283,42 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
             <button
                 key={lead.lead_id}
                 type="button"
-                onClick={() => setSelectedLead(lead)}
-                className="group w-full rounded-xl border border-neutral-200/80 bg-white p-3 text-left shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-sm"
+                draggable={updatingLeadId === null}
+                onDragStart={(event) => {
+                    if (updateInProgress.current) {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    draggingLeadId.current = lead.lead_id;
+                    suppressCardClick.current = true;
+                    setMoveError(null);
+
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData(
+                        "text/plain",
+                        lead.lead_id
+                    );
+                }}
+                onDragEnd={() => {
+                    draggingLeadId.current = null;
+                    setDragOverStatus(null);
+
+                    window.setTimeout(() => {
+                        suppressCardClick.current = false;
+                    }, 0);
+                }}
+                onClick={() => {
+                    if (suppressCardClick.current) return;
+                    setMoveError(null);
+                    setSelectedLead(lead);
+                }}
+                aria-busy={updatingLeadId === lead.lead_id}
+                className={`group w-full rounded-xl border border-neutral-200/80 bg-white p-3 text-left shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-neutral-300 hover:shadow-sm ${
+                    updatingLeadId !== null
+                        ? "cursor-wait opacity-60"
+                        : "cursor-grab active:cursor-grabbing"
+                }`}
             >
                 <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -279,6 +378,23 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
     return (
         <main className="min-h-screen bg-[#F7F7F5] px-4 py-5 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-[1700px]">
+                                {moveError && !selectedLead && (
+                    <div
+                        role="alert"
+                        className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                    >
+                        {moveError}
+                    </div>
+                )}
+
+                {updatingLeadId && !selectedLead && (
+                    <p
+                        role="status"
+                        className="mb-4 text-sm text-neutral-600"
+                    >
+                        A guardar o novo estado da lead...
+                    </p>
+                )}
                 {/* Header */}
                 <header className="mb-6">
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -486,8 +602,54 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
                                     );
 
                                     return (
-                                        <div
+                                                                                                                <div
                                             key={column.id}
+                                            onDragOver={(event) => {
+                                                if (
+                                                    !draggingLeadId.current ||
+                                                    updateInProgress.current
+                                                ) {
+                                                    return;
+                                                }
+
+                                                event.preventDefault();
+                                                event.dataTransfer.dropEffect = "move";
+                                                setDragOverStatus(column.id);
+                                            }}
+                                            onDragLeave={(event) => {
+                                                const nextTarget = event.relatedTarget;
+
+                                                if (
+                                                    nextTarget instanceof Node &&
+                                                    event.currentTarget.contains(nextTarget)
+                                                ) {
+                                                    return;
+                                                }
+
+                                                setDragOverStatus((current) =>
+                                                    current === column.id ? null : current
+                                                );
+                                            }}
+                                            onDrop={(event) => {
+                                                event.preventDefault();
+
+                                                const leadId = draggingLeadId.current;
+
+                                                draggingLeadId.current = null;
+                                                setDragOverStatus(null);
+
+                                                if (
+                                                    !leadId ||
+                                                    updateInProgress.current
+                                                ) {
+                                                    return;
+                                                }
+
+                                                void changeLeadStatus(
+                                                    leadId,
+                                                    column.id
+                                                );
+                                            }}
                                             className="flex w-[280px] shrink-0 flex-col"
                                         >
                                             <div className="mb-2 px-1">
@@ -528,7 +690,13 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
                                                 </div>
                                             </div>
 
-                                            <div className="min-h-[520px] rounded-2xl bg-neutral-100/80 p-2">
+                                            <div
+    className={`min-h-[520px] rounded-2xl p-2 transition-colors ${
+        dragOverStatus === column.id
+            ? "bg-[#002950]/5 ring-1 ring-inset ring-[#002950]/40"
+            : "bg-neutral-100/80"
+    }`}
+>
                                                 <div className="space-y-2">
                                                     {columnLeads.map(
                                                         renderLeadCard,
@@ -928,6 +1096,14 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
                             </div>
 
                             <div className="shrink-0 border-t border-neutral-200 bg-white p-4">
+                                {moveError && (
+                                    <p
+                                        role="alert"
+                                        className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                                    >
+                                        {moveError}
+                                    </p>
+                                )}
                                 <div className="grid grid-cols-2 gap-2">
                                     {selectedLead.phone ? (
                                         <a
@@ -948,15 +1124,34 @@ export default function LeadsInit({ leads }: LeadsInitProps) {
                                         </button>
                                     )}
 
-                                    <button
+                                                                                                            <button
                                         type="button"
-                                        className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[#002950] text-sm font-medium text-white transition hover:bg-neutral-800"
+                                        disabled={
+                                            updatingLeadId !== null ||
+                                            nextLeadStatus[selectedLead.status] === null
+                                        }
+                                        onClick={() => {
+                                            const nextStatus =
+                                                nextLeadStatus[selectedLead.status];
+
+                                            if (nextStatus) {
+                                                void changeLeadStatus(
+                                                    selectedLead.lead_id,
+                                                    nextStatus
+                                                );
+                                            }
+                                        }}
+                                        className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[#002950] px-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        {selectedLead.status === "lost"
-                                            ? "Reabrir lead"
-                                            : selectedLead.status === "won"
-                                                ? "Ver projecto"
-                                                : "Avançar lead"}
+                                        {updatingLeadId === selectedLead.lead_id
+                                            ? "A guardar..."
+                                            : selectedLead.status === "lost"
+                                              ? "Reabrir lead"
+                                              : selectedLead.status === "won"
+                                                ? "Lead ganha"
+                                                : selectedLead.status === "negotiation"
+                                                  ? "Marcar como ganha"
+                                                  : "Avançar lead"}
 
                                         <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
                                     </button>
