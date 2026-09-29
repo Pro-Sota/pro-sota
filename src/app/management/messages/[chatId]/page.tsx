@@ -11,7 +11,7 @@ import { useParams } from "next/navigation";
 import Loader from "@/app/components/loader";
 import {
   getMessagesAction,
-} from "@/app/actions/message";
+} from "@/actions/message";
 import type {
   MessageView,
 } from "@/services/messages";

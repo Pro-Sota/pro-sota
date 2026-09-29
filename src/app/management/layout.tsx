@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import DashboardLayoutClient from "./dashboard_layout";
 import { requireUser } from "../lib/supabase/auth";
+import { ToastProvider } from "../components/toast/toast_provider";
 
 export const metadata: Metadata = {
   title: {
@@ -13,7 +14,6 @@ export const metadata: Metadata = {
     description: "ProSota Management Dashboard",
   },
 };
-
 
 export default async function DashboardLayout({
   children,
@@ -29,7 +29,7 @@ export default async function DashboardLayout({
       userRole={safeUserRole}
       userDepartment={safeUserDepartment}
     >
-      {children}
+      <ToastProvider>{children}</ToastProvider>
     </DashboardLayoutClient>
   );
 }

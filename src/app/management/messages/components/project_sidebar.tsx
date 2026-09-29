@@ -31,7 +31,6 @@ export default function ProjectSideBar() {
 
   useEffect(() => {
     if (!projectId || !chatId) {
-      setData(null);
       return;
     }
 

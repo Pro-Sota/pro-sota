@@ -9,7 +9,8 @@ import {
   Inter,
 } from "next/font/google";
 import "./globals.css";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils/utils";
+import { ToastProvider } from "./components/toast/toast_provider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -65,7 +66,7 @@ export default function RootLayout({
       )}
     >
       <body className="min-h-full flex flex-col overflow-x-hidden">
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

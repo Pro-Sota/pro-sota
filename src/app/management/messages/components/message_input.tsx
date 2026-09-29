@@ -9,7 +9,7 @@ import {
 import { useParams } from "next/navigation";
 
 import { LABELS } from "./chat_labels";
-import { sendMessageAction } from "@/app/actions/message";
+import { sendMessageAction } from "@/actions/message";
 
 export default function MessageInput() {
   const params =

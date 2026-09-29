@@ -11,6 +11,7 @@ export type TaskColumnRow = {
   project_id: string | null;
   name: string;
   position: number;
+  is_completed: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -30,6 +31,14 @@ export type TaskRow = {
   position: number;
   created_at: string;
   updated_at: string;
+  completed: boolean;
+};
+
+export type TaskMemberRow = {
+  task_member_id: string;
+  task_id: string;
+  profile_id: string;
+  created_at: string;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -42,6 +51,13 @@ export type TaskPriority =
   | "High"
   | "Critical";
 
+export type TaskMember = {
+  profileId: string;
+  name: string;
+  picture: string | null;
+  jobTitle: string | null;
+};
+
 export type Task = {
   id: string;
   projectId: string | null;
@@ -50,6 +66,8 @@ export type Task = {
   columnId: string | null;
   priority: TaskPriority;
   assignedTo: string | null;
+  assignedMembers: TaskMember[];
+  completed: boolean;
   startDate: string | null;
   dueDate: string | null;
   estimatedHours: number | null;
@@ -62,14 +80,14 @@ export type Task = {
 };
 
 export type TaskColumn = {
-  name: any;
-  column_id: string;
-  is_completed: boolean;
   id: string;
+  column_id: string;
   title: string;
+  name: string;
   projectId: string | null;
   projectName: string | null;
   position: number;
+  is_completed: boolean;
 };
 
 export type TaskBoard = {
@@ -81,13 +99,22 @@ export type TaskBoard = {
 /* Inputs                                                                     */
 /* -------------------------------------------------------------------------- */
 
+export type CreateTaskColumnInput = {
+  project_id: string | null;
+  name: string;
+  position?: number;
+  is_completed?: boolean;
+};
+
 export type CreateTaskInput = {
   projectId?: string | null;
   title: string;
   description?: string;
   columnId?: string | null;
   assignedTo?: string | null;
-  priority?: string;
+  assignedMembers?: string[];
+  priority?: TaskPriority;
+  completed?: boolean;
   dueDate?: string | null;
   startDate?: string | null;
   estimatedHours?: number | null;
@@ -100,7 +127,9 @@ export type UpdateTaskInput = {
   description?: string;
   columnId?: string | null;
   assignedTo?: string | null;
-  priority?: string;
+  assignedMembers?: string[];
+  priority?: TaskPriority;
+  completed?: boolean;
   dueDate?: string | null;
   startDate?: string | null;
   estimatedHours?: number | null;
@@ -120,15 +149,32 @@ function normalizeProjectId(
   return value ? value : null;
 }
 
-function mapTask(row: TaskRow): Task {
+function normalizeDate(
+  value: string | null | undefined,
+): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed || null;
+}
+
+function mapTask(
+  row: TaskRow,
+  assignedMembers: TaskMember[] = [],
+): Task {
   return {
     id: row.task_id,
     projectId: row.project_id ?? null,
     title: row.title,
     description: row.description ?? "",
     columnId: row.column_id ?? null,
-    assignedTo: row.assigned_to ?? null,
     priority: row.priority,
+    assignedTo: row.assigned_to ?? null,
+    assignedMembers,
+    completed: Boolean(row.completed),
     position: row.position,
     estimatedHours: row.estimated_hours ?? null,
     actualHours: row.actual_hours ?? null,
@@ -137,7 +183,9 @@ function mapTask(row: TaskRow): Task {
     startDate: row.start_date ?? null,
     dueDate: row.due_date ?? null,
     labels: [],
-    members: [],
+    members: assignedMembers.map(
+      (member) => member.profileId,
+    ),
   };
 }
 
@@ -146,15 +194,15 @@ function mapColumn(
   projectName: string | null = null,
 ): TaskColumn {
   return {
-  id: row.column_id,
-  title: row.name,
-  projectId: row.project_id ?? null,
-  projectName,
-  position: row.position,
-  column_id: "",
-  is_completed: false,
-  name: undefined,
-};
+    id: row.column_id,
+    column_id: row.column_id,
+    title: row.name,
+    name: row.name,
+    projectId: row.project_id ?? null,
+    projectName,
+    position: row.position,
+    is_completed: Boolean(row.is_completed),
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -162,10 +210,11 @@ function mapColumn(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Loads project names for a set of project IDs.
+ * The provided project_tasks schema only guarantees the project_id relation.
  *
- * This is used by the general tasks board because that board displays
- * columns belonging to multiple projects.
+ * project_code is part of the existing Pro-Sota projects schema and is used
+ * as the safe display fallback here instead of selecting non-existent columns
+ * such as title, name or project_name.
  */
 async function getProjectNames(
   projectIds: string[],
@@ -189,8 +238,11 @@ async function getProjectNames(
     error,
   } = await supabase
     .from("projects")
-    .select("*")
-    .in("project_id", uniqueProjectIds);
+    .select("project_id, project_code")
+    .in(
+      "project_id",
+      uniqueProjectIds,
+    );
 
   if (error) {
     console.error(
@@ -202,60 +254,312 @@ async function getProjectNames(
   }
 
   for (const project of data ?? []) {
-    const projectId =
-      project.project_id;
-
-    if (!projectId) {
+    if (
+      !project.project_id ||
+      typeof project.project_code !== "string"
+    ) {
       continue;
     }
 
-    /*
-     * Support the possible project-name fields used by the project
-     * schema. The first non-empty value is used for display.
-     */
-    const projectName =
-      typeof project.title === "string" &&
-      project.title.trim()
-        ? project.title.trim()
-        : typeof project.name === "string" &&
-          project.name.trim()
-        ? project.name.trim()
-        : typeof project.project_name === "string" &&
-          project.project_name.trim()
-        ? project.project_name.trim()
-        : typeof project.project_code === "string" &&
-          project.project_code.trim()
-        ? project.project_code.trim()
-        : null;
+    const projectCode =
+      project.project_code.trim();
 
-    if (projectName) {
+    if (projectCode) {
       result.set(
-        projectId,
-        projectName,
+        project.project_id,
+        projectCode,
       );
     }
   }
 
   return result;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Task members                                                               */
+/* -------------------------------------------------------------------------- */
+
+async function getTaskMembers(
+  taskIds: string[],
+): Promise<Map<string, TaskMember[]>> {
+  const result = new Map<
+    string,
+    TaskMember[]
+  >();
+
+  const uniqueTaskIds = [
+    ...new Set(
+      taskIds.filter(Boolean),
+    ),
+  ];
+
+  if (uniqueTaskIds.length === 0) {
+    return result;
+  }
+
+  const supabase = createClient();
+
+  const {
+    data: memberRows,
+    error: memberError,
+  } = await supabase
+    .from("task_members")
+    .select(
+      "task_member_id, task_id, profile_id, created_at",
+    )
+    .in(
+      "task_id",
+      uniqueTaskIds,
+    );
+
+  if (memberError) {
+    console.error(
+      "getTaskMembers error:",
+      memberError,
+    );
+
+    throw new Error(
+      memberError.message,
+    );
+  }
+
+  const rows =
+    (memberRows ?? []) as TaskMemberRow[];
+
+  if (rows.length === 0) {
+    return result;
+  }
+
+  const profileIds = [
+    ...new Set(
+      rows.map(
+        (row) => row.profile_id,
+      ),
+    ),
+  ];
+
+  if (profileIds.length === 0) {
+    return result;
+  }
+
+  const {
+    data: profiles,
+    error: profilesError,
+  } = await supabase
+    .from("profiles")
+    .select(
+      "profile_id, first_name, last_name, job_title, picture",
+    )
+    .in(
+      "profile_id",
+      profileIds,
+    );
+
+  if (profilesError) {
+    console.error(
+      "getTaskMembers profiles error:",
+      profilesError,
+    );
+
+    throw new Error(
+      profilesError.message,
+    );
+  }
+
+  const profileMap =
+    new Map<
+      string,
+      {
+        profile_id: string;
+        first_name: string | null;
+        last_name: string | null;
+        job_title: string | null;
+        picture: string | null;
+      }
+    >();
+
+  for (const profile of profiles ?? []) {
+    profileMap.set(
+      profile.profile_id,
+      profile,
+    );
+  }
+
+  for (const row of rows) {
+    const profile =
+      profileMap.get(
+        row.profile_id,
+      );
+
+    if (!profile) {
+      continue;
+    }
+
+    const name =
+      [
+        profile.first_name,
+        profile.last_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      "Utilizador";
+
+    const member: TaskMember = {
+      profileId:
+        profile.profile_id,
+      name,
+      picture:
+        profile.picture ?? null,
+      jobTitle:
+        profile.job_title ?? null,
+    };
+
+    const existing =
+      result.get(row.task_id) ?? [];
+
+    existing.push(member);
+
+    result.set(
+      row.task_id,
+      existing,
+    );
+  }
+
+  return result;
+}
+
+async function attachTaskMembers(
+  rows: TaskRow[],
+): Promise<Task[]> {
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const membersByTask =
+    await getTaskMembers(
+      rows.map(
+        (row) => row.task_id,
+      ),
+    );
+
+  return rows.map((row) =>
+    mapTask(
+      row,
+      membersByTask.get(
+        row.task_id,
+      ) ?? [],
+    ),
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Task member mutations                                                      */
+/* -------------------------------------------------------------------------- */
+
+export async function updateTaskMembers(
+  taskId: string,
+  profileIds: string[],
+): Promise<TaskMember[]> {
+  if (!taskId) {
+    throw new Error(
+      "taskId is required.",
+    );
+  }
+
+  const supabase = createClient();
+
+  const uniqueProfileIds = [
+    ...new Set(
+      profileIds.filter(Boolean),
+    ),
+  ];
+
+  const {
+    error: deleteError,
+  } = await supabase
+    .from("task_members")
+    .delete()
+    .eq(
+      "task_id",
+      taskId,
+    );
+
+  if (deleteError) {
+    console.error(
+      "updateTaskMembers delete error:",
+      deleteError,
+    );
+
+    throw new Error(
+      deleteError.message,
+    );
+  }
+
+  if (
+    uniqueProfileIds.length === 0
+  ) {
+    return [];
+  }
+
+  const payload =
+    uniqueProfileIds.map(
+      (profileId) => ({
+        task_id: taskId,
+        profile_id: profileId,
+      }),
+    );
+
+  const {
+    error: insertError,
+  } = await supabase
+    .from("task_members")
+    .insert(payload);
+
+  if (insertError) {
+    console.error(
+      "updateTaskMembers insert error:",
+      insertError,
+    );
+
+    throw new Error(
+      insertError.message,
+    );
+  }
+
+  const membersByTask =
+    await getTaskMembers([
+      taskId,
+    ]);
+
+  return (
+    membersByTask.get(taskId) ?? []
+  );
+}
+
+export async function getTaskAssignedMembers(
+  taskId: string,
+): Promise<TaskMember[]> {
+  if (!taskId) {
+    throw new Error(
+      "taskId is required.",
+    );
+  }
+
+  const membersByTask =
+    await getTaskMembers([
+      taskId,
+    ]);
+
+  return (
+    membersByTask.get(taskId) ?? []
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Columns                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Get Kanban columns.
- *
- * When projectId is provided:
- *   returns only columns belonging to that project.
- *
- * When projectId is null:
- *   returns ALL columns:
- *   - general columns
- *   - project-specific columns
- *
- * This is important for the general tasks board, where project columns
- * must also be visible.
- */
 export async function getTaskColumns(
   projectId: string | null,
 ): Promise<TaskColumn[]> {
@@ -266,7 +570,9 @@ export async function getTaskColumns(
 
   let query = supabase
     .from("task_columns")
-    .select("*")
+    .select(
+      "column_id, project_id, name, position, is_completed, created_at, updated_at",
+    )
     .order("position", {
       ascending: true,
     })
@@ -274,17 +580,15 @@ export async function getTaskColumns(
       ascending: true,
     });
 
-  /*
-   * Project board:
-   * only that project's columns.
-   *
-   * General board:
-   * ALL columns, including project columns.
-   */
   if (normalizedProjectId) {
     query = query.eq(
       "project_id",
       normalizedProjectId,
+    );
+  } else {
+    query = query.is(
+      "project_id",
+      null,
     );
   }
 
@@ -306,7 +610,9 @@ export async function getTaskColumns(
     (data ?? []) as TaskColumnRow[];
 
   const projectIds = rows
-    .map((row) => row.project_id)
+    .map(
+      (row) => row.project_id,
+    )
     .filter(
       (id): id is string =>
         Boolean(id),
@@ -329,9 +635,6 @@ export async function getTaskColumns(
   );
 }
 
-/**
- * Get a single Kanban column.
- */
 export async function getTaskColumn(
   columnId: string,
 ): Promise<TaskColumn> {
@@ -348,8 +651,13 @@ export async function getTaskColumn(
     error,
   } = await supabase
     .from("task_columns")
-    .select("*")
-    .eq("column_id", columnId)
+    .select(
+      "column_id, project_id, name, position, is_completed, created_at, updated_at",
+    )
+    .eq(
+      "column_id",
+      columnId,
+    )
     .single();
 
   if (error) {
@@ -381,78 +689,79 @@ export async function getTaskColumn(
   );
 }
 
-/**
- * Create a Kanban column.
- *
- * projectId = UUID:
- *   creates a project-specific column.
- *
- * projectId = null / "":
- *   creates a general column.
- */
 export async function createTaskColumn(
-  projectId: string | null,
-  title: string,
-  position?: number,
+  input: CreateTaskColumnInput,
 ): Promise<TaskColumn> {
-  const trimmedTitle =
-    title?.trim();
-
-  if (!trimmedTitle) {
+  if (!input) {
     throw new Error(
-      "Column title is required.",
+      "Column input is required.",
+    );
+  }
+
+  const name =
+    input.name?.trim();
+
+  if (!name) {
+    throw new Error(
+      "O nome da coluna é obrigatório.",
+    );
+  }
+
+  const projectId =
+    normalizeProjectId(
+      input.project_id,
+    );
+
+  const position =
+    input.position ?? 0;
+
+  if (position < 0) {
+    throw new Error(
+      "position must be greater than or equal to 0.",
     );
   }
 
   const supabase = createClient();
 
-  const normalizedProjectId =
-    normalizeProjectId(projectId);
+  let duplicateQuery = supabase
+    .from("task_columns")
+    .select("column_id")
+    .eq("name", name);
 
-  let columnPosition = position;
-
-  if (columnPosition === undefined) {
-    let query = supabase
-      .from("task_columns")
-      .select("position")
-      .order("position", {
-        ascending: false,
-      })
-      .limit(1);
-
-    if (normalizedProjectId) {
-      query = query.eq(
+  if (projectId) {
+    duplicateQuery =
+      duplicateQuery.eq(
         "project_id",
-        normalizedProjectId,
+        projectId,
       );
-    } else {
-      query = query.is(
+  } else {
+    duplicateQuery =
+      duplicateQuery.is(
         "project_id",
         null,
       );
-    }
+  }
 
-    const {
-      data: lastColumn,
-      error: lastColumnError,
-    } = await query.maybeSingle();
+  const {
+    data: existingColumn,
+    error: existingColumnError,
+  } = await duplicateQuery.maybeSingle();
 
-    if (lastColumnError) {
-      console.error(
-        "createTaskColumn position lookup error:",
-        lastColumnError,
-      );
+  if (existingColumnError) {
+    console.error(
+      "createTaskColumn duplicate check error:",
+      existingColumnError,
+    );
 
-      throw new Error(
-        lastColumnError.message,
-      );
-    }
+    throw new Error(
+      existingColumnError.message,
+    );
+  }
 
-    columnPosition = lastColumn
-      ? Number(
-          lastColumn.position,
-        ) + 1
-      : 0;
+  if (existingColumn) {
+    throw new Error(
+      `A coluna "${name}" já existe neste projecto.`,
+    );
   }
 
   const {
@@ -461,50 +770,45 @@ export async function createTaskColumn(
   } = await supabase
     .from("task_columns")
     .insert({
-      project_id:
-        normalizedProjectId,
-      name: trimmedTitle,
-      position: columnPosition,
+      project_id: projectId,
+      name,
+      position,
+      is_completed:
+        input.is_completed ?? false,
     })
-    .select("*")
+    .select(
+      "column_id, project_id, name, position, is_completed, created_at, updated_at",
+    )
     .single();
 
   if (error) {
     console.error(
       "createTaskColumn error:",
-      error,
+      {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      },
     );
 
-    throw new Error(error.message);
-  }
+    if (error.code === "23505") {
+      throw new Error(
+        `A coluna "${name}" já existe neste projecto.`,
+      );
+    }
 
-  const row =
-    data as TaskColumnRow;
-
-  let projectName: string | null =
-    null;
-
-  if (row.project_id) {
-    const projectNames =
-      await getProjectNames([
-        row.project_id,
-      ]);
-
-    projectName =
-      projectNames.get(
-        row.project_id,
-      ) ?? null;
+    throw new Error(
+      error.message ||
+        "Não foi possível criar a coluna.",
+    );
   }
 
   return mapColumn(
-    row,
-    projectName,
+    data as TaskColumnRow,
   );
 }
 
-/**
- * Rename a Kanban column.
- */
 export async function renameTaskColumn(
   columnId: string,
   newTitle: string,
@@ -527,6 +831,70 @@ export async function renameTaskColumn(
   const supabase = createClient();
 
   const {
+    data: currentColumn,
+    error: currentError,
+  } = await supabase
+    .from("task_columns")
+    .select(
+      "column_id, project_id, name, position, is_completed, created_at, updated_at",
+    )
+    .eq(
+      "column_id",
+      columnId,
+    )
+    .single();
+
+  if (currentError) {
+    throw new Error(
+      currentError.message,
+    );
+  }
+
+  const projectId =
+    currentColumn.project_id ??
+    null;
+
+  let duplicateQuery = supabase
+    .from("task_columns")
+    .select("column_id")
+    .eq("name", trimmedTitle)
+    .neq(
+      "column_id",
+      columnId,
+    );
+
+  if (projectId) {
+    duplicateQuery =
+      duplicateQuery.eq(
+        "project_id",
+        projectId,
+      );
+  } else {
+    duplicateQuery =
+      duplicateQuery.is(
+        "project_id",
+        null,
+      );
+  }
+
+  const {
+    data: duplicate,
+    error: duplicateError,
+  } = await duplicateQuery.maybeSingle();
+
+  if (duplicateError) {
+    throw new Error(
+      duplicateError.message,
+    );
+  }
+
+  if (duplicate) {
+    throw new Error(
+      `A coluna "${trimmedTitle}" já existe neste projecto.`,
+    );
+  }
+
+  const {
     data,
     error,
   } = await supabase
@@ -540,41 +908,20 @@ export async function renameTaskColumn(
       "column_id",
       columnId,
     )
-    .select("*")
+    .select(
+      "column_id, project_id, name, position, is_completed, created_at, updated_at",
+    )
     .single();
 
   if (error) {
-    console.error(
-      "renameTaskColumn error:",
-      error,
-    );
-
     throw new Error(error.message);
   }
 
-  const row =
-    data as TaskColumnRow;
-
-  if (!row.project_id) {
-    return mapColumn(row);
-  }
-
-  const projectNames =
-    await getProjectNames([
-      row.project_id,
-    ]);
-
   return mapColumn(
-    row,
-    projectNames.get(
-      row.project_id,
-    ) ?? null,
+    data as TaskColumnRow,
   );
 }
 
-/**
- * Update the position of a Kanban column.
- */
 export async function updateTaskColumnPosition(
   columnId: string,
   position: number,
@@ -607,15 +954,67 @@ export async function updateTaskColumnPosition(
       "column_id",
       columnId,
     )
-    .select("*")
+    .select(
+      "column_id, project_id, name, position, is_completed, created_at, updated_at",
+    )
     .single();
 
   if (error) {
-    console.error(
-      "updateTaskColumnPosition error:",
-      error,
-    );
+    throw new Error(error.message);
+  }
 
+  const row =
+    data as TaskColumnRow;
+
+  if (!row.project_id) {
+    return mapColumn(row);
+  }
+
+  const projectNames =
+    await getProjectNames([
+      row.project_id,
+    ]);
+
+  return mapColumn(
+    row,
+    projectNames.get(
+      row.project_id,
+    ) ?? null,
+  );
+}
+
+export async function updateTaskColumnCompletion(
+  columnId: string,
+  isCompleted: boolean,
+): Promise<TaskColumn> {
+  if (!columnId) {
+    throw new Error(
+      "columnId is required.",
+    );
+  }
+
+  const supabase = createClient();
+
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("task_columns")
+    .update({
+      is_completed: isCompleted,
+      updated_at:
+        new Date().toISOString(),
+    })
+    .eq(
+      "column_id",
+      columnId,
+    )
+    .select(
+      "column_id, project_id, name, position, is_completed, created_at, updated_at",
+    )
+    .single();
+
+  if (error) {
     throw new Error(error.message);
   }
 
@@ -640,12 +1039,11 @@ export async function updateTaskColumnPosition(
 }
 
 /**
- * Delete a Kanban column.
- *
- * tasks.column_id uses ON DELETE SET NULL.
+ * The second argument is retained for backwards compatibility.
  */
 export async function deleteTaskColumn(
-columnId: string, column_id: string,
+  columnId: string,
+  _columnId?: string,
 ): Promise<void> {
   if (!columnId) {
     throw new Error(
@@ -679,9 +1077,6 @@ columnId: string, column_id: string,
 /* Tasks                                                                      */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Get all tasks belonging to a project.
- */
 export async function getProjectTasks(
   projectId: string,
 ): Promise<Task[]> {
@@ -698,7 +1093,9 @@ export async function getProjectTasks(
     error,
   } = await supabase
     .from("tasks")
-    .select("*")
+    .select(
+      "task_id, project_id, column_id, assigned_to, title, description, priority, start_date, due_date, estimated_hours, actual_hours, position, created_at, updated_at, completed",
+    )
     .eq(
       "project_id",
       projectId,
@@ -711,24 +1108,14 @@ export async function getProjectTasks(
     });
 
   if (error) {
-    console.error(
-      "getProjectTasks error:",
-      error,
-    );
-
     throw new Error(error.message);
   }
 
-  return (
-    (data ?? []) as TaskRow[]
-  ).map(mapTask);
+  return attachTaskMembers(
+    (data ?? []) as TaskRow[],
+  );
 }
 
-/**
- * Get all general tasks.
- *
- * These are tasks with project_id = null.
- */
 export async function getGeneralTasks(): Promise<
   Task[]
 > {
@@ -739,7 +1126,9 @@ export async function getGeneralTasks(): Promise<
     error,
   } = await supabase
     .from("tasks")
-    .select("*")
+    .select(
+      "task_id, project_id, column_id, assigned_to, title, description, priority, start_date, due_date, estimated_hours, actual_hours, position, created_at, updated_at, completed",
+    )
     .is("project_id", null)
     .order("position", {
       ascending: true,
@@ -749,25 +1138,14 @@ export async function getGeneralTasks(): Promise<
     });
 
   if (error) {
-    console.error(
-      "getGeneralTasks error:",
-      error,
-    );
-
     throw new Error(error.message);
   }
 
-  return (
-    (data ?? []) as TaskRow[]
-  ).map(mapTask);
+  return attachTaskMembers(
+    (data ?? []) as TaskRow[],
+  );
 }
 
-/**
- * Get ALL tasks.
- *
- * This is intended for the general/company Kanban board when the board
- * should show both general tasks and project tasks.
- */
 export async function getAllTasks(): Promise<
   Task[]
 > {
@@ -778,7 +1156,9 @@ export async function getAllTasks(): Promise<
     error,
   } = await supabase
     .from("tasks")
-    .select("*")
+    .select(
+      "task_id, project_id, column_id, assigned_to, title, description, priority, start_date, due_date, estimated_hours, actual_hours, position, created_at, updated_at, completed",
+    )
     .order("position", {
       ascending: true,
     })
@@ -787,25 +1167,14 @@ export async function getAllTasks(): Promise<
     });
 
   if (error) {
-    console.error(
-      "getAllTasks error:",
-      error,
-    );
-
     throw new Error(error.message);
   }
 
-  return (
-    (data ?? []) as TaskRow[]
-  ).map(mapTask);
+  return attachTaskMembers(
+    (data ?? []) as TaskRow[],
+  );
 }
 
-/**
- * Get all tasks for a specific column.
- *
- * This does not require a project ID because a column may be a general
- * column or a project column.
- */
 export async function getTaskColumnTasks(
   projectId: string | null,
   columnId: string,
@@ -820,7 +1189,9 @@ export async function getTaskColumnTasks(
 
   let query = supabase
     .from("tasks")
-    .select("*")
+    .select(
+      "task_id, project_id, column_id, assigned_to, title, description, priority, start_date, due_date, estimated_hours, actual_hours, position, created_at, updated_at, completed",
+    )
     .eq(
       "column_id",
       columnId,
@@ -835,14 +1206,15 @@ export async function getTaskColumnTasks(
   const normalizedProjectId =
     normalizeProjectId(projectId);
 
-  /*
-   * When a project is explicitly supplied, preserve the existing
-   * project-specific behaviour.
-   */
   if (normalizedProjectId) {
     query = query.eq(
       "project_id",
       normalizedProjectId,
+    );
+  } else {
+    query = query.is(
+      "project_id",
+      null,
     );
   }
 
@@ -852,22 +1224,18 @@ export async function getTaskColumnTasks(
   } = await query;
 
   if (error) {
-    console.error(
-      "getTaskColumnTasks error:",
-      error,
-    );
-
     throw new Error(error.message);
   }
 
-  return (
-    (data ?? []) as TaskRow[]
-  ).map(mapTask);
+  return attachTaskMembers(
+    (data ?? []) as TaskRow[],
+  );
 }
 
-/**
- * Create a task.
- */
+/* -------------------------------------------------------------------------- */
+/* Create task                                                                */
+/* -------------------------------------------------------------------------- */
+
 export async function createTask(
   input: CreateTaskInput,
 ): Promise<Task> {
@@ -888,8 +1256,7 @@ export async function createTask(
     input.columnId?.trim() || null;
 
   const priority =
-    input.priority?.trim() ||
-    "Medium";
+    input.priority ?? "Medium";
 
   if (
     ![
@@ -904,29 +1271,80 @@ export async function createTask(
     );
   }
 
-  const payload: Record<
-    string,
-    unknown
-  > = {
+  const startDate =
+    normalizeDate(
+      input.startDate,
+    );
+
+  const dueDate =
+    normalizeDate(
+      input.dueDate,
+    );
+
+  if (
+    startDate &&
+    dueDate &&
+    startDate > dueDate
+  ) {
+    throw new Error(
+      "A data de início não pode ser posterior à data de conclusão.",
+    );
+  }
+
+  const estimatedHours =
+    input.estimatedHours ??
+    null;
+
+  const actualHours =
+    input.actualHours ??
+    null;
+
+  if (
+    estimatedHours !== null &&
+    estimatedHours < 0
+  ) {
+    throw new Error(
+      "estimatedHours must be greater than or equal to 0.",
+    );
+  }
+
+  if (
+    actualHours !== null &&
+    actualHours < 0
+  ) {
+    throw new Error(
+      "actualHours must be greater than or equal to 0.",
+    );
+  }
+
+  const position =
+    input.position ?? 0;
+
+  if (position < 0) {
+    throw new Error(
+      "position must be greater than or equal to 0.",
+    );
+  }
+
+  const assignedTo =
+    input.assignedTo ?? null;
+
+  const payload = {
     project_id: projectId,
     column_id: columnId,
-    assigned_to:
-      input.assignedTo ?? null,
+    assigned_to: assignedTo,
     title: input.title.trim(),
     description:
       input.description?.trim() ||
       null,
     priority,
-    due_date:
-      input.dueDate || null,
-    start_date:
-      input.startDate || null,
-    estimated_hours:
-      input.estimatedHours ?? null,
-    actual_hours:
-      input.actualHours ?? null,
-    position:
-      input.position ?? 0,
+    completed:
+      input.completed ?? false,
+    due_date: dueDate,
+    start_date: startDate,
+    estimated_hours: estimatedHours,
+    actual_hours: actualHours,
+    position,
   };
 
   const {
@@ -935,7 +1353,9 @@ export async function createTask(
   } = await supabase
     .from("tasks")
     .insert(payload)
-    .select("*")
+    .select(
+      "task_id, project_id, column_id, assigned_to, title, description, priority, start_date, due_date, estimated_hours, actual_hours, position, created_at, updated_at, completed",
+    )
     .single();
 
   if (error) {
@@ -947,14 +1367,37 @@ export async function createTask(
     throw new Error(error.message);
   }
 
-  return mapTask(
-    data as TaskRow,
+  const task =
+    data as TaskRow;
+
+  const memberIds = [
+    ...(input.assignedMembers ??
+      []),
+  ];
+
+  const finalMemberIds =
+    memberIds.length > 0
+      ? memberIds
+      : assignedTo
+      ? [assignedTo]
+      : [];
+
+  if (finalMemberIds.length > 0) {
+    await updateTaskMembers(
+      task.task_id,
+      finalMemberIds,
+    );
+  }
+
+  return getTask(
+    task.task_id,
   );
 }
 
-/**
- * Update an existing task.
- */
+/* -------------------------------------------------------------------------- */
+/* Update task                                                                */
+/* -------------------------------------------------------------------------- */
+
 export async function updateTask(
   taskId: string,
   input: UpdateTaskInput,
@@ -999,7 +1442,7 @@ export async function updateTask(
     undefined
   ) {
     payload.column_id =
-      input.columnId;
+      input.columnId || null;
   }
 
   if (
@@ -1007,23 +1450,22 @@ export async function updateTask(
     undefined
   ) {
     payload.assigned_to =
-      input.assignedTo;
+      input.assignedTo || null;
   }
 
   if (
     input.priority !==
     undefined
   ) {
-    const priority =
-      input.priority.trim();
-
     if (
       ![
         "Low",
         "Medium",
         "High",
         "Critical",
-      ].includes(priority)
+      ].includes(
+        input.priority,
+      )
     ) {
       throw new Error(
         "Invalid task priority.",
@@ -1031,7 +1473,15 @@ export async function updateTask(
     }
 
     payload.priority =
-      priority;
+      input.priority;
+  }
+
+  if (
+    input.completed !==
+    undefined
+  ) {
+    payload.completed =
+      input.completed;
   }
 
   if (
@@ -1039,7 +1489,9 @@ export async function updateTask(
     undefined
   ) {
     payload.due_date =
-      input.dueDate;
+      normalizeDate(
+        input.dueDate,
+      );
   }
 
   if (
@@ -1047,7 +1499,9 @@ export async function updateTask(
     undefined
   ) {
     payload.start_date =
-      input.startDate;
+      normalizeDate(
+        input.startDate,
+      );
   }
 
   if (
@@ -1100,46 +1554,114 @@ export async function updateTask(
       input.position;
   }
 
+  /* ------------------------------------------------------------------------ */
+  /* Validate dates against the final values                                  */
+  /* ------------------------------------------------------------------------ */
+
   if (
-    Object.keys(payload)
-      .length === 0
+    input.startDate !==
+      undefined ||
+    input.dueDate !==
+      undefined
+  ) {
+    const current =
+      await getTask(taskId);
+
+    const nextStart =
+      input.startDate !==
+      undefined
+        ? normalizeDate(
+            input.startDate,
+          )
+        : current.startDate;
+
+    const nextDue =
+      input.dueDate !==
+      undefined
+        ? normalizeDate(
+            input.dueDate,
+          )
+        : current.dueDate;
+
+    if (
+      nextStart &&
+      nextDue &&
+      nextStart > nextDue
+    ) {
+      throw new Error(
+        "A data de início não pode ser posterior à data de conclusão.",
+      );
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Update members separately                                                */
+  /* ------------------------------------------------------------------------ */
+
+  const shouldUpdateMembers =
+    input.assignedMembers !==
+    undefined;
+
+  if (
+    Object.keys(payload).length === 0 &&
+    !shouldUpdateMembers
   ) {
     return getTask(taskId);
   }
 
-  payload.updated_at =
-    new Date().toISOString();
+  if (Object.keys(payload).length > 0) {
+    payload.updated_at =
+      new Date().toISOString();
 
-  const {
-    data,
-    error,
-  } = await supabase
-    .from("tasks")
-    .update(payload)
-    .eq(
-      "task_id",
-      taskId,
-    )
-    .select("*")
-    .single();
-
-  if (error) {
-    console.error(
-      "updateTask error:",
+    const {
+      data,
       error,
-    );
+    } = await supabase
+      .from("tasks")
+      .update(payload)
+      .eq(
+        "task_id",
+        taskId,
+      )
+      .select(
+        "task_id, project_id, column_id, assigned_to, title, description, priority, start_date, due_date, estimated_hours, actual_hours, position, created_at, updated_at, completed",
+      )
+      .single();
 
-    throw new Error(error.message);
+    if (error) {
+      console.error(
+        "updateTask error:",
+        error,
+      );
+
+      throw new Error(
+        error.message,
+      );
+    }
+
+    if (
+      !data?.task_id
+    ) {
+      throw new Error(
+        "Task was not updated.",
+      );
+    }
   }
 
-  return mapTask(
-    data as TaskRow,
-  );
+  if (shouldUpdateMembers) {
+    await updateTaskMembers(
+      taskId,
+      input.assignedMembers ?? [],
+    );
+  }
+
+  return getTask(taskId);
 }
 
-/**
- * Get a single task.
- */
+/* -------------------------------------------------------------------------- */
+/* Get task                                                                   */
+/* -------------------------------------------------------------------------- */
+
 export async function getTask(
   taskId: string,
 ): Promise<Task> {
@@ -1156,7 +1678,9 @@ export async function getTask(
     error,
   } = await supabase
     .from("tasks")
-    .select("*")
+    .select(
+      "task_id, project_id, column_id, assigned_to, title, description, priority, start_date, due_date, estimated_hours, actual_hours, position, created_at, updated_at, completed",
+    )
     .eq(
       "task_id",
       taskId,
@@ -1172,14 +1696,24 @@ export async function getTask(
     throw new Error(error.message);
   }
 
+  const row =
+    data as TaskRow;
+
+  const members =
+    await getTaskAssignedMembers(
+      row.task_id,
+    );
+
   return mapTask(
-    data as TaskRow,
+    row,
+    members,
   );
 }
 
-/**
- * Move a task to another Kanban column.
- */
+/* -------------------------------------------------------------------------- */
+/* Move task                                                                  */
+/* -------------------------------------------------------------------------- */
+
 export async function moveTask(
   taskId: string,
   columnId: string | null,
@@ -1227,7 +1761,9 @@ export async function moveTask(
       "task_id",
       taskId,
     )
-    .select("*")
+    .select(
+      "task_id, project_id, column_id, assigned_to, title, description, priority, start_date, due_date, estimated_hours, actual_hours, position, created_at, updated_at, completed",
+    )
     .single();
 
   if (error) {
@@ -1239,14 +1775,15 @@ export async function moveTask(
     throw new Error(error.message);
   }
 
-  return mapTask(
-    data as TaskRow,
+  return getTask(
+    (data as TaskRow).task_id,
   );
 }
 
-/**
- * Update a task's position.
- */
+/* -------------------------------------------------------------------------- */
+/* Task position                                                              */
+/* -------------------------------------------------------------------------- */
+
 export async function updateTaskPosition(
   taskId: string,
   position: number,
@@ -1265,24 +1802,48 @@ export async function updateTaskPosition(
   );
 }
 
-/**
- * Assign a task to a profile.
- */
+/* -------------------------------------------------------------------------- */
+/* Assignment                                                                 */
+/* -------------------------------------------------------------------------- */
+
 export async function assignTask(
   taskId: string,
   assignedTo: string | null,
 ): Promise<Task> {
-  return updateTask(
+  await updateTask(
     taskId,
     {
       assignedTo,
+      assignedMembers:
+        assignedTo
+          ? [assignedTo]
+          : [],
+    },
+  );
+
+  return getTask(taskId);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Completion                                                                 */
+/* -------------------------------------------------------------------------- */
+
+export async function updateTaskCompletion(
+  taskId: string,
+  completed: boolean,
+): Promise<Task> {
+  return updateTask(
+    taskId,
+    {
+      completed,
     },
   );
 }
 
-/**
- * Delete a task.
- */
+/* -------------------------------------------------------------------------- */
+/* Delete task                                                                */
+/* -------------------------------------------------------------------------- */
+
 export async function deleteTask(
   taskId: string,
 ): Promise<void> {
@@ -1293,6 +1854,32 @@ export async function deleteTask(
   }
 
   const supabase = createClient();
+
+  /*
+   * task_members has ON DELETE CASCADE, but we explicitly remove the
+   * memberships first so the service remains safe even if the FK changes.
+   */
+
+  const {
+    error: membersError,
+  } = await supabase
+    .from("task_members")
+    .delete()
+    .eq(
+      "task_id",
+      taskId,
+    );
+
+  if (membersError) {
+    console.error(
+      "deleteTask task_members error:",
+      membersError,
+    );
+
+    throw new Error(
+      membersError.message,
+    );
+  }
 
   const {
     error,
@@ -1318,13 +1905,6 @@ export async function deleteTask(
 /* Reordering                                                                 */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Reorder tasks inside a column.
- *
- * projectId is intentionally accepted for backwards compatibility with
- * the existing Kanban component. The task IDs determine which rows are
- * updated.
- */
 export async function reorderTasks(
   projectId: string | null,
   columnId: string | null,
@@ -1350,11 +1930,16 @@ export async function reorderTasks(
   const now =
     new Date().toISOString();
 
+  const normalizedProjectId =
+    normalizeProjectId(
+      projectId,
+    );
+
   const results =
     await Promise.all(
       taskIds.map(
-        (taskId, index) =>
-          supabase
+        (taskId, index) => {
+          let query = supabase
             .from("tasks")
             .update({
               column_id:
@@ -1365,11 +1950,27 @@ export async function reorderTasks(
             .eq(
               "task_id",
               taskId,
-            )
-            .then((result) => ({
+            );
+
+          if (normalizedProjectId) {
+            query = query.eq(
+              "project_id",
+              normalizedProjectId,
+            );
+          } else {
+            query = query.is(
+              "project_id",
+              null,
+            );
+          }
+
+          return query.then(
+            (result) => ({
               ...result,
               taskId,
-            })),
+            }),
+          );
+        },
       ),
     );
 
@@ -1391,12 +1992,6 @@ export async function reorderTasks(
   }
 }
 
-/**
- * Reorder Kanban columns.
- *
- * projectId is used only to determine which columns are expected to
- * be reordered by the caller. The actual updates are performed by ID.
- */
 export async function reorderTaskColumns(
   projectId: string | null,
   columnIds: string[],
@@ -1415,11 +2010,16 @@ export async function reorderTaskColumns(
   const now =
     new Date().toISOString();
 
+  const normalizedProjectId =
+    normalizeProjectId(
+      projectId,
+    );
+
   const results =
     await Promise.all(
       columnIds.map(
-        (columnId, index) =>
-          supabase
+        (columnId, index) => {
+          let query = supabase
             .from("task_columns")
             .update({
               position: index,
@@ -1428,7 +2028,22 @@ export async function reorderTaskColumns(
             .eq(
               "column_id",
               columnId,
-            ),
+            );
+
+          if (normalizedProjectId) {
+            query = query.eq(
+              "project_id",
+              normalizedProjectId,
+            );
+          } else {
+            query = query.is(
+              "project_id",
+              null,
+            );
+          }
+
+          return query;
+        },
       ),
     );
 

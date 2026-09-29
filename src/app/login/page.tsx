@@ -14,6 +14,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { useToast } from "../components/toast/use_toast";
+
 function getAuthErrorMessage(message: string) {
   const normalizedMessage = message.toLowerCase();
 
@@ -43,10 +45,11 @@ export default function LoginForm() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
+  const { error: showError, success } = useToast();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -55,23 +58,25 @@ export default function LoginForm() {
 
     if (loading) return;
 
-    setError(null);
     setLoading(true);
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      const { error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
 
       if (signInError) {
         throw signInError;
       }
 
+      success("Sessão iniciada com sucesso.");
+
       router.push("/management");
       router.refresh();
     } catch (err) {
-      setError(
+      showError(
         err instanceof Error
           ? getAuthErrorMessage(err.message)
           : "Ocorreu um erro inesperado.",
@@ -97,7 +102,6 @@ export default function LoginForm() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#001A33] via-[#002950]/70 to-[#002950]/20" />
 
         <div className="relative z-10 flex w-full flex-col justify-between p-12 xl:p-16">
-          {/* Logo */}
           <div>
             <Image
               src="/images/logo.png"
@@ -109,7 +113,6 @@ export default function LoginForm() {
             />
           </div>
 
-          {/* Brand Message */}
           <div className="max-w-lg">
             <div className="mb-6 h-1 w-14 bg-[#BD9655]" />
 
@@ -118,18 +121,22 @@ export default function LoginForm() {
             </h2>
 
             <p className="mt-6 max-w-md text-base leading-7 text-slate-300">
-              Conectamos pessoas, projectos e processos para dar vida a grandes
-              ideias através da arquitectura e engenharia.
+              Conectamos pessoas, projectos e processos para dar vida a
+              grandes ideias através da arquitectura e engenharia.
             </p>
 
             <div className="mt-10 flex items-center gap-3 text-sm text-slate-300">
-              <ShieldCheck size={18} className="text-[#BD9655]" />
+              <ShieldCheck
+                size={18}
+                className="text-[#BD9655]"
+              />
               Ambiente profissional e seguro
             </div>
           </div>
 
           <p className="text-xs tracking-wide text-slate-400">
-            © {new Date().getFullYear()} Pro-Sota. Todos os direitos reservados.
+            © {new Date().getFullYear()} Pro-Sota. Todos os direitos
+            reservados.
           </p>
         </div>
       </section>
@@ -238,7 +245,9 @@ export default function LoginForm() {
 
                   <button
                     type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
+                    onClick={() =>
+                      setShowPassword((prev) => !prev)
+                    }
                     disabled={loading}
                     aria-label={
                       showPassword
@@ -247,7 +256,11 @@ export default function LoginForm() {
                     }
                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#BD9655]/30 disabled:cursor-not-allowed"
                   >
-                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                    {showPassword ? (
+                      <EyeOff size={17} />
+                    ) : (
+                      <Eye size={17} />
+                    )}
                   </button>
                 </div>
               </div>
@@ -257,7 +270,9 @@ export default function LoginForm() {
                 <input
                   type="checkbox"
                   checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+                  onChange={(e) =>
+                    setRememberMe(e.target.checked)
+                  }
                   disabled={loading}
                   className="h-4 w-4 rounded border-slate-300 accent-[#002950] focus:ring-[#BD9655]"
                 />
@@ -267,25 +282,12 @@ export default function LoginForm() {
                 </span>
               </label>
 
-              {/* Error */}
-              {error && (
-                <div
-                  role="alert"
-                  className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700"
-                >
-                  {error}
-                </div>
-              )}
-
               {/* Submit */}
               <button
                 type="submit"
                 disabled={loading}
                 aria-busy={loading}
-                className="group flex w-full items-center justify-center gap-2 rounded-xl 
-                bg-[#BD9655] py-3.5 text-sm font-semibold text-[#002950] transition hover:bg-[#A98246] 
-                focus:outline-none focus:ring-4 focus:ring-[#BD9655]/20 disabled:cursor-not-allowed
-                 disabled:opacity-60 cursor-pointer"
+                className="group flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#BD9655] py-3.5 text-sm font-semibold text-[#002950] transition hover:bg-[#A98246] focus:outline-none focus:ring-4 focus:ring-[#BD9655]/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? (
                   <>

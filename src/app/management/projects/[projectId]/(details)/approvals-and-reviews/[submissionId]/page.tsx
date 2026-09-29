@@ -17,7 +17,7 @@ import {
 import {
     SubmissionStatus,
     SubmissionType,
-} from "@/app/actions/types";
+} from "@/actions/types";
 
 type Props = {
     params: Promise<{

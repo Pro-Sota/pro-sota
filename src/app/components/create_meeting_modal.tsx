@@ -11,7 +11,7 @@ import {
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createCalendarEventAction } from "@/app/actions/calendar";
+import { createCalendarEventAction } from "@/actions/calendar";
 
 type CreateMeetingModalProps = {
   open: boolean;

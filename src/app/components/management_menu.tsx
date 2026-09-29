@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
     Bell,
     CalendarDays,
@@ -12,6 +12,7 @@ import {
     Handshake,
     HomeIcon,
     ListTodo,
+    LogOut,
     LucideIcon,
     MessageCircle,
     Sidebar,
@@ -20,9 +21,10 @@ import {
     Users,
     UsersRound,
     WalletCards,
+    Loader2,
 } from "lucide-react";
 
-import LogoutButton from "../(auth)/logout/page";
+import { createClient } from "@/app/lib/supabase/client";
 
 type SystemRole =
     | "Superadmin"
@@ -51,12 +53,15 @@ type SidebarItem = {
     icon: LucideIcon;
     roles?: SystemRole[];
     departments?: Department[];
+    action?: "logout";
 };
 
 type SidebarItemProps = {
     item: SidebarItem;
     active: boolean;
     expanded: boolean;
+    onLogout?: () => void;
+    logoutLoading?: boolean;
 };
 
 type Props = {
@@ -70,22 +75,6 @@ type Props = {
  * ============================================================
  * MAIN NAVIGATION
  * ============================================================
- *
- * Access model:
- *
- * - Superadmin:
- *   Everything.
- *
- * - Admin / Director:
- *   Management areas explicitly allowed by the item.
- *
- * - Utilizador:
- *   Access depends on the department when an item has
- *   a department restriction.
- *
- * IMPORTANT:
- * A department restriction automatically allows normal
- * "Utilizador" users from that department.
  */
 
 const menuItems: SidebarItem[] = [
@@ -100,16 +89,6 @@ const menuItems: SidebarItem[] = [
             "Utilizador",
         ],
     },
-
-    /*
-     * LEADS
-     *
-     * DC users can see Leads.
-     *
-     * Admin and Director can also see Leads.
-     *
-     * Superadmin sees everything.
-     */
     {
         name: "Leads",
         href: "/management/leads",
@@ -122,17 +101,6 @@ const menuItems: SidebarItem[] = [
         ],
         departments: ["DC"],
     },
-
-    /*
-     * PROJECTS
-     *
-     * Normal users:
-     * - Administração
-     * - DPT
-     *
-     * Admin / Director / Superadmin:
-     * allowed.
-     */
     {
         name: "Projectos",
         href: "/management/projects",
@@ -145,20 +113,10 @@ const menuItems: SidebarItem[] = [
         ],
         departments: [
             "Administração",
-            "DE", "DA"
+            "DE",
+            "DA",
         ],
     },
-
-    /*
-     * TASKS
-     *
-     * Normal users:
-     * - Administração
-     * - DPT
-     *
-     * Admin / Director / Superadmin:
-     * allowed.
-     */
     {
         name: "Tarefas",
         href: "/management/tasks",
@@ -170,12 +128,6 @@ const menuItems: SidebarItem[] = [
             "Utilizador",
         ],
     },
-
-    /*
-     * CALENDAR
-     *
-     * Everyone.
-     */
     {
         name: "Calendário",
         href: "/management/calendar",
@@ -187,12 +139,6 @@ const menuItems: SidebarItem[] = [
             "Utilizador",
         ],
     },
-
-    /*
-     * MESSAGES
-     *
-     * Everyone.
-     */
     {
         name: "Mensagens",
         href: "/management/messages",
@@ -204,14 +150,6 @@ const menuItems: SidebarItem[] = [
             "Utilizador",
         ],
     },
-
-    /*
-     * CLIENTS
-     *
-     * DC users.
-     *
-     * Admin / Director / Superadmin.
-     */
     {
         name: "Clientes",
         href: "/management/clients",
@@ -224,12 +162,6 @@ const menuItems: SidebarItem[] = [
         ],
         departments: ["DC"],
     },
-
-    /*
-     * TEAM
-     *
-     * Management roles only.
-     */
     {
         name: "Equipa",
         href: "/management/team",
@@ -240,12 +172,6 @@ const menuItems: SidebarItem[] = [
             "Director",
         ],
     },
-
-    /*
-     * ATTENDANCE
-     *
-     * Everyone.
-     */
     {
         name: "Presença",
         href: "/management/attendance",
@@ -256,14 +182,8 @@ const menuItems: SidebarItem[] = [
             "Director",
             "Utilizador",
         ],
-        departments:["HR"]
+        departments: ["HR"],
     },
-
-    /*
-     * WORK RESOURCES
-     *
-     * Everyone.
-     */
     {
         name: "Recursos de obra",
         href: "/management/work-resources",
@@ -274,14 +194,11 @@ const menuItems: SidebarItem[] = [
             "Director",
             "Utilizador",
         ],
-        departments:["HR", "DE"]
+        departments: [
+            "HR",
+            "DE",
+        ],
     },
-
-    /*
-     * SUPPLIERS
-     *
-     * Management roles only.
-     */
     {
         name: "Fornecedores",
         href: "/management/suppliers",
@@ -291,7 +208,6 @@ const menuItems: SidebarItem[] = [
             "Admin",
             "Director",
         ],
-
     },
 ];
 
@@ -317,6 +233,18 @@ const bottomItems: SidebarItem[] = [
         name: "Notificações",
         href: "/management/notifications",
         icon: Bell,
+        roles: [
+            "Superadmin",
+            "Admin",
+            "Director",
+            "Utilizador",
+        ],
+    },
+    {
+        name: "Sair",
+        href: "",
+        icon: LogOut,
+        action: "logout",
         roles: [
             "Superadmin",
             "Admin",
@@ -374,9 +302,6 @@ function normalizeRole(
  * ============================================================
  * DEPARTMENT NORMALIZATION
  * ============================================================
- *
- * This handles the actual department values as well as
- * common alternative values that might exist in Supabase.
  */
 
 function normalizeDepartment(
@@ -392,9 +317,6 @@ function normalizeDepartment(
         .replace(/\s+/g, " ");
 
     switch (normalizedDepartment) {
-        /*
-         * DC
-         */
         case "dc":
         case "d.c.":
         case "comercial":
@@ -404,83 +326,50 @@ function normalizeDepartment(
         case "desenvolvimento de negocio":
             return "DC";
 
-        /*
-         * Administração
-         */
         case "administração":
         case "administracao":
         case "administration":
         case "admin":
             return "Administração";
 
-        /*
-         * DE
-         */
         case "de":
             return "DE";
 
-        /*
-         * DA
-         */
         case "da":
             return "DA";
 
-        /*
-         * DIT
-         */
         case "dit":
             return "DIT";
 
-        /*
-         * HR
-         */
         case "hr":
         case "rh":
             return "HR";
 
-        /*
-         * Design de Interiores
-         */
         case "design de interiores":
         case "interiores":
         case "interior design":
             return "Design de Interiores";
 
-        /*
-         * Paisagismo
-         */
         case "paisagismo":
         case "landscape":
         case "landscape design":
             return "Paisagismo";
 
-        /*
-         * Finanças
-         */
         case "finanças":
         case "financas":
         case "finance":
         case "finances":
             return "Finanças";
 
-        /*
-         * Recursos Humanos
-         */
         case "recursos humanos":
         case "recursos humanos (dhr)":
         case "human resources":
             return "Recursos Humanos";
 
-        /*
-         * Procurement
-         */
         case "procurement":
         case "compras":
             return "Procurement";
 
-        /*
-         * Marketing & Comunicação
-         */
         case "marketing":
         case "marketing & comunicação":
         case "marketing and communication":
@@ -489,9 +378,6 @@ function normalizeDepartment(
         case "comunicacao":
             return "Marketing & Comunicação";
 
-        /*
-         * TI / Sistemas
-         */
         case "ti":
         case "it":
         case "ti / sistemas":
@@ -517,22 +403,11 @@ function canAccessItem(
     role: SystemRole,
     department: Department | null,
 ): boolean {
-    /*
-     * Superadmin can see everything.
-     */
     if (role === "Superadmin") {
         return true;
     }
 
-    /*
-     * If this item has a department restriction,
-     * department determines access for normal users.
-     */
     if (item.departments?.length) {
-        /*
-         * Admin and Director can access department-
-         * restricted areas.
-         */
         if (
             role === "Admin" ||
             role === "Director"
@@ -540,10 +415,6 @@ function canAccessItem(
             return true;
         }
 
-        /*
-         * Normal user must belong to an allowed
-         * department.
-         */
         if (role === "Utilizador") {
             return (
                 department !== null &&
@@ -556,36 +427,45 @@ function canAccessItem(
         return false;
     }
 
-    /*
-     * Items without department restrictions use
-     * the role restriction.
-     */
     if (item.roles?.length) {
         return item.roles.includes(role);
     }
 
-    /*
-     * If an item has neither restriction, allow it.
-     */
     return true;
 }
 
 export function getVisibleNavigation(
-  userRole?: string | null,
-  userDepartment?: string | null,
+    userRole?: string | null,
+    userDepartment?: string | null,
 ) {
-  const role = normalizeRole(userRole);
-  const department = normalizeDepartment(userDepartment);
+    const role = normalizeRole(userRole);
+    const department =
+        normalizeDepartment(userDepartment);
 
-  return {
-    menuItems: menuItems.filter((item) =>
-      canAccessItem(item, role, department)
-    ),
-    bottomItems: bottomItems.filter((item) =>
-      canAccessItem(item, role, department)
-    ),
-  };
+    return {
+        menuItems: menuItems.filter((item) =>
+            canAccessItem(
+                item,
+                role,
+                department,
+            ),
+        ),
+
+        bottomItems: bottomItems.filter((item) =>
+            canAccessItem(
+                item,
+                role,
+                department,
+            ),
+        ),
+    };
 }
+
+/*
+ * ============================================================
+ * MANAGEMENT MENU
+ * ============================================================
+ */
 
 export default function ManagementMenu({
     collapsed,
@@ -594,17 +474,65 @@ export default function ManagementMenu({
     userDepartment,
 }: Props) {
     const pathname = usePathname();
+    const router = useRouter();
 
     const [hovered, setHovered] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [logoutLoading, setLogoutLoading] =
+        useState(false);
 
     const role = normalizeRole(userRole);
+
     const department =
         normalizeDepartment(userDepartment);
 
     /*
-     * Project pages have their own internal navigation.
+     * ========================================================
+     * LOGOUT
+     * ========================================================
      */
+
+    const handleLogout = async () => {
+        if (logoutLoading) {
+            return;
+        }
+
+        setLogoutLoading(true);
+
+        try {
+            const supabase = createClient();
+
+            const { error } =
+                await supabase.auth.signOut();
+
+            if (error) {
+                console.error(
+                    "Logout failed:",
+                    error,
+                );
+
+                setLogoutLoading(false);
+                return;
+            }
+
+            router.replace("/login");
+            router.refresh();
+        } catch (error) {
+            console.error(
+                "Unexpected logout error:",
+                error,
+            );
+
+            setLogoutLoading(false);
+        }
+    };
+
+    /*
+     * ========================================================
+     * AUTO COLLAPSE
+     * ========================================================
+     */
+
     const isInsideProject =
         pathname.startsWith(
             "/management/projects/",
@@ -612,9 +540,6 @@ export default function ManagementMenu({
         pathname !==
             "/management/projects/create-project";
 
-    /*
-     * Chat pages have their own navigation.
-     */
     const isInsideChat =
         pathname.startsWith(
             "/management/messages/",
@@ -628,8 +553,11 @@ export default function ManagementMenu({
         (!collapsed || hovered);
 
     /*
-     * Filter main navigation.
+     * ========================================================
+     * FILTER NAVIGATION
+     * ========================================================
      */
+
     const visibleMenuItems =
         menuItems.filter((item) =>
             canAccessItem(
@@ -639,9 +567,6 @@ export default function ManagementMenu({
             ),
         );
 
-    /*
-     * Filter bottom navigation.
-     */
     const visibleBottomItems =
         bottomItems.filter((item) =>
             canAccessItem(
@@ -652,8 +577,11 @@ export default function ManagementMenu({
         );
 
     /*
-     * Mobile detection.
+     * ========================================================
+     * MOBILE
+     * ========================================================
      */
+
     useEffect(() => {
         const checkMobile = () => {
             setIsMobile(
@@ -677,21 +605,11 @@ export default function ManagementMenu({
     }, []);
 
     /*
-     * Automatically collapse inside projects/chats.
+     * ========================================================
+     * RENDER
+     * ========================================================
      */
-    useEffect(() => {
-        if (shouldAutoCollapse) {
-            setCollapsedAction(true);
-            setHovered(false);
-        }
-    }, [
-        shouldAutoCollapse,
-        setCollapsedAction,
-    ]);
 
-    /*
-     * Desktop sidebar only.
-     */
     if (isMobile) {
         return null;
     }
@@ -710,19 +628,28 @@ export default function ManagementMenu({
             onMouseLeave={() => {
                 setHovered(false);
             }}
-            className={`fixed z-50 hidden h-screen flex-col overflow-y-auto border-r border-[#BD9655] bg-[#F7F7F5] transition-all duration-300 md:flex ${
+            className={[
+                "fixed left-0 top-0 z-50 hidden h-screen",
+                "flex-col border-r border-[#BD9655]",
+                "bg-[#F7F7F5] md:flex",
+                "transition-[width] duration-200 ease-out",
                 expanded
                     ? "w-64"
-                    : "w-20"
-            }`}
+                    : "w-20",
+            ].join(" ")}
         >
-            {/* Header */}
+            {/* ================================================= */}
+            {/* HEADER */}
+            {/* ================================================= */}
+
             <div
-                className={`flex h-20 shrink-0 items-center border-b border-[#BD9655] ${
+                className={[
+                    "flex h-20 shrink-0 items-center",
+                    "border-b border-[#BD9655]",
                     expanded
                         ? "justify-between px-4"
-                        : "justify-center px-2"
-                }`}
+                        : "justify-center px-2",
+                ].join(" ")}
             >
                 {expanded && (
                     <Link
@@ -745,14 +672,16 @@ export default function ManagementMenu({
                     type="button"
                     onClick={() => {
                         if (
-                            !shouldAutoCollapse
+                            shouldAutoCollapse
                         ) {
-                            setHovered(false);
-
-                            setCollapsedAction(
-                                !collapsed,
-                            );
+                            return;
                         }
+
+                        setHovered(false);
+
+                        setCollapsedAction(
+                            !collapsed,
+                        );
                     }}
                     disabled={
                         shouldAutoCollapse
@@ -763,46 +692,98 @@ export default function ManagementMenu({
                             : "Expandir menu"
                     }
                     aria-expanded={expanded}
-                    className="rounded-md p-2 text-gray-400 transition hover:bg-[#BD9655] hover:text-[#002950] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={[
+                        "flex h-9 w-9 shrink-0",
+                        "items-center justify-center",
+                        "rounded-md text-gray-400",
+                        "transition-colors duration-150",
+                        "hover:bg-[#BD9655]",
+                        "hover:text-[#002950]",
+                        "focus-visible:outline-none",
+                        "focus-visible:ring-2",
+                        "focus-visible:ring-[#002950]",
+                        "focus-visible:ring-offset-2",
+                        "disabled:cursor-not-allowed",
+                        "disabled:opacity-50",
+                    ].join(" ")}
                 >
-                    <Sidebar size={18} />
+                    <Sidebar
+                        aria-hidden="true"
+                        className="h-[18px] w-[18px]"
+                        strokeWidth={1.8}
+                    />
                 </button>
             </div>
 
-            {/* Main Menu */}
-            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-6">
-                {visibleMenuItems.map(
-                    (item) => (
-                        <SidebarItem
-                            key={item.href}
-                            item={item}
-                            active={isActiveRoute(
-                                pathname,
-                                item.href,
-                            )}
-                            expanded={expanded}
-                        />
-                    ),
-                )}
+            {/* ================================================= */}
+            {/* MAIN MENU */}
+            {/* ================================================= */}
+
+            <div
+                className={[
+                    "sidebar-scroll min-h-0 flex-1",
+                    "overflow-x-hidden overflow-y-auto",
+                    "px-3 py-5",
+                ].join(" ")}
+            >
+                <div className="space-y-1">
+                    {visibleMenuItems.map(
+                        (item) => (
+                            <SidebarItem
+                                key={item.href}
+                                item={item}
+                                active={isActiveRoute(
+                                    pathname,
+                                    item.href,
+                                )}
+                                expanded={
+                                    expanded
+                                }
+                            />
+                        ),
+                    )}
+                </div>
             </div>
 
-            {/* Bottom Menu */}
-            <div className="shrink-0 space-y-1 border-t border-[#BD9655] px-3 py-3">
-                {visibleBottomItems.map(
-                    (item) => (
-                        <SidebarItem
-                            key={item.href}
-                            item={item}
-                            active={isActiveRoute(
-                                pathname,
-                                item.href,
-                            )}
-                            expanded={expanded}
-                        />
-                    ),
-                )}
+            {/* ================================================= */}
+            {/* BOTTOM MENU */}
+            {/* ================================================= */}
 
-                <LogoutButton />
+            <div
+                className={[
+                    "shrink-0 border-t",
+                    "border-[#BD9655]",
+                    "px-3 py-3",
+                ].join(" ")}
+            >
+                <div className="space-y-1">
+                    {visibleBottomItems.map(
+                        (item) => (
+                            <SidebarItem
+                                key={
+                                    item.action ===
+                                    "logout"
+                                        ? "logout"
+                                        : item.href
+                                }
+                                item={item}
+                                active={isActiveRoute(
+                                    pathname,
+                                    item.href,
+                                )}
+                                expanded={
+                                    expanded
+                                }
+                                onLogout={
+                                    handleLogout
+                                }
+                                logoutLoading={
+                                    logoutLoading
+                                }
+                            />
+                        ),
+                    )}
+                </div>
             </div>
         </nav>
     );
@@ -818,9 +799,10 @@ function isActiveRoute(
     pathname: string,
     href: string,
 ): boolean {
-    /*
-     * Dashboard must only be active on /management.
-     */
+    if (!href) {
+        return false;
+    }
+
     if (href === "/management") {
         return pathname === href;
     }
@@ -828,6 +810,24 @@ function isActiveRoute(
     return (
         pathname === href ||
         pathname.startsWith(`${href}/`)
+    );
+}
+
+/*
+ * ============================================================
+ * ICON CONTAINER
+ * ============================================================
+ */
+
+function SidebarIcon({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+            {children}
+        </span>
     );
 }
 
@@ -841,8 +841,128 @@ function SidebarItem({
     item,
     active,
     expanded,
+    onLogout,
+    logoutLoading = false,
 }: SidebarItemProps) {
     const Icon = item.icon;
+
+    const label =
+        item.action === "logout" && logoutLoading
+            ? "A sair..."
+            : item.name;
+
+    const itemClasses = [
+        "group relative flex w-full min-w-0",
+        "items-center rounded-md",
+        "text-sm font-medium",
+        "transition-colors duration-150",
+        "focus-visible:outline-none",
+        "focus-visible:ring-2",
+        "focus-visible:ring-[#002950]",
+        "focus-visible:ring-offset-2",
+        expanded
+            ? "h-10 gap-3 px-3"
+            : "h-10 justify-center px-0",
+    ].join(" ");
+
+    const tooltip = !expanded ? (
+        <span
+            role="tooltip"
+            className={[
+                "pointer-events-none absolute left-full top-1/2 z-[100]",
+                "ml-3 -translate-y-1/2",
+                "whitespace-nowrap rounded-md",
+                "bg-[#002950] px-3 py-2",
+                "text-xs font-medium text-white",
+                "shadow-lg",
+                "opacity-0 invisible",
+                "translate-x-[-4px]",
+                "transition-[opacity,transform,visibility]",
+                "duration-150",
+                "group-hover:visible group-hover:translate-x-0",
+                "group-hover:opacity-100",
+                "group-focus-visible:visible",
+                "group-focus-visible:translate-x-0",
+                "group-focus-visible:opacity-100",
+            ].join(" ")}
+        >
+            {label}
+
+            <span
+                aria-hidden="true"
+                className={[
+                    "absolute right-full top-1/2",
+                    "-translate-y-1/2",
+                    "border-y-[5px] border-r-[5px]",
+                    "border-y-transparent",
+                    "border-r-[#002950]",
+                ].join(" ")}
+            />
+        </span>
+    ) : null;
+
+    /*
+     * ========================================================
+     * LOGOUT
+     * ========================================================
+     */
+
+    if (item.action === "logout") {
+        return (
+            <button
+                type="button"
+                onClick={onLogout}
+                disabled={logoutLoading}
+                aria-label={label}
+                className={[
+                    itemClasses,
+                    "text-gray-600",
+                    "hover:bg-gray-100",
+                    "hover:text-[#BD9655]",
+                    "disabled:cursor-not-allowed",
+                    "disabled:opacity-60",
+                ].join(" ")}
+            >
+                <SidebarIcon>
+                    {logoutLoading ? (
+                        <Loader2
+                            aria-hidden="true"
+                            className="h-[18px] w-[18px] animate-spin"
+                            strokeWidth={1.8}
+                        />
+                    ) : (
+                        <Icon
+                            aria-hidden="true"
+                            className="h-[18px] w-[18px]"
+                            strokeWidth={1.8}
+                        />
+                    )}
+                </SidebarIcon>
+
+                <span
+                    className={[
+                        "min-w-0 overflow-hidden",
+                        "whitespace-nowrap",
+                        "transition-[max-width,opacity]",
+                        "duration-150",
+                        expanded
+                            ? "max-w-[180px] opacity-100"
+                            : "max-w-0 opacity-0",
+                    ].join(" ")}
+                >
+                    {label}
+                </span>
+
+                {tooltip}
+            </button>
+        );
+    }
+
+    /*
+     * ========================================================
+     * NORMAL LINK
+     * ========================================================
+     */
 
     return (
         <Link
@@ -852,39 +972,48 @@ function SidebarItem({
                     ? "page"
                     : undefined
             }
-            title={
-                !expanded
-                    ? item.name
-                    : undefined
-            }
-            className={`group flex min-w-0 items-center rounded-md transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
-                expanded
-                    ? "gap-3 px-3 py-2"
-                    : "justify-center p-3"
-            } ${
+            className={[
+                itemClasses,
                 active
-                    ? "border-l-4 border-[#BD9655] bg-[#BD9655] font-medium text-[#002950]"
-                    : "font-medium text-gray-600 hover:bg-gray-100 hover:text-[#BD9655]"
-            }`}
+                    ? [
+                          "border-l-[3px]",
+                          "border-[#BD9655]",
+                          "bg-[#BD9655]",
+                          "text-[#002950]",
+                          expanded
+                              ? "pl-[9px]"
+                              : "border-l-0",
+                      ].join(" ")
+                    : [
+                          "text-gray-600",
+                          "hover:bg-gray-100",
+                          "hover:text-[#BD9655]",
+                      ].join(" "),
+            ].join(" ")}
         >
-            <Icon
-                aria-hidden="true"
-                className={`h-5 w-5 shrink-0 transition-colors ${
-                    active
-                        ? "text-current"
-                        : "text-gray-600 group-hover:text-[#BD9655]"
-                }`}
-            />
+            <SidebarIcon>
+                <Icon
+                    aria-hidden="true"
+                    className="h-[18px] w-[18px]"
+                    strokeWidth={1.8}
+                />
+            </SidebarIcon>
 
             <span
-                className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${
+                className={[
+                    "min-w-0 overflow-hidden",
+                    "whitespace-nowrap",
+                    "transition-[max-width,opacity]",
+                    "duration-150",
                     expanded
                         ? "max-w-[180px] opacity-100"
-                        : "max-w-0 opacity-0"
-                }`}
+                        : "max-w-0 opacity-0",
+                ].join(" ")}
             >
                 {item.name}
             </span>
+
+            {tooltip}
         </Link>
     );
 }

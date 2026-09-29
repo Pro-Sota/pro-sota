@@ -17,7 +17,7 @@ import type {
   ResourceType,
   UnitOfMeasure,
 } from "./work_resource";
-import { createResourceAction } from "@/app/actions/resources";
+import { createResourceAction } from "@/actions/resources";
 import { useRouter } from "next/navigation";
 
 export type SupplierOption = {

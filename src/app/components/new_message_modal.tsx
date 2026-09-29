@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   createConversationAction,
   getMessageRecipientsAction,
-} from "@/app/actions/message";
+} from "@/actions/message";
 
 import type { Recipient } from "@/services/messages";
 
