@@ -5,7 +5,7 @@ import {
   getResourceMovements,
 } from "@/services/resources";
 
-import ResourceDetails from "./resource_details";
+import ResourceHistory from "./resource_history";
 
 type Props = {
   params: Promise<{
@@ -13,7 +13,7 @@ type Props = {
   }>;
 };
 
-export default async function ResourcePage({
+export default async function ResourceHistoryPage({
   params,
 }: Props) {
   const { resourceId } = await params;
@@ -28,7 +28,7 @@ export default async function ResourcePage({
   }
 
   return (
-    <ResourceDetails
+    <ResourceHistory
       resource={resource}
       movements={movements}
     />
