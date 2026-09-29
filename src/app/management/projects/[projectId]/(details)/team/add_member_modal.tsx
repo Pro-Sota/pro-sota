@@ -1,30 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { Database } from "../../../../../../../models";
 import { X } from "lucide-react";
-import { Role, roles, roleTranslations } from "./types";
-import { addTeamMember } from "@/services/project_team";
-import { useParams } from "next/navigation";
-import CustomSelect from "@/app/components/custom_select";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+import type { Database } from "@/app/lib/supabase/models";
+import CustomSelect from "@/app/components/custom_select";
+import { addProjectTeamMemberAction } from "@/actions/project_team";
+import {
+    roles,
+    roleTranslations,
+} from "./types";
+import type { Role } from "./types";
+
+type Profile =
+    Database["public"]["Tables"]["profiles"]["Row"];
 
 type AddMemberModalProps = {
+    projectId: string;
     members: Profile[];
     onClose: () => void;
     onMemberAdded?: () => void;
 };
 
 export default function AddMemberModal({
+    projectId,
     members,
     onClose,
     onMemberAdded,
 }: AddMemberModalProps) {
-    const params = useParams();
-
-    const projectId = params.projectId as string;
-
     const [selectedMemberId, setSelectedMemberId] =
         useState("");
 
@@ -37,8 +40,29 @@ export default function AddMemberModal({
     const [error, setError] =
         useState("");
 
+    const availableProfiles = members.reduce(
+        (acc, member) => {
+            if (
+                !acc.some(
+                    (existingMember) =>
+                        existingMember.profile_id ===
+                        member.profile_id,
+                )
+            ) {
+                acc.push(member);
+            }
+
+            return acc;
+        },
+        [] as Profile[],
+    );
+
     const handleAddMember = async () => {
-        if (!projectId || !selectedMemberId || isAdding) {
+        if (
+            !projectId ||
+            !selectedMemberId ||
+            isAdding
+        ) {
             return;
         }
 
@@ -46,17 +70,12 @@ export default function AddMemberModal({
         setIsAdding(true);
 
         try {
-            console.log("Adding member:", {
-                projectId,
-                profileId: selectedMemberId,
-                role,
-            });
-
-            const result = await addTeamMember(
-                projectId,
-                selectedMemberId,
-                role,
-            );
+            const result =
+                await addProjectTeamMemberAction(
+                    projectId,
+                    selectedMemberId,
+                    role,
+                );
 
             if (!result.success) {
                 setError(
@@ -67,12 +86,7 @@ export default function AddMemberModal({
                 return;
             }
 
-            /*
-             * Tell the parent that the database
-             * operation was successful.
-             */
             onMemberAdded?.();
-
             onClose();
         } catch (error) {
             console.error(
@@ -87,23 +101,6 @@ export default function AddMemberModal({
             setIsAdding(false);
         }
     };
-
-    const availableProfiles = members.reduce(
-        (acc, member) => {
-            if (
-                !acc.some(
-                    (m) =>
-                        m.profile_id ===
-                        member.profile_id,
-                )
-            ) {
-                acc.push(member);
-            }
-
-            return acc;
-        },
-        [] as Profile[],
-    );
 
     return (
         <div
@@ -131,7 +128,8 @@ export default function AddMemberModal({
                             </h2>
 
                             <p className="mt-1.5 text-sm text-gray-600">
-                                Expanda sua equipa com novos colaboradores.
+                                Expanda a sua equipa com novos
+                                colaboradores.
                             </p>
                         </div>
 
@@ -147,7 +145,6 @@ export default function AddMemberModal({
                 </div>
 
                 <div className="space-y-5 px-6 py-6">
-                    {/* Member */}
                     <div>
                         <label
                             htmlFor="team-member"
@@ -157,7 +154,8 @@ export default function AddMemberModal({
                         </label>
 
                         <p className="mt-1 text-xs text-gray-500">
-                            Seleccione o utilizador que pretende adicionar.
+                            Seleccione o utilizador que pretende
+                            adicionar.
                         </p>
 
                         <CustomSelect
@@ -168,7 +166,8 @@ export default function AddMemberModal({
                                     event.target.value,
                                 )
                             }
-                            className="mt-3 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            disabled={isAdding}
+                            className="mt-3 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <option value="">
                                 Seleccionar membro
@@ -184,15 +183,20 @@ export default function AddMemberModal({
                                             member.profile_id
                                         }
                                     >
-                                        {member.first_name}{" "}
-                                        {member.last_name}
+                                        {[
+                                            member.first_name,
+                                            member.last_name,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(" ") ||
+                                            member.email ||
+                                            "Utilizador"}
                                     </option>
                                 ),
                             )}
                         </CustomSelect>
                     </div>
 
-                    {/* Role */}
                     <div>
                         <label
                             htmlFor="member-role"
@@ -206,20 +210,20 @@ export default function AddMemberModal({
                             value={role}
                             onChange={(event) =>
                                 setRole(
-                                    event.target
-                                        .value as Role,
+                                    event.target.value as Role,
                                 )
                             }
-                            className="mt-3 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                            disabled={isAdding}
+                            className="mt-3 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {roles.map((role) => (
+                            {roles.map((roleOption) => (
                                 <option
-                                    key={role}
-                                    value={role}
+                                    key={roleOption}
+                                    value={roleOption}
                                 >
                                     {
                                         roleTranslations[
-                                            role
+                                            roleOption
                                         ]
                                     }
                                 </option>
@@ -228,9 +232,12 @@ export default function AddMemberModal({
                     </div>
 
                     {error && (
-                        <p className="text-sm text-red-600">
+                        <div
+                            role="alert"
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+                        >
                             {error}
-                        </p>
+                        </div>
                     )}
                 </div>
 
@@ -249,6 +256,7 @@ export default function AddMemberModal({
                         onClick={handleAddMember}
                         disabled={
                             !selectedMemberId ||
+                            !projectId ||
                             isAdding
                         }
                         className="cursor-pointer rounded-lg bg-gradient-to-r from-slate-600 to-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:from-slate-700 hover:to-slate-800 disabled:cursor-not-allowed disabled:opacity-50"

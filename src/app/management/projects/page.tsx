@@ -4,6 +4,7 @@ import {Suspense} from "react";
 
 export default async function ProjectsPage() {
   const projects = await getProjects();
+  
 
   return (
     <Suspense fallback={null}>

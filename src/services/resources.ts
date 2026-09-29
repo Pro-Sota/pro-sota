@@ -195,7 +195,7 @@ import type {
     ResourceCondition,
     ResourceOperationalStatus,
     ResourceType,
-} from "@/actions";
+} from "@/app/management/work-resources/"
 
 export type ResourceStockInput = {
     unit: string | null;
@@ -223,6 +223,8 @@ export type ResourceFormInput = {
     notes: string | null;
     stock: ResourceStockInput | null;
 };
+
+  export type CreateResourceInput = ResourceFormInput;
 
 /* -------------------------------------------------------------------------- */
 /* Labels                                                                     */

@@ -100,8 +100,8 @@ export default function ProjectsPageInner({
 
   const viewMode: ViewMode =
     requestedView === "list" ||
-    requestedView === "map" ||
-    requestedView === "grid"
+      requestedView === "map" ||
+      requestedView === "grid"
       ? requestedView
       : "grid";
 
@@ -174,9 +174,9 @@ export default function ProjectsPageInner({
 
         const matchesFilter =
           selectedFilter.value ===
-            "todos" ||
+          "todos" ||
           project.status ===
-            selectedFilter.status;
+          selectedFilter.status;
 
         return (
           matchesSearch &&
@@ -204,12 +204,12 @@ export default function ProjectsPageInner({
               <p className="mt-1 text-sm text-gray-500">
                 {filteredProjects.length}{" "}
                 {filteredProjects.length ===
-                1
+                  1
                   ? "projecto"
                   : "projectos"}{" "}
                 encontrado
                 {filteredProjects.length !==
-                1
+                  1
                   ? "s"
                   : ""}
               </p>
@@ -289,11 +289,10 @@ export default function ProjectsPageInner({
                           item.value,
                         )
                       }
-                      className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
-                        isActive
-                          ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
-                          : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-100"
-                      }`}
+                      className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${isActive
+                        ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
+                        : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-100"
+                        }`}
                     >
                       {item.label}
                     </button>
@@ -335,11 +334,10 @@ export default function ProjectsPageInner({
                               value,
                             )
                           }
-                          className={`cursor-pointer rounded p-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
-                            isActive
-                              ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
-                              : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                          }`}
+                          className={`cursor-pointer rounded p-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${isActive
+                            ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
+                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                            }`}
                         >
                           <Icon className="h-4 w-4" />
                         </button>
@@ -356,7 +354,7 @@ export default function ProjectsPageInner({
       {/* Content */}
       <main className="flex-1 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         {filteredProjects.length ===
-        0 ? (
+          0 ? (
           <div className="flex items-center justify-center py-16 sm:py-24">
             <div className="max-w-sm text-center">
               <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gray-200">
@@ -369,14 +367,14 @@ export default function ProjectsPageInner({
 
               <p className="mb-6 text-sm text-gray-600">
                 {searchTerm ||
-                filter !== "todos"
+                  filter !== "todos"
                   ? "Tente ajustar os seus filtros ou pesquisa."
                   : "Comece por criar o seu primeiro projecto."}
               </p>
 
               {!searchTerm &&
                 filter ===
-                  "todos" && (
+                "todos" && (
                   <Link
                     href="/management/projects/create-project"
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#002950] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003b70] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"

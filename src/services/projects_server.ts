@@ -12,7 +12,7 @@ export async function getProjects() {
     /* ---------------------------------------------------------------------- */
 
     const {
-      data: { user },
+      data: { user },                
       error: userError,
     } = await supabase.auth.getUser();
 
@@ -30,7 +30,7 @@ export async function getProjects() {
 
     const {
       data: profile,
-      error: profileError,
+      error: profileError,  
     } = await supabase
       .from("profiles")
       .select("profile_id")
@@ -127,6 +127,8 @@ function mapTask(row: TaskRow): Task {
     updatedAt: row.updated_at,
     labels: [],
     members: [],
+    assignedMembers: [],
+    completed: false,
   };
 }
 
@@ -136,10 +138,10 @@ function mapColumn(row: TaskColumnRow): TaskColumn {
     title: row.name,
     projectId: row.project_id,
     position: row.position,
-    name: undefined,
+    name: row.name,
     column_id: "",
     is_completed: false,
-    projectName: null,
+    projectName: row.name,
   };
 }
 
@@ -428,7 +430,7 @@ export async function getTaskBoard(
       title: "Sem lista",
       projectId: projectId ?? null,
       position: -1,
-      name: undefined,
+      name: "",
       column_id: "",
       is_completed: false,
       projectName: null,

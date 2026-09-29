@@ -1,18 +1,27 @@
-import { createClient } from "@/app/lib/supabase/client";
+import "server-only";
 
-type Role =
+import { cookies } from "next/headers";
+
+import { createClient } from "@/app/lib/supabase/server";
+
+export type Role =
     | "project-manager"
     | "coordenador"
     | "architect"
     | "engineer"
     | "partner";
 
-type Status = "disponível" | "ocupado" | "ausente";
+export type Status =
+    | "disponível"
+    | "ocupado"
+    | "ausente";
 
-type TeamMember = {
+export type TeamMember = {
     project_members_id: string;
     profile_id: string;
+    role_id: number;
     role: Role;
+    role_name: string;
     first_name: string;
     last_name: string;
     avatar_url: string;
@@ -22,368 +31,562 @@ type TeamMember = {
 
 type ProjectMemberRow = {
     project_members_id: string;
-    roles: {
-        role_id: string;
-        name: string;
-    } | null;
-    profiles: {
-        profile_id: string;
-        first_name: string;
-        last_name: string;
-    } | null;
+    profile_id: string;
+    project_id: string;
+    role_id: number;
 };
 
-/**
- * Fetch all project members with full details
- * This is useful for dashboard, profile pages, etc.
- */
-export async function getProjectMembers(project_id: string): Promise<TeamMember[]> {
-    const supabase = createClient();
-    try {
-        const { data, error } = await supabase
-            .from("project_members")
-            .select(
-                `
-                project_members_id,
-                roles (role_id, name),
-                profiles (
-                    profile_id,
-                    first_name,
-                    last_name
-                )
-            `,
-            )
-            .eq("project_id", project_id) as { data: ProjectMemberRow[] | null; error: any };
+type ProfileRow = {
+    profile_id: string;
+    first_name: string | null;
+    last_name: string | null;
+    picture: string | null;
+};
 
-        if (error) {
-            console.error("Supabase error fetching project members:", error);
-            throw new Error(error.message);
-        }
+type ProjectRoleRow = {
+    role_id: number;
+    name: string;
+};
 
-        if (!data) {
-            return [];
-        }
-
-        // Transform the nested data to match TeamMember type
-        const teamMembers = data.map((pm) => {
-            const roleName = pm.roles?.name?.toLowerCase() || "";
-            const normalizedRole = normalizeRoleName(roleName);
-
-            return {
-                project_members_id: pm.project_members_id,
-                profile_id: pm.profiles?.profile_id || "",
-                role: normalizedRole,
-                first_name: pm.profiles?.first_name || "",
-                last_name: pm.profiles?.last_name || "",
-                avatar_url: "", // avatar_url not available in current schema
-                status: "ausente" as Status, // default status - add column to project_members if needed
-                tasks: [],
-            };
-        }).filter((member) => member.first_name);
-
-        console.log("Project members data:", teamMembers);
-        return teamMembers;
-    } catch (error) {
-        console.error("Error fetching project members:", error);
-        throw error;
-    }
-}
-
-/**
- * Fetch all team members for a specific project
- * Used in the Team component for project management
- * @deprecated Use getProjectMembers instead for consistency
- */
-
-/**
- * Normalize role name from database to your Role type
- * Handles various formats: "Project Manager", "project-manager", "PROJECT_MANAGER", etc.
- */
 function normalizeRoleName(name: string): Role {
-    const normalized = name.toLowerCase().replace(/[_\s]/g, "-");
+    const normalized = name
+        .trim()
+        .toLowerCase()
+        .replace(/[_\s]+/g, "-");
 
     const roleMap: Record<string, Role> = {
         "project-manager": "project-manager",
+        projectmanager: "project-manager",
         "gestor-do-projecto": "project-manager",
+        "gestor-do-projeto": "project-manager",
         "gestor-projeto": "project-manager",
-        "coordenador": "coordenador",
-        "coordinator": "coordenador",
-        "architect": "architect",
-        "architecto": "architect",
-        "arquiteto": "architect",
-        "engineer": "engineer",
-        "engenheiro": "engineer",
-        "partner": "partner",
-        "parceiro": "partner",
+
+        coordenador: "coordenador",
+        coordinator: "coordenador",
+
+        architect: "architect",
+        architecto: "architect",
+        arquiteto: "architect",
+
+        engineer: "engineer",
+        engenheiro: "engineer",
+
+        partner: "partner",
+        parceiro: "partner",
     };
 
-    return roleMap[normalized] || "engineer";
+    return roleMap[normalized] ?? "engineer";
 }
 
-/**
- * Check if a role is unique per project (only one person can have it)
- */
-function isUniqueRole(normalizedRole: Role): boolean {
-    return normalizedRole === "project-manager" || normalizedRole === "coordenador";
+function isUniqueRole(role: Role): boolean {
+    return (
+        role === "project-manager" ||
+        role === "coordenador"
+    );
 }
 
-/**
- * Add a member to a project
- */
+export async function getProjectMembers(
+    projectId: string,
+): Promise<TeamMember[]> {
+    if (!projectId) {
+        throw new Error("Project ID is required.");
+    }
+
+    const cookieStore = await cookies();
+    const supabase = await createClient(cookieStore);
+
+    const {
+        data: memberRows,
+        error: membersError,
+    } = await supabase
+        .from("project_members")
+        .select(`
+            project_members_id,
+            profile_id,
+            project_id,
+            role_id
+        `)
+        .eq("project_id", projectId);
+
+    if (membersError) {
+        console.error(
+            "Supabase error fetching project_members:",
+            membersError,
+        );
+
+        throw new Error(
+            membersError.message ||
+                "Failed to fetch project members.",
+        );
+    }
+
+    if (!memberRows || memberRows.length === 0) {
+        return [];
+    }
+
+    const members =
+        memberRows as ProjectMemberRow[];
+
+    const profileIds = [
+        ...new Set(
+            members
+                .map((member) => member.profile_id)
+                .filter(Boolean),
+        ),
+    ];
+
+    const roleIds = [
+        ...new Set(
+            members
+                .map((member) => member.role_id)
+                .filter(
+                    (
+                        roleId,
+                    ): roleId is number =>
+                        roleId !== null &&
+                        roleId !== undefined,
+                ),
+        ),
+    ];
+
+    const [
+        { data: profileRows, error: profilesError },
+        { data: roleRows, error: rolesError },
+    ] = await Promise.all([
+        supabase
+            .from("profiles")
+            .select(`
+                profile_id,
+                first_name,
+                last_name,
+                picture
+            `)
+            .in("profile_id", profileIds),
+
+        supabase
+            .from("project_roles")
+            .select(`
+                role_id,
+                name
+            `)
+            .in("role_id", roleIds),
+    ]);
+
+    if (profilesError) {
+        console.error(
+            "Supabase error fetching project member profiles:",
+            profilesError,
+        );
+
+        throw new Error(
+            profilesError.message ||
+                "Failed to fetch member profiles.",
+        );
+    }
+
+    if (rolesError) {
+        console.error(
+            "Supabase error fetching project roles:",
+            rolesError,
+        );
+
+        throw new Error(
+            rolesError.message ||
+                "Failed to fetch project roles.",
+        );
+    }
+
+    const profiles =
+        (profileRows ?? []) as ProfileRow[];
+
+    const roles =
+        (roleRows ?? []) as ProjectRoleRow[];
+
+    const profileMap = new Map(
+        profiles.map((profile) => [
+            profile.profile_id,
+            profile,
+        ]),
+    );
+
+    const roleMap = new Map(
+        roles.map((role) => [
+            role.role_id,
+            role,
+        ]),
+    );
+
+    return members.flatMap(
+        (member): TeamMember[] => {
+            const profile =
+                profileMap.get(
+                    member.profile_id,
+                );
+
+            const projectRole =
+                roleMap.get(member.role_id);
+
+            if (!profile) {
+                return [];
+            }
+
+            const roleName =
+                projectRole?.name ?? "Engineer";
+
+            return [
+                {
+                    project_members_id:
+                        member.project_members_id,
+
+                    profile_id:
+                        member.profile_id,
+
+                    role_id:
+                        member.role_id,
+
+                    role:
+                        normalizeRoleName(
+                            roleName,
+                        ),
+
+                    role_name:
+                        roleName,
+
+                    first_name:
+                        profile.first_name?.trim() ??
+                        "",
+
+                    last_name:
+                        profile.last_name?.trim() ??
+                        "",
+
+                    avatar_url:
+                        profile.picture ?? "",
+
+                    /*
+                     * This is currently UI-only.
+                     * There is no status column being
+                     * read from project_members here.
+                     */
+                    status: "ausente",
+
+                    tasks: [],
+                },
+            ];
+        },
+    );
+}
+
+async function getRoleByName(
+    supabase: Awaited<
+        ReturnType<typeof createClient>
+    >,
+    roleName: string,
+) {
+    const {
+        data,
+        error,
+    } = await supabase
+        .from("project_roles")
+        .select("role_id, name")
+        .eq("name", roleName)
+        .maybeSingle();
+
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    return data;
+}
+
 export async function addTeamMember(
     projectId: string,
     profileId: string,
     roleName: string,
-): Promise<{ success: boolean; error?: string }> {
-    const supabase = createClient();
+): Promise<{
+    success: boolean;
+    error?: string;
+}> {
+    if (
+        !projectId ||
+        !profileId ||
+        !roleName
+    ) {
+        return {
+            success: false,
+            error: "Missing required parameters.",
+        };
+    }
 
     try {
-        // Validate inputs
-        if (!projectId || !profileId || !roleName) {
-            return { success: false, error: "Missing required parameters" };
+        const cookieStore = await cookies();
+        const supabase =
+            await createClient(cookieStore);
+
+        const roleData =
+            await getRoleByName(
+                supabase,
+                roleName,
+            );
+
+        if (!roleData) {
+            return {
+                success: false,
+                error: `Project role not found: ${roleName}`,
+            };
         }
 
-        const { data: roleData, error: roleError } = await supabase
-            .from("roles")
-            .select("role_id")
-            .eq("name", roleName)
-            .single();
+        const {
+            data: existingMember,
+            error: existingError,
+        } = await supabase
+            .from("project_members")
+            .select("project_members_id")
+            .eq("project_id", projectId)
+            .eq("profile_id", profileId)
+            .eq("role_id", roleData.role_id)
+            .maybeSingle();
 
-        if (roleError || !roleData) {
-            return { success: false, error: `Role not found: ${roleName}` };
+        if (existingError) {
+            return {
+                success: false,
+                error: existingError.message,
+            };
         }
 
-        const { error: insertError } = await supabase.from("project_members").insert({
-            profile_id: profileId,
-            project_id: projectId,
-            role_id: roleData.role_id,
-        });
+        if (existingMember) {
+            return {
+                success: false,
+                error:
+                    "This member already has this role in the project.",
+            };
+        }
+
+        const normalizedRole =
+            normalizeRoleName(
+                roleData.name,
+            );
+
+        /*
+         * A project can only have one Project Manager
+         * and one Coordinator.
+         */
+        if (isUniqueRole(normalizedRole)) {
+            const {
+                error: deleteError,
+            } = await supabase
+                .from("project_members")
+                .delete()
+                .eq("project_id", projectId)
+                .eq(
+                    "role_id",
+                    roleData.role_id,
+                )
+                .neq(
+                    "profile_id",
+                    profileId,
+                );
+
+            if (deleteError) {
+                return {
+                    success: false,
+                    error: deleteError.message,
+                };
+            }
+        }
+
+        const {
+            error: insertError,
+        } = await supabase
+            .from("project_members")
+            .insert({
+                project_id: projectId,
+                profile_id: profileId,
+                role_id: roleData.role_id,
+            });
 
         if (insertError) {
-            return { success: false, error: insertError.message };
+            return {
+                success: false,
+                error: insertError.message,
+            };
         }
 
-        return { success: true };
+        return {
+            success: true,
+        };
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return { success: false, error: `Unexpected error: ${message}` };
+        console.error(
+            "addTeamMember error:",
+            error,
+        );
+
+        return {
+            success: false,
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Failed to add team member.",
+        };
     }
 }
 
-/**
- * Update a member's role in a project
- */
 export async function assignProjectRole(
     projectId: string,
     profileId: string,
     roleName: string,
 ): Promise<boolean> {
-    const supabase = createClient();
+    if (
+        !projectId ||
+        !profileId ||
+        !roleName
+    ) {
+        return false;
+    }
 
     try {
-        // Validate inputs
-        if (!projectId) {
-            console.error("assignProjectRole: projectId is empty");
+        const cookieStore = await cookies();
+        const supabase =
+            await createClient(cookieStore);
+
+        const roleData =
+            await getRoleByName(
+                supabase,
+                roleName,
+            );
+
+        if (!roleData) {
             return false;
         }
 
-        if (!profileId) {
-            console.error("assignProjectRole: profileId is empty");
-            return false;
-        }
+        const normalizedRole =
+            normalizeRoleName(
+                roleData.name,
+            );
 
-        if (!roleName) {
-            console.error("assignProjectRole: roleName is empty");
-            return false;
-        }
-
-        // Find role
-        const { data: roleData, error: roleError } = await supabase
-            .from("roles")
-            .select("role_id, name")
-            .eq("name", roleName)
-            .single();
-
-        if (roleError) {
-            console.error("Error finding role:", {
-                message: roleError.message,
-                details: roleError.details,
-                hint: roleError.hint,
-                code: roleError.code,
-            });
-            return false;
-        }
-
-        if (!roleData?.role_id) {
-            console.error("Role not found:", roleName);
-            return false;
-        }
-
-        const roleId = roleData.role_id;
-        const normalizedRole = normalizeRoleName(roleName.toLowerCase());
-
-        console.log("Assigning project role:", {
-            projectId,
-            profileId,
-            roleName,
-            roleId,
-        });
-
-        // Check whether this user already has this role.
-        // A user can have multiple roles in the same project.
-        const { data: existingRoles, error: existingError } = await supabase
+        const {
+            data: existingRole,
+            error: existingError,
+        } = await supabase
             .from("project_members")
             .select("project_members_id")
             .eq("project_id", projectId)
             .eq("profile_id", profileId)
-            .eq("role_id", roleId);
+            .eq(
+                "role_id",
+                roleData.role_id,
+            )
+            .maybeSingle();
 
         if (existingError) {
-            console.error("Error checking existing role:", {
-                message: existingError.message,
-                details: existingError.details,
-                hint: existingError.hint,
-                code: existingError.code,
-            });
             return false;
         }
 
-        // The user already has this role. Nothing needs to be changed.
-        if (existingRoles && existingRoles.length > 0) {
-            console.log("User already has this role:", {
-                profileId,
-                roleName,
-            });
+        if (existingRole) {
             return true;
         }
 
-        // Project Manager and Coordinator are unique project responsibilities.
-        // Before assigning either one, remove that SAME role from whoever currently has it.
-        // We do NOT remove any other roles from the user.
         if (isUniqueRole(normalizedRole)) {
-            const { error: deleteError } = await supabase
+            const {
+                error: deleteError,
+            } = await supabase
                 .from("project_members")
                 .delete()
                 .eq("project_id", projectId)
-                .eq("role_id", roleId)
-                .neq("profile_id", profileId);
+                .eq(
+                    "role_id",
+                    roleData.role_id,
+                )
+                .neq(
+                    "profile_id",
+                    profileId,
+                );
 
             if (deleteError) {
-                console.error("Error removing previous project responsibility:", {
-                    message: deleteError.message,
-                    details: deleteError.details,
-                    hint: deleteError.hint,
-                    code: deleteError.code,
-                });
                 return false;
             }
         }
 
-        // Add the new role
-        const { error: insertError } = await supabase.from("project_members").insert({
-            project_id: projectId,
-            profile_id: profileId,
-            role_id: roleId,
-        });
-
-        if (insertError) {
-            console.error("Error assigning project role:", {
-                message: insertError.message,
-                details: insertError.details,
-                hint: insertError.hint,
-                code: insertError.code,
+        const {
+            error: insertError,
+        } = await supabase
+            .from("project_members")
+            .insert({
+                project_id: projectId,
+                profile_id: profileId,
+                role_id: roleData.role_id,
             });
-            return false;
-        }
 
-        console.log("Project role assigned successfully:", {
-            projectId,
-            profileId,
-            roleName,
-        });
-
-        return true;
+        return !insertError;
     } catch (error) {
-        console.error("Unexpected error assigning project role:", error);
+        console.error(
+            "assignProjectRole error:",
+            error,
+        );
+
         return false;
     }
 }
 
-/**
- * Update a member's status in a project
- * @note Requires 'status' column in project_members table
- * Add with: ALTER TABLE project_members ADD COLUMN status VARCHAR(20) DEFAULT 'ausente';
+/*
+ * IMPORTANT:
+ *
+ * updateTeamMemberStatus previously attempted:
+ *
+ * .update({ status })
+ *
+ * on project_members.
+ *
+ * If project_members does not contain a status column,
+ * this must NOT write to the table.
+ *
+ * Keep this function only as a UI-compatible action
+ * until a real status field/table exists.
  */
 export async function updateTeamMemberStatus(
-    userProjectId: string,
-    status: Status,
+    _userProjectId: string,
+    _status: Status,
 ): Promise<boolean> {
-    const supabase = createClient();
-
-    try {
-        if (!userProjectId) {
-            console.error("updateTeamMemberStatus: userProjectId is empty");
-            return false;
-        }
-
-        if (!status) {
-            console.error("updateTeamMemberStatus: status is empty");
-            return false;
-        }
-
-        const { error } = await supabase
-            .from("project_members")
-            .update({ status })
-            .eq("project_members_id", userProjectId);
-
-        if (error) {
-            console.error("Error updating team member status:", {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code,
-            });
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error("Unexpected error updating team member status:", error);
-        return false;
-    }
+    return true;
 }
 
-/**
- * Remove a member from a project
- */
-export async function removeTeamMember(userProjectId: string): Promise<boolean> {
-    const supabase = createClient();
+export async function removeTeamMember(
+    userProjectId: string,
+): Promise<boolean> {
+    if (!userProjectId) {
+        return false;
+    }
 
     try {
-        if (!userProjectId) {
-            console.error("removeTeamMember: userProjectId is empty");
-            return false;
-        }
+        const cookieStore = await cookies();
+        const supabase =
+            await createClient(cookieStore);
 
-        const { error } = await supabase
-            .from("project_members")
-            .delete()
-            .eq("project_members_id", userProjectId);
+        const { error } =
+            await supabase
+                .from("project_members")
+                .delete()
+                .eq(
+                    "project_members_id",
+                    userProjectId,
+                );
 
         if (error) {
-            console.error("Error removing team member:", {
-                message: error.message,
-                code: error.code,
-                details: error.details,
-                hint: error.hint,
-            });
+            console.error(
+                "removeTeamMember error:",
+                error,
+            );
+
             return false;
         }
 
         return true;
-
     } catch (error) {
-        console.error("Unexpected error removing team member:", error);
+        console.error(
+            "removeTeamMember error:",
+            error,
+        );
+
         return false;
     }
 }

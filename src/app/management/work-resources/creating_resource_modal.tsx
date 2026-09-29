@@ -14,6 +14,7 @@ import CustomSelect from "@/app/components/custom_select";
 
 import type {
   ResourceCondition,
+  ResourceFormInput,
   ResourceType,
   UnitOfMeasure,
 } from "@/services/resources";
@@ -29,7 +30,7 @@ type CreateResourceModalProps = {
   open: boolean;
   onClose: () => void;
   suppliers?: SupplierOption[];
-  onSubmit?: (resource: NewResourceState) => void | Promise<void>;
+  onSubmitAction?: (resource: NewResourceState) => void | Promise<void>;
 };
 
 export type NewResourceState = {
@@ -155,7 +156,7 @@ export default function CreateResourceModal({
   open,
   onClose,
   suppliers = [],
-  onSubmit,
+  onSubmitAction,
 }: CreateResourceModalProps) {
 
     const router = useRouter();
@@ -229,10 +230,17 @@ export default function CreateResourceModal({
   try {
     setSaving(true);
 
-    if (onSubmit) {
-      await onSubmit(newResource);
+    if (onSubmitAction) {
+      await onSubmitAction(newResource);
     } else {
-      await createResourceAction(newResource);
+      await createResourceAction({
+        ...newResource,
+        resource_code: newResource.code,
+        condition_status: newResource.condition,
+        operational_status: "operational",
+        notes: "",
+        stock: Number(newResource.current_stock) || 0,
+      } satisfies ResourceFormInput);
     }
 
     setNewResource(createInitialResource());
