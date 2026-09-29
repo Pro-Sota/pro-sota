@@ -1,12 +1,9 @@
-import { getAllUsers, getProfile } from "@/services/auth_server";
-import TeamPage from "./team";
-import { Database } from "@/app/lib/supabase/models";
+import { getTeamMembers } from "@/services/team";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+import TeamPage from "./team";
 
 export default async function Page() {
+    const team = await getTeamMembers();
 
-    const team = await getAllUsers() as Profile[];
-
-  return <TeamPage team={team || null} />;
+    return <TeamPage team={team} />;
 }
