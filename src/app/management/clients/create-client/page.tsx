@@ -3,31 +3,57 @@
 import { useState, type FormEvent } from "react";
 import { AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createClientRecord } from "@/services/clients";
 
 import CancelConfirmDialog from "@/app/components/cancel_confirm_dialog";
+
 import ClientTypeSection from "./client_type_section";
 import IdentificationSection from "./identification_section";
 import ContactSection from "./contact_section";
 import LocationSection from "./location_section";
 import NotesSection from "./notes_section";
 
-import { INITIAL_STATE, PHONE_MAX_LENGTH } from "./client_form";
-import { validateClient, buildClientPayload } from "./new_client_validation";
-import type { ClientInsert, FieldChangeEvent } from "./client";
+import {
+  INITIAL_STATE,
+  PHONE_MAX_LENGTH,
+} from "./client_form";
+
+import {
+  validateClient,
+  buildClientPayload,
+} from "./new_client_validation";
+
+import type {
+  ClientInsert,
+  FieldChangeEvent,
+} from "./client";
+
+import { createClientAction } from "@/actions/clients";
 
 export default function CreateClientForm() {
-  const [client, setClient] = useState<ClientInsert>(INITIAL_STATE);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-
   const router = useRouter();
 
-  const isOrg = client.client_type === "Company";
+  const [client, setClient] =
+    useState<ClientInsert>(INITIAL_STATE);
 
-  const handleChange = (e: FieldChangeEvent) => {
+  const [errors, setErrors] =
+    useState<Record<string, string>>({});
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [submitError, setSubmitError] =
+    useState("");
+
+  const [showCancelConfirm, setShowCancelConfirm] =
+    useState(false);
+
+  const isOrg =
+    client.client_type === "Company" ||
+    client.client_type === "Government";
+
+  const handleChange = (
+    e: FieldChangeEvent
+  ) => {
     const { name, value } = e.target;
 
     setClient((prev) => ({
@@ -38,81 +64,129 @@ export default function CreateClientForm() {
     if (errors[name]) {
       setErrors((prev) => {
         const next = { ...prev };
+
         delete next[name];
+
         return next;
       });
+    }
+
+    if (submitError) {
+      setSubmitError("");
     }
   };
 
   const formatPhone = (value: string) => {
-    return value.replace(/\D/g, "").slice(0, PHONE_MAX_LENGTH);
+    return value
+      .replace(/\D/g, "")
+      .slice(0, PHONE_MAX_LENGTH);
   };
 
-  const handlePhoneChange = (e: FieldChangeEvent) => {
-    e.target.value = formatPhone(e.target.value);
+  const handlePhoneChange = (
+    e: FieldChangeEvent
+  ) => {
+    e.target.value = formatPhone(
+      e.target.value
+    );
+
     handleChange(e);
   };
 
-  function confirmCancel() {
+  const confirmCancel = () => {
     router.push("/management/clients");
-  }
+  };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (
+    e: FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
 
-    setSubmitError("");
-
-    const validationErrors = validateClient(client, isOrg);
-
-    setErrors(validationErrors);
-
-    if (Object.keys(validationErrors).length > 0) {
+    if (submitting) {
       return;
     }
 
-    const payload = buildClientPayload(client, isOrg);
+    setSubmitError("");
+
+    const validationErrors =
+      validateClient(client, isOrg);
+
+    setErrors(validationErrors);
+
+    if (
+      Object.keys(validationErrors).length > 0
+    ) {
+      return;
+    }
+
+    const payload =
+      buildClientPayload(client, isOrg);
 
     try {
       setSubmitting(true);
 
-      await createClientRecord(payload);
+      const result =
+        await createClientAction(
+          payload as Parameters<typeof createClientAction>[0]
+        );
 
-      // Cliente criado com sucesso.
-      // Voltar para a lista de clientes.
+      /*
+       * Server Actions do not need to throw an error
+       * for normal validation/database failures.
+       *
+       * They return ClientFormState instead.
+       */
+      if (!result.success) {
+        if (result.fieldErrors) {
+          setErrors(result.fieldErrors);
+        }
+
+        setSubmitError(
+          result.message ||
+            "Não foi possível criar o cliente."
+        );
+
+        return;
+      }
+
+      /*
+       * Only redirect after the Server Action
+       * confirms that the client was created.
+       */
       router.push("/management/clients");
       router.refresh();
-    } catch (err: unknown) {
-      const error = err as {
-        message?: string;
-        details?: unknown;
-        hint?: string;
-        code?: string;
-      };
-
-      console.error("CREATE CLIENT ERROR:", {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      });
-
-      setSubmitError(
-        error.message || "Ocorreu um erro ao guardar o cliente."
+    } catch (error: unknown) {
+      console.error(
+        "CREATE CLIENT ERROR:",
+        error
       );
 
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Ocorreu um erro ao guardar o cliente."
+      );
+    } finally {
       setSubmitting(false);
     }
   };
 
-  function handleCancelClick() {
-    setShowCancelConfirm(true);
-  }
+  const handleCancelClick = () => {
+    if (submitting) {
+      return;
+    }
 
-  function handleReset() {
+    setShowCancelConfirm(true);
+  };
+
+  const handleReset = () => {
+    if (submitting) {
+      return;
+    }
+
     setClient(INITIAL_STATE);
     setErrors({});
     setSubmitError("");
-  }
+  };
 
   return (
     <div className="min-h-full px-5 py-12">
@@ -122,7 +196,8 @@ export default function CreateClientForm() {
           <button
             type="button"
             onClick={handleCancelClick}
-            className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            disabled={submitting}
+            className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar
@@ -138,16 +213,26 @@ export default function CreateClientForm() {
             </h1>
 
             <p className="mt-2 text-sm text-slate-600">
-              Preencha os campos obrigatórios marcados com{" "}
-              <span className="font-semibold text-slate-900">*</span>
+              Preencha os campos obrigatórios
+              marcados com{" "}
+              <span className="font-semibold text-slate-900">
+                *
+              </span>
             </p>
           </div>
         </div>
 
-        {/* Error */}
+        {/* Server / submission error */}
         {submitError && (
-          <div className="mb-6 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3.5 text-sm font-medium text-red-700">
-            <AlertCircle size={18} />
+          <div
+            role="alert"
+            className="mb-6 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3.5 text-sm font-medium text-red-700"
+          >
+            <AlertCircle
+              size={18}
+              className="shrink-0"
+            />
+
             <span>{submitError}</span>
           </div>
         )}
@@ -158,7 +243,10 @@ export default function CreateClientForm() {
           className="space-y-5"
         >
           <ClientTypeSection
-            clientType={client.client_type || "Individual"}
+            clientType={
+              client.client_type ||
+              "Individual"
+            }
             onChange={handleChange}
           />
 
@@ -186,7 +274,7 @@ export default function CreateClientForm() {
             onChange={handleChange}
           />
 
-          {/* Action Buttons */}
+          {/* Action buttons */}
           <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
             <button
               type="button"
@@ -218,7 +306,9 @@ export default function CreateClientForm() {
 
         {showCancelConfirm && (
           <CancelConfirmDialog
-            onKeepEditing={() => setShowCancelConfirm(false)}
+            onKeepEditing={() =>
+              setShowCancelConfirm(false)
+            }
             onDiscard={confirmCancel}
             title=""
           />

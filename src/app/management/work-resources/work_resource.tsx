@@ -17,172 +17,108 @@ import {
 import CustomSelect from "@/app/components/custom_select";
 import { StatCard } from "@/app/components/StatCard";
 import CreateResourceModal from "./creating_resource_modal";
-import ResourceTable from "@/app/management/work-resources/resource_table";
-import ResourceMovementModal from "@/app/management/work-resources/resource_movement_modal";
+import ResourceTable from "./resource_table";
+import ResourceMovementModal from "./resource_movement_modal";
 
-export type ResourceType =
-  | "Material consumível"
-  | "Equipamento"
-  | "Ferramenta"
-  | "EPI"
-  | "Viatura";
 
-export type ResourceCondition =
-  | "Operacional"
-  | "Com restrição"
-  | "Em manutenção"
-  | "Avariado"
-  | "Abatido";
+import type {
+  Resource,
+  ResourceCondition,
+  ResourceMovement,
+  ResourceMovementType,
+  ResourceOperationalStatus,
+  ResourceStats,
+  ResourceType,
+} from "@/services/resources";
 
-export type ResourceLocationType =
-  | "Armazém"
-  | "Escritório"
-  | "Obra"
-  | "Colaborador"
-  | "Fornecedor";
+/* -------------------------------------------------------------------------- */
+/* Labels                                                                     */
+/* -------------------------------------------------------------------------- */
 
-export type UnitOfMeasure =
-  | "unidade"
-  | "saco"
-  | "kg"
-  | "tonelada"
-  | "m³"
-  | "m"
-  | "caixa"
-  | "litro";
-
-export type Resource = {
-  resource_id: string;
-  code: string;
-  name: string;
-
-  resource_type: ResourceType;
-  category: string | null;
-
-  brand: string | null;
-  model: string | null;
-  serial_number: string | null;
-
-  condition: ResourceCondition;
-
-  project_id: string | null;
-  project_name: string | null;
-
-  location_type: ResourceLocationType | null;
-  location_name: string | null;
-
-  holder_profile_id: string | null;
-  holder_name: string | null;
-
-  acquisition_date: string | null;
-  collection_date: string | null;
-  expected_return_date: string | null;
-
-  last_maintenance_date: string | null;
-  next_maintenance_date: string | null;
-
-  replacement_value: number | null;
-
-  delivery_term_accepted: boolean;
-
-  unit_of_measure: UnitOfMeasure | null;
-  current_stock: number | null;
-  minimum_stock: number | null;
-  reserved_quantity: number | null;
-  quantity_in_works: number | null;
-  average_unit_cost: number | null;
-  stock_value: number | null;
-
-  supplier_id: string | null;
-  supplier_name: string | null;
-
-  batch_number: string | null;
-  expiry_date: string | null;
+export const RESOURCE_TYPE_LABELS: Record<
+  ResourceType,
+  string
+> = {
+  material: "Material consumível",
+  equipment: "Equipamento",
+  tool: "Ferramenta",
+  ppe: "EPI",
+  vehicle: "Viatura",
 };
 
-export type ResourceMovement = {
-  movement_id: string;
-  movement_date: string;
-
-  movement_type:
-    | "Entrada"
-    | "Saída"
-    | "Transferência"
-    | "Devolução"
-    | "Consumo"
-    | "Manutenção"
-    | "Baixa";
-
-  resource_id: string;
-  resource_name: string;
-
-  quantity: number | null;
-  unit_of_measure: UnitOfMeasure | null;
-
-  origin: string | null;
-  destination: string | null;
-  project_name: string | null;
-
-  responsible_name: string | null;
-  created_by_name: string | null;
-
-  expected_return_date: string | null;
-  notes: string | null;
+export const RESOURCE_CONDITION_LABELS: Record<
+  ResourceCondition,
+  string
+> = {
+  operational: "Operacional",
+  restricted: "Com restrição",
+  maintenance: "Em manutenção",
+  damaged: "Avariado",
+  retired: "Abatido",
 };
 
-export type ResourceStats = {
-  totalResources: number;
-  totalStockValue: number;
-  availableResources: number;
-  resourcesInUse: number;
-  resourcesInMaintenance: number;
-  resourcesMissingLocation: number;
-  overdueReturns: number;
-  lowStockItems: number;
+export const RESOURCE_STATUS_LABELS: Record<
+  ResourceOperationalStatus,
+  string
+> = {
+  available: "Disponível",
+  in_use: "Em utilização",
+  overdue: "Em atraso",
+  missing: "Em falta",
 };
 
-export interface EquipmentPageProps {
+/* -------------------------------------------------------------------------- */
+/* Filter options                                                             */
+/* -------------------------------------------------------------------------- */
+
+const RESOURCE_TYPES: ResourceType[] = [
+  "material",
+  "equipment",
+  "tool",
+  "ppe",
+  "vehicle",
+];
+
+const RESOURCE_CONDITIONS: ResourceCondition[] = [
+  "operational",
+  "restricted",
+  "maintenance",
+  "damaged",
+  "retired",
+];
+
+const isConsumable = (
+  type: ResourceType,
+): boolean => type === "material";
+
+/* -------------------------------------------------------------------------- */
+/* Props                                                                      */
+/* -------------------------------------------------------------------------- */
+
+export interface ResourcePageProps {
   resources: Resource[];
   recentMovements: ResourceMovement[];
   stats?: ResourceStats | null;
 }
 
-const RESOURCE_TYPES: ResourceType[] = [
-  "Material consumível",
-  "Equipamento",
-  "Ferramenta",
-  "EPI",
-  "Viatura",
-];
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
 
-const RESOURCE_CONDITIONS: ResourceCondition[] = [
-  "Operacional",
-  "Com restrição",
-  "Em manutenção",
-  "Avariado",
-  "Abatido",
-];
-
-const isConsumable = (type: ResourceType) =>
-  type === "Material consumível";
-
-export default function ResourcesPage({
+export default function ResourcesClientPage({
   resources,
   recentMovements,
   stats,
-}: EquipmentPageProps) {
+}: ResourcePageProps) {
   const router = useRouter();
 
   const [query, setQuery] = useState("");
+
   const [typeFilter, setTypeFilter] =
-    useState<ResourceType | "Todos os Tipos">(
-      "Todos os Tipos",
-    );
+    useState<ResourceType | "all">("all");
 
   const [conditionFilter, setConditionFilter] =
-    useState<ResourceCondition | "Todos os Estados">(
-      "Todos os Estados",
-    );
+    useState<ResourceCondition | "all">("all");
 
   const [selectedResource, setSelectedResource] =
     useState<Resource | null>(null);
@@ -193,79 +129,163 @@ export default function ResourcesPage({
   const [isAddModalOpen, setIsAddModalOpen] =
     useState(false);
 
-  /*
-   * Server stats are authoritative.
-   * The fallback only exists for pages where stats
-   * haven't been provided yet.
-   */
-  const calculatedStats = useMemo<ResourceStats>(() => {
-    return {
+  /* ------------------------------------------------------------------------ */
+  /* Fallback stats                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  const calculatedStats = useMemo<ResourceStats>(
+    () => ({
       totalResources: resources.length,
 
-      totalStockValue: resources.reduce(
-        (total, resource) =>
-          total + (resource.stock_value ?? 0),
-        0,
-      ),
+      totalReplacementValue:
+        resources.reduce(
+          (total, resource) =>
+            total +
+            (resource.replacement_value ?? 0),
+          0,
+        ),
 
-      availableResources: resources.filter(
-        (resource) =>
-          resource.condition === "Operacional" &&
-          !resource.holder_profile_id,
-      ).length,
+      availableResources:
+        resources.filter(
+          (resource) =>
+            resource.operational_status ===
+            "available",
+        ).length,
 
-      resourcesInUse: resources.filter(
-        (resource) =>
-          Boolean(resource.holder_profile_id) ||
-          resource.location_type === "Obra" ||
-          resource.location_type === "Colaborador",
-      ).length,
+      resourcesInUse:
+        resources.filter(
+          (resource) =>
+            resource.operational_status ===
+            "in_use",
+        ).length,
 
-      resourcesInMaintenance: resources.filter(
-        (resource) =>
-          resource.condition === "Em manutenção",
-      ).length,
+      resourcesInMaintenance:
+        resources.filter(
+          (resource) =>
+            resource.condition_status ===
+            "maintenance",
+        ).length,
 
-      resourcesMissingLocation: resources.filter(
-        (resource) =>
-          !resource.location_type ||
-          !resource.location_name,
-      ).length,
+      missingResources:
+        resources.filter(
+          (resource) =>
+            resource.operational_status ===
+            "missing",
+        ).length,
 
-      overdueReturns: resources.filter((resource) => {
-        if (
-          !resource.expected_return_date ||
-          !resource.holder_profile_id
-        ) {
-          return false;
-        }
+      damagedResources:
+        resources.filter(
+          (resource) =>
+            resource.condition_status ===
+            "damaged",
+        ).length,
+    }),
+    [resources],
+  );
 
-        return (
-          new Date(
-            `${resource.expected_return_date}T23:59:59`,
-          ).getTime() < new Date().setHours(0, 0, 0, 0)
-        );
-      }).length,
+  /*
+   * The server-provided stats are authoritative.
+   *
+   * This page still supports the old UI-specific
+   * stats shape only through derived values below.
+   */
+  const displayStats = useMemo(() => {
+    if (stats) {
+      return {
+        totalResources:
+          stats.totalResources,
 
-      lowStockItems: resources.filter((resource) => {
-        if (
-          !isConsumable(resource.resource_type) ||
-          resource.minimum_stock == null ||
-          resource.current_stock == null
-        ) {
-          return false;
-        }
+        totalStockValue:
+          stats.totalReplacementValue,
 
-        return (
-          resource.current_stock <=
-          resource.minimum_stock
-        );
-      }).length,
+        availableResources:
+          stats.availableResources,
+
+        resourcesInUse:
+          stats.resourcesInUse,
+
+        resourcesInMaintenance:
+          stats.resourcesInMaintenance,
+
+        resourcesMissingLocation:
+          resources.filter(
+            (resource) =>
+              !resource.location_type ||
+              !resource.location_name,
+          ).length,
+
+        overdueReturns:
+          resources.filter(
+            (resource) =>
+              resource.operational_status ===
+              "overdue",
+          ).length,
+
+        lowStockItems:
+          resources.filter(
+            (resource) =>
+              isConsumable(
+                resource.resource_type,
+              ) &&
+              resource.minimum_stock != null &&
+              resource.current_stock != null &&
+              resource.current_stock <=
+                resource.minimum_stock,
+          ).length,
+      };
+    }
+
+    return {
+      totalResources:
+        calculatedStats.totalResources,
+
+      totalStockValue:
+        calculatedStats.totalReplacementValue,
+
+      availableResources:
+        calculatedStats.availableResources,
+
+      resourcesInUse:
+        calculatedStats.resourcesInUse,
+
+      resourcesInMaintenance:
+        calculatedStats.resourcesInMaintenance,
+
+      resourcesMissingLocation:
+        resources.filter(
+          (resource) =>
+            !resource.location_type ||
+            !resource.location_name,
+        ).length,
+
+      overdueReturns:
+        resources.filter(
+          (resource) =>
+            resource.operational_status ===
+            "overdue",
+        ).length,
+
+      lowStockItems:
+        resources.filter(
+          (resource) =>
+            isConsumable(
+              resource.resource_type,
+            ) &&
+            resource.minimum_stock != null &&
+            resource.current_stock != null &&
+            resource.current_stock <=
+              resource.minimum_stock,
+        ).length,
     };
-  }, [resources]);
+  }, [
+    stats,
+    calculatedStats,
+    resources,
+  ]);
 
-  const displayStats =
-    stats ?? calculatedStats;
+  /* ------------------------------------------------------------------------ */
+  /* Filtering                                                                */
+  /* ------------------------------------------------------------------------ */
 
   const filteredResources = useMemo(() => {
     const normalizedQuery =
@@ -273,7 +293,7 @@ export default function ResourcesPage({
 
     return resources.filter((resource) => {
       const searchable = [
-        resource.code,
+        resource.resource_code,
         resource.name,
         resource.category,
         resource.brand,
@@ -293,12 +313,14 @@ export default function ResourcesPage({
         searchable.includes(normalizedQuery);
 
       const matchesType =
-        typeFilter === "Todos os Tipos" ||
-        resource.resource_type === typeFilter;
+        typeFilter === "all" ||
+        resource.resource_type ===
+          typeFilter;
 
       const matchesCondition =
-        conditionFilter === "Todos os Estados" ||
-        resource.condition === conditionFilter;
+        conditionFilter === "all" ||
+        resource.condition_status ===
+          conditionFilter;
 
       return (
         matchesQuery &&
@@ -313,13 +335,19 @@ export default function ResourcesPage({
     conditionFilter,
   ]);
 
+  /* ------------------------------------------------------------------------ */
+  /* Actions                                                                  */
+  /* ------------------------------------------------------------------------ */
+
   function clearFilters() {
     setQuery("");
-    setTypeFilter("Todos os Tipos");
-    setConditionFilter("Todos os Estados");
+    setTypeFilter("all");
+    setConditionFilter("all");
   }
 
-  function openMovement(resource: Resource) {
+  function openMovement(
+    resource: Resource,
+  ) {
     setSelectedResource(resource);
     setMovementModalOpen(true);
   }
@@ -329,26 +357,29 @@ export default function ResourcesPage({
     setSelectedResource(null);
   }
 
-  async function handleMovementSubmit(data: {
-    resource_id: string;
-    movement_type: ResourceMovement["movement_type"];
-    quantity: number | null;
-    origin: string | null;
-    destination: string | null;
-    expected_return_date: string | null;
-    notes: string | null;
-  }) {
+  async function handleMovementSubmit(
+    data: {
+      resource_id: string;
+      movement_type: ResourceMovementType;
+      quantity: number | null;
+      origin: string | null;
+      destination: string | null;
+      expected_return_date: string | null;
+      notes: string | null;
+    },
+  ) {
     /*
-     * Connect this to the server action:
-     *
-     * await createResourceMovement(data)
-     *
-     * The page can then call router.refresh().
+     * Connect this to createResourceMovement()
+     * Server Action.
      */
     console.log(data);
 
     router.refresh();
   }
+
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                   */
+  /* ------------------------------------------------------------------------ */
 
   return (
     <div className="min-h-screen p-6 text-slate-900 md:p-10">
@@ -362,9 +393,10 @@ export default function ResourcesPage({
 
             <p className="mt-1 max-w-3xl text-sm text-slate-500">
               Controle materiais, equipamentos,
-              ferramentas, EPI e viaturas, incluindo
-              localização, stock, utilização,
-              manutenção e movimentações.
+              ferramentas, EPI e viaturas,
+              incluindo localização, stock,
+              utilização, manutenção e
+              movimentações.
             </p>
           </div>
 
@@ -391,13 +423,17 @@ export default function ResourcesPage({
           <StatCard
             title="Disponíveis"
             value={`${displayStats.availableResources}`}
-            icon={<CheckCircle2 size={18} />}
+            icon={
+              <CheckCircle2 size={18} />
+            }
           />
 
           <StatCard
             title="Em Utilização"
             value={`${displayStats.resourcesInUse}`}
-            icon={<ArrowRightLeft size={18} />}
+            icon={
+              <ArrowRightLeft size={18} />
+            }
           />
 
           <StatCard
@@ -409,7 +445,9 @@ export default function ResourcesPage({
           <StatCard
             title="Stock Mínimo"
             value={`${displayStats.lowStockItems}`}
-            icon={<CircleAlert size={18} />}
+            icon={
+              <CircleAlert size={18} />
+            }
           />
         </div>
 
@@ -419,7 +457,8 @@ export default function ResourcesPage({
           displayStats.resourcesMissingLocation >
             0) && (
           <div className="mb-6 grid gap-3 lg:grid-cols-3">
-            {displayStats.lowStockItems > 0 && (
+            {displayStats.lowStockItems >
+              0 && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <div className="flex gap-3">
                   <CircleAlert
@@ -433,15 +472,21 @@ export default function ResourcesPage({
                     </p>
 
                     <p className="mt-1 text-xs text-amber-700">
-                      {displayStats.lowStockItems} recurso(s)
-                      consumível(eis) precisam de reposição.
+                      {
+                        displayStats.lowStockItems
+                      }{" "}
+                      recurso(s)
+                      consumível(eis)
+                      precisam de
+                      reposição.
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {displayStats.overdueReturns > 0 && (
+            {displayStats.overdueReturns >
+              0 && (
               <div className="rounded-xl border border-red-200 bg-red-50 p-4">
                 <div className="flex gap-3">
                   <CircleAlert
@@ -455,8 +500,12 @@ export default function ResourcesPage({
                     </p>
 
                     <p className="mt-1 text-xs text-red-700">
-                      {displayStats.overdueReturns} recurso(s)
-                      têm devolução prevista ultrapassada.
+                      {
+                        displayStats.overdueReturns
+                      }{" "}
+                      recurso(s) têm
+                      devolução prevista
+                      ultrapassada.
                     </p>
                   </div>
                 </div>
@@ -474,14 +523,17 @@ export default function ResourcesPage({
 
                   <div>
                     <p className="text-sm font-semibold text-slate-900">
-                      Localização por confirmar
+                      Localização por
+                      confirmar
                     </p>
 
                     <p className="mt-1 text-xs text-slate-500">
                       {
                         displayStats.resourcesMissingLocation
                       }{" "}
-                      recurso(s) sem localização confirmada.
+                      recurso(s) sem
+                      localização
+                      confirmada.
                     </p>
                   </div>
                 </div>
@@ -502,7 +554,9 @@ export default function ResourcesPage({
               type="search"
               value={query}
               onChange={(event) =>
-                setQuery(event.target.value)
+                setQuery(
+                  event.target.value,
+                )
               }
               placeholder="Pesquisar recurso, código, série, obra, responsável..."
               className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400"
@@ -516,20 +570,29 @@ export default function ResourcesPage({
                 setTypeFilter(
                   event.target.value as
                     | ResourceType
-                    | "Todos os Tipos",
+                    | "all",
                 )
               }
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm sm:w-auto"
             >
-              <option value="Todos os Tipos">
+              <option value="all">
                 Todos os Tipos
               </option>
 
-              {RESOURCE_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
+              {RESOURCE_TYPES.map(
+                (type) => (
+                  <option
+                    key={type}
+                    value={type}
+                  >
+                    {
+                      RESOURCE_TYPE_LABELS[
+                        type
+                      ]
+                    }
+                  </option>
+                ),
+              )}
             </CustomSelect>
 
             <CustomSelect
@@ -538,12 +601,12 @@ export default function ResourcesPage({
                 setConditionFilter(
                   event.target.value as
                     | ResourceCondition
-                    | "Todos os Estados",
+                    | "all",
                 )
               }
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm sm:w-auto"
             >
-              <option value="Todos os Estados">
+              <option value="all">
                 Todos os Estados
               </option>
 
@@ -553,7 +616,11 @@ export default function ResourcesPage({
                     key={condition}
                     value={condition}
                   >
-                    {condition}
+                    {
+                      RESOURCE_CONDITION_LABELS[
+                        condition
+                      ]
+                    }
                   </option>
                 ),
               )}
@@ -561,6 +628,7 @@ export default function ResourcesPage({
           </div>
         </div>
 
+        {/* Result count */}
         <div className="mb-3 flex items-center justify-between text-xs text-slate-500">
           <span>
             {filteredResources.length}{" "}
@@ -570,8 +638,8 @@ export default function ResourcesPage({
           </span>
 
           {(query ||
-            typeFilter !== "Todos os Tipos" ||
-            conditionFilter !== "Todos os Estados") && (
+            typeFilter !== "all" ||
+            conditionFilter !== "all") && (
             <button
               type="button"
               onClick={clearFilters}
@@ -611,12 +679,15 @@ export default function ResourcesPage({
             </h2>
 
             <p className="mt-1 text-xs text-slate-500">
-              Últimas entradas, saídas, transferências,
-              devoluções, consumos, manutenção e baixas.
+              Últimas entradas, saídas,
+              transferências, devoluções,
+              consumos, manutenção e
+              baixas.
             </p>
           </div>
 
-          {recentMovements.length === 0 ? (
+          {recentMovements.length ===
+          0 ? (
             <div className="px-6 py-12 text-center">
               <History
                 size={22}
@@ -624,54 +695,69 @@ export default function ResourcesPage({
               />
 
               <p className="mt-3 text-sm font-medium text-slate-700">
-                Nenhuma movimentação recente
+                Nenhuma movimentação
+                recente
               </p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {recentMovements.map((movement) => (
-                <div
-                  key={movement.movement_id}
-                  className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700">
-                        {movement.movement_type}
-                      </span>
+              {recentMovements.map(
+                (movement) => (
+                  <div
+                    key={
+                      movement.movement_id
+                    }
+                    className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700">
+                          {
+                            movement.movement_type
+                          }
+                        </span>
 
-                      <span className="text-xs text-slate-400">
-                        {new Date(
-                          movement.movement_date,
-                        ).toLocaleString("pt-AO")}
-                      </span>
+                        <span className="text-xs text-slate-400">
+                          {new Date(
+                            movement.movement_date,
+                          ).toLocaleString(
+                            "pt-AO",
+                          )}
+                        </span>
+                      </div>
+
+                      <p className="mt-2 text-sm font-medium text-slate-900">
+                        {
+                          movement.resource_name
+                        }
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {movement.origin_location_name &&
+                          `Origem: ${movement.origin_location_name}`}
+
+                        {movement.origin_location_name &&
+                          movement.destination_location_name &&
+                          " · "}
+
+                        {movement.destination_location_name &&
+                          `Destino: ${movement.destination_location_name}`}
+                      </p>
                     </div>
 
-                    <p className="mt-2 text-sm font-medium text-slate-900">
-                      {movement.resource_name}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {movement.origin &&
-                        `Origem: ${movement.origin}`}
-                      {movement.origin &&
-                        movement.destination &&
-                        " · "}
-                      {movement.destination &&
-                        `Destino: ${movement.destination}`}
-                    </p>
+                    {movement.profile_name && (
+                      <p className="text-xs text-slate-500">
+                        Responsável:{" "}
+                        <span className="font-medium text-slate-700">
+                          {
+                            movement.profile_name
+                          }
+                        </span>
+                      </p>
+                    )}
                   </div>
-
-                  {movement.responsible_name && (
-                    <p className="text-xs text-slate-500">
-                      Responsável:{" "}
-                      <span className="font-medium text-slate-700">
-                        {movement.responsible_name}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              ))}
+                ),
+              )}
             </div>
           )}
         </div>

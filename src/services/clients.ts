@@ -1,57 +1,44 @@
-import { createClient } from "@/app/lib/supabase/client";
-import { Database } from "@/app/lib/supabase/models";
+import { createClient } from "@/app/lib/supabase/server";
+import { cookies } from "next/headers";
+import type { Database } from "@/app/lib/supabase/models";
 
-type Client = Database["public"]["Tables"]["clients"]["Row"];
-type ClientInsert = Database["public"]["Tables"]["clients"]["Insert"];
+type ClientRow = Database["public"]["Tables"]["clients"]["Row"];
 
-export type ClientWithProjectCount = Client & {
+export type ClientType = "Individual" | "Company" | "Government";
+
+export type ClientStatus =
+  | "Active"
+  | "Inactive"
+  | "Prospective";
+
+export type PreferredContactMethod =
+  | "Email"
+  | "Phone"
+  | "WhatsApp";
+
+export type ClientWithProjectCount = ClientRow & {
   projectCount: number;
 };
 
-export type ClientOption = {
-  client_id: string;
-  label: string;
+export type ClientProject = {
+  project_id: string;
+  project_code: string | null;
+  title: string | null;
+  status: string | null;
+  municipality: string | null;
 };
 
-export async function getClientOptions(): Promise<ClientOption[]> {
-  const supabase = createClient();
+export type ClientDetails = ClientRow & {
+  projects: ClientProject[];
+};
 
-  const { data, error } = await supabase
-    .from("clients")
-    .select(
-      "client_id, name, first_name, last_name, organization_name"
-    )
-    .is("deleted_at", null);
-
-  if (error) {
-    console.error("Erro ao carregar a lista de clientes:", error);
-    throw new Error("Não foi possível carregar os clientes.");
-  }
-
-  return (data ?? [])
-    .map((client) => {
-      const fullName = [
-        client.first_name,
-        client.last_name,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-
-      return {
-        client_id: client.client_id,
-        label:
-          client.organization_name?.trim() ||
-          client.name?.trim() ||
-          fullName ||
-          "Cliente sem nome",
-      };
-    })
-    .sort((a, b) => a.label.localeCompare(b.label, "pt"));
+async function getSupabase() {
+  const cookieStore = await cookies();
+  return createClient(cookieStore);
 }
 
 export async function getClients(): Promise<ClientWithProjectCount[]> {
-  const supabase = createClient();
+  const supabase = await getSupabase();
 
   const { data: clients, error } = await supabase
     .from("clients")
@@ -60,116 +47,157 @@ export async function getClients(): Promise<ClientWithProjectCount[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("SUPABASE GET CLIENTS ERROR:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
-
-    throw new Error(error.message);
+    console.error("getClients:", error);
+    throw new Error("Não foi possível carregar os clientes.");
   }
 
-  if (!clients) {
+  if (!clients?.length) {
     return [];
   }
 
-  const clientsWithProjects = await Promise.all(
-    clients.map(async (client) => {
-      const { count, error: projectError } = await supabase
-        .from("projects")
-        .select("project_id", {
-          count: "exact",
-          head: true,
-        })
-        .eq("client_id", client.client_id);
+  const clientIds = clients.map((client) => client.client_id);
 
-      if (projectError) {
-        console.error(
-          `SUPABASE CLIENT PROJECT COUNT ERROR [${client.client_id}]:`,
-          {
-            message: projectError.message,
-            details: projectError.details,
-            hint: projectError.hint,
-            code: projectError.code,
-          }
-        );
-      }
+  const { data: projects, error: projectsError } = await supabase
+    .from("projects")
+    .select("project_id, client_id")
+    .in("client_id", clientIds);
 
-      return {
-        ...client,
-        projectCount: count ?? 0,
-      };
-    })
-  );
+  if (projectsError) {
+    console.error("getClients projects:", projectsError);
 
-  return clientsWithProjects;
-}
+    return clients.map((client) => ({
+      ...client,
+      projectCount: 0,
+    }));
+  }
 
-export async function createClientRecord(
-  client: ClientInsert
-): Promise<Client> {
-  const supabase = createClient();
+  const projectCounts = new Map<string, number>();
 
-  const payload: ClientInsert = {
-    client_type: client.client_type,
+  for (const project of projects ?? []) {
+    if (!project.client_id) continue;
 
-    name: client.name ?? null,
-
-    first_name: client.first_name ?? null,
-    last_name: client.last_name ?? null,
-
-    organization_name: client.organization_name ?? null,
-    contact_person: client.contact_person ?? null,
-
-    nif: client.nif ?? null,
-
-    email: client.email ?? null,
-    phone: client.phone ?? null,
-    preferred_contact_method:
-      client.preferred_contact_method ?? null,
-
-    website: client.website ?? null,
-
-    address_line_1: client.address_line_1 ?? null,
-    neighborhood: client.neighborhood ?? null,
-    province: client.province ?? null,
-    city: client.city ?? null,
-    country: client.country ?? "Angola",
-
-    notes: client.notes ?? null,
-
-    status: client.status ?? "Prospective",
-
-    logo_url: client.logo_url ?? null,
-  };
-
-  console.log("CREATE CLIENT PAYLOAD:", payload);
-
-  const { data, error } = await supabase
-    .from("clients")
-    .insert(payload)
-    .select("*")
-    .single();
-
-  if (error) {
-    console.error("SUPABASE CREATE CLIENT ERROR:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
-
-    console.error("SUPABASE CREATE CLIENT PAYLOAD:", payload);
-
-    throw new Error(
-      `Não foi possível criar o cliente: ${error.message}`
+    projectCounts.set(
+      project.client_id,
+      (projectCounts.get(project.client_id) ?? 0) + 1
     );
   }
 
-  if (!data) {
-    throw new Error("O cliente foi criado, mas nenhum registo foi retornado.");
+  return clients.map((client) => ({
+    ...client,
+    projectCount: projectCounts.get(client.client_id) ?? 0,
+  }));
+}
+
+export async function getClient(
+  clientId: string
+): Promise<ClientDetails | null> {
+  const supabase = await getSupabase();
+
+  const { data: client, error } = await supabase
+    .from("clients")
+    .select("*")
+    .eq("client_id", clientId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) {
+    console.error("getClient:", error);
+    throw new Error("Não foi possível carregar o cliente.");
   }
 
-  return data;
+  if (!client) {
+    return null;
+  }
+
+  const { data: projects, error: projectsError } = await supabase
+    .from("projects")
+    .select(
+      `
+        project_id,
+        project_code,
+        title,
+        status,
+        municipality
+      `
+    )
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false });
+
+  if (projectsError) {
+    console.error("getClient projects:", projectsError);
+  }
+
+  return {
+    ...client,
+    projects: projects ?? [],
+  };
 }
+
+export async function clientExists(
+  clientId: string
+): Promise<boolean> {
+  const supabase = await getSupabase();
+
+  const { data, error } = await supabase
+    .from("clients")
+    .select("client_id")
+    .eq("client_id", clientId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) {
+    console.error("clientExists:", error);
+    return false;
+  }
+
+  return Boolean(data);
+}
+
+
+import type { ClientOption } from "@/app/management/clients/types";
+
+export async function getClientOptions(): Promise<ClientOption[]> {
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
+
+  const { data, error } = await supabase
+    .from("clients")
+    .select(
+      `
+        client_id,
+        client_type,
+        first_name,
+        last_name,
+        organization_name
+      `
+    )
+    .is("deleted_at", null)
+    .order("created_at", {
+      ascending: false,
+    });
+
+  if (error) {
+    console.error("getClientOptions:", error);
+    throw new Error(
+      "Não foi possível carregar os clientes."
+    );
+  }
+
+  return (data ?? []).map((client) => {
+    const label =
+      client.client_type === "Individual"
+        ? [
+            client.first_name,
+            client.last_name,
+          ]
+            .filter(Boolean)
+            .join(" ")
+        : client.organization_name ?? "";
+
+    return {
+      client_id: client.client_id,
+      label: label || "Cliente sem nome",
+    };
+  });
+}
+

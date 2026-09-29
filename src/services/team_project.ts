@@ -9,7 +9,7 @@ type Profile =
 export type TeamProject = {
     project_id: string;
     project_code: string;
-    name: string;
+    title: string;
     status: string | null;
     municipality: string | null;
     country: string | null;
@@ -87,14 +87,14 @@ export async function getTeamMemberProjects(
             `
             project_id,
             project_code,
-            name,
+            title,
             status,
             municipality,
             country
             `
         )
         .in("project_id", projectIds)
-        .order("name", {
+        .order("title", {
             ascending: true,
         });
 

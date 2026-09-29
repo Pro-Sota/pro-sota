@@ -1,8 +1,13 @@
 import { notFound } from "next/navigation";
 
-import { getResourceById } from "@/services/resources";
-import EditResourceForm from "../../resource_form"
-type Props = {
+import {
+  getResourceDetailsById,
+  getResourceLocations,
+} from "@/services/resources";
+
+import ResourceForm from "../../resource_form";
+
+type EditResourcePageProps = {
   params: Promise<{
     resourceId: string;
   }>;
@@ -10,19 +15,25 @@ type Props = {
 
 export default async function EditResourcePage({
   params,
-}: Props) {
+}: EditResourcePageProps) {
   const { resourceId } = await params;
 
-  const resource =
-    await getResourceById(resourceId);
+  const [details, locations] =
+    await Promise.all([
+      getResourceDetailsById(resourceId),
+      getResourceLocations(),
+    ]);
 
-  if (!resource) {
+  if (!details) {
     notFound();
   }
 
   return (
-    <EditResourceForm
-      resource={resource}
+    <ResourceForm
+      mode="edit"
+      resource={details}
+      stock={details.stock}
+      locations={locations}
     />
   );
 }

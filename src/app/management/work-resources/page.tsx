@@ -1,8 +1,9 @@
-import EquipmentPage, {
+import ResourcesClientPage from "./work_resource";
+import  {
   type Resource,
   type ResourceMovement,
   type ResourceStats,
-} from "./work_resource"
+} from "@/services/resources"
 
 import {
   getResources,
@@ -22,7 +23,7 @@ export default async function ResourcesPage() {
   ]);
 
   return (
-    <EquipmentPage
+    <ResourcesClientPage
       resources={resources as unknown as Resource[]}
       recentMovements={
         recentMovements as unknown as ResourceMovement[]

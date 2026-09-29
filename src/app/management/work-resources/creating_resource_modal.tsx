@@ -16,7 +16,7 @@ import type {
   ResourceCondition,
   ResourceType,
   UnitOfMeasure,
-} from "./work_resource";
+} from "@/services/resources";
 import { createResourceAction } from "@/actions/resources";
 import { useRouter } from "next/navigation";
 
@@ -61,19 +61,19 @@ export type NewResourceState = {
 };
 
 const RESOURCE_TYPES: ResourceType[] = [
-  "Material consumível",
-  "Equipamento",
-  "Ferramenta",
-  "EPI",
-  "Viatura",
+  "material",
+  "equipment",
+  "tool",
+  "ppe",
+  "vehicle",
 ];
 
 const RESOURCE_CONDITIONS: ResourceCondition[] = [
-  "Operacional",
-  "Com restrição",
-  "Em manutenção",
-  "Avariado",
-  "Abatido",
+  "operational",
+  "restricted",
+  "maintenance",
+  "damaged",
+  "retired",
 ];
 
 const UNITS: UnitOfMeasure[] = [
@@ -94,14 +94,14 @@ function createInitialResource(): NewResourceState {
   return {
     code: "",
     name: "",
-    resource_type: "Material consumível",
+    resource_type: "material",
 
     category: "",
     brand: "",
     model: "",
     serial_number: "",
 
-    condition: "Operacional",
+    condition: "operational",
 
     acquisition_date: "",
     last_maintenance_date: "",
@@ -121,29 +121,29 @@ function createInitialResource(): NewResourceState {
 }
 
 const isConsumable = (type: ResourceType) =>
-  type === "Material consumível";
+  type === "material";
 
 const isReusableResource = (type: ResourceType) =>
-  type === "Equipamento" ||
-  type === "Ferramenta" ||
-  type === "EPI" ||
-  type === "Viatura";
+  type === "equipment" ||
+  type === "tool" ||
+  type === "ppe" ||
+  type === "vehicle";
 
 function getResourceTypeIcon(type: ResourceType) {
   switch (type) {
-    case "Material consumível":
+    case "material":
       return <Boxes size={18} />;
 
-    case "Equipamento":
+    case "equipment":
       return <Wrench size={18} />;
 
-    case "Ferramenta":
+    case "tool":
       return <Wrench size={18} />;
 
-    case "EPI":
+    case "ppe":
       return <HardHat size={18} />;
 
-    case "Viatura":
+    case "vehicle":
       return <Truck size={18} />;
 
     default:

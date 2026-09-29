@@ -9,7 +9,7 @@ export type TeamMemberProfile =
         projects: {
             project_id: string;
             project_code: string;
-            name: string;
+            title: string;
             status: string | null;
         }[];
     };
@@ -54,7 +54,7 @@ export async function getTeamMemberProfile(
             projects (
                 project_id,
                 project_code,
-                name,
+                title,
                 status
             )
             `
@@ -88,7 +88,7 @@ export async function getTeamMemberProfile(
                 ): project is {
                     project_id: string;
                     project_code: string;
-                    name: string;
+                    title: string;
                     status: string | null;
                 } => Boolean(project)
             ) ?? [];

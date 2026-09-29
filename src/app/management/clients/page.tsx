@@ -1,9 +1,8 @@
-import { getClients } from "@/services/clients"
+import { getClients } from "@/services/clients";
 import ClientsPage from "./clients";
 
-export default async function ClientPageInit() {
+export default async function Page() {
+  const clients = await getClients();
 
-  const allClients = await getClients();
-  
-  return <ClientsPage allClients={allClients} />
+  return <ClientsPage allClients={clients} />;
 }
