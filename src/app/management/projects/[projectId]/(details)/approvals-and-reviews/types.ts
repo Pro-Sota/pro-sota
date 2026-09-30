@@ -22,21 +22,6 @@ export type SubmissionStatus = "draft" |
   "changes_requested"
 export type SubmissionType = "design" | "technical" | "client_approval";
 
-export interface Submission {
-  id: string;
-  project_id: string;
-  title: string;
-  description?: string;
-  type: SubmissionType;
-  status: SubmissionStatus;
-  submitted_by: string;
-  submitted_date: string;
-  due_date: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
 
 export const KANBAN_COLUMNS: KanbanColumn[] = [
   {

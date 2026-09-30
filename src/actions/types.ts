@@ -19,14 +19,25 @@ export type SubmissionType =
 export type Submission = {
     id: string;
     project_id: string;
+
     title: string;
-    description?: string;
+    description: string | null;
+
     type: SubmissionType;
     status: SubmissionStatus;
+
     submitted_by: string;
-    submitted_date: string;
-    due_date: string;
-    notes?: string;
+    submitted_by_name: string;
+
+    submitted_at: string | null;
+    due_date: string | null;
+
+    reviewed_by: string | null;
+    reviewed_at: string | null;
+
+    notes: string | null;
+    revision_number: number;
+
     created_at: string;
     updated_at: string;
 };

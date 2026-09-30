@@ -17,7 +17,7 @@ import type {
   ResourceCondition,
   ResourceMovement,
   ResourceType,
-} from "@/app/management/work-resources/work_resource";
+} from "@/services/resources";
 
 export type ResourceTableAction =
   | "history"
@@ -35,28 +35,28 @@ type Props = {
 };
 
 const CONDITION_STYLES: Record<ResourceCondition, string> = {
-  Operacional:
+  operational:
     "border border-emerald-200 bg-emerald-50 text-emerald-700",
-  "Com restrição":
+  restricted:
     "border border-amber-200 bg-amber-50 text-amber-700",
-  "Em manutenção":
+  maintenance:
     "border border-blue-200 bg-blue-50 text-blue-700",
-  Avariado:
+  damaged:
     "border border-red-200 bg-red-50 text-red-700",
-  Abatido:
+  retired:
     "border border-slate-200 bg-slate-100 text-slate-600",
 };
 
 const CONDITION_DOTS: Record<ResourceCondition, string> = {
-  Operacional: "bg-emerald-500",
-  "Com restrição": "bg-amber-500",
-  "Em manutenção": "bg-blue-500",
-  Avariado: "bg-red-500",
-  Abatido: "bg-slate-500",
+  operational: "bg-emerald-500",
+  restricted: "bg-amber-500",
+  maintenance: "bg-blue-500",
+  damaged: "bg-red-500",
+  retired: "bg-slate-500",
 };
 
 const isConsumable = (type: ResourceType) =>
-  type === "Material consumível";
+  type === "material";
 
 const formatNumber = (value?: number | null) => {
   if (value == null) return "—";
@@ -68,19 +68,19 @@ const formatNumber = (value?: number | null) => {
 
 function getResourceTypeIcon(type: ResourceType) {
   switch (type) {
-    case "Material consumível":
+    case "material":
       return <Boxes size={15} />;
 
-    case "Equipamento":
+    case "equipment":
       return <Wrench size={15} />;
 
-    case "Ferramenta":
+    case "tool":
       return <Wrench size={15} />;
 
-    case "EPI":
+    case "ppe":
       return <HardHat size={15} />;
 
-    case "Viatura":
+    case "vehicle":
       return <Truck size={15} />;
 
     default:
@@ -197,7 +197,7 @@ export default function ResourceTable({
                 resource.current_stock != null &&
                 resource.minimum_stock != null &&
                 resource.current_stock <=
-                  resource.minimum_stock;
+                resource.minimum_stock;
 
               return (
                 <tr
@@ -235,7 +235,7 @@ export default function ResourceTable({
 
                       <div className="mt-1 flex items-center gap-2">
                         <span className="font-mono text-[11px] text-slate-400">
-                          {resource.code}
+                          {resource.resource_code}
                         </span>
 
                         {resource.category && (
@@ -254,18 +254,18 @@ export default function ResourceTable({
                       {(resource.brand ||
                         resource.model ||
                         resource.serial_number) && (
-                        <p className="mt-1 truncate text-xs text-slate-400">
-                          {[
-                            resource.brand,
-                            resource.model,
-                            resource.serial_number
-                              ? `S/N ${resource.serial_number}`
-                              : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </p>
-                      )}
+                          <p className="mt-1 truncate text-xs text-slate-400">
+                            {[
+                              resource.brand,
+                              resource.model,
+                              resource.serial_number
+                                ? `S/N ${resource.serial_number}`
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        )}
                     </div>
                   </td>
 
@@ -283,13 +283,13 @@ export default function ResourceTable({
                   {/* Condition */}
                   <td className="px-4 py-4">
                     <span
-                      className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${CONDITION_STYLES[resource.condition]}`}
+                      className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${CONDITION_STYLES[resource.condition_status]}`}
                     >
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${CONDITION_DOTS[resource.condition]}`}
+                        className={`h-1.5 w-1.5 rounded-full ${CONDITION_DOTS[resource.condition_status]}`}
                       />
 
-                      {resource.condition}
+                      {resource.condition_status}
                     </span>
                   </td>
 
@@ -334,11 +334,10 @@ export default function ResourceTable({
                     {consumable ? (
                       <div>
                         <p
-                          className={`font-medium ${
-                            lowStock
+                          className={`font-medium ${lowStock
                               ? "text-amber-700"
                               : "text-slate-900"
-                          }`}
+                            }`}
                         >
                           {formatNumber(
                             resource.current_stock,

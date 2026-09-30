@@ -56,12 +56,12 @@ export class ColumnManagement {
         input.position ??
         existingColumns.length;
 
-      const newColumn = await createTaskColumn(
-        input.projectId,
-        title,
+      const newColumn = await createTaskColumn({
+        project_id: input.projectId,
+        name: title,
         position,
-      );
-
+        is_completed: false,
+      });
       onSuccess(newColumn);
     } catch (error) {
       const message =
@@ -128,7 +128,7 @@ export class ColumnManagement {
             column.title
               .trim()
               .toLowerCase() ===
-              title.toLowerCase(),
+            title.toLowerCase(),
         );
 
       if (duplicate) {

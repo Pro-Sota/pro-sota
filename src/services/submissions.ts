@@ -4,43 +4,44 @@ import { cookies } from "next/headers";
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
+export type SubmissionType =
+    | "design"
+    | "technical"
+    | "client_approval"
+    | "permit";
 
 export type SubmissionStatus =
-  | "draft"
-  | "pending"
-  | "under_review"
-  | "approved"
-  | "rejected"
-  | "changes_requested";
-
-export type SubmissionType =
-  | "design"
-  | "technical"
-  | "client_approval"
-  | "permit"
-  | "tender"
-  | "construction"
-  | "as_built"
-  | "other";
+    | "draft"
+    | "pending"
+    | "under_review"
+    | "approved"
+    | "rejected"
+    | "changes_requested";
 
 export type Submission = {
-  submitted_at(submitted_at: any): import("react").ReactNode;
-  id: string;
-  project_id: string;
-  title: string;
-  description: string | null;
-  type: SubmissionType;
-  status: SubmissionStatus;
-  submitted_by: string;
-  submitted_by_name: string;
-  submitted_date: string;
-  due_date: string | null;
-  reviewed_by: string | null;
-  reviewed_at: string | null;
-  notes: string | null;
-  revision_number: number;
-  created_at: string;
-  updated_at: string;
+    id: string;
+    project_id: string;
+
+    title: string;
+    description: string | null;
+
+    type: SubmissionType;
+    status: SubmissionStatus;
+
+    submitted_by: string;
+    submitted_by_name: string;
+
+    submitted_at: string | null;
+    due_date: string | null;
+
+    reviewed_by: string | null;
+    reviewed_at: string | null;
+
+    notes: string | null;
+    revision_number: number;
+
+    created_at: string;
+    updated_at: string;
 };
 
 export type SubmissionFile = {
@@ -225,9 +226,7 @@ function normalizeProfile(
 }
 
 function mapSubmission(row: any): Submission {
-  const profile = normalizeProfile(
-    row.profiles,
-  );
+  const profile = normalizeProfile(row.profiles);
 
   return {
     id: row.submission_id,
@@ -238,7 +237,7 @@ function mapSubmission(row: any): Submission {
     status: row.status as SubmissionStatus,
     submitted_by: row.submitted_by,
     submitted_by_name: getFullName(profile),
-    submitted_date: row.submitted_at,
+    submitted_at: row.submitted_at,
     due_date: row.due_date,
     reviewed_by: row.reviewed_by,
     reviewed_at: row.reviewed_at,
@@ -493,10 +492,6 @@ export async function createSubmission(
     "technical",
     "client_approval",
     "permit",
-    "tender",
-    "construction",
-    "as_built",
-    "other",
   ];
 
   if (!validTypes.includes(type)) {

@@ -14,12 +14,46 @@ import {
   ArrowRight,
   FileText,
 } from "lucide-react";
-
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Database } from "../lib/supabase/models";
 import CreateMeetingModal from "../components/create_meeting_modal";
+
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type Project = Database["public"]["Tables"]["projects"]["Row"];
+type Client = Database["public"]["Tables"]["clients"]["Row"];
+type Document = Database["public"]["Tables"]["documents"]["Row"];
+type Task = Database["public"]["Tables"]["tasks"]["Row"];
+type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
+
+export type TeamWorkload = {
+  user_id: string;
+  name: string;
+  total_tasks: number;
+  completed_tasks: number;
+  pending_tasks: number;
+  estimated_hours: number;
+  actual_hours: number;
+  hours_remaining: number;
+  workload_percentage: number;
+};
+
+export interface AdminDashboardData {
+  currentUser: Profile | null;
+  users: Profile[];
+  projects: Project[];
+  clients: Client[];
+  documents: Document[];
+  tasks: Task[];
+  deadlines: Task[];
+  activities: Activity[];
+  teamWorkload: TeamWorkload[];
+}
+
+interface DashboardProps {
+  data: AdminDashboardData;
+}
 
 function EmptyState({
   icon: Icon,
@@ -30,7 +64,10 @@ function EmptyState({
   icon: React.ComponentType<{ className: string }>;
   title: string;
   description: string;
-  action?: { label: string; href: string };
+  action?: {
+    label: string;
+    href: string;
+  };
 }) {
   const router = useRouter();
 
@@ -40,16 +77,19 @@ function EmptyState({
         <Icon className="h-7 w-7 text-gray-400" />
       </div>
 
-      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+      <h3 className="text-sm font-semibold text-gray-900">
+        {title}
+      </h3>
 
-      <p className="mt-1 max-w-xs text-sm text-gray-500 text-center">
+      <p className="mt-1 max-w-xs text-center text-sm text-gray-500">
         {description}
       </p>
 
       {action && (
         <button
+          type="button"
           onClick={() => router.push(action.href)}
-          className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-gray-900 hover:text-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
+          className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-gray-900 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
         >
           {action.label}
           <ArrowRight className="h-4 w-4" />
@@ -59,46 +99,29 @@ function EmptyState({
   );
 }
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-type Project = Database["public"]["Tables"]["projects"]["Row"];
-type Client = Database["public"]["Tables"]["clients"]["Row"];
-type Document = Database["public"]["Tables"]["documents"]["Row"];
-type Task = Database["public"]["Tables"]["tasks"]["Row"];
-type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
-
-interface DashboardData {
-  currentUser: Profile;
-  users: Profile[];
-  projects: Project[];
-  clients: Client[];
-  documents: Document[];
-  tasks: Task[];
-  deadlines: Task[];
-  activities: Activity[];
-}
-
-interface DashboardProps {
-  data: DashboardData;
-}
-
-export default function AdminDashboard({ data }: DashboardProps) {
+export default function AdminDashboard({
+  data,
+}: DashboardProps) {
   const router = useRouter();
-  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] =
+    useState(false);
 
-  const projects = data.projects;
-  const clients = data.clients;
-  const tasks = data.tasks;
-  const deadlines = data.deadlines;
-  const activities = data.activities;
-  const documents = data.documents;
-
-  const teamSize = data.users.length ?? 0;
-  const activeProjects = data.projects;
+  const {
+    currentUser,
+    users,
+    projects,
+    clients,
+    documents,
+    tasks,
+    deadlines,
+    activities,
+    teamWorkload,
+  } = data;
 
   const stats = [
     {
       title: "Projectos Activos",
-      value: activeProjects.length,
+      value: projects.length,
       icon: Briefcase,
       href: "/management/projects",
     },
@@ -110,13 +133,17 @@ export default function AdminDashboard({ data }: DashboardProps) {
     },
     {
       title: "Membros da Equipa",
-      value: teamSize,
+      value: users.length,
       icon: Users,
       href: "/management/team",
     },
     {
       title: "Tarefas Pendentes",
-      value: tasks.length,
+      value: tasks.filter(
+        (task) =>
+          task.status !== "completed" &&
+          task.status !== "Concluído",
+      ).length,
       icon: ClipboardList,
       href: "/management/tasks",
     },
@@ -149,23 +176,23 @@ export default function AdminDashboard({ data }: DashboardProps) {
     },
   ];
 
-  function handleProjClick(projectId: string) {
+  function handleProjectClick(projectId: string) {
     router.push(`/management/projects/${projectId}`);
   }
 
   return (
     <div className="min-h-screen bg-[#F7F7F5]">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
         <div className="space-y-8 sm:space-y-10">
           {/* Header */}
           <div className="border-b border-gray-200 pb-6">
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900">
-              Ola, {data.currentUser.first_name}
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+              Olá, {currentUser?.first_name || "Administrador"}
             </h1>
 
             <p className="mt-2 text-sm text-gray-600">
-              Bem-vindo de volta. Aqui está uma visão geral do seu gabinete de
-              arquitetura.
+              Bem-vindo de volta. Aqui está uma visão geral
+              da actividade do gabinete.
             </p>
           </div>
 
@@ -174,64 +201,76 @@ export default function AdminDashboard({ data }: DashboardProps) {
             {quickActions.map((action) => (
               <button
                 key={action.label}
+                type="button"
                 onClick={() => {
-                  if (action.label === "Agendar Reunião") {
+                  if (
+                    action.label === "Agendar Reunião"
+                  ) {
                     setIsMeetingModalOpen(true);
                     return;
                   }
 
                   router.push(action.href);
                 }}
-                className={`group cursor-pointer flex flex-col items-start gap-2 rounded-lg px-4 py-3.5 text-md font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-900 ${action.variant === "primary"
-                  ? "bg-[#BD9655] text-[#002950] font-medium hover:bg-[#C8A66E] active:bg-gray-950"
-                  : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100"
-                  }`}
+                className={`group flex cursor-pointer flex-col items-start gap-2 rounded-lg px-4 py-3.5 text-md font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 ${
+                  action.variant === "primary"
+                    ? "bg-[#BD9655] text-[#002950] hover:bg-[#C8A66E] active:bg-gray-950"
+                    : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 active:bg-gray-100"
+                }`}
               >
                 <action.icon className="h-4 w-4" />
-                <span className="text-xs sm:text-sm">{action.label}</span>
+
+                <span className="text-xs sm:text-sm">
+                  {action.label}
+                </span>
               </button>
             ))}
           </div>
 
-          {/* Statistics Grid */}
+          {/* Statistics */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map((item) => (
               <button
                 key={item.title}
+                type="button"
                 onClick={() => router.push(item.href)}
-                className="group cursor-pointer rounded-lg border border-gray-200 bg-white p-5 sm:p-6 transition-all duration-200 hover:border-gray-300 hover:shadow-md hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 text-left"
+                className="group cursor-pointer rounded-lg border border-gray-200 bg-white p-5 text-left transition-all duration-200 hover:border-gray-300 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 sm:p-6"
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-xs sm:text-sm font-medium text-gray-600">
+                    <p className="text-xs font-medium text-gray-600 sm:text-sm">
                       {item.title}
                     </p>
 
-                    <p className="mt-3 sm:mt-4 text-3xl sm:text-4xl font-bold text-[#002950]">
+                    <p className="mt-3 text-3xl font-bold text-[#002950] sm:mt-4 sm:text-4xl">
                       {item.value}
                     </p>
                   </div>
 
-                  <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg bg-gray-100 group-hover:bg-gray-200 transition-colors">
-                    <item.icon className="h-5 w-5 sm:h-6 sm:w-6 text-[#002950]" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 transition-colors group-hover:bg-gray-200 sm:h-12 sm:w-12">
+                    <item.icon className="h-5 w-5 text-[#002950] sm:h-6 sm:w-6" />
                   </div>
                 </div>
               </button>
             ))}
           </div>
 
-          {/* Main Content Grid */}
+          {/* Projects + Deadlines */}
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Projects */}
-            <section className="lg:col-span-2 rounded-lg border border-gray-200 bg-white">
+            <section className="rounded-lg border border-gray-200 bg-white lg:col-span-2">
               <div className="border-b border-gray-200 px-6 py-4 sm:py-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-semibold text-gray-900">
-                    Projectos Activos
+                    Projectos
                   </h2>
+
                   <button
-                    onClick={() => router.push("/management/projects")}
-                    className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
+                    type="button"
+                    onClick={() =>
+                      router.push("/management/projects")
+                    }
+                    className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
                   >
                     Ver todos
                   </button>
@@ -242,7 +281,7 @@ export default function AdminDashboard({ data }: DashboardProps) {
                 {projects.length === 0 ? (
                   <EmptyState
                     icon={Briefcase}
-                    title="Nenhum projecto activo"
+                    title="Nenhum projecto"
                     description="Comece criando um novo projecto para acompanhar o trabalho da equipa."
                     action={{
                       label: "Novo Projecto",
@@ -250,71 +289,81 @@ export default function AdminDashboard({ data }: DashboardProps) {
                     }}
                   />
                 ) : (
-                  <div className="overflow-x-auto h-[400px]">
+                  <div className="h-[400px] overflow-auto">
                     <table className="min-w-[700px] w-full border-separate border-spacing-0 text-sm">
-                      <thead className="sticky">
+                      <thead>
                         <tr className="bg-gray-50">
-                          <th className="border-b border-gray-200 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                          <th className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                             Projecto
                           </th>
 
-                          <th className="border-b border-gray-200 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                          <th className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                             Status
                           </th>
 
-                          <th className="border-b border-gray-200 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                          <th className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                             Progresso
                           </th>
 
-                          <th className="border-b border-gray-200 px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                          <th className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                             Prazo
                           </th>
                         </tr>
                       </thead>
 
-                      <tbody className="overflow-y-auto">
-                        {projects.map((proj) => {
-                          // Replace these with your actual project fields
+                      <tbody>
+                        {projects.map((project) => {
                           const progress = 0;
 
                           const statusConfig = {
                             active: {
                               label: "Em curso",
-                              className: "bg-green-50 text-green-700",
+                              className:
+                                "bg-green-50 text-green-700",
                               dot: "bg-green-500",
                             },
                             "on track": {
                               label: "Em curso",
-                              className: "bg-green-50 text-green-700",
+                              className:
+                                "bg-green-50 text-green-700",
                               dot: "bg-green-500",
                             },
                             "at risk": {
                               label: "Em risco",
-                              className: "bg-orange-50 text-orange-700",
+                              className:
+                                "bg-orange-50 text-orange-700",
                               dot: "bg-orange-500",
                             },
                             delayed: {
                               label: "Atrasado",
-                              className: "bg-red-50 text-red-700",
+                              className:
+                                "bg-red-50 text-red-700",
                               dot: "bg-red-500",
                             },
                           };
 
-                          const config = statusConfig[
-                            proj.status?.toLowerCase() as keyof typeof statusConfig
-                          ] ?? {
-                            label: proj.status,
-                            className: "bg-gray-100 text-gray-700",
-                            dot: "bg-gray-400",
-                          };
+                          const config =
+                            statusConfig[
+                              project.status?.toLowerCase() as keyof typeof statusConfig
+                            ] ?? {
+                              label:
+                                project.status ||
+                                "Sem estado",
+                              className:
+                                "bg-gray-100 text-gray-700",
+                              dot: "bg-gray-400",
+                            };
 
                           return (
                             <tr
-                              key={proj.project_id}
-                              onClick={() => handleProjClick(proj.project_id)}
-                              className="group cursor-pointer transition-colors hover:bg-gray-50 "
+                              key={project.project_id}
+                              onClick={() =>
+                                handleProjectClick(
+                                  project.project_id,
+                                )
+                              }
+                              className="group cursor-pointer transition-colors hover:bg-gray-50"
                             >
-                              {/* Project */}
                               <td className="border-b border-gray-100 px-5 py-5">
                                 <div className="flex items-center gap-3">
                                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
@@ -323,17 +372,18 @@ export default function AdminDashboard({ data }: DashboardProps) {
 
                                   <div className="min-w-0">
                                     <p className="truncate font-semibold text-gray-900">
-                                      {proj.title}
+                                      {project.title}
                                     </p>
+
                                     <p className="mt-0.5 text-xs text-gray-500">
-                                      {proj.project_code}
-                                      {proj.location && ` · ${proj.location}`}
+                                      {project.project_code}
+                                      {project.location &&
+                                        ` · ${project.location}`}
                                     </p>
                                   </div>
                                 </div>
                               </td>
 
-                              {/* Status */}
                               <td className="border-b border-gray-100 px-5 py-5">
                                 <span
                                   className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${config.className}`}
@@ -341,11 +391,11 @@ export default function AdminDashboard({ data }: DashboardProps) {
                                   <span
                                     className={`h-1.5 w-1.5 rounded-full ${config.dot}`}
                                   />
+
                                   {config.label}
                                 </span>
                               </td>
 
-                              {/* Progress */}
                               <td className="border-b border-gray-100 px-5 py-5">
                                 <div className="w-40">
                                   <div className="mb-2 flex items-center justify-between">
@@ -358,24 +408,32 @@ export default function AdminDashboard({ data }: DashboardProps) {
                                     <div
                                       className="h-full rounded-full bg-gray-900 transition-all"
                                       style={{
-                                        width: `${Math.min(Math.max(progress, 0), 100)}%`,
+                                        width: `${Math.min(
+                                          Math.max(
+                                            progress,
+                                            0,
+                                          ),
+                                          100,
+                                        )}%`,
                                       }}
                                     />
                                   </div>
                                 </div>
                               </td>
 
-                              {/* Deadline */}
                               <td className="border-b border-gray-100 px-5 py-5 text-right">
-                                <div className="mt-1 font-medium text-gray-700">
-                                  {proj.end_date
+                                <div className="font-medium text-gray-700">
+                                  {project.end_date
                                     ? new Date(
-                                      proj.end_date,
-                                    ).toLocaleDateString("pt-PT", {
-                                      day: "2-digit",
-                                      month: "short",
-                                      year: "numeric",
-                                    })
+                                        project.end_date,
+                                      ).toLocaleDateString(
+                                        "pt-PT",
+                                        {
+                                          day: "2-digit",
+                                          month: "short",
+                                          year: "numeric",
+                                        },
+                                      )
                                     : "—"}
                                 </div>
                               </td>
@@ -409,9 +467,9 @@ export default function AdminDashboard({ data }: DashboardProps) {
                     {deadlines.map((item) => (
                       <div
                         key={item.task_id}
-                        className="flex gap-3 p-3 rounded-md hover:bg-gray-50 transition-colors"
+                        className="flex gap-3 rounded-md p-3 transition-colors hover:bg-gray-50"
                       >
-                        <CalendarDays className="mt-0.5 h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
 
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900">
@@ -419,16 +477,22 @@ export default function AdminDashboard({ data }: DashboardProps) {
                           </p>
 
                           <p className="mt-0.5 text-xs text-gray-500">
-                            {item.project_id || "Sem projecto"}
+                            {item.project_id ||
+                              "Sem projecto"}
                           </p>
 
                           <p className="mt-1 text-xs font-medium text-gray-400">
                             {item.due_date
-                              ? new Date(item.due_date).toLocaleDateString("pt-PT", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              })
+                              ? new Date(
+                                  item.due_date,
+                                ).toLocaleDateString(
+                                  "pt-PT",
+                                  {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  },
+                                )
                               : "Sem data"}
                           </p>
                         </div>
@@ -442,26 +506,36 @@ export default function AdminDashboard({ data }: DashboardProps) {
 
           {/* Bottom Grid */}
           <div className="grid gap-6 lg:grid-cols-3">
-            {/* Activity */}
-            <RecentActivitiesSection activities={activities} />
+            <RecentActivitiesSection
+              activities={activities}
+            />
 
-            {/* Workload */}
-            <TeamWorkloadSection tasks={tasks} />
+            <TeamWorkloadSection
+              teamWorkload={teamWorkload}
+            />
 
-            {/* Documents */}
-            <RecentDocumentsSection documents={documents} />
+            <RecentDocumentsSection
+              documents={documents}
+            />
           </div>
         </div>
       </div>
+
       <CreateMeetingModal
         open={isMeetingModalOpen}
-        onClose={() => setIsMeetingModalOpen(false)}
+        onClose={() =>
+          setIsMeetingModalOpen(false)
+        }
       />
     </div>
   );
 }
 
-function RecentActivitiesSection({ activities }: { activities: Activity[] }) {
+function RecentActivitiesSection({
+  activities,
+}: {
+  activities: Activity[];
+}) {
   const router = useRouter();
 
   return (
@@ -473,7 +547,10 @@ function RecentActivitiesSection({ activities }: { activities: Activity[] }) {
           </h2>
 
           <button
-            onClick={() => router.push("/management/activity")}
+            type="button"
+            onClick={() =>
+              router.push("/management/activity")
+            }
             className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
             Ver todas
@@ -490,10 +567,11 @@ function RecentActivitiesSection({ activities }: { activities: Activity[] }) {
           />
         ) : (
           <div className="divide-y divide-gray-100">
-            {activities.map((activity) => {
-              // Extract initials from user_id or use default
+            {activities.slice(0, 8).map((activity) => {
               const initials = activity.user_id
-                ? activity.user_id.substring(0, 2).toUpperCase()
+                ? activity.user_id
+                    .substring(0, 2)
+                    .toUpperCase()
                 : "?";
 
               return (
@@ -518,13 +596,18 @@ function RecentActivitiesSection({ activities }: { activities: Activity[] }) {
 
                     <p className="mt-1 text-xs text-gray-400">
                       {activity.created_at
-                        ? new Date(activity.created_at).toLocaleDateString("pt-PT", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
+                        ? new Date(
+                            activity.created_at,
+                          ).toLocaleDateString(
+                            "pt-PT",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )
                         : ""}
                     </p>
                   </div>
@@ -538,46 +621,12 @@ function RecentActivitiesSection({ activities }: { activities: Activity[] }) {
   );
 }
 
-function TeamWorkloadSection({ tasks }: { tasks: Task[] }) {
+function TeamWorkloadSection({
+  teamWorkload,
+}: {
+  teamWorkload: TeamWorkload[];
+}) {
   const router = useRouter();
-
-  // Group tasks by assignee to calculate workload
-  const groupedByAssignee = tasks.reduce(
-    (acc, task) => {
-      const assigneeId = task.assigned_to || "unassigned";
-      if (!acc[assigneeId]) {
-        acc[assigneeId] = {
-          assignee_id: assigneeId,
-          name: "Não atribuído",
-          tasks: [],
-        };
-      }
-      acc[assigneeId].tasks.push(task);
-      return acc;
-    },
-    {} as Record<
-      string,
-      { assignee_id: string; name: string; tasks: Task[] }
-    >,
-  );
-
-  const workloadData = Object.values(groupedByAssignee).map((group) => {
-    const total = group.tasks.length;
-    const completed = group.tasks.filter(
-      (t) => t.status === "Concluído" || t.status === "completed",
-    ).length;
-    const pending = total - completed;
-    const workloadPercentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    return {
-      assignee_id: group.assignee_id,
-      name: group.name,
-      total_tasks: total,
-      completed_tasks: completed,
-      pending_tasks: pending,
-      workload_percentage: workloadPercentage,
-    };
-  });
 
   return (
     <section className="rounded-lg border border-gray-200 bg-white">
@@ -588,7 +637,10 @@ function TeamWorkloadSection({ tasks }: { tasks: Task[] }) {
           </h2>
 
           <button
-            onClick={() => router.push("/management/team")}
+            type="button"
+            onClick={() =>
+              router.push("/management/team")
+            }
             className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
             Ver equipa
@@ -597,7 +649,7 @@ function TeamWorkloadSection({ tasks }: { tasks: Task[] }) {
       </div>
 
       <div className="px-6 py-6">
-        {workloadData.length === 0 ? (
+        {teamWorkload.length === 0 ? (
           <EmptyState
             icon={Users}
             title="Sem dados da equipa"
@@ -605,15 +657,14 @@ function TeamWorkloadSection({ tasks }: { tasks: Task[] }) {
           />
         ) : (
           <div className="space-y-5">
-            {workloadData.map((member) => (
-              <div key={member.assignee_id}>
-                {/* Member information */}
+            {teamWorkload.slice(0, 8).map((member) => (
+              <div key={member.user_id}>
                 <div className="mb-2 flex items-center justify-between gap-4">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
                       {member.name
                         .split(" ")
-                        .map((n) => n[0])
+                        .map((name) => name[0])
                         .join("")
                         .slice(0, 2)
                         .toUpperCase()}
@@ -626,7 +677,9 @@ function TeamWorkloadSection({ tasks }: { tasks: Task[] }) {
 
                       <p className="text-xs text-gray-500">
                         {member.total_tasks}{" "}
-                        {member.total_tasks === 1 ? "tarefa" : "tarefas"}
+                        {member.total_tasks === 1
+                          ? "tarefa"
+                          : "tarefas"}
                       </p>
                     </div>
                   </div>
@@ -636,24 +689,29 @@ function TeamWorkloadSection({ tasks }: { tasks: Task[] }) {
                   </span>
                 </div>
 
-                {/* Progress bar */}
                 <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
                   <div
                     className="h-full rounded-full bg-gray-900 transition-all"
                     style={{
                       width: `${Math.min(
-                        Math.max(member.workload_percentage, 0),
+                        Math.max(
+                          member.workload_percentage,
+                          0,
+                        ),
                         100,
                       )}%`,
                     }}
                   />
                 </div>
 
-                {/* Task status */}
                 <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
-                  <span>{member.completed_tasks} concluídas</span>
+                  <span>
+                    {member.completed_tasks} concluídas
+                  </span>
 
-                  <span>{member.pending_tasks} pendentes</span>
+                  <span>
+                    {member.pending_tasks} pendentes
+                  </span>
                 </div>
               </div>
             ))}
@@ -664,15 +722,31 @@ function TeamWorkloadSection({ tasks }: { tasks: Task[] }) {
   );
 }
 
-function RecentDocumentsSection({ documents }: { documents: Document[] }) {
+function RecentDocumentsSection({
+  documents,
+}: {
+  documents: Document[];
+}) {
   const router = useRouter();
 
   return (
     <section className="rounded-lg border border-gray-200 bg-white">
       <div className="border-b border-gray-200 px-6 py-4 sm:py-6">
-        <h2 className="text-base font-semibold text-gray-900">
-          Documentos Recentes
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900">
+            Documentos Recentes
+          </h2>
+
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/management/documents")
+            }
+            className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+          >
+            Ver todos
+          </button>
+        </div>
       </div>
 
       <div className="px-6 py-8">
@@ -688,12 +762,12 @@ function RecentDocumentsSection({ documents }: { documents: Document[] }) {
           />
         ) : (
           <div className="space-y-4">
-            {documents.map((doc) => (
+            {documents.slice(0, 8).map((doc) => (
               <div
                 key={doc.document_id}
-                className="flex items-center gap-3 p-3 rounded-md hover:bg-gray-50 transition-colors cursor-pointer group"
+                className="group flex cursor-pointer items-center gap-3 rounded-md p-3 transition-colors hover:bg-gray-50"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 group-hover:bg-gray-200 transition-colors">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 transition-colors group-hover:bg-gray-200">
                   <FileText className="h-5 w-5 text-gray-600" />
                 </div>
 
@@ -703,16 +777,22 @@ function RecentDocumentsSection({ documents }: { documents: Document[] }) {
                   </p>
 
                   <p className="mt-0.5 text-xs text-gray-500">
-                    {doc.project_id || "Sem projecto"}
+                    {doc.project_id ||
+                      "Sem projecto"}
                   </p>
 
                   <p className="mt-1 text-xs text-gray-400">
                     {doc.created_at
-                      ? new Date(doc.created_at).toLocaleDateString("pt-PT", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })
+                      ? new Date(
+                          doc.created_at,
+                        ).toLocaleDateString(
+                          "pt-PT",
+                          {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          },
+                        )
                       : ""}
                   </p>
                 </div>

@@ -40,50 +40,7 @@ export default async function Page({
   return (
     <ApprovalsAndReviews
       userDocuments={userDocuments}
-      submissions={submissions.map(
-        (submission) => ({
-          id: submission.id,
-          project_id:
-            submission.project_id,
-          title: submission.title,
-          description:
-            submission.description ??
-            undefined,
-          type:
-            submission.type ===
-              "design" ||
-              submission.type ===
-              "technical" ||
-              submission.type ===
-              "client_approval"
-              ? submission.type
-              : "technical",
-          status:
-            submission.status ===
-              "pending" ||
-              submission.status ===
-              "approved" ||
-              submission.status ===
-              "rejected" ||
-              submission.status ===
-              "changes_requested"
-              ? submission.status
-              : "pending",
-          submitted_by:
-            submission.submitted_by_name,
-          submitted_date:
-            submission.submitted_date,
-          due_date:
-            submission.due_date ?? "",
-          notes:
-            submission.notes ??
-            undefined,
-          created_at:
-            submission.created_at,
-          updated_at:
-            submission.updated_at,
-        }),
-      )}
+      submissions={submissions}
 
     />
   );

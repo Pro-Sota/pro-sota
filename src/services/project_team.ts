@@ -39,7 +39,6 @@ type ProfileRow = {
     profile_id: string;
     first_name: string | null;
     last_name: string | null;
-    picture: string | null;
 };
 
 type ProjectRoleRow = {
@@ -156,8 +155,7 @@ export async function getProjectMembers(
                   .select(`
                       profile_id,
                       first_name,
-                      last_name,
-                      picture
+                      last_name
                   `)
                   .in("profile_id", profileIds)
             : Promise.resolve({
@@ -267,8 +265,7 @@ export async function getProjectMembers(
                         profile.last_name?.trim() ??
                         "",
 
-                    avatar_url:
-                        profile.picture ?? "",
+                    avatar_url: "",
 
                     status: "ausente",
 
