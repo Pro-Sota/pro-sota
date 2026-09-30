@@ -296,7 +296,6 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
       `
         task_id,
         assigned_to,
-        status,
         estimated_hours,
         actual_hours,
         profiles:assigned_to(
@@ -309,7 +308,17 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     .not("assigned_to", "is", null);
 
   if (error) {
-    console.error("Error fetching team workload:", error);
+    if (error) {
+      console.error("Error fetching team workload:", {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      });
+
+      return [];
+    }
+
     return [];
   }
 
@@ -375,9 +384,9 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     member.hours_remaining =
       member.pending_tasks > 0
         ? Math.max(
-            0,
-            member.estimated_hours - member.actual_hours,
-          )
+          0,
+          member.estimated_hours - member.actual_hours,
+        )
         : 0;
   }
 
@@ -391,10 +400,10 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     member.workload_percentage =
       totalRemainingHours > 0
         ? Math.round(
-            (member.hours_remaining /
-              totalRemainingHours) *
-              100,
-          )
+          (member.hours_remaining /
+            totalRemainingHours) *
+          100,
+        )
         : 0;
   }
 
