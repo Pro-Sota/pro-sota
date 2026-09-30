@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import CustomSelect from "@/app/components/custom_select";
 import { TeamMember } from "./types";
 import { useParams } from "next/navigation";
-import { assignProjectRole } from "@/services/project_team";
+import { assignProjectRole } from "@/actions/project_team";
 
 type ManageRolesModalProps = {
     members: TeamMember[];

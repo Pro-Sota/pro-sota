@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 
 import type { Database } from "@/app/lib/supabase/models";
 import CustomSelect from "@/app/components/custom_select";
-import { addProjectTeamMemberAction } from "@/actions/project_team";
+import { addTeamMember } from "@/actions/project_team";
 import {
     roles,
     roleTranslations,
@@ -71,7 +71,7 @@ export default function AddMemberModal({
 
         try {
             const result =
-                await addProjectTeamMemberAction(
+                await addTeamMember(
                     projectId,
                     selectedMemberId,
                     role,

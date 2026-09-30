@@ -1,8 +1,7 @@
 import "server-only";
 
-import { cookies } from "next/headers";
-
 import { createClient } from "@/app/lib/supabase/server";
+import { cookies } from "next/headers";
 
 export type Role =
     | "project-manager"
@@ -48,7 +47,7 @@ type ProjectRoleRow = {
     name: string;
 };
 
-function normalizeRoleName(name: string): Role {
+export function normalizeRoleName(name: string): Role {
     const normalized = name
         .trim()
         .toLowerCase()
@@ -78,7 +77,7 @@ function normalizeRoleName(name: string): Role {
     return roleMap[normalized] ?? "engineer";
 }
 
-function isUniqueRole(role: Role): boolean {
+export function isUniqueRole(role: Role): boolean {
     return (
         role === "project-manager" ||
         role === "coordenador"
@@ -91,9 +90,7 @@ export async function getProjectMembers(
     if (!projectId) {
         throw new Error("Project ID is required.");
     }
-
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient(await cookies());
 
     const {
         data: memberRows,
@@ -153,23 +150,33 @@ export async function getProjectMembers(
         { data: profileRows, error: profilesError },
         { data: roleRows, error: rolesError },
     ] = await Promise.all([
-        supabase
-            .from("profiles")
-            .select(`
-                profile_id,
-                first_name,
-                last_name,
-                picture
-            `)
-            .in("profile_id", profileIds),
+        profileIds.length > 0
+            ? supabase
+                  .from("profiles")
+                  .select(`
+                      profile_id,
+                      first_name,
+                      last_name,
+                      picture
+                  `)
+                  .in("profile_id", profileIds)
+            : Promise.resolve({
+                  data: [],
+                  error: null,
+              }),
 
-        supabase
-            .from("project_roles")
-            .select(`
-                role_id,
-                name
-            `)
-            .in("role_id", roleIds),
+        roleIds.length > 0
+            ? supabase
+                  .from("project_roles")
+                  .select(`
+                      role_id,
+                      name
+                  `)
+                  .in("role_id", roleIds)
+            : Promise.resolve({
+                  data: [],
+                  error: null,
+              }),
     ]);
 
     if (profilesError) {
@@ -263,11 +270,6 @@ export async function getProjectMembers(
                     avatar_url:
                         profile.picture ?? "",
 
-                    /*
-                     * This is currently UI-only.
-                     * There is no status column being
-                     * read from project_members here.
-                     */
                     status: "ausente",
 
                     tasks: [],
@@ -277,12 +279,11 @@ export async function getProjectMembers(
     );
 }
 
-async function getRoleByName(
-    supabase: Awaited<
-        ReturnType<typeof createClient>
-    >,
+export async function getRoleByName(
     roleName: string,
 ) {
+    const supabase = await createClient(await cookies());
+
     const {
         data,
         error,
@@ -297,296 +298,4 @@ async function getRoleByName(
     }
 
     return data;
-}
-
-export async function addTeamMember(
-    projectId: string,
-    profileId: string,
-    roleName: string,
-): Promise<{
-    success: boolean;
-    error?: string;
-}> {
-    if (
-        !projectId ||
-        !profileId ||
-        !roleName
-    ) {
-        return {
-            success: false,
-            error: "Missing required parameters.",
-        };
-    }
-
-    try {
-        const cookieStore = await cookies();
-        const supabase =
-            await createClient(cookieStore);
-
-        const roleData =
-            await getRoleByName(
-                supabase,
-                roleName,
-            );
-
-        if (!roleData) {
-            return {
-                success: false,
-                error: `Project role not found: ${roleName}`,
-            };
-        }
-
-        const {
-            data: existingMember,
-            error: existingError,
-        } = await supabase
-            .from("project_members")
-            .select("project_members_id")
-            .eq("project_id", projectId)
-            .eq("profile_id", profileId)
-            .eq("role_id", roleData.role_id)
-            .maybeSingle();
-
-        if (existingError) {
-            return {
-                success: false,
-                error: existingError.message,
-            };
-        }
-
-        if (existingMember) {
-            return {
-                success: false,
-                error:
-                    "This member already has this role in the project.",
-            };
-        }
-
-        const normalizedRole =
-            normalizeRoleName(
-                roleData.name,
-            );
-
-        /*
-         * A project can only have one Project Manager
-         * and one Coordinator.
-         */
-        if (isUniqueRole(normalizedRole)) {
-            const {
-                error: deleteError,
-            } = await supabase
-                .from("project_members")
-                .delete()
-                .eq("project_id", projectId)
-                .eq(
-                    "role_id",
-                    roleData.role_id,
-                )
-                .neq(
-                    "profile_id",
-                    profileId,
-                );
-
-            if (deleteError) {
-                return {
-                    success: false,
-                    error: deleteError.message,
-                };
-            }
-        }
-
-        const {
-            error: insertError,
-        } = await supabase
-            .from("project_members")
-            .insert({
-                project_id: projectId,
-                profile_id: profileId,
-                role_id: roleData.role_id,
-            });
-
-        if (insertError) {
-            return {
-                success: false,
-                error: insertError.message,
-            };
-        }
-
-        return {
-            success: true,
-        };
-    } catch (error) {
-        console.error(
-            "addTeamMember error:",
-            error,
-        );
-
-        return {
-            success: false,
-            error:
-                error instanceof Error
-                    ? error.message
-                    : "Failed to add team member.",
-        };
-    }
-}
-
-export async function assignProjectRole(
-    projectId: string,
-    profileId: string,
-    roleName: string,
-): Promise<boolean> {
-    if (
-        !projectId ||
-        !profileId ||
-        !roleName
-    ) {
-        return false;
-    }
-
-    try {
-        const cookieStore = await cookies();
-        const supabase =
-            await createClient(cookieStore);
-
-        const roleData =
-            await getRoleByName(
-                supabase,
-                roleName,
-            );
-
-        if (!roleData) {
-            return false;
-        }
-
-        const normalizedRole =
-            normalizeRoleName(
-                roleData.name,
-            );
-
-        const {
-            data: existingRole,
-            error: existingError,
-        } = await supabase
-            .from("project_members")
-            .select("project_members_id")
-            .eq("project_id", projectId)
-            .eq("profile_id", profileId)
-            .eq(
-                "role_id",
-                roleData.role_id,
-            )
-            .maybeSingle();
-
-        if (existingError) {
-            return false;
-        }
-
-        if (existingRole) {
-            return true;
-        }
-
-        if (isUniqueRole(normalizedRole)) {
-            const {
-                error: deleteError,
-            } = await supabase
-                .from("project_members")
-                .delete()
-                .eq("project_id", projectId)
-                .eq(
-                    "role_id",
-                    roleData.role_id,
-                )
-                .neq(
-                    "profile_id",
-                    profileId,
-                );
-
-            if (deleteError) {
-                return false;
-            }
-        }
-
-        const {
-            error: insertError,
-        } = await supabase
-            .from("project_members")
-            .insert({
-                project_id: projectId,
-                profile_id: profileId,
-                role_id: roleData.role_id,
-            });
-
-        return !insertError;
-    } catch (error) {
-        console.error(
-            "assignProjectRole error:",
-            error,
-        );
-
-        return false;
-    }
-}
-
-/*
- * IMPORTANT:
- *
- * updateTeamMemberStatus previously attempted:
- *
- * .update({ status })
- *
- * on project_members.
- *
- * If project_members does not contain a status column,
- * this must NOT write to the table.
- *
- * Keep this function only as a UI-compatible action
- * until a real status field/table exists.
- */
-export async function updateTeamMemberStatus(
-    _userProjectId: string,
-    _status: Status,
-): Promise<boolean> {
-    return true;
-}
-
-export async function removeTeamMember(
-    userProjectId: string,
-): Promise<boolean> {
-    if (!userProjectId) {
-        return false;
-    }
-
-    try {
-        const cookieStore = await cookies();
-        const supabase =
-            await createClient(cookieStore);
-
-        const { error } =
-            await supabase
-                .from("project_members")
-                .delete()
-                .eq(
-                    "project_members_id",
-                    userProjectId,
-                );
-
-        if (error) {
-            console.error(
-                "removeTeamMember error:",
-                error,
-            );
-
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error(
-            "removeTeamMember error:",
-            error,
-        );
-
-        return false;
-    }
 }
