@@ -12,126 +12,12 @@ import {
     X,
 } from "lucide-react";
 
+import NewEventModal from "./new_event_modal";
+import { CalendarPageInitProps, EventType } from "./types";
+import { formatDateKey, getCalendarDays, parseDateKey } from "./utils";
 import CreateMeetingModal from "@/app/components/create_meeting_modal";
+import { eventStyles, weekDays } from "./constants";
 
-export type EventType =
-    | "project"
-    | "task"
-    | "meeting"
-    | "site_visit"
-    | "deadline";
-
-export type CalendarEvent = {
-    id: string;
-    title: string;
-    date: string;
-    time: string;
-    type: EventType;
-    project?: string | null;
-    location?: string | null;
-    people?: string | null;
-};
-
-type CalendarPageInitProps = {
-    events: CalendarEvent[];
-    todayKey: string;
-};
-
-const eventStyles: Record<
-    EventType,
-    { label: string; className: string }
-> = {
-    project: {
-        label: "Projecto",
-        className: "bg-orange-50 text-orange-700 border-orange-100",
-    },
-    task: {
-        label: "Tarefa",
-        className: "bg-blue-50 text-blue-700 border-blue-100",
-    },
-    meeting: {
-        label: "Reunião",
-        className: "bg-purple-50 text-purple-700 border-purple-100",
-    },
-    site_visit: {
-        label: "Visita à obra",
-        className: "bg-emerald-50 text-emerald-700 border-emerald-100",
-    },
-    deadline: {
-        label: "Prazo",
-        className: "bg-red-50 text-red-700 border-red-100",
-    },
-};
-
-const weekDays = [
-    "Seg",
-    "Ter",
-    "Qua",
-    "Qui",
-    "Sex",
-    "Sáb",
-    "Dom",
-];
-
-function formatDateKey(date: Date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
-}
-
-function parseDateKey(dateKey: string) {
-    return new Date(`${dateKey}T12:00:00`);
-}
-
-function getCalendarDays(date: Date) {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-
-    let startDay = firstDay.getDay();
-
-    // Convert Sunday = 0 to Monday-first calendar.
-    startDay = startDay === 0 ? 6 : startDay - 1;
-
-    const totalDays = lastDay.getDate();
-    const days: Date[] = [];
-
-    // Previous month days.
-    for (let i = 0; i < startDay; i++) {
-        days.push(
-            new Date(
-                year,
-                month,
-                -startDay + i + 1,
-            ),
-        );
-    }
-
-    // Current month days.
-    for (let day = 1; day <= totalDays; day++) {
-        days.push(new Date(year, month, day));
-    }
-
-    // Next month days.
-    while (days.length < 42) {
-        const nextDay =
-            days.length - startDay - totalDays + 1;
-
-        days.push(
-            new Date(
-                year,
-                month + 1,
-                nextDay,
-            ),
-        );
-    }
-
-    return days;
-}
 
 export default function CalendarPageInit({
     events,
@@ -924,10 +810,9 @@ export default function CalendarPageInit({
             </div>
 
             {isEventModalOpen && (
-                <CreateMeetingModal
+                <NewEventModal
                     open={isEventModalOpen}
-                    onClose={() => setIsEventModalOpen(false)}
-                    mode="event"
+                    onCloseAction={() => setIsEventModalOpen(false)}
                 />
             )}
         </main>

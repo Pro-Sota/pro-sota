@@ -32,8 +32,7 @@ export default async function EditResourcePage({
     <ResourceForm
       mode="edit"
       resource={details}
-      stock={details.stock}
-      locations={locations}
-    />
+      initialStock={details.stock}
+          />
   );
 }

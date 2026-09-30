@@ -1655,11 +1655,14 @@ export type Database = {
       resources: {
         Row: {
           acquisition_date: string | null
+          acquisition_value: number | null
+          asset_tag: string | null
           brand: string | null
           category: string | null
           condition_status: string
           created_at: string
           created_by: string | null
+          description: string | null
           model: string | null
           name: string
           notes: string | null
@@ -1669,15 +1672,20 @@ export type Database = {
           resource_id: string
           resource_type: string
           serial_number: string | null
+          unit_of_measure: string | null
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           acquisition_date?: string | null
+          acquisition_value?: number | null
+          asset_tag?: string | null
           brand?: string | null
           category?: string | null
           condition_status?: string
           created_at?: string
           created_by?: string | null
+          description?: string | null
           model?: string | null
           name: string
           notes?: string | null
@@ -1687,15 +1695,20 @@ export type Database = {
           resource_id?: string
           resource_type: string
           serial_number?: string | null
+          unit_of_measure?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           acquisition_date?: string | null
+          acquisition_value?: number | null
+          asset_tag?: string | null
           brand?: string | null
           category?: string | null
           condition_status?: string
           created_at?: string
           created_by?: string | null
+          description?: string | null
           model?: string | null
           name?: string
           notes?: string | null
@@ -1705,12 +1718,21 @@ export type Database = {
           resource_id?: string
           resource_type?: string
           serial_number?: string | null
+          unit_of_measure?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "resources_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "resources_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["profile_id"]
@@ -2073,11 +2095,48 @@ export type Database = {
           },
         ]
       }
+      task_members: {
+        Row: {
+          created_at: string
+          profile_id: string
+          task_id: string
+          task_member_id: string
+        }
+        Insert: {
+          created_at?: string
+          profile_id: string
+          task_id: string
+          task_member_id?: string
+        }
+        Update: {
+          created_at?: string
+          profile_id?: string
+          task_id?: string
+          task_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "task_members_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["task_id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           actual_hours: number | null
           assigned_to: string | null
           column_id: string | null
+          completed: boolean
           created_at: string
           description: string | null
           due_date: string | null
@@ -2094,6 +2153,7 @@ export type Database = {
           actual_hours?: number | null
           assigned_to?: string | null
           column_id?: string | null
+          completed?: boolean
           created_at?: string
           description?: string | null
           due_date?: string | null
@@ -2110,6 +2170,7 @@ export type Database = {
           actual_hours?: number | null
           assigned_to?: string | null
           column_id?: string | null
+          completed?: boolean
           created_at?: string
           description?: string | null
           due_date?: string | null

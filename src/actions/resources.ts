@@ -1,38 +1,34 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 
-import { createClient } from "@/app/lib/supabase/server";
+import {
+  createResource,
+  updateResource,
+} from "@/services/resources";
 
-export type ResourceType =
-  | "Material consumível"
-  | "Equipamento"
-  | "Ferramenta"
-  | "EPI"
-  | "Viatura";
+import type {
+  ResourceCondition,
+  ResourceFormInput,
+  ResourceOperationalStatus,
+  ResourceType,
+  UnitOfMeasure,
+} from "@/services/resources";
 
-export type ResourceCondition =
-  | "Operacional"
-  | "Com restrição"
-  | "Em manutenção"
-  | "Avariado"
-  | "Abatido";
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
-export type ResourceUnit =
-  | "unidade"
-  | "saco"
-  | "kg"
-  | "tonelada"
-  | "m³"
-  | "m"
-  | "caixa"
-  | "litro"
-  | "";
-
+/**
+ * Raw values coming from the client form.
+ *
+ * HTML inputs keep numeric values as strings.
+ * Nullable database fields are represented as empty strings in the form.
+ */
 export type CreateResourceActionInput = {
-  code: string;
+  resource_code: string;
   name: string;
+  description: string;
 
   resource_type: ResourceType;
 
@@ -40,30 +36,27 @@ export type CreateResourceActionInput = {
   brand: string;
   model: string;
   serial_number: string;
+  asset_tag: string;
 
-  condition: ResourceCondition;
+  unit_of_measure: UnitOfMeasure | "";
+
+  condition_status: ResourceCondition;
+  operational_status: ResourceOperationalStatus;
 
   acquisition_date: string;
 
+  acquisition_value: string;
   replacement_value: string;
-
-  unit_of_measure: ResourceUnit;
-
-  current_stock: string;
-  minimum_stock: string;
-  average_unit_cost: string;
-
-  supplier_id: string;
-  batch_number: string;
-  expiry_date: string;
-
-  warehouse_id: string;
 
   notes: string;
 };
 
 export type UpdateResourceActionInput =
   CreateResourceActionInput;
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
 
 function clean(
   value: string | null | undefined,
@@ -93,65 +86,40 @@ function parseNumber(
   return number;
 }
 
-function mapResourceType(
-  type: ResourceType,
-) {
-  switch (type) {
-    case "Material consumível":
-      return "material" as const;
+/* -------------------------------------------------------------------------- */
+/* Units                                                                      */
+/* -------------------------------------------------------------------------- */
 
-    case "Equipamento":
-      return "equipment" as const;
+const VALID_UNITS: UnitOfMeasure[] = [
+  "unidade",
+  "saco",
+  "kg",
+  "tonelada",
+  "m³",
+  "m",
+  "caixa",
+  "litro",
+];
 
-    case "Ferramenta":
-      return "tool" as const;
-
-    case "EPI":
-      return "ppe" as const;
-
-    case "Viatura":
-      return "vehicle" as const;
-
-    default:
-      throw new Error(
-        "Tipo de recurso inválido.",
-      );
-  }
+function isValidUnit(
+  value: string,
+): value is UnitOfMeasure {
+  return VALID_UNITS.includes(
+    value as UnitOfMeasure,
+  );
 }
 
-function mapCondition(
-  condition: ResourceCondition,
-) {
-  switch (condition) {
-    case "Operacional":
-      return "operational" as const;
-
-    case "Com restrição":
-      return "restricted" as const;
-
-    case "Em manutenção":
-      return "maintenance" as const;
-
-    case "Avariado":
-      return "damaged" as const;
-
-    case "Abatido":
-      return "retired" as const;
-
-    default:
-      throw new Error(
-        "Estado do recurso inválido.",
-      );
-  }
-}
+/* -------------------------------------------------------------------------- */
+/* Validation                                                                 */
+/* -------------------------------------------------------------------------- */
 
 function validateInput(
   input: CreateResourceActionInput,
 ) {
   const errors: Record<string, string> = {};
 
-  if (!clean(input.code)) {
-    errors.code =
+  if (!clean(input.resource_code)) {
+    errors.resource_code =
       "O código do recurso é obrigatório.";
   }
 
@@ -165,14 +133,49 @@ function validateInput(
       "O tipo de recurso é obrigatório.";
   }
 
-  if (!input.condition) {
-    errors.condition =
-      "O estado do recurso é obrigatório.";
+  if (!input.condition_status) {
+    errors.condition_status =
+      "O estado de conservação é obrigatório.";
   }
 
-  const replacementValue = parseNumber(
-    input.replacement_value,
-  );
+  if (!input.operational_status) {
+    errors.operational_status =
+      "O estado operacional é obrigatório.";
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Acquisition value                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  const acquisitionValue =
+    parseNumber(
+      input.acquisition_value,
+    );
+
+  if (
+    input.acquisition_value.trim() &&
+    acquisitionValue === null
+  ) {
+    errors.acquisition_value =
+      "O valor de aquisição é inválido.";
+  }
+
+  if (
+    acquisitionValue !== null &&
+    acquisitionValue < 0
+  ) {
+    errors.acquisition_value =
+      "O valor de aquisição não pode ser negativo.";
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Replacement value                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  const replacementValue =
+    parseNumber(
+      input.replacement_value,
+    );
 
   if (
     input.replacement_value.trim() &&
@@ -190,79 +193,104 @@ function validateInput(
       "O valor de substituição não pode ser negativo.";
   }
 
-  const isConsumable =
-    input.resource_type ===
-    "Material consumível";
+  /* ------------------------------------------------------------------------ */
+  /* Unit                                                                      */
+  /* ------------------------------------------------------------------------ */
 
-  if (isConsumable) {
-    if (!input.unit_of_measure) {
-      errors.unit_of_measure =
-        "A unidade de medida é obrigatória.";
-    }
+  if (
+    input.unit_of_measure &&
+    !isValidUnit(input.unit_of_measure)
+  ) {
+    errors.unit_of_measure =
+      "A unidade de medida é inválida.";
+  }
 
-    const currentStock = parseNumber(
-      input.current_stock,
+  /* ------------------------------------------------------------------------ */
+  /* Acquisition date                                                          */
+  /* ------------------------------------------------------------------------ */
+
+  if (input.acquisition_date) {
+    const date = new Date(
+      `${input.acquisition_date}T00:00:00`,
     );
 
-    const minimumStock = parseNumber(
-      input.minimum_stock,
-    );
-
-    const averageUnitCost = parseNumber(
-      input.average_unit_cost,
-    );
-
-    if (
-      currentStock === null ||
-      currentStock < 0
-    ) {
-      errors.current_stock =
-        "O stock inicial é inválido.";
-    }
-
-    if (
-      minimumStock === null ||
-      minimumStock < 0
-    ) {
-      errors.minimum_stock =
-        "O stock mínimo é inválido.";
-    }
-
-    if (
-      averageUnitCost === null ||
-      averageUnitCost < 0
-    ) {
-      errors.average_unit_cost =
-        "O custo unitário médio é inválido.";
+    if (Number.isNaN(date.getTime())) {
+      errors.acquisition_date =
+        "A data de aquisição é inválida.";
     }
   }
 
   return errors;
 }
 
-async function getSupabase() {
-  const cookieStore = await cookies();
+/* -------------------------------------------------------------------------- */
+/* Build service input                                                        */
+/* -------------------------------------------------------------------------- */
 
-  return createClient(cookieStore);
-}
+function buildResourceInput(
+  input: CreateResourceActionInput,
+): ResourceFormInput {
+  const errors =
+    validateInput(input);
 
-async function getCurrentUser() {
-  const supabase = await getSupabase();
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
+  if (Object.keys(errors).length > 0) {
     throw new Error(
-      "Sessão expirada. Inicie sessão novamente.",
+      Object.values(errors).join(" "),
     );
   }
 
   return {
-    supabase,
-    user,
+    resource_code:
+      input.resource_code.trim(),
+
+    name:
+      input.name.trim(),
+
+    description:
+      clean(input.description),
+
+    resource_type:
+      input.resource_type,
+
+    category:
+      clean(input.category),
+
+    brand:
+      clean(input.brand),
+
+    model:
+      clean(input.model),
+
+    serial_number:
+      clean(input.serial_number),
+
+    asset_tag:
+      clean(input.asset_tag),
+
+    unit_of_measure:
+      input.unit_of_measure || null,
+
+    condition_status:
+      input.condition_status,
+
+    operational_status:
+      input.operational_status,
+
+    acquisition_date:
+      input.acquisition_date || null,
+
+    acquisition_value:
+      parseNumber(
+        input.acquisition_value,
+      ),
+
+    replacement_value:
+      parseNumber(
+        input.replacement_value,
+      ),
+
+    notes:
+      clean(input.notes),
   };
 }
 
@@ -270,56 +298,31 @@ async function getCurrentUser() {
 /* CREATE                                                                     */
 /* -------------------------------------------------------------------------- */
 
-
-/* -------------------------------------------------------------------------- */
-/* UPDATE                                                                     */
-/* -------------------------------------------------------------------------- */
-
-
-
-///////////////////////////////////////
-
-
-import {
-  createResource,
-  updateResource,
-} from "@/services/resources";
-
-import type {
-  ResourceFormInput,
-} from "@/actions/types";
-
 export async function createResourceAction(
-  input: ResourceFormInput,
+  input: CreateResourceActionInput,
 ) {
   try {
-    const resource = await createResource({
-      resource_code: input.resource_code,
-      name: input.name,
-      resource_type: input.resource_type,
-      category: input.category,
-      brand: input.brand,
-      model: input.model,
-      serial_number: input.serial_number,
-      condition_status:
-        input.condition_status,
-      operational_status:
-        input.operational_status,
-      acquisition_date:
-        input.acquisition_date,
-      replacement_value:
-        input.replacement_value,
-      notes: input.notes,
-    });
+    const resourceInput =
+      buildResourceInput(input);
 
-    /*
-     * resource_stock must be inserted here
-     * separately because it is a different table.
-     */
+    const resource =
+      await createResource(
+        resourceInput,
+      );
+
+    revalidatePath(
+      "/management/work-resources",
+    );
+
+    revalidatePath(
+      `/management/work-resources/${resource.resource_id}`,
+    );
 
     return {
       success: true,
-      resource_id: resource.resource_id,
+      resource_id:
+        resource.resource_id,
+      resource,
     };
   } catch (error) {
     console.error(
@@ -329,6 +332,7 @@ export async function createResourceAction(
 
     return {
       success: false,
+      resource_id: null,
       error:
         error instanceof Error
           ? error.message
@@ -337,41 +341,43 @@ export async function createResourceAction(
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* UPDATE                                                                     */
+/* -------------------------------------------------------------------------- */
+
 export async function updateResourceAction(
   resourceId: string,
-  input: ResourceFormInput,
+  input: UpdateResourceActionInput,
 ) {
   try {
-    const resource =
-      await updateResource(resourceId, {
-        resource_code: input.resource_code,
-        name: input.name,
-        resource_type:
-          input.resource_type,
-        category: input.category,
-        brand: input.brand,
-        model: input.model,
-        serial_number:
-          input.serial_number,
-        condition_status:
-          input.condition_status,
-        operational_status:
-          input.operational_status,
-        acquisition_date:
-          input.acquisition_date,
-        replacement_value:
-          input.replacement_value,
-        notes: input.notes,
-      });
+    if (!resourceId) {
+      throw new Error(
+        "ID do recurso inválido.",
+      );
+    }
 
-    /*
-     * resource_stock must be updated
-     * separately here.
-     */
+    const resourceInput =
+      buildResourceInput(input);
+
+    const resource =
+      await updateResource(
+        resourceId,
+        resourceInput,
+      );
+
+    revalidatePath(
+      "/management/work-resources",
+    );
+
+    revalidatePath(
+      `/management/work-resources/${resourceId}`,
+    );
 
     return {
       success: true,
-      resource_id: resource.resource_id,
+      resource_id:
+        resource.resource_id,
+      resource,
     };
   } catch (error) {
     console.error(
@@ -381,6 +387,7 @@ export async function updateResourceAction(
 
     return {
       success: false,
+      resource_id: null,
       error:
         error instanceof Error
           ? error.message

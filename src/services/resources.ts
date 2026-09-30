@@ -1,5 +1,8 @@
-import { createClient } from "@/app/lib/supabase/server";
+import "server-only";
+
 import { cookies } from "next/headers";
+
+import { createClient } from "@/app/lib/supabase/server";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -42,36 +45,46 @@ export type UnitOfMeasure =
   | "caixa"
   | "litro";
 
-  
+/* -------------------------------------------------------------------------- */
+/* Resource                                                                   */
+/* -------------------------------------------------------------------------- */
 
 export type Resource = {
   resource_id: string;
 
   resource_code: string;
   name: string;
+  description: string | null;
 
   resource_type: ResourceType;
-
   category: string | null;
+
   brand: string | null;
   model: string | null;
   serial_number: string | null;
+  asset_tag: string | null;
+
+  unit_of_measure: UnitOfMeasure | null;
 
   condition_status: ResourceCondition;
   operational_status: ResourceOperationalStatus;
 
   acquisition_date: string | null;
+  acquisition_value: number | null;
   replacement_value: number | null;
 
   notes: string | null;
 
   created_by: string | null;
+  updated_by: string | null;
+
   created_at: string;
   updated_at: string;
 
   /*
-   * Optional enriched fields used by the
-   * resource listing/table.
+   * Optional enriched fields.
+   * These are not columns in public.resources.
+   * They can be populated by joins or related services.
    */
   project_id?: string | null;
   project_name?: string | null;
@@ -90,7 +103,6 @@ export type Resource = {
 
   delivery_term_accepted?: boolean;
 
-  unit_of_measure?: UnitOfMeasure | null;
   current_stock?: number | null;
   minimum_stock?: number | null;
   reserved_quantity?: number | null;
@@ -105,6 +117,10 @@ export type Resource = {
   expiry_date?: string | null;
 };
 
+/* -------------------------------------------------------------------------- */
+/* Resource movement                                                          */
+/* -------------------------------------------------------------------------- */
+
 export type ResourceMovementType =
   | "entry"
   | "exit"
@@ -113,8 +129,6 @@ export type ResourceMovementType =
   | "consumption"
   | "maintenance"
   | "retirement";
-
-  
 
 export type ResourceMovement = {
   movement_id: string;
@@ -146,6 +160,10 @@ export type ResourceMovement = {
   notes: string | null;
 };
 
+/* -------------------------------------------------------------------------- */
+/* Resource statistics                                                        */
+/* -------------------------------------------------------------------------- */
+
 export type ResourceStats = {
   totalResources: number;
   totalReplacementValue: number;
@@ -155,6 +173,10 @@ export type ResourceStats = {
   missingResources: number;
   damagedResources: number;
 };
+
+/* -------------------------------------------------------------------------- */
+/* Resource stock                                                             */
+/* -------------------------------------------------------------------------- */
 
 export type ResourceStock = {
   stock_id: string;
@@ -179,6 +201,35 @@ export type ResourceStock = {
   updated_at: string;
 };
 
+export type ResourceStockInput = {
+  unit: string | null;
+
+  current_quantity: number;
+  minimum_quantity: number;
+  reserved_quantity?: number;
+  quantity_in_projects?: number;
+
+  average_unit_cost: number;
+
+  warehouse_id: string | null;
+  supplier_id: string | null;
+
+  batch_number: string | null;
+  expiry_date: string | null;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Resource details                                                           */
+/* -------------------------------------------------------------------------- */
+
+export type ResourceDetails = Resource & {
+  stock: ResourceStock | null;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Resource location                                                          */
+/* -------------------------------------------------------------------------- */
+
 export type ResourceLocation = {
   location_id: string;
   name: string;
@@ -191,40 +242,48 @@ export type ResourceLocation = {
   notes: string | null;
 };
 
-import type {
-    ResourceCondition,
-    ResourceOperationalStatus,
-    ResourceType,
-} from "@/app/management/work-resources/"
+/* -------------------------------------------------------------------------- */
+/* Resource form input                                                        */
+/* -------------------------------------------------------------------------- */
 
-export type ResourceStockInput = {
-    unit: string | null;
-    current_quantity: number;
-    minimum_quantity: number;
-    average_unit_cost: number;
-    warehouse_id: string | null;
-    supplier_id: string | null;
-    batch_number: string | null;
-    expiry_date: string | null;
-};
-
+/*
+ * This type now matches the new public.resources table.
+ *
+ * Stock, batch, supplier, maintenance and location information
+ * are intentionally not part of resource creation.
+ */
 export type ResourceFormInput = {
-    resource_code: string;
-    name: string;
-    resource_type: ResourceType;
-    category: string | null;
-    brand: string | null;
-    model: string | null;
-    serial_number: string | null;
-    condition_status: ResourceCondition;
-    operational_status: ResourceOperationalStatus;
-    acquisition_date: string | null;
-    replacement_value: number | null;
-    notes: string | null;
-    stock: ResourceStockInput | null;
+  resource_code: string;
+  name: string;
+  description: string | null;
+
+  resource_type: ResourceType;
+  category: string | null;
+
+  brand: string | null;
+  model: string | null;
+  serial_number: string | null;
+  asset_tag: string | null;
+
+  unit_of_measure: UnitOfMeasure | null;
+
+  condition_status: ResourceCondition;
+  operational_status: ResourceOperationalStatus;
+
+  acquisition_date: string | null;
+  acquisition_value: number | null;
+  replacement_value: number | null;
+
+  notes: string | null;
 };
 
-  export type CreateResourceInput = ResourceFormInput;
+export type CreateResourceInput = ResourceFormInput;
+
+/* -------------------------------------------------------------------------- */
+/* Resource update input                                                      */
+/* -------------------------------------------------------------------------- */
+
+export type UpdateResourceInput = Partial<ResourceFormInput>;
 
 /* -------------------------------------------------------------------------- */
 /* Labels                                                                     */
@@ -286,6 +345,44 @@ async function getSupabase() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function normalizeNullableString(
+  value: string | null | undefined,
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const normalized = value.trim();
+
+  return normalized || null;
+}
+
+function normalizeMoney(
+  value: number | null | undefined,
+): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (!Number.isFinite(value)) {
+    throw new Error(
+      "O valor monetário indicado é inválido.",
+    );
+  }
+
+  if (value < 0) {
+    throw new Error(
+      "Os valores monetários não podem ser negativos.",
+    );
+  }
+
+  return value;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Create                                                                     */
 /* -------------------------------------------------------------------------- */
 
@@ -307,7 +404,8 @@ export async function createResource(
   const resourceCode =
     input.resource_code.trim();
 
-  const name = input.name.trim();
+  const name =
+    input.name.trim();
 
   if (!resourceCode) {
     throw new Error(
@@ -321,6 +419,16 @@ export async function createResource(
     );
   }
 
+  const acquisitionValue =
+    normalizeMoney(
+      input.acquisition_value,
+    );
+
+  const replacementValue =
+    normalizeMoney(
+      input.replacement_value,
+    );
+
   const {
     data,
     error,
@@ -330,20 +438,41 @@ export async function createResource(
       resource_code: resourceCode,
       name,
 
+      description:
+        normalizeNullableString(
+          input.description,
+        ),
+
       resource_type:
         input.resource_type,
 
       category:
-        input.category?.trim() || null,
+        normalizeNullableString(
+          input.category,
+        ),
 
       brand:
-        input.brand?.trim() || null,
+        normalizeNullableString(
+          input.brand,
+        ),
 
       model:
-        input.model?.trim() || null,
+        normalizeNullableString(
+          input.model,
+        ),
 
       serial_number:
-        input.serial_number?.trim() || null,
+        normalizeNullableString(
+          input.serial_number,
+        ),
+
+      asset_tag:
+        normalizeNullableString(
+          input.asset_tag,
+        ),
+
+      unit_of_measure:
+        input.unit_of_measure || null,
 
       condition_status:
         input.condition_status ??
@@ -356,14 +485,19 @@ export async function createResource(
       acquisition_date:
         input.acquisition_date || null,
 
+      acquisition_value:
+        acquisitionValue,
+
       replacement_value:
-        input.replacement_value ??
-        null,
+        replacementValue,
 
       notes:
-        input.notes?.trim() || null,
+        normalizeNullableString(
+          input.notes,
+        ),
 
       created_by: user.id,
+      updated_by: user.id,
     })
     .select("*")
     .single();
@@ -378,6 +512,12 @@ export async function createResource(
         code: error.code,
       },
     );
+
+    if (error.code === "23505") {
+      throw new Error(
+        "Já existe um recurso com este código ou etiqueta patrimonial.",
+      );
+    }
 
     throw new Error(error.message);
   }
@@ -395,6 +535,16 @@ export async function updateResource(
 ): Promise<Resource> {
   const supabase = await getSupabase();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error(
+      "Utilizador não autenticado.",
+    );
+  }
+
   if (!resourceId) {
     throw new Error(
       "ID do recurso inválido.",
@@ -407,7 +557,8 @@ export async function updateResource(
   > = {};
 
   if (
-    input.resource_code !== undefined
+    input.resource_code !==
+    undefined
   ) {
     const value =
       input.resource_code.trim();
@@ -435,6 +586,16 @@ export async function updateResource(
   }
 
   if (
+    input.description !==
+    undefined
+  ) {
+    payload.description =
+      normalizeNullableString(
+        input.description,
+      );
+  }
+
+  if (
     input.resource_type !==
     undefined
   ) {
@@ -443,20 +604,27 @@ export async function updateResource(
   }
 
   if (
-    input.category !== undefined
+    input.category !==
+    undefined
   ) {
     payload.category =
-      input.category?.trim() || null;
+      normalizeNullableString(
+        input.category,
+      );
   }
 
   if (input.brand !== undefined) {
     payload.brand =
-      input.brand?.trim() || null;
+      normalizeNullableString(
+        input.brand,
+      );
   }
 
   if (input.model !== undefined) {
     payload.model =
-      input.model?.trim() || null;
+      normalizeNullableString(
+        input.model,
+      );
   }
 
   if (
@@ -464,8 +632,27 @@ export async function updateResource(
     undefined
   ) {
     payload.serial_number =
-      input.serial_number?.trim() ||
-      null;
+      normalizeNullableString(
+        input.serial_number,
+      );
+  }
+
+  if (
+    input.asset_tag !==
+    undefined
+  ) {
+    payload.asset_tag =
+      normalizeNullableString(
+        input.asset_tag,
+      );
+  }
+
+  if (
+    input.unit_of_measure !==
+    undefined
+  ) {
+    payload.unit_of_measure =
+      input.unit_of_measure || null;
   }
 
   if (
@@ -493,24 +680,40 @@ export async function updateResource(
   }
 
   if (
+    input.acquisition_value !==
+    undefined
+  ) {
+    payload.acquisition_value =
+      normalizeMoney(
+        input.acquisition_value,
+      );
+  }
+
+  if (
     input.replacement_value !==
     undefined
   ) {
     payload.replacement_value =
-      input.replacement_value ??
-      null;
+      normalizeMoney(
+        input.replacement_value,
+      );
   }
 
   if (input.notes !== undefined) {
     payload.notes =
-      input.notes?.trim() || null;
+      normalizeNullableString(
+        input.notes,
+      );
   }
 
   if (
-    Object.keys(payload).length === 0
+    Object.keys(payload).length ===
+    0
   ) {
     const existing =
-      await getResourceById(resourceId);
+      await getResourceById(
+        resourceId,
+      );
 
     if (!existing) {
       throw new Error(
@@ -521,6 +724,13 @@ export async function updateResource(
     return existing;
   }
 
+  payload.updated_by = user.id;
+
+  /*
+   * The database trigger also updates updated_at.
+   * Setting it here keeps the service safe even if the
+   * trigger has not yet been deployed.
+   */
   payload.updated_at =
     new Date().toISOString();
 
@@ -548,6 +758,12 @@ export async function updateResource(
       },
     );
 
+    if (error.code === "23505") {
+      throw new Error(
+        "Já existe um recurso com este código ou etiqueta patrimonial.",
+      );
+    }
+
     throw new Error(error.message);
   }
 
@@ -561,6 +777,10 @@ export async function updateResource(
 export async function getResourceById(
   resourceId: string,
 ): Promise<Resource | null> {
+  if (!resourceId) {
+    return null;
+  }
+
   const supabase =
     await getSupabase();
 
@@ -600,6 +820,10 @@ export async function getResourceById(
 export async function getResourceDetailsById(
   resourceId: string,
 ): Promise<ResourceDetails | null> {
+  if (!resourceId) {
+    return null;
+  }
+
   const supabase =
     await getSupabase();
 
@@ -630,6 +854,10 @@ export async function getResourceDetailsById(
     return null;
   }
 
+  /*
+   * Stock remains separate from resources.
+   * This is important after the new schema change.
+   */
   const {
     data: stock,
     error: stockError,
@@ -655,30 +883,41 @@ export async function getResourceDetailsById(
 
   return {
     ...(resource as Resource),
+
     stock: stock
       ? ({
-          ...stock,
-          current_quantity:
-            Number(
-              stock.current_quantity,
-            ),
-          minimum_quantity:
-            Number(
-              stock.minimum_quantity,
-            ),
-          reserved_quantity:
-            Number(
-              stock.reserved_quantity,
-            ),
-          quantity_in_projects:
-            Number(
-              stock.quantity_in_projects,
-            ),
-          average_unit_cost:
-            Number(
-              stock.average_unit_cost,
-            ),
-        } as ResourceStock)
+        ...stock,
+
+        current_quantity:
+          Number(
+            stock.current_quantity ??
+            0,
+          ),
+
+        minimum_quantity:
+          Number(
+            stock.minimum_quantity ??
+            0,
+          ),
+
+        reserved_quantity:
+          Number(
+            stock.reserved_quantity ??
+            0,
+          ),
+
+        quantity_in_projects:
+          Number(
+            stock.quantity_in_projects ??
+            0,
+          ),
+
+        average_unit_cost:
+          Number(
+            stock.average_unit_cost ??
+            0,
+          ),
+      } as ResourceStock)
       : null,
   };
 }
@@ -770,7 +1009,7 @@ export async function getResourceStats(): Promise<
           total +
           Number(
             resource.replacement_value ??
-              0,
+            0,
           ),
         0,
       ),
@@ -816,48 +1055,31 @@ export async function getResourceStats(): Promise<
 /* Resource locations                                                         */
 /* -------------------------------------------------------------------------- */
 
-export async function getResourceLocations(): Promise<
-  ResourceLocation[]
-> {
+
+export async function getResourceLocations(): Promise<ResourceLocation[]> {
   const supabase =
     await getSupabase();
 
-  const {
-    data,
-    error,
-  } = await supabase
+  const { data, error } = await supabase
     .from("resource_locations")
-    .select(
-      `
-        location_id,
-        name,
-        location_type,
-        project_id,
-        profile_id,
-        supplier_id,
-        notes
-      `,
-    )
-    .order("name", {
-      ascending: true,
-    });
+    .select(`
+      location_id,
+      name,
+      location_type,
+      project_id,
+      profile_id,
+      supplier_id,
+      notes,
+      created_at
+    `)
+    .order("name", { ascending: true });
 
   if (error) {
-    console.error(
-      "getResourceLocations error:",
-      {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      },
-    );
-
-    throw new Error(error.message);
+    console.error("getResourceLocations error:", error);
+    throw new Error("Não foi possível carregar as localizações.");
   }
 
-  return (data ??
-    []) as ResourceLocation[];
+  return data ?? [];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1058,63 +1280,63 @@ async function enrichMovements(
   ] = await Promise.all([
     resourceIds.length
       ? supabase
-          .from("resources")
-          .select(
-            "resource_id, name",
-          )
-          .in(
-            "resource_id",
-            resourceIds,
-          )
+        .from("resources")
+        .select(
+          "resource_id, name",
+        )
+        .in(
+          "resource_id",
+          resourceIds,
+        )
       : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+        data: [],
+        error: null,
+      }),
 
     profileIds.length
       ? supabase
-          .from("profiles")
-          .select(
-            "profile_id, first_name, last_name",
-          )
-          .in(
-            "profile_id",
-            profileIds,
-          )
+        .from("profiles")
+        .select(
+          "profile_id, first_name, last_name",
+        )
+        .in(
+          "profile_id",
+          profileIds,
+        )
       : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+        data: [],
+        error: null,
+      }),
 
     projectIds.length
       ? supabase
-          .from("projects")
-          .select(
-            "project_id, title",
-          )
-          .in(
-            "project_id",
-            projectIds,
-          )
+        .from("projects")
+        .select(
+          "project_id, title",
+        )
+        .in(
+          "project_id",
+          projectIds,
+        )
       : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+        data: [],
+        error: null,
+      }),
 
     locationIds.length
       ? supabase
-          .from("resource_locations")
-          .select(
-            "location_id, name",
-          )
-          .in(
-            "location_id",
-            locationIds,
-          )
+        .from("resource_locations")
+        .select(
+          "location_id, name",
+        )
+        .in(
+          "location_id",
+          locationIds,
+        )
       : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+        data: [],
+        error: null,
+      }),
   ]);
 
   if (resourcesResult.error) {
@@ -1156,7 +1378,7 @@ async function enrichMovements(
 
   for (
     const profile of
-      profilesResult.data ?? []
+    profilesResult.data ?? []
   ) {
     const name = [
       profile.first_name,
@@ -1214,8 +1436,8 @@ async function enrichMovements(
       quantity:
         movement.quantity !== null
           ? Number(
-              movement.quantity,
-            )
+            movement.quantity,
+          )
           : null,
 
       unit: movement.unit,
@@ -1226,8 +1448,8 @@ async function enrichMovements(
       origin_location_name:
         movement.origin_location_id
           ? locationMap.get(
-              movement.origin_location_id,
-            ) ?? null
+            movement.origin_location_id,
+          ) ?? null
           : null,
 
       destination_location_id:
@@ -1236,8 +1458,8 @@ async function enrichMovements(
       destination_location_name:
         movement.destination_location_id
           ? locationMap.get(
-              movement.destination_location_id,
-            ) ?? null
+            movement.destination_location_id,
+          ) ?? null
           : null,
 
       project_id:
@@ -1246,8 +1468,8 @@ async function enrichMovements(
       project_name:
         movement.project_id
           ? projectMap.get(
-              movement.project_id,
-            ) ?? null
+            movement.project_id,
+          ) ?? null
           : null,
 
       profile_id:
@@ -1256,8 +1478,8 @@ async function enrichMovements(
       profile_name:
         movement.profile_id
           ? profileMap.get(
-              movement.profile_id,
-            ) ?? null
+            movement.profile_id,
+          ) ?? null
           : null,
 
       created_by:
@@ -1266,11 +1488,234 @@ async function enrichMovements(
       created_by_name:
         movement.created_by
           ? profileMap.get(
-              movement.created_by,
-            ) ?? null
+            movement.created_by,
+          ) ?? null
           : null,
 
       notes: movement.notes,
     }),
   );
+}
+
+
+export type ResourceMovementProjectOption = {
+  project_id: string;
+  project_code: string | null;
+  title: string;
+  municipality: string | null;
+  status: string | null;
+};
+
+export async function getProjectsForResourceMovement(): Promise<
+  ResourceMovementProjectOption[]
+> {
+  try {
+    const cookieStore = await cookies();
+    const supabase = await createClient(cookieStore);
+
+    const { data, error } = await supabase
+      .from("projects")
+      .select(`
+        project_id,
+        project_code,
+        title,
+        municipality,
+        status
+      `)
+      .order("title", { ascending: true });
+
+    if (error) {
+      console.error(
+        "getProjectsForResourceMovement error:",
+        error,
+      );
+
+      throw new Error(
+        "Não foi possível carregar as obras.",
+      );
+    }
+
+    return data ?? [];
+  } catch (error) {
+    console.error(
+      "getProjectsForResourceMovement error:",
+      error,
+    );
+
+    throw error;
+  }
+}
+
+export type ResourceMovementFormInput = {
+  resource_id: string;
+  movement_type: ResourceMovementType;
+  quantity: number | null;
+  origin_location_id: string | null;
+  destination_location_id: string | null;
+  project_id: string | null;
+  profile_id: string | null;
+  notes: string | null;
+};
+
+export async function createResourceMovement(
+  input: ResourceMovementFormInput,
+) {
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
+
+  if (!input.resource_id) {
+    throw new Error("O recurso é obrigatório.");
+  }
+
+  if (!input.movement_type) {
+    throw new Error(
+      "O tipo de movimentação é obrigatório.",
+    );
+  }
+
+  if (
+    input.quantity !== null &&
+    (!Number.isFinite(input.quantity) ||
+      input.quantity <= 0)
+  ) {
+    throw new Error(
+      "A quantidade deve ser superior a zero.",
+    );
+  }
+
+  if (
+    input.movement_type === "transfer" &&
+    !input.origin_location_id
+  ) {
+    throw new Error(
+      "A origem é obrigatória para uma transferência.",
+    );
+  }
+
+  if (
+    input.movement_type === "transfer" &&
+    !input.destination_location_id
+  ) {
+    throw new Error(
+      "O destino é obrigatório para uma transferência.",
+    );
+  }
+
+  if (
+    input.origin_location_id &&
+    input.destination_location_id &&
+    input.origin_location_id ===
+      input.destination_location_id
+  ) {
+    throw new Error(
+      "A origem e o destino não podem ser iguais.",
+    );
+  }
+
+  if (
+    input.movement_type === "consumption" &&
+    !input.project_id
+  ) {
+    throw new Error(
+      "A obra é obrigatória para um consumo.",
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("resource_movements")
+    .insert({
+      resource_id: input.resource_id,
+      movement_type: input.movement_type,
+      quantity: input.quantity,
+      origin_location_id:
+        input.origin_location_id,
+      destination_location_id:
+        input.destination_location_id,
+      project_id: input.project_id,
+      profile_id: input.profile_id,
+      notes: input.notes,
+    })
+    .select(`
+      movement_id,
+      resource_id,
+      movement_type,
+      quantity,
+      unit,
+      origin_location_id,
+      destination_location_id,
+      project_id,
+      profile_id,
+      movement_date,
+      notes,
+      created_by
+    `)
+    .single();
+
+  if (error) {
+    console.error(
+      "createResourceMovement error:",
+      {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      },
+    );
+
+    throw new Error(
+      `Não foi possível registar a movimentação: ${error.message}`,
+    );
+  }
+
+  return data;
+}
+
+export type ResourceMovementProfileOption = {
+  profile_id: string;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+export async function getProfilesForResourceMovement(): Promise<
+  ResourceMovementProfileOption[]
+> {
+  try {
+    const cookieStore = await cookies();
+    const supabase = await createClient(cookieStore);
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(`
+        profile_id,
+        first_name,
+        last_name
+      `)
+      .order("first_name", { ascending: true })
+      .order("last_name", { ascending: true });
+
+    if (error) {
+      console.error(
+        "getProfilesForResourceMovement error:",
+        {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        },
+      );
+
+      throw new Error(
+        `Não foi possível carregar os colaboradores: ${error.message}`,
+      );
+    }
+
+    return data ?? [];
+  } catch (error) {
+    console.error(
+      "getProfilesForResourceMovement failed:",
+      error,
+    );
+
+    throw error;
+  }
 }

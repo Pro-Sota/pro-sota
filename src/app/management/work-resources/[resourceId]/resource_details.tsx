@@ -18,7 +18,7 @@ import {
 import type {
   Resource,
   ResourceMovement
-  } from "../work_resource";
+} from "@/services/resources"
 
 type Props = {
   resource: Resource;
@@ -100,7 +100,7 @@ export default function ResourceDetails({
                   </h1>
 
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 font-mono text-xs text-slate-500">
-                    {resource.code}
+                    {resource.resource_code}
                   </span>
                 </div>
 
@@ -213,7 +213,7 @@ export default function ResourceDetails({
               <dl className="grid gap-5 p-5 sm:grid-cols-2">
                 <Detail
                   label="Estado"
-                  value={resource.condition}
+                  value={resource.condition_status}
                 />
 
                 <Detail
@@ -293,52 +293,52 @@ export default function ResourceDetails({
           {/* Side panel */}
           <aside className="space-y-6">
             {resource.resource_type ===
-              "Material consumível" && (
-              <section className="rounded-xl border border-slate-200 bg-white">
-                <div className="border-b border-slate-100 px-5 py-4">
-                  <h2 className="text-sm font-semibold text-slate-900">
-                    Stock
-                  </h2>
-                </div>
-
-                <div className="space-y-5 p-5">
-                  <div>
-                    <p className="text-xs text-slate-400">
-                      Stock actual
-                    </p>
-
-                    <p className="mt-1 text-2xl font-semibold text-slate-900">
-                      {resource.current_stock ?? 0}{" "}
-                      {resource.unit_of_measure}
-                    </p>
+              "material" && (
+                <section className="rounded-xl border border-slate-200 bg-white">
+                  <div className="border-b border-slate-100 px-5 py-4">
+                    <h2 className="text-sm font-semibold text-slate-900">
+                      Stock
+                    </h2>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <Detail
-                      label="Stock mínimo"
-                      value={`${resource.minimum_stock ?? 0} ${resource.unit_of_measure ?? ""}`}
-                    />
+                  <div className="space-y-5 p-5">
+                    <div>
+                      <p className="text-xs text-slate-400">
+                        Stock actual
+                      </p>
 
-                    <Detail
-                      label="Reservado"
-                      value={`${resource.reserved_quantity ?? 0} ${resource.unit_of_measure ?? ""}`}
-                    />
+                      <p className="mt-1 text-2xl font-semibold text-slate-900">
+                        {resource.current_stock ?? 0}{" "}
+                        {resource.unit_of_measure}
+                      </p>
+                    </div>
 
-                    <Detail
-                      label="Em obra"
-                      value={`${resource.quantity_in_works ?? 0} ${resource.unit_of_measure ?? ""}`}
-                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Detail
+                        label="Stock mínimo"
+                        value={`${resource.minimum_stock ?? 0} ${resource.unit_of_measure ?? ""}`}
+                      />
 
-                    <Detail
-                      label="Valor"
-                      value={formatCurrency(
-                        resource.stock_value,
-                      )}
-                    />
+                      <Detail
+                        label="Reservado"
+                        value={`${resource.reserved_quantity ?? 0} ${resource.unit_of_measure ?? ""}`}
+                      />
+
+                      <Detail
+                        label="Em obra"
+                        value={`${resource.quantity_in_works ?? 0} ${resource.unit_of_measure ?? ""}`}
+                      />
+
+                      <Detail
+                        label="Valor"
+                        value={formatCurrency(
+                          resource.stock_value,
+                        )}
+                      />
+                    </div>
                   </div>
-                </div>
-              </section>
-            )}
+                </section>
+              )}
 
             <section className="rounded-xl border border-slate-200 bg-white">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -386,13 +386,13 @@ export default function ResourceDetails({
                         </div>
 
                         <p className="mt-2 text-xs text-slate-600">
-                          {movement.origin &&
-                            `De ${movement.origin}`}
-                          {movement.origin &&
-                            movement.destination &&
+                          {movement.origin_location_id &&
+                            `De ${movement.origin_location_name}`}
+                          {movement.origin_location_id &&
+                            movement.destination_location_name &&
                             " → "}
-                          {movement.destination &&
-                            movement.destination}
+                          {movement.destination_location_id &&
+                            movement.destination_location_name}
                         </p>
                       </div>
                     ))}

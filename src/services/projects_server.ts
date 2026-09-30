@@ -97,7 +97,6 @@ export async function getProjects() {
 
 // src/services/project_tasks_server.ts
 
-
 import type {
   Task,
   TaskBoard,

@@ -10,7 +10,7 @@ import {
 import type {
   Resource,
   ResourceMovement,
-} from "../../work_resource";
+} from "@/services/resources";
 
 type Props = {
   resource: Resource;
@@ -30,6 +30,23 @@ function formatDateTime(value: string) {
   }).format(date);
 }
 
+function formatMovementType(type: ResourceMovement["movement_type"]) {
+  const labels: Record<
+    ResourceMovement["movement_type"],
+    string
+  > = {
+    entry: "Entrada",
+    exit: "Saída",
+    transfer: "Transferência",
+    return: "Devolução",
+    consumption: "Consumo",
+    maintenance: "Manutenção",
+    retirement: "Abate",
+  };
+
+  return labels[type] ?? type;
+}
+
 export default function ResourceHistory({
   resource,
   movements,
@@ -39,7 +56,7 @@ export default function ResourceHistory({
       <div className="mx-auto max-w-5xl">
         <Link
           href={`/management/work-resources/${resource.resource_id}`}
-          className="mb-6 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900"
+          className="mb-6 inline-flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-slate-900"
         >
           <ArrowLeft size={15} />
           Voltar ao recurso
@@ -57,7 +74,7 @@ export default function ResourceHistory({
               </h1>
 
               <p className="mt-1 text-sm text-slate-500">
-                {resource.name} · {resource.code}
+                {resource.name} · {resource.resource_code}
               </p>
             </div>
           </div>
@@ -74,6 +91,10 @@ export default function ResourceHistory({
               <p className="mt-3 text-sm font-medium text-slate-700">
                 Nenhuma movimentação registada
               </p>
+
+              <p className="mt-1 text-sm text-slate-400">
+                As movimentações deste recurso aparecerão aqui.
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -83,10 +104,12 @@ export default function ResourceHistory({
                   className="p-5"
                 >
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                          {movement.movement_type}
+                          {formatMovementType(
+                            movement.movement_type,
+                          )}
                         </span>
 
                         <span className="text-xs text-slate-400">
@@ -102,60 +125,63 @@ export default function ResourceHistory({
                             <span className="text-slate-400">
                               Quantidade:
                             </span>{" "}
-                            {movement.quantity}{" "}
-                            {movement.unit_of_measure ??
-                              ""}
+                            {movement.quantity}
+                            {movement.unit
+                              ? ` ${movement.unit}`
+                              : ""}
                           </p>
                         )}
 
-                        {movement.origin && (
+                        {movement.origin_location_id && (
                           <p>
                             <span className="text-slate-400">
                               Origem:
                             </span>{" "}
-                            {movement.origin}
+                            {movement.origin_location_name ||
+                              "—"}
                           </p>
                         )}
 
-                        {movement.destination && (
+                        {movement.destination_location_id && (
                           <p>
                             <span className="text-slate-400">
                               Destino:
                             </span>{" "}
-                            {movement.destination}
+                            {movement.destination_location_name ||
+                              "—"}
                           </p>
                         )}
 
-                        {movement.project_name && (
+                        {movement.project_id && (
                           <p>
                             <span className="text-slate-400">
                               Obra:
                             </span>{" "}
-                            {movement.project_name}
+                            {movement.project_name || "—"}
                           </p>
                         )}
 
-                        {movement.expected_return_date && (
+                        {movement.profile_id && (
                           <p>
                             <span className="text-slate-400">
-                              Devolução:
+                              Responsável:
                             </span>{" "}
-                            {movement.expected_return_date}
+                            {movement.profile_name || "—"}
                           </p>
                         )}
                       </div>
 
                       {movement.notes && (
-                        <div className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <div className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
                           {movement.notes}
                         </div>
                       )}
                     </div>
 
                     <div className="shrink-0 text-xs md:text-right">
-                      {movement.responsible_name && (
+                      {movement.profile_name && (
                         <p className="font-medium text-slate-700">
-                          {movement.responsible_name}
+                          {movement.profile_name}
                         </p>
                       )}
 

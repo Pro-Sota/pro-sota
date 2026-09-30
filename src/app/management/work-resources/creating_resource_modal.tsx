@@ -9,6 +9,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import CustomSelect from "@/app/components/custom_select";
 
@@ -18,47 +19,42 @@ import type {
   ResourceType,
   UnitOfMeasure,
 } from "@/services/resources";
-import { createResourceAction } from "@/actions/resources";
-import { useRouter } from "next/navigation";
 
-export type SupplierOption = {
-  supplier_id: string;
-  supplier_name: string;
-};
+import { createResourceAction } from "@/actions/resources";
+import type { CreateResourceActionInput } from "@/actions/resources";
+
 
 type CreateResourceModalProps = {
   open: boolean;
-  onClose: () => void;
-  suppliers?: SupplierOption[];
-  onSubmitAction?: (resource: NewResourceState) => void | Promise<void>;
+  onCloseAction: () => void;
+
+ onSubmitAction?: (
+    input: CreateResourceActionInput,
+  ) => Promise<unknown>;
 };
-
 export type NewResourceState = {
-  code: string;
+  resource_code: string;
   name: string;
-  resource_type: ResourceType;
+  description: string;
 
+  resource_type: ResourceType;
   category: string;
+
   brand: string;
   model: string;
   serial_number: string;
-
-  condition: ResourceCondition;
-
-  acquisition_date: string;
-  last_maintenance_date: string;
-  next_maintenance_date: string;
-
-  replacement_value: string;
+  asset_tag: string;
 
   unit_of_measure: UnitOfMeasure | "";
-  current_stock: string;
-  minimum_stock: string;
-  average_unit_cost: string;
 
-  supplier_id: string;
-  batch_number: string;
-  expiry_date: string;
+  condition_status: ResourceCondition;
+  operational_status: "available" | "in_use" | "overdue" | "missing";
+
+  acquisition_date: string;
+  acquisition_value: string;
+  replacement_value: string;
+
+  notes: string;
 };
 
 const RESOURCE_TYPES: ResourceType[] = [
@@ -77,6 +73,15 @@ const RESOURCE_CONDITIONS: ResourceCondition[] = [
   "retired",
 ];
 
+const OPERATIONAL_STATUSES = [
+  "available",
+  "in_use",
+  "overdue",
+  "missing",
+] as const;
+
+type OperationalStatus = (typeof OPERATIONAL_STATUSES)[number];
+
 const UNITS: UnitOfMeasure[] = [
   "unidade",
   "saco",
@@ -91,33 +96,56 @@ const UNITS: UnitOfMeasure[] = [
 const INPUT_CLASS =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/20";
 
+const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
+  material: "Material consumível",
+  equipment: "Equipamento",
+  tool: "Ferramenta",
+  ppe: "EPI",
+  vehicle: "Viatura",
+};
+
+const RESOURCE_CONDITION_LABELS: Record<ResourceCondition, string> = {
+  operational: "Operacional",
+  restricted: "Uso restrito",
+  maintenance: "Em manutenção",
+  damaged: "Danificado",
+  retired: "Retirado",
+};
+
+const OPERATIONAL_STATUS_LABELS: Record<
+  OperationalStatus,
+  string
+> = {
+  available: "Disponível",
+  in_use: "Em utilização",
+  overdue: "Devolução em atraso",
+  missing: "Em falta",
+};
+
 function createInitialResource(): NewResourceState {
   return {
-    code: "",
+    resource_code: "",
     name: "",
-    resource_type: "material",
+    description: "",
 
+    resource_type: "material",
     category: "",
+
     brand: "",
     model: "",
     serial_number: "",
-
-    condition: "operational",
-
-    acquisition_date: "",
-    last_maintenance_date: "",
-    next_maintenance_date: "",
-
-    replacement_value: "",
+    asset_tag: "",
 
     unit_of_measure: "unidade",
-    current_stock: "",
-    minimum_stock: "",
-    average_unit_cost: "",
 
-    supplier_id: "",
-    batch_number: "",
-    expiry_date: "",
+    condition_status: "operational",
+    operational_status: "available",
+
+    acquisition_date: "",
+    acquisition_value: "",
+    replacement_value: "",
+
+    notes: "",
   };
 }
 
@@ -154,12 +182,11 @@ function getResourceTypeIcon(type: ResourceType) {
 
 export default function CreateResourceModal({
   open,
-  onClose,
-  suppliers = [],
+  onCloseAction,
   onSubmitAction,
 }: CreateResourceModalProps) {
+  const router = useRouter();
 
-    const router = useRouter();
   const [newResource, setNewResource] =
     useState<NewResourceState>(createInitialResource());
 
@@ -184,28 +211,21 @@ export default function CreateResourceModal({
       ...current,
       resource_type: type,
 
-      serial_number:
-        isReusableResource(type) ? current.serial_number : "",
+      /*
+       * Serial number and asset tag are primarily useful for
+       * individually tracked/reusable resources.
+       */
+      serial_number: isReusableResource(type)
+        ? current.serial_number
+        : "",
 
-      unit_of_measure:
-        isConsumable(type)
-          ? current.unit_of_measure || "unidade"
-          : "",
+      asset_tag: isReusableResource(type)
+        ? current.asset_tag
+        : "",
 
-      current_stock:
-        isConsumable(type) ? current.current_stock : "",
-
-      minimum_stock:
-        isConsumable(type) ? current.minimum_stock : "",
-
-      average_unit_cost:
-        isConsumable(type) ? current.average_unit_cost : "",
-
-      batch_number:
-        isConsumable(type) ? current.batch_number : "",
-
-      expiry_date:
-        isConsumable(type) ? current.expiry_date : "",
+      unit_of_measure: isConsumable(type)
+        ? current.unit_of_measure || "unidade"
+        : "",
     }));
   };
 
@@ -215,51 +235,99 @@ export default function CreateResourceModal({
     }
 
     setNewResource(createInitialResource());
-    onClose();
+    onCloseAction();
   };
 
   const handleSaveResource = async () => {
-  if (saving) {
-    return;
-  }
-
-  if (!newResource.code.trim() || !newResource.name.trim()) {
-    return;
-  }
-
-  try {
-    setSaving(true);
-
-    if (onSubmitAction) {
-      await onSubmitAction(newResource);
-    } else {
-      await createResourceAction({
-        ...newResource,
-        resource_code: newResource.code,
-        condition_status: newResource.condition,
-        operational_status: "operational",
-        notes: "",
-        stock: Number(newResource.current_stock) || 0,
-      } satisfies ResourceFormInput);
+    if (saving) {
+      return;
     }
 
-    setNewResource(createInitialResource());
+    if (
+      !newResource.resource_code.trim() ||
+      !newResource.name.trim()
+    ) {
+      return;
+    }
 
-    onClose();
+    try {
+      setSaving(true);
 
-    router.refresh();
-  } catch (error) {
-    console.error("Erro ao registar recurso:", error);
+      const payload: CreateResourceActionInput = {
+        resource_code:
+          newResource.resource_code.trim(),
 
-    window.alert(
-      error instanceof Error
-        ? error.message
-        : "Não foi possível registar o recurso.",
-    );
-  } finally {
-    setSaving(false);
-  }
-};
+        name:
+          newResource.name.trim(),
+
+        description:
+          newResource.description.trim(),
+
+        resource_type:
+          newResource.resource_type,
+
+        category:
+          newResource.category.trim(),
+
+        brand:
+          newResource.brand.trim(),
+
+        model:
+          newResource.model.trim(),
+
+        serial_number:
+          newResource.serial_number.trim(),
+
+        asset_tag:
+          newResource.asset_tag.trim(),
+
+        unit_of_measure:
+          newResource.unit_of_measure,
+
+        condition_status:
+          newResource.condition_status,
+
+        operational_status:
+          newResource.operational_status,
+
+        acquisition_date:
+          newResource.acquisition_date,
+
+        acquisition_value:
+          newResource.acquisition_value,
+
+        replacement_value:
+          newResource.replacement_value,
+
+        notes:
+          newResource.notes.trim(),
+      };
+
+      if (onSubmitAction) {
+        await onSubmitAction(payload);
+      } else {
+        await createResourceAction(payload);
+      }
+      setNewResource(createInitialResource());
+
+      onCloseAction();
+
+      router.refresh();
+    } catch (error) {
+      console.error(
+        "Erro ao registar recurso:",
+        error,
+      );
+
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível registar o recurso.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const showReusableFields = isReusableResource(
     newResource.resource_type,
@@ -288,8 +356,8 @@ export default function CreateResourceModal({
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Crie a ficha base do recurso. Afectações, movimentos
-              e entregas são geridos separadamente.
+              Crie a ficha base do recurso. Stock, afectações,
+              movimentos e manutenção são geridos separadamente.
             </p>
           </div>
 
@@ -324,15 +392,15 @@ export default function CreateResourceModal({
                     onClick={() =>
                       handleResourceTypeChange(type)
                     }
-                    className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border p-3 text-center text-sm font-medium transition ${
-                      selected
+                    className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border p-3 text-center text-sm font-medium transition ${selected
                         ? "border-[#BD9655] bg-white text-[#002950] shadow-sm"
                         : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                    }`}
+                      }`}
                     aria-pressed={selected}
                   >
                     {getResourceTypeIcon(type)}
-                    {type}
+
+                    {RESOURCE_TYPE_LABELS[type]}
                   </button>
                 );
               })}
@@ -348,10 +416,10 @@ export default function CreateResourceModal({
                 <FormField label="Código *">
                   <input
                     className={INPUT_CLASS}
-                    value={newResource.code}
+                    value={newResource.resource_code}
                     onChange={(event) =>
                       updateResource(
-                        "code",
+                        "resource_code",
                         event.target.value,
                       )
                     }
@@ -390,6 +458,23 @@ export default function CreateResourceModal({
                   />
                 </FormField>
 
+                <FormField
+                  label="Descrição"
+                  className="md:col-span-2"
+                >
+                  <input
+                    className={INPUT_CLASS}
+                    value={newResource.description}
+                    onChange={(event) =>
+                      updateResource(
+                        "description",
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Descrição do recurso"
+                  />
+                </FormField>
+
                 <FormField label="Marca">
                   <input
                     className={INPUT_CLASS}
@@ -419,27 +504,43 @@ export default function CreateResourceModal({
                 </FormField>
 
                 {showReusableFields && (
-                  <FormField label="Número de série">
-                    <input
-                      className={INPUT_CLASS}
-                      value={newResource.serial_number}
-                      onChange={(event) =>
-                        updateResource(
-                          "serial_number",
-                          event.target.value,
-                        )
-                      }
-                      placeholder="Se existir"
-                    />
-                  </FormField>
+                  <>
+                    <FormField label="Número de série">
+                      <input
+                        className={INPUT_CLASS}
+                        value={newResource.serial_number}
+                        onChange={(event) =>
+                          updateResource(
+                            "serial_number",
+                            event.target.value,
+                          )
+                        }
+                        placeholder="Se existir"
+                      />
+                    </FormField>
+
+                    <FormField label="Etiqueta patrimonial">
+                      <input
+                        className={INPUT_CLASS}
+                        value={newResource.asset_tag}
+                        onChange={(event) =>
+                          updateResource(
+                            "asset_tag",
+                            event.target.value,
+                          )
+                        }
+                        placeholder="Ex.: PAT-0001"
+                      />
+                    </FormField>
+                  </>
                 )}
 
                 <FormField label="Estado de conservação">
                   <CustomSelect
-                    value={newResource.condition}
+                    value={newResource.condition_status}
                     onChange={(event) =>
                       updateResource(
-                        "condition",
+                        "condition_status",
                         event.target.value as ResourceCondition,
                       )
                     }
@@ -450,7 +551,29 @@ export default function CreateResourceModal({
                         key={condition}
                         value={condition}
                       >
-                        {condition}
+                        {RESOURCE_CONDITION_LABELS[condition]}
+                      </option>
+                    ))}
+                  </CustomSelect>
+                </FormField>
+
+                <FormField label="Estado operacional">
+                  <CustomSelect
+                    value={newResource.operational_status}
+                    onChange={(event) =>
+                      updateResource(
+                        "operational_status",
+                        event.target.value as OperationalStatus,
+                      )
+                    }
+                    className={INPUT_CLASS}
+                  >
+                    {OPERATIONAL_STATUSES.map((status) => (
+                      <option
+                        key={status}
+                        value={status}
+                      >
+                        {OPERATIONAL_STATUS_LABELS[status]}
                       </option>
                     ))}
                   </CustomSelect>
@@ -470,6 +593,23 @@ export default function CreateResourceModal({
                   />
                 </FormField>
 
+                <FormField label="Valor de aquisição">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className={INPUT_CLASS}
+                    value={newResource.acquisition_value}
+                    onChange={(event) =>
+                      updateResource(
+                        "acquisition_value",
+                        event.target.value,
+                      )
+                    }
+                    placeholder="0,00"
+                  />
+                </FormField>
+
                 <FormField label="Valor de substituição">
                   <input
                     type="number"
@@ -486,53 +626,13 @@ export default function CreateResourceModal({
                     placeholder="0,00"
                   />
                 </FormField>
-
-                <FormField label="Fornecedor habitual">
-                  {suppliers.length > 0 ? (
-                    <CustomSelect
-                      value={newResource.supplier_id}
-                      onChange={(event) =>
-                        updateResource(
-                          "supplier_id",
-                          event.target.value,
-                        )
-                      }
-                      className={INPUT_CLASS}
-                    >
-                      <option value="">
-                        Seleccionar fornecedor
-                      </option>
-
-                      {suppliers.map((supplier) => (
-                        <option
-                          key={supplier.supplier_id}
-                          value={supplier.supplier_id}
-                        >
-                          {supplier.supplier_name}
-                        </option>
-                      ))}
-                    </CustomSelect>
-                  ) : (
-                    <input
-                      className={INPUT_CLASS}
-                      value={newResource.supplier_id}
-                      onChange={(event) =>
-                        updateResource(
-                          "supplier_id",
-                          event.target.value,
-                        )
-                      }
-                      placeholder="ID do fornecedor"
-                    />
-                  )}
-                </FormField>
               </div>
             </section>
 
             {/* Consumables */}
             {showConsumableFields && (
               <section className="border-t border-slate-200 pt-6">
-                <SectionTitle title="Gestão inicial de stock" />
+                <SectionTitle title="Informação de consumo" />
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <FormField label="Unidade de medida">
@@ -542,8 +642,8 @@ export default function CreateResourceModal({
                         updateResource(
                           "unit_of_measure",
                           event.target.value as
-                            | UnitOfMeasure
-                            | "",
+                          | UnitOfMeasure
+                          | "",
                         )
                       }
                       className={INPUT_CLASS}
@@ -556,128 +656,39 @@ export default function CreateResourceModal({
                     </CustomSelect>
                   </FormField>
 
-                  <FormField label="Stock inicial">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className={INPUT_CLASS}
-                      value={newResource.current_stock}
-                      onChange={(event) =>
-                        updateResource(
-                          "current_stock",
-                          event.target.value,
-                        )
-                      }
-                      placeholder="0"
-                    />
-                  </FormField>
+                  <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-sm font-medium text-slate-700">
+                      Gestão de stock
+                    </p>
 
-                  <FormField label="Stock mínimo">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className={INPUT_CLASS}
-                      value={newResource.minimum_stock}
-                      onChange={(event) =>
-                        updateResource(
-                          "minimum_stock",
-                          event.target.value,
-                        )
-                      }
-                      placeholder="0"
-                    />
-                  </FormField>
-
-                  <FormField label="Custo unitário médio">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className={INPUT_CLASS}
-                      value={newResource.average_unit_cost}
-                      onChange={(event) =>
-                        updateResource(
-                          "average_unit_cost",
-                          event.target.value,
-                        )
-                      }
-                      placeholder="0,00"
-                    />
-                  </FormField>
-
-                  <FormField label="Lote">
-                    <input
-                      className={INPUT_CLASS}
-                      value={newResource.batch_number}
-                      onChange={(event) =>
-                        updateResource(
-                          "batch_number",
-                          event.target.value,
-                        )
-                      }
-                      placeholder="Número do lote"
-                    />
-                  </FormField>
-
-                  <FormField label="Validade">
-                    <input
-                      type="date"
-                      className={INPUT_CLASS}
-                      value={newResource.expiry_date}
-                      onChange={(event) =>
-                        updateResource(
-                          "expiry_date",
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </FormField>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      O stock inicial, stock mínimo, custo médio,
+                      lote e validade não pertencem à ficha base do
+                      recurso. Estes dados devem ser geridos através
+                      do sistema de stock/movimentos.
+                    </p>
+                  </div>
                 </div>
               </section>
             )}
 
-            {/* Maintenance */}
-            {showReusableFields && (
-              <section className="border-t border-slate-200 pt-6">
-                <SectionTitle title="Manutenção" />
+            {/* Notes */}
+            <section className="border-t border-slate-200 pt-6">
+              <SectionTitle title="Observações" />
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <FormField label="Última manutenção">
-                    <input
-                      type="date"
-                      className={INPUT_CLASS}
-                      value={
-                        newResource.last_maintenance_date
-                      }
-                      onChange={(event) =>
-                        updateResource(
-                          "last_maintenance_date",
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </FormField>
-
-                  <FormField label="Próxima manutenção">
-                    <input
-                      type="date"
-                      className={INPUT_CLASS}
-                      value={
-                        newResource.next_maintenance_date
-                      }
-                      onChange={(event) =>
-                        updateResource(
-                          "next_maintenance_date",
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </FormField>
-                </div>
-              </section>
-            )}
+              <textarea
+                rows={4}
+                className={`${INPUT_CLASS} resize-none`}
+                value={newResource.notes}
+                onChange={(event) =>
+                  updateResource(
+                    "notes",
+                    event.target.value,
+                  )
+                }
+                placeholder="Observações adicionais sobre o recurso..."
+              />
+            </section>
           </div>
         </div>
 
@@ -697,7 +708,7 @@ export default function CreateResourceModal({
             onClick={handleSaveResource}
             disabled={
               saving ||
-              !newResource.code.trim() ||
+              !newResource.resource_code.trim() ||
               !newResource.name.trim()
             }
             className="rounded-lg bg-[#002950] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#002950]/90 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
