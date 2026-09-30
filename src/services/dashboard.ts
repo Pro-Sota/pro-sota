@@ -298,6 +298,7 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
         assigned_to,
         estimated_hours,
         actual_hours,
+        completed,
         profiles:assigned_to(
           profile_id,
           first_name,
@@ -347,7 +348,7 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     const actualHours = Number(task.actual_hours ?? 0);
 
     const isCompleted =
-      task.status === "completed";
+      task.completed === "completed";
 
     const existing = members.get(task.assigned_to);
 
