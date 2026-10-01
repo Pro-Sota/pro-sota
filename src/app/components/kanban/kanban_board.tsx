@@ -1,35 +1,25 @@
 "use client";
 
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 
-import type {
-  Task,
-  TaskColumn,
-  TaskBoard,
-  TaskPriority,
-} from "@/services/project_tasks";
+import type { TaskPriority } from "@/services/project_tasks";
 
 import {
-  createTask,
-  createTaskColumn,
-  updateTask,
-  updateTaskMembers,
-  deleteTask,
-  deleteTaskColumn,
-  moveTask,
-  renameTaskColumn,
-  reorderTaskColumns,
-  reorderTasks,
-} from "@/services/project_tasks";
+  createTaskAction as createTask,
+  createTaskColumnAction as createTaskColumn,
+  updateTaskAction as updateTask,
+  updateTaskMembersAction as updateTaskMembers,
+  deleteTaskAction as deleteTask,
+  deleteTaskColumnAction as deleteTaskColumn,
+  moveTaskAction as moveTask,
+  renameTaskColumnAction as renameTaskColumn,
+  reorderTaskColumnsAction as reorderTaskColumns,
+  reorderTasksAction as reorderTasks,
+} from "@/actions/project_tasks";
 
 import type {
   KanbanColumn,
-  ProjectMember,
   KanbanTask,
   KanbanBoardProps,
   ToastItem,
@@ -37,21 +27,17 @@ import type {
 
 import {
   SearchBox,
-  ToastContainer,
   TaskCard,
   TaskModal,
   ColumnHeader,
   AddColumnForm,
 } from "./";
 
-import {
-  getTaskMembers,
-  validateDateRange,
-} from "./utils";
+import { getTaskMembers, validateDateRange } from "./utils";
+import { useToast } from "../toast/use_toast";
 
-/* -------------------------------------------------------------------------- */
-/* Kanban board                                                               */
-/* -------------------------------------------------------------------------- */
+const errorMessage = (err: unknown, fallback: string) =>
+  err instanceof Error ? err.message : fallback;
 
 export default function KanbanBoard({
   projectId = null,
@@ -61,135 +47,66 @@ export default function KanbanBoard({
 }: KanbanBoardProps) {
   const isProjectTasks = Boolean(projectId);
 
-  const initialColumns = (
-    initialBoard.columns as unknown as KanbanColumn[]
-  ).filter((column) =>
-    projectId
-      ? column.projectId === projectId
-      : column.projectId === null,
-  );
+  /** True when an item belongs to the board currently being shown. */
+  const inScope = (item: { projectId?: string | null }) =>
+    item.projectId === (projectId ?? null);
 
-  const initialTasks = (
-    initialBoard.tasks as KanbanTask[]
-  ).filter((task) =>
-    projectId
-      ? task.projectId === projectId
-      : task.projectId === null,
-  );
+  const scopeBoard = () => ({
+    columns: initialBoard.columns as unknown as KanbanColumn[],
+    tasks: (initialBoard.tasks as KanbanTask[]).filter(inScope),
+  });
 
   /* -------- State -------- */
-  const [tasks, setTasks] =
-    useState<KanbanTask[]>(initialTasks);
+  const [tasks, setTasks] = useState<KanbanTask[]>(() => scopeBoard().tasks);
+  const [columns, setColumns] = useState<KanbanColumn[]>(() => scopeBoard().columns);
 
-  const [columns, setColumns] =
-    useState<KanbanColumn[]>(initialColumns);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [memberPickerOpen, setMemberPickerOpen] = useState(false);
 
-  const [selectedTaskId, setSelectedTaskId] =
-    useState<string | null>(null);
+  const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
+  const [listInput, setListInput] = useState("");
+  const [isAddingList, setIsAddingList] = useState(false);
 
-  const [taskInputs, setTaskInputs] =
-    useState<Record<string, string>>({});
+  const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+  const [columnTitleInput, setColumnTitleInput] = useState("");
 
-  const [titleDraft, setTitleDraft] =
-    useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
-  const [listInput, setListInput] =
-    useState("");
+  const toastIdRef = useRef(0);
 
-  const [isAddingList, setIsAddingList] =
-    useState(false);
-
-  const [editingColumnId, setEditingColumnId] =
-    useState<string | null>(null);
-
-  const [columnTitleInput, setColumnTitleInput] =
-    useState("");
-
-  const [searchQuery, setSearchQuery] =
-    useState("");
-
-  const [draggedTaskId, setDraggedTaskId] =
-    useState<string | null>(null);
-
-  const [draggedColumnId, setDraggedColumnId] =
-    useState<string | null>(null);
-
-  const [dragOverColumnId, setDragOverColumnId] =
-    useState<string | null>(null);
-
-  const [memberPickerOpen, setMemberPickerOpen] =
-    useState(false);
-
-  const [toasts, setToasts] =
-    useState<ToastItem[]>([]);
-
-  const selectedTask =
-    tasks.find(
-      (task) => task.id === selectedTaskId,
-    ) ?? null;
+  const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
   /* -------- Toast -------- */
-  const showToast = (
-    message: string,
-    type: "success" | "error" | "info" = "info",
-  ) => {
-    const id = Date.now() + Math.random();
 
-    setToasts((previous) => [
-      ...previous,
-      { id, message, type },
-    ]);
 
-    window.setTimeout(() => {
-      setToasts((previous) =>
-        previous.filter((toast) => toast.id !== id),
-      );
-    }, 3500);
+
+  const toast = useToast();
+
+  const showError = (err: unknown, fallback: string) => {
+    console.error(fallback, err);
+    toast.error(errorMessage(err, fallback));
   };
 
-  const dismissToast = (id: number) => {
-    setToasts((previous) =>
-      previous.filter((toast) => toast.id !== id),
-    );
-  };
-
-  /* -------- Synchronisation -------- */
+  /* -------- Effects -------- */
   useEffect(() => {
-    const scopedColumns = (
-      initialBoard.columns as unknown as KanbanColumn[]
-    ).filter((column) =>
-      projectId
-        ? column.projectId === projectId
-        : column.projectId === null,
-    );
-
-    const scopedTasks = (
-      initialBoard.tasks as KanbanTask[]
-    ).filter((task) =>
-      projectId
-        ? task.projectId === projectId
-        : task.projectId === null,
-    );
-
-    setTasks(scopedTasks);
-    setColumns(scopedColumns);
+    const scoped = scopeBoard();
+    setTasks(scoped.tasks);
+    setColumns(scoped.columns);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBoard, projectId]);
 
   useEffect(() => {
     if (!selectedTaskId) return;
 
     const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSelectedTaskId(null);
-        setMemberPickerOpen(false);
-      }
+      if (event.key === "Escape") closeModal();
     };
 
     window.addEventListener("keydown", handler);
-
-    return () => {
-      window.removeEventListener("keydown", handler);
-    };
+    return () => window.removeEventListener("keydown", handler);
   }, [selectedTaskId]);
 
   useEffect(() => {
@@ -197,171 +114,99 @@ export default function KanbanBoard({
     setMemberPickerOpen(false);
   }, [selectedTaskId, selectedTask?.title]);
 
-  /* -------- Local helpers -------- */
-  const updateTaskLocal = (
-    taskId: string,
-    updates: Partial<KanbanTask>,
-  ) => {
-    setTasks((previous) =>
-      previous.map((task) =>
-        task.id === taskId ? { ...task, ...updates } : task,
-      ),
+  /* -------- Helpers -------- */
+  const closeModal = () => {
+    setSelectedTaskId(null);
+    setMemberPickerOpen(false);
+  };
+
+  const updateTaskLocal = (taskId: string, updates: Partial<KanbanTask>) =>
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)),
     );
-  };
 
-  const getColumn = (
-    columnId: string | null | undefined,
-  ): KanbanColumn | null => {
-    if (!columnId) return null;
-    return columns.find((column) => column.id === columnId) ?? null;
-  };
+  const getColumn = (columnId: string | null | undefined) =>
+    columns.find((c) => c.id === columnId) ?? null;
 
-  const canManageColumns = (
-    column: KanbanColumn | null,
-  ) => {
-    if (!column) return false;
-    return projectId
-      ? column.projectId === projectId
-      : column.projectId === null;
-  };
+  const canManageColumn = (column: KanbanColumn | null) =>
+    Boolean(column && inScope(column));
 
-  const matchesSearch = (task: KanbanTask) => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return true;
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
 
-    const members = getTaskMembers(task)
-      .map((member) => member.name)
-      .join(" ");
+  const filteredTasks = useMemo(() => {
+    if (!query) return tasks;
 
-    return [
-      task.title,
-      task.description ?? "",
-      task.priority,
-      task.assignedTo ?? "",
-      members,
-    ].some((value) =>
-      value.toLowerCase().includes(query),
-    );
-  };
+    return tasks.filter((task) => {
+      const members = getTaskMembers(task).map((m) => m.name).join(" ");
 
-  const filteredTasks = useMemo(
-    () => tasks.filter(matchesSearch),
-    [tasks, searchQuery],
-  );
-
-  const totalMatches = filteredTasks.length;
-  const isSearching = searchQuery.trim().length > 0;
+      return [
+        task.title,
+        task.description ?? "",
+        task.priority,
+        task.assignedTo ?? "",
+        members,
+      ].some((value) => value.toLowerCase().includes(query));
+    });
+  }, [tasks, query]);
 
   /* -------- Columns -------- */
-const handleAddColumn = async () => {
-  const name = listInput.trim();
+  const handleAddColumn = async () => {
+    const name = listInput.trim();
 
-  if (!name) {
-    showToast(
-      "Introduza o nome da lista.",
-      "info",
-    );
-    return;
-  }
-
-  try {
-    const newColumn = await createTaskColumn({
-      project_id: projectId ?? null,
-      name,
-      position: columns.length,
-      is_completed: false,
-    });
-
-    const normalizedColumn =
-      newColumn as unknown as KanbanColumn;
-
-    if (
-      projectId
-        ? normalizedColumn.projectId !== projectId
-        : normalizedColumn.projectId !== null
-    ) {
-      throw new Error(
-        "A lista criada pertence a um contexto diferente.",
-      );
-    }
-
-    setColumns((previous) => [
-      ...previous,
-      normalizedColumn,
-    ]);
-
-    setListInput("");
-    setIsAddingList(false);
-
-    showToast(
-      "Lista criada com sucesso.",
-      "success",
-    );
-  } catch (err) {
-    console.error("Failed to create column:", err);
-
-    showToast(
-      err instanceof Error
-        ? err.message
-        : "Não foi possível criar a lista.",
-      "error",
-    );
-  }
-};
-
-  const handleDeleteColumn = async (
-    columnId: string,
-  ) => {
-    const column = getColumn(columnId);
-
-    if (!column) return;
-
-    if (!canManageColumns(column)) {
-      showToast(
-        "Não tem permissão para eliminar esta lista.",
-        "error",
-      );
+    if (!name) {
+      toast.info("Introduza o nome da lista.");
       return;
     }
 
-    const hasTasks = tasks.some(
-      (task) => task.columnId === columnId,
-    );
+    try {
+      const created = (await createTaskColumn({
+        project_id: projectId ?? null,
+        name,
+        position: columns.length,
+        is_completed: false,
+      })) as unknown as KanbanColumn;
 
-    if (hasTasks) {
-      showToast(
-        "Esta lista contém tarefas. Mova as tarefas para outra lista antes de a eliminar.",
-        "error",
+      if (!inScope(created)) {
+        throw new Error("A lista criada pertence a um contexto diferente.");
+      }
+
+      setColumns((prev) => [...prev, created]);
+      setListInput("");
+      setIsAddingList(false);
+      toast.success("Lista criada com sucesso.");
+    } catch (err) {
+      showError(err, "Não foi possível criar a lista.");
+    }
+  };
+
+  const handleDeleteColumn = async (columnId: string) => {
+    const column = getColumn(columnId);
+    if (!column) return;
+
+    if (!canManageColumn(column)) {
+      toast.error("Não tem permissão para eliminar esta lista.");
+      return;
+    }
+
+    if (tasks.some((t) => t.columnId === columnId)) {
+      toast.error(
+        "Esta lista contém tarefas. Mova as tarefas para outra lista antes de a eliminar."
       );
       return;
     }
 
     try {
       await deleteTaskColumn(columnId, columnId);
-
-      setColumns((previous) =>
-        previous.filter((item) => item.id !== columnId),
-      );
-
-      showToast(
-        "Lista eliminada com sucesso.",
-        "success",
-      );
+      setColumns((prev) => prev.filter((c) => c.id !== columnId));
+      toast.success("Lista eliminada com sucesso.");
     } catch (err) {
-      console.error("Failed to delete column:", err);
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível eliminar a lista.",
-        "error",
-      );
+      showError(err, "Não foi possível eliminar a lista.");
     }
   };
 
   const startEditingColumn = (column: KanbanColumn) => {
-    if (!canManageColumns(column)) return;
-
+    if (!canManageColumn(column)) return;
     setEditingColumnId(column.id);
     setColumnTitleInput(column.title);
   };
@@ -370,187 +215,107 @@ const handleAddColumn = async () => {
     if (!editingColumnId) return;
 
     const title = columnTitleInput.trim();
+    const column = getColumn(editingColumnId);
 
-    if (!title) {
+    if (!title || !column || column.title === title) {
       setEditingColumnId(null);
       return;
     }
 
-    const oldColumn =
-      columns.find((column) => column.id === editingColumnId) ??
-      null;
-
-    if (!oldColumn || oldColumn.title === title) {
+    if (!canManageColumn(column)) {
       setEditingColumnId(null);
-      return;
-    }
-
-    if (!canManageColumns(oldColumn)) {
-      setEditingColumnId(null);
-
-      showToast(
-        "Não tem permissão para renomear esta lista.",
-        "error",
-      );
-
+      toast.error("Não tem permissão para renomear esta lista.");
       return;
     }
 
     try {
-      const updatedColumn = await renameTaskColumn(
+      const updated = (await renameTaskColumn(
         editingColumnId,
         title,
-      );
+      )) as unknown as KanbanColumn;
 
-      setColumns((previous) =>
-        previous.map((column) =>
-          column.id === editingColumnId
-            ? {
-              ...(updatedColumn as unknown as KanbanColumn),
-              projectName: column.projectName,
-            }
-            : column,
+      setColumns((prev) =>
+        prev.map((c) =>
+          c.id === editingColumnId
+            ? { ...updated, projectName: c.projectName }
+            : c,
         ),
       );
 
-      showToast("Lista actualizada.", "success");
+      toast.success("Lista actualizada.");
     } catch (err) {
-      console.error("Failed to rename column:", err);
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível renomear a lista.",
-        "error",
-      );
+      showError(err, "Não foi possível renomear a lista.");
     } finally {
       setEditingColumnId(null);
     }
   };
 
-  const handleColumnDragStart = (
-    event: React.DragEvent,
-    columnId: string,
-  ) => {
-    const column = getColumn(columnId);
+  const reorderColumns = async (sourceId: string, targetId: string) => {
+    if (
+      sourceId === targetId ||
+      !canManageColumn(getColumn(sourceId)) ||
+      !canManageColumn(getColumn(targetId))
+    ) {
+      return;
+    }
 
-    if (!canManageColumns(column)) return;
+    const next = [...columns];
+    const from = next.findIndex((c) => c.id === sourceId);
+    const to = next.findIndex((c) => c.id === targetId);
+    if (from === -1 || to === -1) return;
 
-    setDraggedColumnId(columnId);
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+
+    const reordered = next.map((c, index) => ({ ...c, position: index }));
+    const previous = columns;
+
+    setColumns(reordered);
+
+    try {
+      await reorderTaskColumns(
+        projectId ?? "",
+        reordered.map((c) => c.id),
+      );
+      toast.success("Listas reordenadas.");
+    } catch (err) {
+      setColumns(previous);
+      showError(err, "Não foi possível reordenar as listas.");
+    }
+  };
+
+  const handleColumnDragStart = (event: React.DragEvent, columnId: string) => {
+    if (!canManageColumn(getColumn(columnId))) return;
 
     event.dataTransfer.effectAllowed = "move";
-
     event.dataTransfer.setData("text/plain", `col:${columnId}`);
   };
 
-  const handleColumnDropArea = async (
+  const handleColumnDrop = async (
     event: React.DragEvent,
     targetColumnId: string,
   ) => {
     event.preventDefault();
-
     setDragOverColumnId(null);
 
     const raw = event.dataTransfer.getData("text/plain");
 
     if (raw.startsWith("col:")) {
-      const sourceColumnId = raw.slice(4);
-
-      if (sourceColumnId === targetColumnId) {
-        return;
-      }
-
-      const sourceColumn = getColumn(sourceColumnId);
-      const targetColumn = getColumn(targetColumnId);
-
-      if (!sourceColumn || !targetColumn) {
-        return;
-      }
-
-      if (
-        !canManageColumns(sourceColumn) ||
-        !canManageColumns(targetColumn)
-      ) {
-        return;
-      }
-
-      const next = [...columns];
-
-      const from = next.findIndex(
-        (column) => column.id === sourceColumnId,
-      );
-
-      const to = next.findIndex(
-        (column) => column.id === targetColumnId,
-      );
-
-      if (from === -1 || to === -1) {
-        return;
-      }
-
-      const [moved] = next.splice(from, 1);
-
-      if (!moved) return;
-
-      next.splice(to, 0, moved);
-
-      const reordered = next.map((column, index) => ({
-        ...column,
-        position: index,
-      }));
-
-      const previousColumns = columns;
-
-      setColumns(reordered);
-
-      try {
-        await reorderTaskColumns(
-          projectId ?? "",
-          reordered.map((column) => column.id),
-        );
-
-        showToast("Listas reordenadas.", "success");
-      } catch (err) {
-        console.error("Failed to reorder columns:", err);
-
-        setColumns(previousColumns);
-
-        showToast(
-          err instanceof Error
-            ? err.message
-            : "Não foi possível reordenar as listas.",
-          "error",
-        );
-      }
-
-      setDraggedColumnId(null);
+      await reorderColumns(raw.slice(4), targetColumnId);
       return;
     }
 
-    const taskId = raw.startsWith("task:")
-      ? raw.slice(5)
-      : draggedTaskId;
+    const taskId = raw.startsWith("task:") ? raw.slice(5) : draggedTaskId;
+    const task = tasks.find((t) => t.id === taskId);
 
-    if (!taskId) return;
-
-    const task = tasks.find((item) => item.id === taskId) ?? null;
-
-    if (!task) return;
-
-    await handleTaskMove(task, targetColumnId);
-
+    if (task) await handleTaskMove(task, targetColumnId);
     setDraggedTaskId(null);
   };
 
-  /* -------- Tasks -------- */
-  const handleTaskDragStart = (
-    event: React.DragEvent,
-    taskId: string,
-  ) => {
+  /* -------- Task drag & move -------- */
+  const handleTaskDragStart = (event: React.DragEvent, taskId: string) => {
     setDraggedTaskId(taskId);
-
     event.dataTransfer.effectAllowed = "move";
-
     event.dataTransfer.setData("text/plain", `task:${taskId}`);
   };
 
@@ -562,19 +327,10 @@ const handleAddColumn = async () => {
     event.preventDefault();
     event.stopPropagation();
 
-    const taskId = draggedTaskId;
+    const source = tasks.find((t) => t.id === draggedTaskId);
+    if (!source || source.id === targetTaskId) return;
 
-    if (!taskId || taskId === targetTaskId) {
-      return;
-    }
-
-    const sourceTask =
-      tasks.find((task) => task.id === taskId) ?? null;
-
-    if (!sourceTask) return;
-
-    await handleTaskMove(sourceTask, targetColumnId, targetTaskId);
-
+    await handleTaskMove(source, targetColumnId, targetTaskId);
     setDraggedTaskId(null);
     setDragOverColumnId(null);
   };
@@ -587,268 +343,177 @@ const handleAddColumn = async () => {
     const targetColumn = getColumn(targetColumnId);
 
     if (!targetColumn) {
-      showToast(
-        "A lista seleccionada não existe.",
-        "error",
-      );
+      toast.error("A lista seleccionada não existe.");
       return;
     }
 
-    const taskBelongsToCurrentBoard = projectId
-      ? task.projectId === projectId
-      : task.projectId === null;
-
-    const columnBelongsToCurrentBoard = projectId
-      ? targetColumn.projectId === projectId
-      : targetColumn.projectId === null;
-
-    if (
-      !taskBelongsToCurrentBoard ||
-      !columnBelongsToCurrentBoard
-    ) {
-      showToast(
-        "Não é possível mover tarefas entre contextos diferentes.",
-        "error",
-      );
+    if (!inScope(task) || !inScope(targetColumn)) {
+      toast.error("Não é possível mover tarefas entre contextos diferentes.");
       return;
     }
 
     const sourceColumnId = task.columnId;
-
+    const sameColumn = sourceColumnId === targetColumnId;
     const previousTasks = tasks;
 
-    const sourceTasks = tasks
-      .filter((item) => item.columnId === sourceColumnId)
-      .sort((a, b) => a.position - b.position);
+    const inColumn = (columnId: string) =>
+      tasks
+        .filter((t) => t.columnId === columnId)
+        .sort((a, b) => a.position - b.position);
 
-    const targetTasks = tasks
-      .filter((item) => item.columnId === targetColumnId)
-      .sort((a, b) => a.position - b.position);
-
-    const sourceWithoutTask = sourceTasks.filter(
-      (item) => item.id !== task.id,
+    const sourceWithoutTask = inColumn(sourceColumnId).filter(
+      (t) => t.id !== task.id,
     );
 
-    let nextTargetTasks =
-      sourceColumnId === targetColumnId
-        ? [...sourceWithoutTask]
-        : [...targetTasks];
+    const nextTarget = sameColumn
+      ? [...sourceWithoutTask]
+      : inColumn(targetColumnId);
 
-    const movedTask: KanbanTask = {
-      ...task,
-      columnId: targetColumnId,
-    };
+    const targetIndex = targetTaskId
+      ? nextTarget.findIndex((t) => t.id === targetTaskId)
+      : -1;
+    const insertionIndex = targetIndex >= 0 ? targetIndex : nextTarget.length;
 
-    let insertionIndex = nextTargetTasks.length;
+    nextTarget.splice(insertionIndex, 0, { ...task, columnId: targetColumnId });
 
-    if (targetTaskId) {
-      const targetIndex = nextTargetTasks.findIndex(
-        (item) => item.id === targetTaskId,
-      );
+    const withPositions = (list: KanbanTask[]) =>
+      list.map((t, index) => ({ ...t, position: index }));
 
-      if (targetIndex >= 0) {
-        insertionIndex = targetIndex;
-      }
-    }
+    const sourceReordered = withPositions(sourceWithoutTask);
+    const targetReordered = withPositions(nextTarget);
 
-    nextTargetTasks.splice(insertionIndex, 0, movedTask);
-
-    const sourceReordered = sourceWithoutTask.map(
-      (item, index) => ({
-        ...item,
-        position: index,
-      }),
+    const untouched = tasks.filter(
+      (t) => t.columnId !== sourceColumnId && t.columnId !== targetColumnId,
     );
 
-    const targetReordered = nextTargetTasks.map(
-      (item, index) => ({
-        ...item,
-        position: index,
-      }),
+    setTasks(
+      [
+        ...untouched,
+        ...(sameColumn ? [] : sourceReordered),
+        ...targetReordered,
+      ].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     );
-
-    const affectedColumnIds = new Set([
-      sourceColumnId,
-      targetColumnId,
-    ]);
-
-    let nextTasks = tasks.filter(
-      (item) => !affectedColumnIds.has(item.columnId),
-    );
-
-    if (sourceColumnId === targetColumnId) {
-      nextTasks.push(...targetReordered);
-    } else {
-      nextTasks.push(...sourceReordered);
-      nextTasks.push(...targetReordered);
-    }
-
-    nextTasks.sort((a, b) =>
-      a.createdAt.localeCompare(b.createdAt),
-    );
-
-    setTasks(nextTasks);
 
     try {
-      await moveTask(
-        task.id,
-        targetColumnId,
-        movedTask.position,
-      );
+      await moveTask(task.id, targetColumnId, insertionIndex);
 
-      if (sourceColumnId !== targetColumnId) {
+      if (!sameColumn) {
         await reorderTasks(
           task.projectId,
           sourceColumnId,
-          sourceReordered.map((item) => item.id),
+          sourceReordered.map((t) => t.id),
         );
       }
 
       await reorderTasks(
         targetColumn.projectId,
         targetColumnId,
-        targetReordered.map((item) => item.id),
+        targetReordered.map((t) => t.id),
       );
     } catch (err) {
-      console.error("Failed to move task:", err);
-
       setTasks(previousTasks);
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível mover a tarefa.",
-        "error",
-      );
+      showError(err, "Não foi possível mover a tarefa.");
     }
   };
 
-  /* -------- Add task -------- */
+  /* -------- Add / delete task -------- */
   const handleAddTask = async (columnId: string) => {
-    const value = (taskInputs[columnId] ?? "").trim();
+    const title = (taskInputs[columnId] ?? "").trim();
 
-    if (!value) {
-      showToast("Introduza o nome da tarefa.", "info");
+    if (!title) {
+      toast.info("Introduza o nome da tarefa.");
       return;
     }
 
     const column = getColumn(columnId);
 
     if (!column) {
-      showToast(
-        "A lista seleccionada não existe.",
-        "error",
-      );
+      toast.error("A lista seleccionada não existe.");
       return;
     }
 
-    const columnBelongsToCurrentBoard = projectId
-      ? column.projectId === projectId
-      : column.projectId === null;
-
-    if (!columnBelongsToCurrentBoard) {
-      showToast(
-        "Não é possível criar uma tarefa nesta lista.",
-        "error",
-      );
+    if (!inScope(column)) {
+      toast.error("Não é possível criar uma tarefa nesta lista.");
       return;
     }
 
     if (!isProjectTasks && !currentUserProfileId) {
-      showToast(
-        "Não foi possível identificar o utilizador actual.",
-        "error",
-      );
+      toast.error("Não foi possível identificar o utilizador actual.");
       return;
     }
+
+    const personalOwner = isProjectTasks ? null : currentUserProfileId;
 
     try {
       const newTask = await createTask({
         projectId: projectId ?? null,
-        title: value,
+        title,
         columnId,
         priority: "Medium",
-        position: tasks.filter(
-          (task) => task.columnId === columnId,
-        ).length,
-
-        assignedTo: isProjectTasks
-          ? null
-          : currentUserProfileId,
-
-        assignedMembers: isProjectTasks
-          ? []
-          : currentUserProfileId
-            ? [currentUserProfileId]
-            : [],
+        position: tasks.filter((t) => t.columnId === columnId).length,
+        assignedTo: personalOwner,
+        assignedMembers: personalOwner ? [personalOwner] : [],
       });
 
-      setTasks((previous) => [...previous, newTask as KanbanTask]);
-
-      setTaskInputs((previous) => ({
-        ...previous,
-        [columnId]: "",
-      }));
-
+      setTasks((prev) => [...prev, newTask as KanbanTask]);
+      setTaskInputs((prev) => ({ ...prev, [columnId]: "" }));
       setSelectedTaskId(newTask.id);
 
-      showToast(
+      toast.success(
         isProjectTasks
           ? "Tarefa criada. Pode adicionar os responsáveis."
-          : "Tarefa pessoal criada.",
-        "success",
+          : "Tarefa pessoal criada."
       );
     } catch (err) {
-      console.error("Failed to create task:", err);
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível criar a tarefa.",
-        "error",
-      );
+      showError(err, "Não foi possível criar a tarefa.");
     }
   };
 
-  /* -------- Delete task -------- */
   const handleDeleteTask = async (taskId: string) => {
-    const task = tasks.find((item) => item.id === taskId) ?? null;
-
-    if (!task) return;
-
     const previousTasks = tasks;
 
-    setTasks((previous) =>
-      previous.filter((item) => item.id !== taskId),
-    );
-
-    if (selectedTaskId === taskId) {
-      setSelectedTaskId(null);
-      setMemberPickerOpen(false);
-    }
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    if (selectedTaskId === taskId) closeModal();
 
     try {
       await deleteTask(taskId);
-
-      showToast(
-        "Tarefa eliminada com sucesso.",
-        "success",
-      );
+      toast.success("Tarefa eliminada com sucesso.");
     } catch (err) {
-      console.error("Failed to delete task:", err);
-
       setTasks(previousTasks);
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível eliminar a tarefa.",
-        "error",
-      );
+      showError(err, "Não foi possível eliminar a tarefa.");
     }
   };
 
-  /* -------- Task title -------- */
+  /* -------- Selected task updates -------- */
+
+  /** Optimistically applies `updates`, persists them, and rolls back on failure. */
+  const patchSelectedTask = async (
+    updates: Partial<KanbanTask>,
+    successMessage: string,
+    errorFallback: string,
+  ) => {
+    if (!selectedTask) return;
+
+    const { id } = selectedTask;
+    const rollback = Object.fromEntries(
+      Object.keys(updates).map((key) => [
+        key,
+        selectedTask[key as keyof KanbanTask],
+      ]),
+    ) as Partial<KanbanTask>;
+
+    updateTaskLocal(id, updates);
+
+    try {
+      const updated = await updateTask(id, updates);
+      updateTaskLocal(id, updated as KanbanTask);
+      toast.success(successMessage);
+    } catch (err) {
+      updateTaskLocal(id, rollback);
+      showError(err, errorFallback);
+    }
+  };
+
   const commitTitle = async () => {
     if (!selectedTask) return;
 
@@ -859,253 +524,91 @@ const handleAddColumn = async () => {
       return;
     }
 
-    try {
-      const updated = await updateTask(selectedTask.id, {
-        title,
-      });
-
-      updateTaskLocal(selectedTask.id, updated as KanbanTask);
-
-      showToast("Tarefa actualizada.", "success");
-    } catch (err) {
-      console.error("Failed to update task title:", err);
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível actualizar a tarefa.",
-        "error",
-      );
-
-      setTitleDraft(selectedTask.title);
-    }
+    await patchSelectedTask(
+      { title },
+      "Tarefa actualizada.",
+      "Não foi possível actualizar a tarefa.",
+    );
   };
 
-  /* -------- Completion -------- */
-  const updateTaskCompletion = async (
-    completed: boolean,
+  const updateTaskCompletion = (completed: boolean) =>
+    patchSelectedTask(
+      { completed },
+      completed
+        ? "Tarefa marcada como concluída."
+        : "Tarefa marcada como em aberto.",
+      "Não foi possível actualizar o estado da tarefa.",
+    );
+
+  const updatePriority = (priority: TaskPriority) =>
+    patchSelectedTask(
+      { priority },
+      "Prioridade actualizada.",
+      "Não foi possível actualizar a prioridade.",
+    );
+
+  const updateDate = async (
+    field: "startDate" | "dueDate",
+    raw: string,
+    successMessage: string,
+    errorFallback: string,
   ) => {
     if (!selectedTask) return;
 
-    const previous = selectedTask.completed ?? false;
+    const value = raw || null;
 
-    updateTaskLocal(selectedTask.id, { completed });
-
-    try {
-      const updated = await updateTask(selectedTask.id, {
-        completed,
-      });
-
-      updateTaskLocal(selectedTask.id, updated as KanbanTask);
-
-      showToast(
-        completed
-          ? "Tarefa marcada como concluída."
-          : "Tarefa marcada como em aberto.",
-        "success",
-      );
-    } catch (err) {
-      updateTaskLocal(selectedTask.id, {
-        completed: previous,
-      });
-
-      console.error(
-        "Failed to update task completion:",
-        err,
-      );
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível actualizar o estado da tarefa.",
-        "error",
-      );
-    }
-  };
-
-  /* -------- Priority -------- */
-  const updatePriority = async (
-    priority: TaskPriority,
-  ) => {
-    if (!selectedTask) return;
-
-    const previous = selectedTask.priority;
-
-    updateTaskLocal(selectedTask.id, { priority });
-
-    try {
-      const updated = await updateTask(selectedTask.id, {
-        priority,
-      });
-
-      updateTaskLocal(selectedTask.id, updated as KanbanTask);
-
-      showToast("Prioridade actualizada.", "success");
-    } catch (err) {
-      updateTaskLocal(selectedTask.id, {
-        priority: previous,
-      });
-
-      console.error("Failed to update priority:", err);
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível actualizar a prioridade.",
-        "error",
-      );
-    }
-  };
-
-  /* -------- Start date -------- */
-  const updateStartDate = async (startDate: string) => {
-    if (!selectedTask) return;
-
-    const value = startDate || null;
-
-    const previous = selectedTask.startDate ?? null;
-
-    const validation = validateDateRange(value, selectedTask.dueDate);
+    const validation =
+      field === "startDate"
+        ? validateDateRange(value, selectedTask.dueDate)
+        : validateDateRange(selectedTask.startDate, value);
 
     if (!validation.valid) {
-      showToast(validation.message || "Data inválida.", "error");
+      toast.error(validation.message || "Data inválida.");
       return;
     }
 
-    updateTaskLocal(selectedTask.id, { startDate: value });
-
-    try {
-      const updated = await updateTask(selectedTask.id, {
-        startDate: value,
-      });
-
-      updateTaskLocal(selectedTask.id, updated as KanbanTask);
-
-      showToast("Data de início actualizada.", "success");
-    } catch (err) {
-      updateTaskLocal(selectedTask.id, {
-        startDate: previous,
-      });
-
-      console.error("Failed to update start date:", err);
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível actualizar a data de início.",
-        "error",
-      );
-    }
+    await patchSelectedTask({ [field]: value }, successMessage, errorFallback);
   };
 
-  /* -------- Due date -------- */
-  const updateDueDate = async (dueDate: string) => {
-    if (!selectedTask) return;
-
-    const value = dueDate || null;
-
-    const validation = validateDateRange(
-      selectedTask.startDate,
+  const updateStartDate = (value: string) =>
+    updateDate(
+      "startDate",
       value,
+      "Data de início actualizada.",
+      "Não foi possível actualizar a data de início.",
     );
 
-    if (!validation.valid) {
-      showToast(validation.message || "Data inválida.", "error");
-      return;
-    }
+  const updateDueDate = (value: string) =>
+    updateDate(
+      "dueDate",
+      value,
+      "Data de conclusão actualizada.",
+      "Não foi possível actualizar a data de conclusão.",
+    );
 
-    const previous = selectedTask.dueDate;
+  const updateDescription = (description: string) =>
+    patchSelectedTask(
+      { description },
+      "Descrição guardada.",
+      "Não foi possível guardar a descrição.",
+    );
 
-    updateTaskLocal(selectedTask.id, { dueDate: value });
-
-    try {
-      const updated = await updateTask(selectedTask.id, {
-        dueDate: value,
-      });
-
-      updateTaskLocal(selectedTask.id, updated as KanbanTask);
-
-      showToast("Data de conclusão actualizada.", "success");
-    } catch (err) {
-      updateTaskLocal(selectedTask.id, {
-        dueDate: previous,
-      });
-
-      console.error("Failed to update due date:", err);
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível actualizar a data de conclusão.",
-        "error",
-      );
-    }
-  };
-
-  /* -------- Description -------- */
-  const updateDescription = async (
-    description: string,
-  ) => {
-    if (!selectedTask) return;
-
-    const previous = selectedTask.description;
-
-    try {
-      const updated = await updateTask(selectedTask.id, {
-        description,
-      });
-
-      updateTaskLocal(selectedTask.id, updated as KanbanTask);
-
-      if (previous !== description) {
-        showToast("Descrição guardada.", "success");
-      }
-    } catch (err) {
-      updateTaskLocal(selectedTask.id, {
-        description: previous,
-      });
-
-      console.error("Failed to update description:", err);
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível guardar a descrição.",
-        "error",
-      );
-    }
-  };
-
-  /* -------- Members -------- */
   const toggleTaskMember = async (profileId: string) => {
-    if (!selectedTask || !isProjectTasks) {
-      return;
-    }
+    if (!selectedTask || !isProjectTasks) return;
 
-    const currentMembers = selectedTask.assignedMembers ?? [];
-
-    const exists = currentMembers.some(
-      (member) => member.profileId === profileId,
-    );
-
-    const projectMember = projectMembers.find(
-      (member) => member.profileId === profileId,
-    );
+    const current = selectedTask.assignedMembers ?? [];
+    const exists = current.some((m) => m.profileId === profileId);
+    const projectMember = projectMembers.find((m) => m.profileId === profileId);
 
     if (!projectMember) {
-      showToast(
-        "Este membro não pertence ao projecto.",
-        "error",
-      );
+      toast.error("Este membro não pertence ao projecto.");
       return;
     }
 
-    const nextMembers = exists
-      ? currentMembers.filter(
-          (member) => member.profileId !== profileId,
-        )
+    const next = exists
+      ? current.filter((m) => m.profileId !== profileId)
       : [
-          ...currentMembers,
+          ...current,
           {
             profileId: projectMember.profileId,
             name: projectMember.name,
@@ -1114,115 +617,36 @@ const handleAddColumn = async () => {
           },
         ];
 
-    updateTaskLocal(selectedTask.id, {
-      assignedMembers: nextMembers,
-    });
+    updateTaskLocal(selectedTask.id, { assignedMembers: next });
 
     try {
-      const updatedMembers = await updateTaskMembers(
+      const saved = await updateTaskMembers(
         selectedTask.id,
-        nextMembers.map((member) => member.profileId),
+        next.map((m) => m.profileId),
       );
 
-      const normalizedMembers =
-        updatedMembers?.map((member: any) => ({
-          profileId: member.profileId ?? member.profile_id,
-          name:
-            member.name ??
-            `${member.firstName ?? ""} ${member.lastName ?? ""}`.trim(),
-          picture: member.picture ?? null,
-          jobTitle:
-            member.jobTitle ?? member.job_title ?? null,
-        })) ?? nextMembers;
+      const normalized =
+        saved?.map((m: any) => ({
+          profileId: m.profileId ?? m.profile_id,
+          name: m.name ?? `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim(),
+          picture: m.picture ?? null,
+          jobTitle: m.jobTitle ?? m.job_title ?? null,
+        })) ?? next;
 
-      updateTaskLocal(selectedTask.id, {
-        assignedMembers: normalizedMembers,
-      });
+      updateTaskLocal(selectedTask.id, { assignedMembers: normalized });
 
-      showToast(
-        exists
-          ? "Membro removido da tarefa."
-          : "Membro adicionado à tarefa.",
-        "success",
+      toast.success(
+        exists ? "Membro removido da tarefa." : "Membro adicionado à tarefa."
       );
     } catch (err) {
-      updateTaskLocal(selectedTask.id, {
-        assignedMembers: currentMembers,
-      });
-
-      console.error(
-        "Failed to update task members:",
-        err,
-      );
-
-      showToast(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível actualizar os responsáveis.",
-        "error",
-      );
+      updateTaskLocal(selectedTask.id, { assignedMembers: current });
+      showError(err, "Não foi possível actualizar os responsáveis.");
     }
   };
 
-  /* -------- Empty search result -------- */
-  if (isSearching && totalMatches === 0) {
-    return (
-      <>
-        <div className="min-h-screen">
-          <div className="mx-auto max-w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-            <div className="mb-8 border-b border-gray-200 pb-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-                    Tarefas
-                  </h1>
-
-                  <p className="mt-1 text-sm text-gray-600">
-                    {projectId
-                      ? "Organize as tarefas deste projecto."
-                      : "Consulte as tarefas gerais da equipa."}
-                  </p>
-                </div>
-
-                <SearchBox
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-16 text-center">
-              <Search className="mb-4 h-10 w-10 text-gray-300" />
-
-              <p className="text-sm font-medium text-gray-900">
-                Nenhuma tarefa encontrada
-              </p>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Nenhuma tarefa corresponde a "
-                {searchQuery}"
-              </p>
-
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="mt-4 text-sm font-medium text-gray-600 underline transition hover:text-gray-900"
-              >
-                Limpar pesquisa
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <ToastContainer
-          toasts={toasts}
-          onDismiss={dismissToast}
-        />
-      </>
-    );
-  }
-
   /* -------- Render -------- */
+  const noSearchResults = isSearching && filteredTasks.length === 0;
+
   return (
     <>
       <div className="min-h-screen">
@@ -1233,7 +657,6 @@ const handleAddColumn = async () => {
                 <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
                   Tarefas
                 </h1>
-
                 <p className="mt-1 text-sm text-gray-600">
                   {projectId
                     ? "Organize as tarefas deste projecto."
@@ -1241,166 +664,144 @@ const handleAddColumn = async () => {
                 </p>
               </div>
 
-              <SearchBox
-                value={searchQuery}
-                onChange={setSearchQuery}
-              />
+              <SearchBox value={searchQuery} onChange={setSearchQuery} />
             </div>
           </div>
 
-          <div className="-mx-4 flex gap-6 overflow-x-auto px-4 pb-6 sm:mx-0 sm:px-0">
-            {columns.map((column) => {
-              const columnTasks = filteredTasks
-                .filter((task) => task.columnId === column.id)
-                .sort((a, b) => a.position - b.position);
+          {noSearchResults ? (
+            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-16 text-center">
+              <Search className="mb-4 h-10 w-10 text-gray-300" />
+              <p className="text-sm font-medium text-gray-900">
+                Nenhuma tarefa encontrada
+              </p>
+              <p className="mt-1 text-sm text-gray-500">
+                Nenhuma tarefa corresponde a "{searchQuery}"
+              </p>
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="mt-4 text-sm font-medium text-gray-600 underline transition hover:text-gray-900"
+              >
+                Limpar pesquisa
+              </button>
+            </div>
+          ) : (
+            <div className="-mx-4 flex gap-6 overflow-x-auto px-4 pb-6 sm:mx-0 sm:px-0">
+              {columns.map((column) => {
+                const columnTasks = filteredTasks
+                  .filter((t) => t.columnId === column.id)
+                  .sort((a, b) => a.position - b.position);
 
-              return (
-                <div
-                  key={column.id}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setDragOverColumnId(column.id);
-                  }}
-                  onDragLeave={() =>
-                    setDragOverColumnId((previous) =>
-                      previous === column.id
-                        ? null
-                        : previous,
-                    )
-                  }
-                  onDrop={(event) =>
-                    handleColumnDropArea(event, column.id)
-                  }
-                  className={`flex min-h-[600px] w-80 shrink-0 flex-col rounded-lg border bg-white shadow-sm transition ${
-                    dragOverColumnId === column.id
-                      ? "border-gray-400 ring-2 ring-gray-200"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <ColumnHeader
-                    column={column}
-                    taskCount={columnTasks.length}
-                    isEditing={
-                      editingColumnId === column.id
-                    }
-                    editTitle={columnTitleInput}
-                    canManage={canManageColumns(column)}
-                    onEditingStart={() =>
-                      startEditingColumn(column)
-                    }
-                    onEditTitleChange={
-                      setColumnTitleInput
-                    }
-                    onEditCommit={commitColumnTitle}
-                    onDelete={() =>
-                      handleDeleteColumn(column.id)
-                    }
-                    onDragStart={(event) =>
-                      handleColumnDragStart(
-                        event,
-                        column.id,
+                return (
+                  <div
+                    key={column.id}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setDragOverColumnId(column.id);
+                    }}
+                    onDragLeave={() =>
+                      setDragOverColumnId((prev) =>
+                        prev === column.id ? null : prev,
                       )
                     }
-                  />
-
-                  <div className="flex-1 space-y-3 overflow-y-auto overflow-x-visible px-4 py-4 sm:px-5">
-                    {columnTasks.length === 0 && (
-                      <p className="rounded-lg border-2 border-dashed border-gray-200 py-8 text-center text-xs text-gray-400">
-                        Sem tarefas
-                      </p>
-                    )}
-
-                    {columnTasks.map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        onSelect={() =>
-                          setSelectedTaskId(task.id)
-                        }
-                        onDelete={() =>
-                          handleDeleteTask(task.id)
-                        }
-                        draggable
-                        onDragStart={(event) =>
-                          handleTaskDragStart(
-                            event,
-                            task.id,
-                          )
-                        }
-                        onDragOver={(event) =>
-                          event.preventDefault()
-                        }
-                        onDrop={(event) =>
-                          handleTaskDrop(
-                            event,
-                            task.id,
-                            column.id,
-                          )
-                        }
-                      />
-                    ))}
-                  </div>
-
-                  <div className="space-y-3 border-t border-gray-200 px-4 py-4 sm:px-5">
-                    <input
-                      type="text"
-                      value={taskInputs[column.id] ?? ""}
-                      onChange={(event) =>
-                        setTaskInputs((previous) => ({
-                          ...previous,
-                          [column.id]:
-                            event.target.value,
-                        }))
+                    onDrop={(event) => handleColumnDrop(event, column.id)}
+                    className={`flex min-h-[600px] w-80 shrink-0 flex-col rounded-lg border bg-white shadow-sm transition ${
+                      dragOverColumnId === column.id
+                        ? "border-gray-400 ring-2 ring-gray-200"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    <ColumnHeader
+                      column={column}
+                      taskCount={columnTasks.length}
+                      isEditing={editingColumnId === column.id}
+                      editTitle={columnTitleInput}
+                      canManage={canManageColumn(column)}
+                      onEditingStart={() => startEditingColumn(column)}
+                      onEditTitleChange={setColumnTitleInput}
+                      onEditCommit={commitColumnTitle}
+                      onDelete={() => handleDeleteColumn(column.id)}
+                      onDragStart={(event) =>
+                        handleColumnDragStart(event, column.id)
                       }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          void handleAddTask(column.id);
-                        }
-                      }}
-                      placeholder="Nova tarefa..."
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
                     />
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void handleAddTask(column.id)
-                      }
-                      className="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1"
-                    >
-                      Adicionar tarefa
-                    </button>
+                    <div className="flex-1 space-y-3 overflow-y-auto overflow-x-visible px-4 py-4 sm:px-5">
+                      {columnTasks.length === 0 && (
+                        <p className="rounded-lg border-2 border-dashed border-gray-200 py-8 text-center text-xs text-gray-400">
+                          Sem tarefas
+                        </p>
+                      )}
+
+                      {columnTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onSelect={() => setSelectedTaskId(task.id)}
+                          onDelete={() => handleDeleteTask(task.id)}
+                          draggable
+                          onDragStart={(event) =>
+                            handleTaskDragStart(event, task.id)
+                          }
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={(event) =>
+                            handleTaskDrop(event, task.id, column.id)
+                          }
+                        />
+                      ))}
+                    </div>
+
+                    <div className="space-y-3 border-t border-gray-200 px-4 py-4 sm:px-5">
+                      <input
+                        type="text"
+                        value={taskInputs[column.id] ?? ""}
+                        onChange={(event) =>
+                          setTaskInputs((prev) => ({
+                            ...prev,
+                            [column.id]: event.target.value,
+                          }))
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") void handleAddTask(column.id);
+                        }}
+                        placeholder="Nova tarefa..."
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => void handleAddTask(column.id)}
+                        className="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1"
+                      >
+                        Adicionar tarefa
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
 
-            <div className="w-80 shrink-0">
-              <AddColumnForm
-                isAdding={isAddingList}
-                listInput={listInput}
-                onInputChange={setListInput}
-                onAddClick={handleAddColumn}
-                onCancelClick={() => {
-                  setIsAddingList(false);
-                  setListInput("");
-                }}
-                onToggleForm={() =>
-                  setIsAddingList(!isAddingList)
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    void handleAddColumn();
-                  }
-
-                  if (event.key === "Escape") {
+              <div className="w-80 shrink-0">
+                <AddColumnForm
+                  isAdding={isAddingList}
+                  listInput={listInput}
+                  onInputChange={setListInput}
+                  onAddClick={handleAddColumn}
+                  onCancelClick={() => {
                     setIsAddingList(false);
                     setListInput("");
-                  }
-                }}
-              />
+                  }}
+                  onToggleForm={() => setIsAddingList((open) => !open)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void handleAddColumn();
+                    if (event.key === "Escape") {
+                      setIsAddingList(false);
+                      setListInput("");
+                    }
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -1410,35 +811,25 @@ const handleAddColumn = async () => {
         projectMembers={projectMembers}
         memberPickerOpen={memberPickerOpen}
         titleDraft={titleDraft}
-        onClose={() => {
-          setSelectedTaskId(null);
-          setMemberPickerOpen(false);
-        }}
-        onDelete={() => handleDeleteTask(selectedTaskId!)}
+        onClose={closeModal}
+        onDelete={() => selectedTaskId && handleDeleteTask(selectedTaskId)}
         onTitleChange={setTitleDraft}
         onTitleCommit={commitTitle}
         onCompletionChange={updateTaskCompletion}
         onPriorityChange={updatePriority}
         onStartDateChange={updateStartDate}
         onDueDateChange={updateDueDate}
-        onDescriptionChange={(desc) =>
-          updateTaskLocal(selectedTask?.id!, {
-            description: desc,
-          })
+        onDescriptionChange={(description) =>
+          selectedTask && updateTaskLocal(selectedTask.id, { description })
         }
         onDescriptionBlur={updateDescription}
         onMemberToggle={toggleTaskMember}
         onMemberPickerToggle={setMemberPickerOpen}
         getColumnTitle={(columnId) =>
-          getColumn(columnId)?.title ??
-          "Lista indisponível"
+          getColumn(columnId)?.title ?? "Lista indisponível"
         }
       />
 
-      <ToastContainer
-        toasts={toasts}
-        onDismiss={dismissToast}
-      />
     </>
   );
 }

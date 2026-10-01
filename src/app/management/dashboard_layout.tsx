@@ -16,6 +16,9 @@ export default function DashboardLayoutClient({
   userDepartment,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+
+  const sidebarExpanded = !collapsed || sidebarHovered;
 
   return (
     <div className="min-h-screen bg-[#F7F7F5]">
@@ -25,6 +28,7 @@ export default function DashboardLayoutClient({
         setCollapsedAction={setCollapsed}
         userRole={userRole}
         userDepartment={userDepartment}
+        onHoverChange={setSidebarHovered}
       />
 
       {/* Mobile Navbar */}
@@ -33,10 +37,15 @@ export default function DashboardLayoutClient({
         userDepartment={userDepartment}
       />
 
+      {/* Main Content */}
       <main
-        className={`min-h-screen overflow-auto transition-all duration-300 ${
-          collapsed ? "md:ml-20" : "md:ml-64"
-        }`}
+        className={[
+          "min-h-screen overflow-auto",
+          "transition-[margin] duration-200 ease-out",
+          sidebarExpanded
+            ? "md:ml-64"
+            : "md:ml-20",
+        ].join(" ")}
       >
         {children}
       </main>

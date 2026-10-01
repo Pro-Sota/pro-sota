@@ -128,9 +128,6 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!selectedChatId) {
-      setMessages([]);
-      setLoading(false);
-      setError(null);
       return;
     }
 

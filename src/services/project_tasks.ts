@@ -54,7 +54,6 @@ export type TaskPriority =
 export type TaskMember = {
   profileId: string;
   name: string;
-  picture: string | null;
   jobTitle: string | null;
 };
 
@@ -348,7 +347,7 @@ async function getTaskMembers(
   } = await supabase
     .from("profiles")
     .select(
-      "profile_id, first_name, last_name, job_title, picture",
+      "profile_id, first_name, last_name, job_title",
     )
     .in(
       "profile_id",
@@ -374,7 +373,6 @@ async function getTaskMembers(
         first_name: string | null;
         last_name: string | null;
         job_title: string | null;
-        picture: string | null;
       }
     >();
 
@@ -409,8 +407,6 @@ async function getTaskMembers(
       profileId:
         profile.profile_id,
       name,
-      picture:
-        profile.picture ?? null,
       jobTitle:
         profile.job_title ?? null,
     };
