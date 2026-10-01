@@ -4,38 +4,152 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, Loader2 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { getVisibleNavigation } from "./management_menu";
+import {
+  Menu,
+  X,
+  Loader2,
+  HomeIcon,
+  UserPlus,
+  Folder,
+  ListTodo,
+  CalendarDays,
+  MessageCircle,
+  Handshake,
+  Users,
+  Clock3,
+  Boxes,
+  User,
+  Bell,
+  LogOut,
+  LucideIcon,
+} from "lucide-react";
+
 import { createClient } from "@/app/lib/supabase/client";
+import { usePermissions } from "@/app/components/permission_provider";
+import type { Permission } from "@/app/lib/permissions/types";
+
+type NavigationItem = {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  permission?: Permission;
+  action?: "logout";
+};
 
 type NavItemProps = {
-  item: {
-    name: string;
-    href: string;
-    icon: LucideIcon;
-    action?: "logout";
-  };
+  item: NavigationItem;
   active: boolean;
   onClick?: () => void;
+  logoutLoading?: boolean;
 };
 
-type Props = {
-  userRole?: string | null;
-  userDepartment?: string | null;
-};
+const menuItems: NavigationItem[] = [
+  {
+    name: "Visão geral",
+    href: "/management",
+    icon: HomeIcon,
+    permission: "dashboard.view",
+  },
+  {
+    name: "Leads",
+    href: "/management/leads",
+    icon: UserPlus,
+    permission: "leads.view",
+  },
+  {
+    name: "Projectos",
+    href: "/management/projects",
+    icon: Folder,
+    permission: "projects.view",
+  },
+  {
+    name: "Tarefas",
+    href: "/management/tasks",
+    icon: ListTodo,
+    permission: "tasks.view",
+  },
+  {
+    name: "Calendário",
+    href: "/management/calendar",
+    icon: CalendarDays,
+    permission: "calendar.view",
+  },
+  {
+    name: "Mensagens",
+    href: "/management/messages",
+    icon: MessageCircle,
+    permission: "messages.view",
+  },
+  {
+    name: "Clientes",
+    href: "/management/clients",
+    icon: Handshake,
+    permission: "clients.view",
+  },
+  {
+    name: "Equipa Sota",
+    href: "/management/team",
+    icon: Users,
+    permission: "team.view",
+  },
+  {
+    name: "Presença",
+    href: "/management/attendance",
+    icon: Clock3,
+    permission: "attendance.view",
+  },
+  {
+    name: "Recursos de obra",
+    href: "/management/work-resources",
+    icon: Boxes,
+    permission: "work_resources.view",
+  },
+  {
+    name: "Fornecedores",
+    href: "/management/suppliers",
+    icon: Handshake,
+    permission: "suppliers.view",
+  },
+];
 
-export default function MobileNavbar({
-  userRole,
-  userDepartment,
-}: Props) {
+const bottomItems: NavigationItem[] = [
+  {
+    name: "Meu perfil",
+    href: "/management/profile",
+    icon: User,
+    permission: "profile.view",
+  },
+  {
+    name: "Notificações",
+    href: "/management/notifications",
+    icon: Bell,
+    permission: "notifications.view",
+  },
+  {
+    name: "Sair",
+    href: "",
+    icon: LogOut,
+    action: "logout",
+  },
+];
+
+export default function MobileNavbar() {
   const pathname = usePathname();
+  const { can } = usePermissions();
+
   const [isOpen, setIsOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
-  const { menuItems, bottomItems } = getVisibleNavigation(
-    userRole,
-    userDepartment,
+  const visibleMenuItems = menuItems.filter(
+    (item) =>
+      !item.permission ||
+      can(item.permission),
+  );
+
+  const visibleBottomItems = bottomItems.filter(
+    (item) =>
+      !item.permission ||
+      can(item.permission),
   );
 
   const isActiveRoute = (href: string) => {
@@ -45,7 +159,10 @@ export default function MobileNavbar({
       return pathname === href;
     }
 
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
   };
 
   const handleNavClick = () => {
@@ -102,7 +219,11 @@ export default function MobileNavbar({
           <button
             type="button"
             onClick={() => setIsOpen((open) => !open)}
-            aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
+            aria-label={
+              isOpen
+                ? "Fechar menu"
+                : "Abrir menu"
+            }
             aria-expanded={isOpen}
             aria-controls="mobile-navigation"
             className={[
@@ -146,7 +267,7 @@ export default function MobileNavbar({
           >
             {/* Main Menu */}
             <div className="space-y-1">
-              {menuItems.map((item) => (
+              {visibleMenuItems.map((item) => (
                 <MobileNavItem
                   key={item.href}
                   item={item}
@@ -159,9 +280,13 @@ export default function MobileNavbar({
             {/* Bottom Menu */}
             <div className="mt-3 border-t border-[#BD9655] pt-3">
               <div className="space-y-1">
-                {bottomItems.map((item) => (
+                {visibleBottomItems.map((item) => (
                   <MobileNavItem
-                    key={item.action === "logout" ? "logout" : item.href}
+                    key={
+                      item.action === "logout"
+                        ? "logout"
+                        : item.href
+                    }
                     item={item}
                     active={isActiveRoute(item.href)}
                     onClick={
@@ -170,7 +295,9 @@ export default function MobileNavbar({
                         : handleNavClick
                     }
                     logoutLoading={
-                      item.action === "logout" ? logoutLoading : false
+                      item.action === "logout"
+                        ? logoutLoading
+                        : false
                     }
                   />
                 ))}
@@ -191,13 +318,12 @@ function MobileNavItem({
   active,
   onClick,
   logoutLoading = false,
-}: NavItemProps & {
-  logoutLoading?: boolean;
-}) {
+}: NavItemProps) {
   const Icon = item.icon;
 
   const label =
-    item.action === "logout" && logoutLoading
+    item.action === "logout" &&
+    logoutLoading
       ? "A sair..."
       : item.name;
 
@@ -255,7 +381,9 @@ function MobileNavItem({
   return (
     <Link
       href={item.href}
-      aria-current={active ? "page" : undefined}
+      aria-current={
+        active ? "page" : undefined
+      }
       onClick={onClick}
       className={[
         itemClasses,

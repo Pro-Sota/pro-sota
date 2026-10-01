@@ -23,37 +23,18 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
-
-import { createClient } from "@/app/lib/supabase/client";
 import { useState } from "react";
 
-type SystemRole =
-  | "Superadmin"
-  | "Admin"
-  | "Director"
-  | "Utilizador";
+import { createClient } from "@/app/lib/supabase/client";
+import { usePermissions } from "@/app/components/permission_provider";
 
-type Department =
-  | "DC"
-  | "Administração"
-  | "DE"
-  | "DA"
-  | "DIT"
-  | "HR"
-  | "Design de Interiores"
-  | "Paisagismo"
-  | "Finanças"
-  | "Recursos Humanos"
-  | "Procurement"
-  | "Marketing & Comunicação"
-  | "TI / Sistemas";
+import type { Permission } from "@/app/lib/permissions/types";
 
 type SidebarItem = {
   name: string;
   href: string;
   icon: LucideIcon;
-  roles?: SystemRole[];
-  departments?: Department[];
+  permission?: Permission;
   action?: "logout";
 };
 
@@ -66,10 +47,10 @@ type SidebarItemProps = {
 };
 
 type Props = {
-  userRole?: string | null;
-  userDepartment?: string | null;
   collapsed: boolean;
-  setCollapsedAction: React.Dispatch<React.SetStateAction<boolean>>;
+  setCollapsedAction: React.Dispatch<
+    React.SetStateAction<boolean>
+  >;
 };
 
 /*
@@ -83,72 +64,67 @@ const menuItems: SidebarItem[] = [
     name: "Visão geral",
     href: "/management",
     icon: HomeIcon,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
+    permission: "dashboard.view",
   },
   {
     name: "Leads",
     href: "/management/leads",
     icon: UserPlus,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
-    departments: ["DC"],
+    permission: "leads.view",
   },
   {
     name: "Projectos",
     href: "/management/projects",
     icon: Folder,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
-    departments: ["Administração", "DE", "DA"],
+    permission: "projects.view",
   },
   {
     name: "Tarefas",
     href: "/management/tasks",
     icon: ListTodo,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
+    permission: "tasks.view",
   },
   {
     name: "Calendário",
     href: "/management/calendar",
     icon: CalendarDays,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
+    permission: "calendar.view",
   },
   {
     name: "Mensagens",
     href: "/management/messages",
     icon: MessageCircle,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
+    permission: "messages.view",
   },
   {
     name: "Clientes",
     href: "/management/clients",
     icon: Users,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
-    departments: ["DC"],
+    permission: "clients.view",
   },
   {
     name: "Equipa",
     href: "/management/team",
     icon: UsersRound,
-    roles: ["Superadmin", "Admin", "Director"],
+    permission: "team.view",
   },
   {
     name: "Presença",
     href: "/management/attendance",
     icon: Clock3,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
-    departments: ["HR"],
+    permission: "attendance.view",
   },
   {
     name: "Recursos de obra",
     href: "/management/work-resources",
     icon: WalletCards,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
-    departments: ["HR", "DE"],
+    permission: "work_resources.view",
   },
   {
     name: "Fornecedores",
     href: "/management/suppliers",
     icon: Handshake,
-    roles: ["Superadmin", "Admin", "Director"],
+    permission: "suppliers.view",
   },
 ];
 
@@ -163,217 +139,21 @@ const bottomItems: SidebarItem[] = [
     name: "Meu perfil",
     href: "/management/profile",
     icon: User,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
+    permission: "profile.view",
   },
   {
     name: "Notificações",
     href: "/management/notifications",
     icon: Bell,
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
+    permission: "notifications.view",
   },
   {
     name: "Sair",
     href: "",
     icon: LogOut,
     action: "logout",
-    roles: ["Superadmin", "Admin", "Director", "Utilizador"],
   },
 ];
-
-/*
- * ============================================================
- * ROLE NORMALIZATION
- * ============================================================
- */
-
-function normalizeRole(role?: string | null): SystemRole {
-  if (!role) {
-    return "Utilizador";
-  }
-
-  const normalizedRole = role.trim().toLowerCase();
-
-  switch (normalizedRole) {
-    case "superadmin":
-    case "super admin":
-    case "super_administrator":
-    case "super administrator":
-      return "Superadmin";
-
-    case "admin":
-    case "administrador":
-    case "administrator":
-      return "Admin";
-
-    case "director":
-    case "diretor":
-      return "Director";
-
-    case "utilizador":
-    case "user":
-    case "employee":
-    case "utilizador normal":
-      return "Utilizador";
-
-    default:
-      return "Utilizador";
-  }
-}
-
-/*
- * ============================================================
- * DEPARTMENT NORMALIZATION
- * ============================================================
- */
-
-function normalizeDepartment(
-  department?: string | null,
-): Department | null {
-  if (!department) {
-    return null;
-  }
-
-  const normalizedDepartment = department
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-
-  switch (normalizedDepartment) {
-    case "dc":
-    case "d.c.":
-    case "comercial":
-    case "commercial":
-    case "business development":
-    case "desenvolvimento de negócio":
-    case "desenvolvimento de negocio":
-      return "DC";
-
-    case "administração":
-    case "administracao":
-    case "administration":
-    case "admin":
-      return "Administração";
-
-    case "de":
-      return "DE";
-
-    case "da":
-      return "DA";
-
-    case "dit":
-      return "DIT";
-
-    case "hr":
-    case "rh":
-      return "HR";
-
-    case "design de interiores":
-    case "interiores":
-    case "interior design":
-      return "Design de Interiores";
-
-    case "paisagismo":
-    case "landscape":
-    case "landscape design":
-      return "Paisagismo";
-
-    case "finanças":
-    case "financas":
-    case "finance":
-    case "finances":
-      return "Finanças";
-
-    case "recursos humanos":
-    case "recursos humanos (dhr)":
-    case "human resources":
-      return "Recursos Humanos";
-
-    case "procurement":
-    case "compras":
-      return "Procurement";
-
-    case "marketing":
-    case "marketing & comunicação":
-    case "marketing and communication":
-    case "marketing & communication":
-    case "comunicação":
-    case "comunicacao":
-      return "Marketing & Comunicação";
-
-    case "ti":
-    case "it":
-    case "ti / sistemas":
-    case "ti/sistemas":
-    case "it / systems":
-    case "it/systems":
-    case "sistemas":
-      return "TI / Sistemas";
-
-    default:
-      return null;
-  }
-}
-
-/*
- * ============================================================
- * ACCESS CONTROL
- * ============================================================
- */
-
-function canAccessItem(
-  item: SidebarItem,
-  role: SystemRole,
-  department: Department | null,
-): boolean {
-  if (role === "Superadmin") {
-    return true;
-  }
-
-  if (item.departments?.length) {
-    if (role === "Admin" || role === "Director") {
-      return true;
-    }
-
-    if (role === "Utilizador") {
-      return (
-        department !== null &&
-        item.departments.includes(department)
-      );
-    }
-
-    return false;
-  }
-
-  if (item.roles?.length) {
-    return item.roles.includes(role);
-  }
-
-  return true;
-}
-
-/*
- * ============================================================
- * SHARED NAVIGATION
- * ============================================================
- */
-
-export function getVisibleNavigation(
-  userRole?: string | null,
-  userDepartment?: string | null,
-) {
-  const role = normalizeRole(userRole);
-  const department = normalizeDepartment(userDepartment);
-
-  return {
-    menuItems: menuItems.filter((item) =>
-      canAccessItem(item, role, department),
-    ),
-
-    bottomItems: bottomItems.filter((item) =>
-      canAccessItem(item, role, department),
-    ),
-  };
-}
 
 /*
  * ============================================================
@@ -382,8 +162,6 @@ export function getVisibleNavigation(
  */
 
 export default function ManagementMenu({
-  userRole,
-  userDepartment,
   collapsed,
   setCollapsedAction,
 }: Props) {
@@ -392,10 +170,30 @@ export default function ManagementMenu({
 
   const [logoutLoading, setLogoutLoading] = useState(false);
 
-  const {
-    menuItems: visibleMenuItems,
-    bottomItems: visibleBottomItems,
-  } = getVisibleNavigation(userRole, userDepartment);
+  const { can } = usePermissions();
+
+  /*
+   * ========================================================
+   * PERMISSION FILTERING
+   * ========================================================
+   *
+   * The sidebar only controls visibility.
+   *
+   * Actual authorization must still be handled
+   * server-side.
+   */
+
+  const visibleMenuItems = menuItems.filter(
+    (item) =>
+      !item.permission ||
+      can(item.permission),
+  );
+
+  const visibleBottomItems = bottomItems.filter(
+    (item) =>
+      !item.permission ||
+      can(item.permission),
+  );
 
   /*
    * ========================================================
@@ -413,10 +211,15 @@ export default function ManagementMenu({
     try {
       const supabase = createClient();
 
-      const { error } = await supabase.auth.signOut();
+      const { error } =
+        await supabase.auth.signOut();
 
       if (error) {
-        console.error("Logout failed:", error);
+        console.error(
+          "Logout failed:",
+          error,
+        );
+
         setLogoutLoading(false);
         return;
       }
@@ -424,7 +227,11 @@ export default function ManagementMenu({
       router.replace("/login");
       router.refresh();
     } catch (error) {
-      console.error("Unexpected logout error:", error);
+      console.error(
+        "Unexpected logout error:",
+        error,
+      );
+
       setLogoutLoading(false);
     }
   };
@@ -465,7 +272,9 @@ export default function ManagementMenu({
           aria-label="Ir para a visão geral"
           className={[
             "min-w-0",
-            collapsed ? "flex justify-center" : "",
+            collapsed
+              ? "flex justify-center"
+              : "",
           ].join(" ")}
         >
           {collapsed ? (
@@ -492,7 +301,9 @@ export default function ManagementMenu({
         {!collapsed && (
           <button
             type="button"
-            onClick={() => setCollapsedAction(true)}
+            onClick={() =>
+              setCollapsedAction(true)
+            }
             aria-label="Recolher menu"
             aria-expanded={!collapsed}
             className={[
@@ -517,7 +328,9 @@ export default function ManagementMenu({
         {collapsed && (
           <button
             type="button"
-            onClick={() => setCollapsedAction(false)}
+            onClick={() =>
+              setCollapsedAction(false)
+            }
             aria-label="Expandir menu"
             aria-expanded={false}
             className={[
@@ -551,18 +364,25 @@ export default function ManagementMenu({
         className={[
           "sidebar-scroll min-h-0 flex-1",
           "overflow-x-hidden overflow-y-auto",
-          collapsed ? "px-2 py-5" : "px-3 py-5",
+          collapsed
+            ? "px-2 py-5"
+            : "px-3 py-5",
         ].join(" ")}
       >
         <div className="space-y-1">
-          {visibleMenuItems.map((item) => (
-            <SidebarItem
-              key={item.href}
-              item={item}
-              active={isActiveRoute(pathname, item.href)}
-              collapsed={collapsed}
-            />
-          ))}
+          {visibleMenuItems.map(
+            (item) => (
+              <SidebarItem
+                key={item.href}
+                item={item}
+                active={isActiveRoute(
+                  pathname,
+                  item.href,
+                )}
+                collapsed={collapsed}
+              />
+            ),
+          )}
         </div>
       </div>
 
@@ -574,24 +394,33 @@ export default function ManagementMenu({
         className={[
           "shrink-0 border-t",
           "border-[#BD9655]",
-          collapsed ? "px-2 py-3" : "px-3 py-3",
+          collapsed
+            ? "px-2 py-3"
+            : "px-3 py-3",
         ].join(" ")}
       >
         <div className="space-y-1">
-          {visibleBottomItems.map((item) => (
-            <SidebarItem
-              key={
-                item.action === "logout"
-                  ? "logout"
-                  : item.href
-              }
-              item={item}
-              active={isActiveRoute(pathname, item.href)}
-              collapsed={collapsed}
-              onLogout={handleLogout}
-              logoutLoading={logoutLoading}
-            />
-          ))}
+          {visibleBottomItems.map(
+            (item) => (
+              <SidebarItem
+                key={
+                  item.action === "logout"
+                    ? "logout"
+                    : item.href
+                }
+                item={item}
+                active={isActiveRoute(
+                  pathname,
+                  item.href,
+                )}
+                collapsed={collapsed}
+                onLogout={handleLogout}
+                logoutLoading={
+                  logoutLoading
+                }
+              />
+            ),
+          )}
         </div>
       </div>
     </nav>
@@ -618,7 +447,9 @@ function isActiveRoute(
 
   return (
     pathname === href ||
-    pathname.startsWith(`${href}/`)
+    pathname.startsWith(
+      `${href}/`,
+    )
   );
 }
 
@@ -656,7 +487,8 @@ function SidebarItem({
   const Icon = item.icon;
 
   const label =
-    item.action === "logout" && logoutLoading
+    item.action === "logout" &&
+    logoutLoading
       ? "A sair..."
       : item.name;
 
@@ -674,6 +506,12 @@ function SidebarItem({
       : "gap-3 px-3",
   ].join(" ");
 
+  /*
+   * ========================================================
+   * LOGOUT
+   * ========================================================
+   */
+
   if (item.action === "logout") {
     return (
       <button
@@ -681,7 +519,11 @@ function SidebarItem({
         onClick={onLogout}
         disabled={logoutLoading}
         aria-label={label}
-        title={collapsed ? label : undefined}
+        title={
+          collapsed
+            ? label
+            : undefined
+        }
         className={[
           itemClasses,
           "text-gray-600",
@@ -716,11 +558,25 @@ function SidebarItem({
     );
   }
 
+  /*
+   * ========================================================
+   * NORMAL LINK
+   * ========================================================
+   */
+
   return (
     <Link
       href={item.href}
-      aria-current={active ? "page" : undefined}
-      title={collapsed ? item.name : undefined}
+      aria-current={
+        active
+          ? "page"
+          : undefined
+      }
+      title={
+        collapsed
+          ? item.name
+          : undefined
+      }
       className={[
         itemClasses,
         active
@@ -729,7 +585,9 @@ function SidebarItem({
               "border-[#BD9655]",
               "bg-[#BD9655]",
               "text-[#002950]",
-              collapsed ? "pl-0" : "pl-[9px]",
+              collapsed
+                ? "pl-0"
+                : "pl-[9px]",
             ].join(" ")
           : [
               "text-gray-600",

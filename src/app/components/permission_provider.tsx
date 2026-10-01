@@ -56,6 +56,11 @@ export default function PermissionProvider({
     [permissionSet],
   );
 
+  console.log(
+  "CURRENT USER PERMISSIONS:",
+  permissions,
+);
+
   return (
     <PermissionContext.Provider value={value}>
       {children}

@@ -15,32 +15,26 @@ export default function DashboardLayoutClient({
   userRole,
   userDepartment,
 }: Props) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] =
+    useState(false);
 
-  const sidebarWidth = collapsed ? "md:ml-20" : "md:ml-64";
 
   return (
     <div className="min-h-screen bg-[#F7F7F5]">
-      {/* Desktop Sidebar */}
       <DashboardMenu
         collapsed={collapsed}
         setCollapsedAction={setCollapsed}
-        userRole={userRole}
-        userDepartment={userDepartment}
       />
 
-      {/* Mobile Navbar */}
-      <MobileNavbar
-        userRole={userRole}
-        userDepartment={userDepartment}
-      />
+      <MobileNavbar />
 
-      {/* Main Content */}
       <main
         className={[
           "min-h-screen overflow-auto",
           "transition-[margin] duration-200 ease-in-out",
-          sidebarWidth,
+          collapsed
+            ? "md:ml-20"
+            : "md:ml-64",
         ].join(" ")}
       >
         {children}

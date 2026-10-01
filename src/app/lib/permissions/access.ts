@@ -1,7 +1,3 @@
-import {
-  ROLE_PERMISSIONS,
-} from "./constants";
-
 import type {
   Permission,
   PermissionSet,
@@ -12,14 +8,6 @@ export function createPermissionSet(
   permissions: Permission[],
 ): PermissionSet {
   return new Set(permissions);
-}
-
-export function getRolePermissions(
-  role: SystemRole,
-): PermissionSet {
-  return createPermissionSet(
-    ROLE_PERMISSIONS[role] ?? [],
-  );
 }
 
 export function hasPermission(

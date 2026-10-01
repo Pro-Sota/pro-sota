@@ -54,11 +54,11 @@ export type Permission =
   | "attendance.manage"
 
   // Work resources
-  | "resources.view"
-  | "resources.create"
-  | "resources.edit"
-  | "resources.delete"
-  | "resources.move"
+  | "work_resources.view"
+  | "work_resources.create"
+  | "work_resources.edit"
+  | "work_resources.delete"
+  | "work_resources.move"
 
   // Suppliers
   | "suppliers.view"
