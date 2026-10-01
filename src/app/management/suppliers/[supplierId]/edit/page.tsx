@@ -1,14 +1,19 @@
 import { notFound } from "next/navigation";
 
-import SupplierForm from "../../supplier_form";
 import { updateSupplierAction } from "@/actions/suppliers";
 import { getSupplierById } from "@/services/supplier";
 
+import SupplierForm from "../../supplier_form";
+
+type Props = {
+  params: Promise<{
+    supplierId: string;
+  }>;
+};
+
 export default async function EditSupplierPage({
   params,
-}: {
-  params: Promise<{ supplierId: string }>;
-}) {
+}: Props) {
   const { supplierId } = await params;
 
   const supplier =
@@ -20,9 +25,16 @@ export default async function EditSupplierPage({
 
   return (
     <SupplierForm
-      mode="edit"
       supplier={supplier}
-      action={updateSupplierAction}
+      action={async (formData) =>
+        updateSupplierAction(
+          supplierId,
+          Object.fromEntries(formData.entries()) as Parameters<
+            typeof updateSupplierAction
+          >[1],
+        )
+      }
+      mode="edit"
     />
   );
 }

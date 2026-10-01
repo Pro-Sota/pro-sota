@@ -1,173 +1,141 @@
 "use server";
 
-import { redirect } from "next/navigation";
-
+import { createClient } from "@/app/lib/supabase/server";
 import {
-  createSupplier,
-  updateSupplier,
-  deleteSupplier,
+  addSupplierProject,
+  createSupplierActivity,
+  createSupplierEvaluation,
+  removeSupplierProject,
+  SupplierUpdate,
 } from "@/services/supplier";
+import { cookies } from "next/headers";
 
-function getString(
-  formData: FormData,
-  key: string
+export async function createSupplierEvaluationAction(
+  supplierId: string,
+  input: {
+    projectId?: string | null;
+    quality: number;
+    delivery: number;
+    price: number;
+    communication: number;
+    reliability: number;
+    comment?: string | null;
+  }
 ) {
-  const value = formData.get(key);
-
-  if (typeof value !== "string") {
-    return null;
+  if (!supplierId) {
+    throw new Error("O fornecedor é obrigatório.");
   }
 
-  const trimmed = value.trim();
-
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function getTags(formData: FormData) {
-  const value = getString(formData, "tags");
-
-  if (!value) {
-    return [];
-  }
-
-  return value
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-}
-
-export async function createSupplierAction(
-  formData: FormData
-) {
-  const supplierName = getString(
-    formData,
-    "supplier_name"
-  );
-
-  if (!supplierName) {
-    throw new Error(
-      "O nome do fornecedor é obrigatório."
-    );
-  }
-
-  await createSupplier({
-    supplier_name: supplierName,
-    nif: getString(formData, "nif"),
-    person_of_contact: getString(
-      formData,
-      "person_of_contact"
-    ),
-    phone_number: getString(
-      formData,
-      "phone_number"
-    ),
-    address_line_1: getString(
-      formData,
-      "address_line_1"
-    ),
-    city: getString(formData, "city"),
-    country:
-      getString(formData, "country") ||
-      "Angola",
-    category: getString(formData, "category"),
-    sub_category: getString(
-      formData,
-      "sub_category"
-    ),
-    rating: null,
-    tags: getTags(formData),
+  const evaluation = await createSupplierEvaluation({
+    supplier_id: supplierId,
+    project_id: input.projectId ?? null,
+    evaluated_by: null,
+    quality: input.quality,
+    delivery: input.delivery,
+    price: input.price,
+    communication: input.communication,
+    reliability: input.reliability,
+    comment: input.comment ?? null,
   });
 
-  redirect("/management/suppliers");
+  await createSupplierActivity(
+    supplierId,
+    "evaluation_created",
+    `Avaliação adicionada — ${calculateRating(input).toFixed(1)}`,
+    null,
+    {
+      evaluation_id: evaluation.evaluation_id,
+      rating: calculateRating(input),
+    }
+  );
+
+  return evaluation;
 }
+
+export async function addSupplierProjectAction(
+  supplierId: string,
+  projectId: string,
+  category?: string | null
+) {
+  const relationship = await addSupplierProject(
+    supplierId,
+    projectId,
+    category
+  );
+
+  await createSupplierActivity(
+    supplierId,
+    "project_associated",
+    "Fornecedor associado a um projecto.",
+    null,
+    {
+      project_id: projectId,
+    }
+  );
+
+  return relationship;
+}
+
+export async function removeSupplierProjectAction(
+  supplierId: string,
+  supplierProjectId: string
+) {
+  await removeSupplierProject(supplierProjectId);
+
+  await createSupplierActivity(
+    supplierId,
+    "project_removed",
+    "Fornecedor removido de um projecto.",
+    null,
+    {
+      supplier_project_id: supplierProjectId,
+    }
+  );
+}
+
+function calculateRating(input: {
+  quality: number;
+  delivery: number;
+  price: number;
+  communication: number;
+  reliability: number;
+}) {
+  return (
+    (input.quality +
+      input.delivery +
+      input.price +
+      input.communication +
+      input.reliability) /
+    5
+  );
+}
+
 
 export async function updateSupplierAction(
-  formData: FormData
+  supplierId: string,
+  data: SupplierUpdate
 ) {
-  const supplierId = getString(
-    formData,
-    "supplier_id"
-  );
+  const supabase = createClient(await cookies());
 
-  const supplierName = getString(
-    formData,
-    "supplier_name"
-  );
+  const { data: supplier, error } = await supabase
+    .from("suppliers")
+    .update(data)
+    .eq("supplier_id", supplierId)
+    .select()
+    .single();
 
-  if (!supplierId) {
+  if (error) {
+    console.error("updateSupplier:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+
     throw new Error(
-      "Fornecedor inválido."
+      "Não foi possível actualizar o fornecedor."
     );
   }
 
-  if (!supplierName) {
-    throw new Error(
-      "O nome do fornecedor é obrigatório."
-    );
-  }
-
-  const ratingValue = getString(
-    formData,
-    "rating"
-  );
-
-  const rating =
-    ratingValue === null ||
-    ratingValue === ""
-      ? null
-      : Number(ratingValue);
-
-  await updateSupplier(supplierId, {
-    supplier_name: supplierName,
-    nif: getString(formData, "nif"),
-    person_of_contact: getString(
-      formData,
-      "person_of_contact"
-    ),
-    phone_number: getString(
-      formData,
-      "phone_number"
-    ),
-    address_line_1: getString(
-      formData,
-      "address_line_1"
-    ),
-    city: getString(formData, "city"),
-    country:
-      getString(formData, "country") ||
-      "Angola",
-    category: getString(formData, "category"),
-    sub_category: getString(
-      formData,
-      "sub_category"
-    ),
-    rating,
-    status:
-      getString(formData, "status") ||
-      "Prospective",
-    tags: getTags(formData),
-  });
-
-  redirect(
-    `/management/suppliers/${supplierId}`
-  );
-}
-
-export async function deleteSupplierAction(
-  formData: FormData
-) {
-  const supplierId = getString(
-    formData,
-    "supplier_id"
-  );
-
-  if (!supplierId) {
-    throw new Error(
-      "Fornecedor inválido."
-    );
-  }
-
-  await deleteSupplier(supplierId);
-
-  redirect("/management/suppliers");
+  return supplier;
 }

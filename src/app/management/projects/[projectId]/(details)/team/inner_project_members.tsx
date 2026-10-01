@@ -7,6 +7,7 @@ import {
     Settings,
     Search,
     Filter,
+    ShieldCheck,
 } from "lucide-react";
 
 import { Database } from "@/app/lib/supabase/models";
@@ -18,6 +19,7 @@ import {
     removeProjectTeamMemberAction,
 } from "@/actions/project_team";
 import type { Role, TeamMember } from "./types";
+import Link from "next/link";
 
 type Profile =
     Database["public"]["Tables"]["profiles"]["Row"];

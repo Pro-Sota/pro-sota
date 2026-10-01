@@ -4,17 +4,14 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Building2,
-  MapPin,
   Save,
   Star,
   Tag,
-  User,
 } from "lucide-react";
 import { useFormStatus } from "react-dom";
 
 import type {
   Supplier,
-  SupplierStatus,
 } from "./types";
 
 export default function SupplierForm({

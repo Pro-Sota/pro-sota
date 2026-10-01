@@ -69,8 +69,10 @@ export type Permission =
   // Documents
   | "documents.view"
   | "documents.upload"
+  |"documents.create"
   | "documents.edit"
   | "documents.delete"
+  | "documents.approve"
 
   // Submissions
   | "submissions.view"
@@ -78,6 +80,11 @@ export type Permission =
   | "submissions.edit"
   | "submissions.delete"
   | "submissions.review"
+  | "submissions.view"
+  | "submissions.create"
+  | "submissions.edit"
+  | "submissions.delete"
+  | "submissions.approve"
 
   // Notifications
   | "notifications.view"

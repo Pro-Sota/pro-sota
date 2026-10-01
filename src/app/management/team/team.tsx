@@ -20,8 +20,9 @@ import {
     CheckCircle2,
     Clock3,
     ShieldAlert,
+    ShieldCheck,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { StatCard } from "@/app/components/StatCard";
 import CustomSelect from "@/app/components/custom_select";
@@ -35,6 +36,7 @@ import {
 
 import type { TeamMember } from "@/services/team";
 import { deactivateTeamMember } from "@/actions/team";
+import Link from "next/link";
 
 type TeamPageProps = {
     team: TeamMember[];
@@ -101,6 +103,8 @@ export default function TeamPage({
     team,
 }: TeamPageProps) {
     const router = useRouter();
+
+    const { projectId } = useParams();
 
     const [view, setView] =
         useState<"grid" | "list">("grid");
@@ -295,7 +299,7 @@ export default function TeamPage({
             if (!result.success) {
                 window.alert(
                     result.error ??
-                        "Não foi possível desactivar o colaborador."
+                    "Não foi possível desactivar o colaborador."
                 );
             }
         });
@@ -320,6 +324,7 @@ export default function TeamPage({
             <div className="mx-auto max-w-7xl space-y-6">
                 {/* Header */}
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
                             Team
@@ -382,6 +387,7 @@ export default function TeamPage({
                         </div>
 
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+
                             <CustomSelect
                                 value={
                                     departmentFilter
@@ -456,11 +462,10 @@ export default function TeamPage({
                                     aria-pressed={
                                         view === "grid"
                                     }
-                                    className={`cursor-pointer p-2.5 transition ${
-                                        view === "grid"
-                                            ? "bg-[#002950] text-white"
-                                            : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                                    }`}
+                                    className={`cursor-pointer p-2.5 transition ${view === "grid"
+                                        ? "bg-[#002950] text-white"
+                                        : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                                        }`}
                                 >
                                     <LayoutGrid
                                         size={16}
@@ -476,11 +481,10 @@ export default function TeamPage({
                                     aria-pressed={
                                         view === "list"
                                     }
-                                    className={`cursor-pointer border-l border-slate-200 p-2.5 transition ${
-                                        view === "list"
-                                            ? "bg-[#002950] text-white"
-                                            : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                                    }`}
+                                    className={`cursor-pointer border-l border-slate-200 p-2.5 transition ${view === "list"
+                                        ? "bg-[#002950] text-white"
+                                        : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                                        }`}
                                 >
                                     <List
                                         size={16}
@@ -496,7 +500,7 @@ export default function TeamPage({
                     <p className="text-sm text-slate-500">
                         {filteredEmployees.length}{" "}
                         {filteredEmployees.length ===
-                        1
+                            1
                             ? "colaborador"
                             : "colaboradores"}
                         {hasFilters
@@ -517,7 +521,7 @@ export default function TeamPage({
 
                 {/* Empty state */}
                 {filteredEmployees.length ===
-                0 ? (
+                    0 ? (
                     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-8 py-20 text-center">
                         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
                             <Users className="h-8 w-8 text-slate-400" />
@@ -529,13 +533,13 @@ export default function TeamPage({
 
                         <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
                             {employees.length ===
-                            0
+                                0
                                 ? "Ainda não existem colaboradores registados."
                                 : "Nenhum colaborador corresponde aos filtros seleccionados."}
                         </p>
 
                         {employees.length ===
-                        0 ? (
+                            0 ? (
                             <button
                                 type="button"
                                 onClick={
@@ -657,7 +661,7 @@ export default function TeamPage({
                                                             current
                                                         ) =>
                                                             current ===
-                                                            employee.profile_id
+                                                                employee.profile_id
                                                                 ? null
                                                                 : employee.profile_id
                                                     )
@@ -697,14 +701,14 @@ export default function TeamPage({
                                                 )}`}
                                             >
                                                 {employee.status ===
-                                                "Active" ? (
+                                                    "Active" ? (
                                                     <CheckCircle2
                                                         size={
                                                             12
                                                         }
                                                     />
                                                 ) : employee.status ===
-                                                  "Pending" ? (
+                                                    "Pending" ? (
                                                     <Clock3
                                                         size={
                                                             12
@@ -875,7 +879,7 @@ export default function TeamPage({
                                                     }
                                                 </span>{" "}
                                                 {employee.project_count ===
-                                                1
+                                                    1
                                                     ? "projecto"
                                                     : "projectos"}
                                             </div>
@@ -896,7 +900,7 @@ export default function TeamPage({
                                                             current
                                                         ) =>
                                                             current ===
-                                                            employee.profile_id
+                                                                employee.profile_id
                                                                 ? null
                                                                 : employee.profile_id
                                                     )
@@ -972,11 +976,10 @@ function MemberMenu({
                     onToggle();
                 }}
                 disabled={disabled}
-                className={`shrink-0 cursor-pointer rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${
-                    isOpen
-                        ? "bg-slate-100 text-slate-600 opacity-100"
-                        : "opacity-0 group-hover:opacity-100 focus:opacity-100"
-                }`}
+                className={`shrink-0 cursor-pointer rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${isOpen
+                    ? "bg-slate-100 text-slate-600 opacity-100"
+                    : "opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    }`}
             >
                 <MoreVertical size={17} />
             </button>
@@ -1026,22 +1029,22 @@ function MemberMenu({
 
                     {employee.status !==
                         "Inactive" && (
-                        <>
-                            <div className="my-1 border-t border-slate-100" />
+                            <>
+                                <div className="my-1 border-t border-slate-100" />
 
-                            <button
-                                type="button"
-                                onClick={onDeactivate}
-                                disabled={disabled}
-                                className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <UserX
-                                    size={15}
-                                />
-                                Desactivar colaborador
-                            </button>
-                        </>
-                    )}
+                                <button
+                                    type="button"
+                                    onClick={onDeactivate}
+                                    disabled={disabled}
+                                    className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <UserX
+                                        size={15}
+                                    />
+                                    Desactivar colaborador
+                                </button>
+                            </>
+                        )}
                 </div>
             )}
         </div>

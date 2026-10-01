@@ -743,18 +743,24 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          key: string
+          module: string
           name: string
           permission_id: number
         }
         Insert: {
           created_at?: string
           description?: string | null
+          key: string
+          module: string
           name: string
           permission_id?: number
         }
         Update: {
           created_at?: string
           description?: string | null
+          key?: string
+          module?: string
           name?: string
           permission_id?: number
         }
@@ -917,6 +923,62 @@ export type Database = {
           },
           {
             foreignKeyName: "user_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+        ]
+      }
+      project_permissions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          permission_id: number
+          profile_id: string
+          project_id: string
+          project_permission_id: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          permission_id: number
+          profile_id: string
+          project_id: string
+          project_permission_id?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          permission_id?: number
+          profile_id?: string
+          project_id?: string
+          project_permission_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_permissions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "project_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["permission_id"]
+          },
+          {
+            foreignKeyName: "project_permissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "project_permissions_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -1743,28 +1805,31 @@ export type Database = {
         Row: {
           permission_id: number
           role_id: number
+          role_permission_id: number
         }
         Insert: {
           permission_id: number
-          role_id?: number
+          role_id: number
+          role_permission_id?: number
         }
         Update: {
           permission_id?: number
           role_id?: number
+          role_permission_id?: number
         }
         Relationships: [
           {
-            foreignKeyName: "role_permissions_permission_id_fkey"
+            foreignKeyName: "role_permissions_permission_fkey"
             columns: ["permission_id"]
             isOneToOne: false
             referencedRelation: "permissions"
             referencedColumns: ["permission_id"]
           },
           {
-            foreignKeyName: "role_permissions_role_id_fkey"
+            foreignKeyName: "role_permissions_role_fkey"
             columns: ["role_id"]
             isOneToOne: false
-            referencedRelation: "project_roles"
+            referencedRelation: "roles"
             referencedColumns: ["role_id"]
           },
         ]
@@ -1964,6 +2029,172 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      supplier_activity: {
+        Row: {
+          activity_id: string
+          activity_type: string
+          actor_id: string | null
+          created_at: string
+          description: string
+          metadata: Json
+          supplier_id: string
+        }
+        Insert: {
+          activity_id?: string
+          activity_type: string
+          actor_id?: string | null
+          created_at?: string
+          description: string
+          metadata?: Json
+          supplier_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_type?: string
+          actor_id?: string | null
+          created_at?: string
+          description?: string
+          metadata?: Json
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "supplier_activity_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
+      supplier_documents: {
+        Row: {
+          created_at: string
+          document_type: string | null
+          expires_at: string | null
+          file_url: string | null
+          status: string
+          supplier_document_id: string
+          supplier_id: string
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type?: string | null
+          expires_at?: string | null
+          file_url?: string | null
+          status?: string
+          supplier_document_id?: string
+          supplier_id: string
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string | null
+          expires_at?: string | null
+          file_url?: string | null
+          status?: string
+          supplier_document_id?: string
+          supplier_id?: string
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_documents_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["supplier_id"]
+          },
+          {
+            foreignKeyName: "supplier_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      supplier_evaluations: {
+        Row: {
+          comment: string | null
+          communication: number
+          created_at: string
+          delivery: number
+          evaluated_by: string | null
+          evaluation_id: string
+          price: number
+          project_id: string | null
+          quality: number
+          reliability: number
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          comment?: string | null
+          communication: number
+          created_at?: string
+          delivery: number
+          evaluated_by?: string | null
+          evaluation_id?: string
+          price: number
+          project_id?: string | null
+          quality: number
+          reliability: number
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          comment?: string | null
+          communication?: number
+          created_at?: string
+          delivery?: number
+          evaluated_by?: string | null
+          evaluation_id?: string
+          price?: number
+          project_id?: string | null
+          quality?: number
+          reliability?: number
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_evaluations_evaluated_by_fkey"
+            columns: ["evaluated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "supplier_evaluations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "supplier_evaluations_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["supplier_id"]
           },
         ]
       }

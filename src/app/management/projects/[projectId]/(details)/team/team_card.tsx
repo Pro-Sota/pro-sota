@@ -1,17 +1,24 @@
 "use client";
 
 import Image from "next/image";
-import { Role, Status, TeamCardProps} from "./types";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
 
- function getInitials(
-    firstName?: string | null,
-    lastName?: string | null
-) {
-    return `${firstName?.trim().charAt(0) ?? ""}${lastName?.trim().charAt(0) ?? ""}`.toUpperCase();
-}
+import type { Role, Status, TeamCardProps } from "./types";
 
+type Props = TeamCardProps & {
+    onRemoveMember?: (profileId: string | number) => void;
+};
 
-const statusStyles: Record<Status, { dot: string; label: string; bg: string }> = {
+const STATUS_STYLES: Record<
+    Status,
+    {
+        dot: string;
+        label: string;
+        bg: string;
+    }
+> = {
     disponível: {
         dot: "bg-emerald-500",
         label: "Disponível",
@@ -29,101 +36,145 @@ const statusStyles: Record<Status, { dot: string; label: string; bg: string }> =
     },
 };
 
-const roleLabels: Record<Role, string> = {
+const ROLE_LABELS: Record<Role, string> = {
     "Project Manager": "Gestor do projecto",
     Coordinator: "Coordenador",
     Architect: "Arquitecto",
     Engineer: "Engenheiro",
-    Partner: "Parceiros",
-};  
+    Partner: "Parceiro",
+};
+
+function getInitials(
+    firstName?: string | null,
+    lastName?: string | null,
+) {
+    const firstInitial = firstName?.trim().charAt(0) ?? "";
+    const lastInitial = lastName?.trim().charAt(0) ?? "";
+
+    return `${firstInitial}${lastInitial}`.toUpperCase();
+}
+
+function getMemberName(
+    firstName?: string | null,
+    lastName?: string | null,
+) {
+    return [firstName, lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+}
 
 export default function TeamCard({
     member,
     onViewProfile,
     onRemoveMember,
     roleColor = "from-slate-600 to-slate-400",
-}: TeamCardProps & {
-    onRemoveMember?: (profileId: string | number) => void;
-}) {
+}: Props) {
+    const { projectId } = useParams<{ projectId: string }>();
 
-    const status = statusStyles[member.status];
+    const memberName = getMemberName(
+        member.first_name,
+        member.last_name,
+    );
+
+    const roleLabel = ROLE_LABELS[member.role];
+    const status = STATUS_STYLES[member.status];
+
+    const permissionsHref =
+        `/management/projects/${projectId}/team/${member.profile_id}/permissions`;
 
     return (
-        <div className="group relative h-full w-full overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:border-gray-300 hover:shadow-xl">
-            {/* Gradient Background Accent */}
+        <article className="group relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:border-gray-300 hover:shadow-xl">
+            {/* Decorative role accent */}
             <div
-                className={`absolute -right-12 -top-12 h-32 w-32 rounded-full bg-gradient-to-r ${roleColor} opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-10`}
+                aria-hidden="true"
+                className={`pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-gradient-to-r ${roleColor} opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-10`}
             />
 
-            <div className="relative z-10 flex h-full flex-col justify-between p-5">
+            <div className="relative z-10 flex h-full flex-col p-5">
+                {/* Member information */}
                 <div className="flex items-start gap-4">
-                    {/* Profile image */}
+                    {/* Avatar */}
                     <div className="relative shrink-0">
                         {member.avatar_url ? (
                             <Image
                                 src={member.avatar_url}
-                                alt={`${member.first_name} ${member.last_name}`}
-                                width={72}
-                                height={72}
-                                className="h-16 w-16 rounded-full border-2 border-gray-200 object-cover transition group-hover:border-gray-300"
+                                alt={memberName}
+                                width={64}
+                                height={64}
+                                className="h-16 w-16 rounded-full border-2 border-gray-200 object-cover transition-colors group-hover:border-gray-300"
                             />
                         ) : (
                             <div
-                                className={`flex h-16 w-16 items-center justify-center rounded-full border-2 border-gray-200 bg-gradient-to-br ${roleColor} text-lg font-semibold text-white transition group-hover:border-gray-300`}
-                                aria-label={`${member.first_name} ${member.last_name}`}
+                                className={`flex h-16 w-16 items-center justify-center rounded-full border-2 border-gray-200 bg-gradient-to-br ${roleColor} text-lg font-semibold text-white transition-colors group-hover:border-gray-300`}
+                                aria-label={memberName}
                             >
-                                {getInitials(member.first_name, member.last_name)}
+                                {getInitials(
+                                    member.first_name,
+                                    member.last_name,
+                                )}
                             </div>
                         )}
-
                     </div>
 
-
-                    {/* Profile information */}
+                    {/* Details */}
                     <div className="min-w-0 flex-1">
                         <h3 className="truncate text-base font-semibold text-gray-900">
-                            {member.first_name} {member.last_name}
+                            {memberName}
                         </h3>
 
                         <p className="mt-0.5 text-sm text-gray-600">
-                            {roleLabels[member.role]}
+                            {roleLabel}
                         </p>
 
-                        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                            {/* Status */}
                             <span
-                                className={`inline-flex w-fit items-center rounded-full px-2 py-1 text-xs font-medium text-gray-700`}
+                                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-gray-700 ${status.bg}`}
                             >
-
-                                {member.tasks.length} tarefas
+                                <span
+                                    aria-hidden="true"
+                                    className={`h-1.5 w-1.5 rounded-full ${status.dot}`}
+                                />
+                                {status.label}
                             </span>
 
-
+                            {/* Tasks */}
+                            <span className="inline-flex items-center rounded-full bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600">
+                                {member.tasks.length}{" "}
+                                {member.tasks.length === 1
+                                    ? "tarefa"
+                                    : "tarefas"}
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                {/* Action buttons */}
-                <div className="mt-5 flex gap-2">
-                    <button
-                        type="button"
-                        onClick={() => onViewProfile(member)}
-                        className="flex-1 cursor-pointer rounded-lg border border-gray-200 bg-gradient-to-r from-gray-50 to-gray-50 py-2 text-sm font-medium text-gray-700 transition hover:from-gray-100 hover:to-gray-100 hover:border-gray-300"
-                    >
-                        Ver perfil
-                    </button>
-                    {onRemoveMember && (
-                        <button
-                            type="button"
-                            onClick={() => onRemoveMember(member.profile_id)}
-                            className="cursor-pointer rounded-lg border border-red-200 bg-gradient-to-r from-red-50 to-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:from-red-100 hover:to-red-100 hover:border-red-300"
-                            aria-label={`Remover ${member.first_name} ${member.last_name} do projecto`}
-                            title="Remover do projecto"
+                {/* Actions */}
+                <div className="mt-auto pt-5">
+                    <div className="flex items-center gap-2">
+                        <Link
+                            href={permissionsHref}
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#DCDCD6] bg-white px-3 py-2 text-sm font-medium text-[#002950] transition hover:border-[#BD9655] hover:text-[#BD9655]"
                         >
-                            ✕
-                        </button>
-                    )}
+                            <ShieldCheck size={16} strokeWidth={1.8} />
+                            Permissões
+                        </Link>
+
+                        {onRemoveMember && (
+                            <button
+                                type="button"
+                                onClick={() => onRemoveMember(member.profile_id)}
+                                className="inline-flex h-[38px] w-[38px] shrink-0 cursor-pointer items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:border-red-300 hover:bg-red-100"
+                                aria-label={`Remover ${memberName} do projecto`}
+                                title="Remover do projecto"
+                            >
+                                <span aria-hidden="true">×</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
+        </article>
     );
 }
