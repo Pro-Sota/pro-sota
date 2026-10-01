@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 
-import type { TaskPriority } from "@/services/project_tasks";
+import type { TaskPriority, UpdateTaskInput } from "@/services/project_tasks";
 
 import {
   createTaskAction as createTask,
@@ -22,7 +22,6 @@ import type {
   KanbanColumn,
   KanbanTask,
   KanbanBoardProps,
-  ToastItem,
 } from "./types";
 
 import {
@@ -47,7 +46,6 @@ export default function KanbanBoard({
 }: KanbanBoardProps) {
   const isProjectTasks = Boolean(projectId);
 
-  /** True when an item belongs to the board currently being shown. */
   const inScope = (item: { projectId?: string | null }) =>
     item.projectId === (projectId ?? null);
 
@@ -57,8 +55,14 @@ export default function KanbanBoard({
   });
 
   /* -------- State -------- */
-  const [tasks, setTasks] = useState<KanbanTask[]>(() => scopeBoard().tasks);
-  const [columns, setColumns] = useState<KanbanColumn[]>(() => scopeBoard().columns);
+
+  const [tasks, setTasks] = useState<KanbanTask[]>(
+    () => scopeBoard().tasks,
+  );
+
+  const [columns, setColumns] = useState<KanbanColumn[]>(
+    () => scopeBoard().columns,
+  );
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState("");
@@ -73,17 +77,17 @@ export default function KanbanBoard({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
-
-  const toastIdRef = useRef(0);
-
-  const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
-
-  /* -------- Toast -------- */
-
-
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(
+    null,
+  );
 
   const toast = useToast();
+  const toastIdRef = useRef(0);
+
+  const selectedTask =
+    tasks.find((task) => task.id === selectedTaskId) ?? null;
+
+  /* -------- Toast -------- */
 
   const showError = (err: unknown, fallback: string) => {
     console.error(fallback, err);
@@ -91,10 +95,13 @@ export default function KanbanBoard({
   };
 
   /* -------- Effects -------- */
+
   useEffect(() => {
     const scoped = scopeBoard();
+
     setTasks(scoped.tasks);
     setColumns(scoped.columns);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBoard, projectId]);
 
@@ -102,11 +109,16 @@ export default function KanbanBoard({
     if (!selectedTaskId) return;
 
     const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeModal();
+      if (event.key === "Escape") {
+        closeModal();
+      }
     };
 
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+
+    return () => {
+      window.removeEventListener("keydown", handler);
+    };
   }, [selectedTaskId]);
 
   useEffect(() => {
@@ -115,18 +127,35 @@ export default function KanbanBoard({
   }, [selectedTaskId, selectedTask?.title]);
 
   /* -------- Helpers -------- */
+
   const closeModal = () => {
     setSelectedTaskId(null);
     setMemberPickerOpen(false);
   };
 
-  const updateTaskLocal = (taskId: string, updates: Partial<KanbanTask>) =>
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)),
+  /**
+   * Local UI state always uses KanbanTask.
+   *
+   * UpdateTaskInput must never be passed directly here.
+   */
+  const updateTaskLocal = (
+    taskId: string,
+    updates: Partial<KanbanTask>,
+  ) => {
+    setTasks((previous) =>
+      previous.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              ...updates,
+            }
+          : task,
+      ),
     );
+  };
 
   const getColumn = (columnId: string | null | undefined) =>
-    columns.find((c) => c.id === columnId) ?? null;
+    columns.find((column) => column.id === columnId) ?? null;
 
   const canManageColumn = (column: KanbanColumn | null) =>
     Boolean(column && inScope(column));
@@ -138,7 +167,9 @@ export default function KanbanBoard({
     if (!query) return tasks;
 
     return tasks.filter((task) => {
-      const members = getTaskMembers(task).map((m) => m.name).join(" ");
+      const members = getTaskMembers(task)
+        .map((member) => member.name)
+        .join(" ");
 
       return [
         task.title,
@@ -151,6 +182,7 @@ export default function KanbanBoard({
   }, [tasks, query]);
 
   /* -------- Columns -------- */
+
   const handleAddColumn = async () => {
     const name = listInput.trim();
 
@@ -168,12 +200,15 @@ export default function KanbanBoard({
       })) as unknown as KanbanColumn;
 
       if (!inScope(created)) {
-        throw new Error("A lista criada pertence a um contexto diferente.");
+        throw new Error(
+          "A lista criada pertence a um contexto diferente.",
+        );
       }
 
-      setColumns((prev) => [...prev, created]);
+      setColumns((previous) => [...previous, created]);
       setListInput("");
       setIsAddingList(false);
+
       toast.success("Lista criada com sucesso.");
     } catch (err) {
       showError(err, "Não foi possível criar a lista.");
@@ -182,6 +217,7 @@ export default function KanbanBoard({
 
   const handleDeleteColumn = async (columnId: string) => {
     const column = getColumn(columnId);
+
     if (!column) return;
 
     if (!canManageColumn(column)) {
@@ -189,16 +225,20 @@ export default function KanbanBoard({
       return;
     }
 
-    if (tasks.some((t) => t.columnId === columnId)) {
+    if (tasks.some((task) => task.columnId === columnId)) {
       toast.error(
-        "Esta lista contém tarefas. Mova as tarefas para outra lista antes de a eliminar."
+        "Esta lista contém tarefas. Mova as tarefas para outra lista antes de a eliminar.",
       );
       return;
     }
 
     try {
-      await deleteTaskColumn(columnId, columnId);
-      setColumns((prev) => prev.filter((c) => c.id !== columnId));
+      await deleteTaskColumn(columnId);
+
+      setColumns((previous) =>
+        previous.filter((item) => item.id !== columnId),
+      );
+
       toast.success("Lista eliminada com sucesso.");
     } catch (err) {
       showError(err, "Não foi possível eliminar a lista.");
@@ -207,6 +247,7 @@ export default function KanbanBoard({
 
   const startEditingColumn = (column: KanbanColumn) => {
     if (!canManageColumn(column)) return;
+
     setEditingColumnId(column.id);
     setColumnTitleInput(column.title);
   };
@@ -234,11 +275,14 @@ export default function KanbanBoard({
         title,
       )) as unknown as KanbanColumn;
 
-      setColumns((prev) =>
-        prev.map((c) =>
-          c.id === editingColumnId
-            ? { ...updated, projectName: c.projectName }
-            : c,
+      setColumns((previous) =>
+        previous.map((item) =>
+          item.id === editingColumnId
+            ? {
+                ...updated,
+                projectName: item.projectName,
+              }
+            : item,
         ),
       );
 
@@ -250,7 +294,10 @@ export default function KanbanBoard({
     }
   };
 
-  const reorderColumns = async (sourceId: string, targetId: string) => {
+  const reorderColumns = async (
+    sourceId: string,
+    targetId: string,
+  ) => {
     if (
       sourceId === targetId ||
       !canManageColumn(getColumn(sourceId)) ||
@@ -260,14 +307,20 @@ export default function KanbanBoard({
     }
 
     const next = [...columns];
-    const from = next.findIndex((c) => c.id === sourceId);
-    const to = next.findIndex((c) => c.id === targetId);
+
+    const from = next.findIndex((column) => column.id === sourceId);
+    const to = next.findIndex((column) => column.id === targetId);
+
     if (from === -1 || to === -1) return;
 
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
 
-    const reordered = next.map((c, index) => ({ ...c, position: index }));
+    const reordered = next.map((column, index) => ({
+      ...column,
+      position: index,
+    }));
+
     const previous = columns;
 
     setColumns(reordered);
@@ -275,8 +328,9 @@ export default function KanbanBoard({
     try {
       await reorderTaskColumns(
         projectId ?? "",
-        reordered.map((c) => c.id),
+        reordered.map((column) => column.id),
       );
+
       toast.success("Listas reordenadas.");
     } catch (err) {
       setColumns(previous);
@@ -284,7 +338,10 @@ export default function KanbanBoard({
     }
   };
 
-  const handleColumnDragStart = (event: React.DragEvent, columnId: string) => {
+  const handleColumnDragStart = (
+    event: React.DragEvent,
+    columnId: string,
+  ) => {
     if (!canManageColumn(getColumn(columnId))) return;
 
     event.dataTransfer.effectAllowed = "move";
@@ -296,6 +353,7 @@ export default function KanbanBoard({
     targetColumnId: string,
   ) => {
     event.preventDefault();
+
     setDragOverColumnId(null);
 
     const raw = event.dataTransfer.getData("text/plain");
@@ -305,16 +363,27 @@ export default function KanbanBoard({
       return;
     }
 
-    const taskId = raw.startsWith("task:") ? raw.slice(5) : draggedTaskId;
-    const task = tasks.find((t) => t.id === taskId);
+    const taskId = raw.startsWith("task:")
+      ? raw.slice(5)
+      : draggedTaskId;
 
-    if (task) await handleTaskMove(task, targetColumnId);
+    const task = tasks.find((item) => item.id === taskId);
+
+    if (task) {
+      await handleTaskMove(task, targetColumnId);
+    }
+
     setDraggedTaskId(null);
   };
 
   /* -------- Task drag & move -------- */
-  const handleTaskDragStart = (event: React.DragEvent, taskId: string) => {
+
+  const handleTaskDragStart = (
+    event: React.DragEvent,
+    taskId: string,
+  ) => {
     setDraggedTaskId(taskId);
+
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", `task:${taskId}`);
   };
@@ -327,10 +396,18 @@ export default function KanbanBoard({
     event.preventDefault();
     event.stopPropagation();
 
-    const source = tasks.find((t) => t.id === draggedTaskId);
+    const source = tasks.find(
+      (task) => task.id === draggedTaskId,
+    );
+
     if (!source || source.id === targetTaskId) return;
 
-    await handleTaskMove(source, targetColumnId, targetTaskId);
+    await handleTaskMove(
+      source,
+      targetColumnId,
+      targetTaskId,
+    );
+
     setDraggedTaskId(null);
     setDragOverColumnId(null);
   };
@@ -348,7 +425,9 @@ export default function KanbanBoard({
     }
 
     if (!inScope(task) || !inScope(targetColumn)) {
-      toast.error("Não é possível mover tarefas entre contextos diferentes.");
+      toast.error(
+        "Não é possível mover tarefas entre contextos diferentes.",
+      );
       return;
     }
 
@@ -358,32 +437,49 @@ export default function KanbanBoard({
 
     const inColumn = (columnId: string) =>
       tasks
-        .filter((t) => t.columnId === columnId)
+        .filter((item) => item.columnId === columnId)
         .sort((a, b) => a.position - b.position);
 
-    const sourceWithoutTask = inColumn(sourceColumnId).filter(
-      (t) => t.id !== task.id,
-    );
+    const sourceWithoutTask = inColumn(
+      sourceColumnId ?? "",
+    ).filter((item) => item.id !== task.id);
 
     const nextTarget = sameColumn
       ? [...sourceWithoutTask]
       : inColumn(targetColumnId);
 
     const targetIndex = targetTaskId
-      ? nextTarget.findIndex((t) => t.id === targetTaskId)
+      ? nextTarget.findIndex(
+          (item) => item.id === targetTaskId,
+        )
       : -1;
-    const insertionIndex = targetIndex >= 0 ? targetIndex : nextTarget.length;
 
-    nextTarget.splice(insertionIndex, 0, { ...task, columnId: targetColumnId });
+    const insertionIndex =
+      targetIndex >= 0
+        ? targetIndex
+        : nextTarget.length;
+
+    nextTarget.splice(insertionIndex, 0, {
+      ...task,
+      columnId: targetColumnId,
+    });
 
     const withPositions = (list: KanbanTask[]) =>
-      list.map((t, index) => ({ ...t, position: index }));
+      list.map((item, index) => ({
+        ...item,
+        position: index,
+      }));
 
-    const sourceReordered = withPositions(sourceWithoutTask);
-    const targetReordered = withPositions(nextTarget);
+    const sourceReordered =
+      withPositions(sourceWithoutTask);
+
+    const targetReordered =
+      withPositions(nextTarget);
 
     const untouched = tasks.filter(
-      (t) => t.columnId !== sourceColumnId && t.columnId !== targetColumnId,
+      (item) =>
+        item.columnId !== sourceColumnId &&
+        item.columnId !== targetColumnId,
     );
 
     setTasks(
@@ -391,34 +487,46 @@ export default function KanbanBoard({
         ...untouched,
         ...(sameColumn ? [] : sourceReordered),
         ...targetReordered,
-      ].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      ].sort((a, b) =>
+        a.createdAt.localeCompare(b.createdAt),
+      ),
     );
 
     try {
-      await moveTask(task.id, targetColumnId, insertionIndex);
+      await moveTask(
+        task.id,
+        targetColumnId,
+        insertionIndex,
+      );
 
       if (!sameColumn) {
         await reorderTasks(
           task.projectId,
           sourceColumnId,
-          sourceReordered.map((t) => t.id),
+          sourceReordered.map((item) => item.id),
         );
       }
 
       await reorderTasks(
         targetColumn.projectId,
         targetColumnId,
-        targetReordered.map((t) => t.id),
+        targetReordered.map((item) => item.id),
       );
     } catch (err) {
       setTasks(previousTasks);
-      showError(err, "Não foi possível mover a tarefa.");
+      showError(
+        err,
+        "Não foi possível mover a tarefa.",
+      );
     }
   };
 
   /* -------- Add / delete task -------- */
+
   const handleAddTask = async (columnId: string) => {
-    const title = (taskInputs[columnId] ?? "").trim();
+    const title = (
+      taskInputs[columnId] ?? ""
+    ).trim();
 
     if (!title) {
       toast.info("Introduza o nome da tarefa.");
@@ -433,16 +541,26 @@ export default function KanbanBoard({
     }
 
     if (!inScope(column)) {
-      toast.error("Não é possível criar uma tarefa nesta lista.");
+      toast.error(
+        "Não é possível criar uma tarefa nesta lista.",
+      );
       return;
     }
 
-    if (!isProjectTasks && !currentUserProfileId) {
-      toast.error("Não foi possível identificar o utilizador actual.");
+    if (
+      !isProjectTasks &&
+      !currentUserProfileId
+    ) {
+      toast.error(
+        "Não foi possível identificar o utilizador actual.",
+      );
       return;
     }
 
-    const personalOwner = isProjectTasks ? null : currentUserProfileId;
+    const personalOwner =
+      isProjectTasks
+        ? null
+        : currentUserProfileId;
 
     try {
       const newTask = await createTask({
@@ -450,66 +568,182 @@ export default function KanbanBoard({
         title,
         columnId,
         priority: "Medium",
-        position: tasks.filter((t) => t.columnId === columnId).length,
+        position: tasks.filter(
+          (task) => task.columnId === columnId,
+        ).length,
         assignedTo: personalOwner,
-        assignedMembers: personalOwner ? [personalOwner] : [],
+        assignedMembers: personalOwner
+          ? [personalOwner]
+          : [],
       });
 
-      setTasks((prev) => [...prev, newTask as KanbanTask]);
-      setTaskInputs((prev) => ({ ...prev, [columnId]: "" }));
+      setTasks((previous) => [
+        ...previous,
+        newTask as KanbanTask,
+      ]);
+
+      setTaskInputs((previous) => ({
+        ...previous,
+        [columnId]: "",
+      }));
+
       setSelectedTaskId(newTask.id);
 
       toast.success(
         isProjectTasks
           ? "Tarefa criada. Pode adicionar os responsáveis."
-          : "Tarefa pessoal criada."
+          : "Tarefa pessoal criada.",
       );
     } catch (err) {
-      showError(err, "Não foi possível criar a tarefa.");
+      showError(
+        err,
+        "Não foi possível criar a tarefa.",
+      );
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleDeleteTask = async (
+    taskId: string,
+  ) => {
     const previousTasks = tasks;
 
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    if (selectedTaskId === taskId) closeModal();
+    setTasks((previous) =>
+      previous.filter(
+        (task) => task.id !== taskId,
+      ),
+    );
+
+    if (selectedTaskId === taskId) {
+      closeModal();
+    }
 
     try {
       await deleteTask(taskId);
-      toast.success("Tarefa eliminada com sucesso.");
+
+      toast.success(
+        "Tarefa eliminada com sucesso.",
+      );
     } catch (err) {
       setTasks(previousTasks);
-      showError(err, "Não foi possível eliminar a tarefa.");
+
+      showError(
+        err,
+        "Não foi possível eliminar a tarefa.",
+      );
     }
   };
 
   /* -------- Selected task updates -------- */
 
-  /** Optimistically applies `updates`, persists them, and rolls back on failure. */
+  /**
+   * Persists fields accepted by UpdateTaskInput.
+   *
+   * The returned task is converted into KanbanTask only
+   * at the action boundary.
+   */
   const patchSelectedTask = async (
-    updates: Partial<KanbanTask>,
+    updates: Partial<UpdateTaskInput>,
     successMessage: string,
     errorFallback: string,
   ) => {
     if (!selectedTask) return;
 
-    const { id } = selectedTask;
-    const rollback = Object.fromEntries(
-      Object.keys(updates).map((key) => [
-        key,
-        selectedTask[key as keyof KanbanTask],
-      ]),
-    ) as Partial<KanbanTask>;
+    const taskId = selectedTask.id;
+    const previousTask = selectedTask;
 
-    updateTaskLocal(id, updates);
+    /*
+     * Only update the local UI with fields that actually
+     * exist in KanbanTask.
+     *
+     * UpdateTaskInput and KanbanTask are intentionally
+     * separate types.
+     */
+    const localUpdates: Partial<KanbanTask> = {};
+
+    if ("title" in updates && updates.title !== undefined) {
+      localUpdates.title = updates.title;
+    }
+
+    if (
+      "description" in updates &&
+      updates.description !== undefined
+    ) {
+      localUpdates.description =
+        updates.description;
+    }
+
+    if (
+      "priority" in updates &&
+      updates.priority !== undefined
+    ) {
+      localUpdates.priority = updates.priority;
+    }
+
+    if (
+      "completed" in updates &&
+      updates.completed !== undefined
+    ) {
+      localUpdates.completed = updates.completed;
+    }
+
+    if (
+      "startDate" in updates &&
+      updates.startDate !== undefined
+    ) {
+      localUpdates.startDate = updates.startDate;
+    }
+
+    if (
+      "dueDate" in updates &&
+      updates.dueDate !== undefined
+    ) {
+      localUpdates.dueDate = updates.dueDate;
+    }
+
+    if (
+      "assignedTo" in updates &&
+      updates.assignedTo !== undefined
+    ) {
+      localUpdates.assignedTo = updates.assignedTo;
+    }
+
+    if (
+      "columnId" in updates &&
+      updates.columnId !== undefined
+    ) {
+      localUpdates.columnId = updates.columnId;
+    }
+
+    updateTaskLocal(taskId, localUpdates);
 
     try {
-      const updated = await updateTask(id, updates);
-      updateTaskLocal(id, updated as KanbanTask);
+      const updated = await updateTask(
+        taskId,
+        updates,
+      );
+
+      /*
+       * updateTask is responsible for returning the
+       * normalized KanbanTask shape.
+       */
+      updateTaskLocal(
+        taskId,
+        updated as KanbanTask,
+      );
+
       toast.success(successMessage);
     } catch (err) {
-      updateTaskLocal(id, rollback);
+      /*
+       * Roll back using the complete UI task.
+       */
+      setTasks((previous) =>
+        previous.map((task) =>
+          task.id === taskId
+            ? previousTask
+            : task,
+        ),
+      );
+
       showError(err, errorFallback);
     }
   };
@@ -519,7 +753,10 @@ export default function KanbanBoard({
 
     const title = titleDraft.trim();
 
-    if (!title || title === selectedTask.title) {
+    if (
+      !title ||
+      title === selectedTask.title
+    ) {
       setTitleDraft(selectedTask.title);
       return;
     }
@@ -531,7 +768,9 @@ export default function KanbanBoard({
     );
   };
 
-  const updateTaskCompletion = (completed: boolean) =>
+  const updateTaskCompletion = (
+    completed: boolean,
+  ) =>
     patchSelectedTask(
       { completed },
       completed
@@ -540,7 +779,9 @@ export default function KanbanBoard({
       "Não foi possível actualizar o estado da tarefa.",
     );
 
-  const updatePriority = (priority: TaskPriority) =>
+  const updatePriority = (
+    priority: TaskPriority,
+  ) =>
     patchSelectedTask(
       { priority },
       "Prioridade actualizada.",
@@ -559,18 +800,33 @@ export default function KanbanBoard({
 
     const validation =
       field === "startDate"
-        ? validateDateRange(value, selectedTask.dueDate)
-        : validateDateRange(selectedTask.startDate, value);
+        ? validateDateRange(
+            value,
+            selectedTask.dueDate,
+          )
+        : validateDateRange(
+            selectedTask.startDate,
+            value,
+          );
 
     if (!validation.valid) {
-      toast.error(validation.message || "Data inválida.");
+      toast.error(
+        validation.message ||
+          "Data inválida.",
+      );
       return;
     }
 
-    await patchSelectedTask({ [field]: value }, successMessage, errorFallback);
+    await patchSelectedTask(
+      { [field]: value },
+      successMessage,
+      errorFallback,
+    );
   };
 
-  const updateStartDate = (value: string) =>
+  const updateStartDate = (
+    value: string,
+  ) =>
     updateDate(
       "startDate",
       value,
@@ -578,7 +834,9 @@ export default function KanbanBoard({
       "Não foi possível actualizar a data de início.",
     );
 
-  const updateDueDate = (value: string) =>
+  const updateDueDate = (
+    value: string,
+  ) =>
     updateDate(
       "dueDate",
       value,
@@ -586,66 +844,134 @@ export default function KanbanBoard({
       "Não foi possível actualizar a data de conclusão.",
     );
 
-  const updateDescription = (description: string) =>
+  const updateDescription = (
+    description: string,
+  ) =>
     patchSelectedTask(
       { description },
       "Descrição guardada.",
       "Não foi possível guardar a descrição.",
     );
 
-  const toggleTaskMember = async (profileId: string) => {
-    if (!selectedTask || !isProjectTasks) return;
+  const toggleTaskMember = async (
+    profileId: string,
+  ) => {
+    if (
+      !selectedTask ||
+      !isProjectTasks
+    ) {
+      return;
+    }
 
-    const current = selectedTask.assignedMembers ?? [];
-    const exists = current.some((m) => m.profileId === profileId);
-    const projectMember = projectMembers.find((m) => m.profileId === profileId);
+    const current =
+      selectedTask.assignedMembers ?? [];
+
+    const exists = current.some(
+      (member) =>
+        member.profileId === profileId,
+    );
+
+    const projectMember =
+      projectMembers.find(
+        (member) =>
+          member.profileId === profileId,
+      );
 
     if (!projectMember) {
-      toast.error("Este membro não pertence ao projecto.");
+      toast.error(
+        "Este membro não pertence ao projecto.",
+      );
       return;
     }
 
     const next = exists
-      ? current.filter((m) => m.profileId !== profileId)
+      ? current.filter(
+          (member) =>
+            member.profileId !== profileId,
+        )
       : [
           ...current,
           {
-            profileId: projectMember.profileId,
+            profileId:
+              projectMember.profileId,
             name: projectMember.name,
-            picture: projectMember.picture ?? null,
-            jobTitle: projectMember.jobTitle ?? null,
+            picture:
+              projectMember.picture ?? null,
+            jobTitle:
+              projectMember.jobTitle ?? null,
           },
         ];
 
-    updateTaskLocal(selectedTask.id, { assignedMembers: next });
+    updateTaskLocal(
+      selectedTask.id,
+      {
+        assignedMembers: next,
+      },
+    );
 
     try {
-      const saved = await updateTaskMembers(
-        selectedTask.id,
-        next.map((m) => m.profileId),
-      );
+      const saved =
+        await updateTaskMembers(
+          selectedTask.id,
+          next.map(
+            (member) =>
+              member.profileId,
+          ),
+        );
 
       const normalized =
-        saved?.map((m: any) => ({
-          profileId: m.profileId ?? m.profile_id,
-          name: m.name ?? `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim(),
-          picture: m.picture ?? null,
-          jobTitle: m.jobTitle ?? m.job_title ?? null,
+        saved?.map((member: any) => ({
+          profileId:
+            member.profileId ??
+            member.profile_id,
+
+          name:
+            member.name ??
+            `${member.firstName ?? ""} ${
+              member.lastName ?? ""
+            }`.trim(),
+
+          picture:
+            member.picture ?? null,
+
+          jobTitle:
+            member.jobTitle ??
+            member.job_title ??
+            null,
         })) ?? next;
 
-      updateTaskLocal(selectedTask.id, { assignedMembers: normalized });
+      updateTaskLocal(
+        selectedTask.id,
+        {
+          assignedMembers: normalized,
+        },
+      );
 
       toast.success(
-        exists ? "Membro removido da tarefa." : "Membro adicionado à tarefa."
+        exists
+          ? "Membro removido da tarefa."
+          : "Membro adicionado à tarefa.",
       );
     } catch (err) {
-      updateTaskLocal(selectedTask.id, { assignedMembers: current });
-      showError(err, "Não foi possível actualizar os responsáveis.");
+      updateTaskLocal(
+        selectedTask.id,
+        {
+          assignedMembers: current,
+        },
+      );
+
+      showError(
+        err,
+        "Não foi possível actualizar os responsáveis.",
+      );
     }
   };
 
   /* -------- Render -------- */
-  const noSearchResults = isSearching && filteredTasks.length === 0;
+
+  const noSearchResults =
+    isSearching &&
+    filteredTasks.length === 0;
 
   return (
     <>
@@ -657,6 +983,7 @@ export default function KanbanBoard({
                 <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
                   Tarefas
                 </h1>
+
                 <p className="mt-1 text-sm text-gray-600">
                   {projectId
                     ? "Organize as tarefas deste projecto."
@@ -664,22 +991,31 @@ export default function KanbanBoard({
                 </p>
               </div>
 
-              <SearchBox value={searchQuery} onChange={setSearchQuery} />
+              <SearchBox
+                value={searchQuery}
+                onChange={setSearchQuery}
+              />
             </div>
           </div>
 
           {noSearchResults ? (
             <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-16 text-center">
               <Search className="mb-4 h-10 w-10 text-gray-300" />
+
               <p className="text-sm font-medium text-gray-900">
                 Nenhuma tarefa encontrada
               </p>
+
               <p className="mt-1 text-sm text-gray-500">
-                Nenhuma tarefa corresponde a "{searchQuery}"
+                Nenhuma tarefa corresponde a "
+                {searchQuery}"
               </p>
+
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
+                onClick={() =>
+                  setSearchQuery("")
+                }
                 className="mt-4 text-sm font-medium text-gray-600 underline transition hover:text-gray-900"
               >
                 Limpar pesquisa
@@ -688,81 +1024,163 @@ export default function KanbanBoard({
           ) : (
             <div className="-mx-4 flex gap-6 overflow-x-auto px-4 pb-6 sm:mx-0 sm:px-0">
               {columns.map((column) => {
-                const columnTasks = filteredTasks
-                  .filter((t) => t.columnId === column.id)
-                  .sort((a, b) => a.position - b.position);
+                const columnTasks =
+                  filteredTasks
+                    .filter(
+                      (task) =>
+                        task.columnId ===
+                        column.id,
+                    )
+                    .sort(
+                      (a, b) =>
+                        a.position -
+                        b.position,
+                    );
 
                 return (
                   <div
                     key={column.id}
                     onDragOver={(event) => {
                       event.preventDefault();
-                      setDragOverColumnId(column.id);
+                      setDragOverColumnId(
+                        column.id,
+                      );
                     }}
                     onDragLeave={() =>
-                      setDragOverColumnId((prev) =>
-                        prev === column.id ? null : prev,
+                      setDragOverColumnId(
+                        (previous) =>
+                          previous ===
+                          column.id
+                            ? null
+                            : previous,
                       )
                     }
-                    onDrop={(event) => handleColumnDrop(event, column.id)}
+                    onDrop={(event) =>
+                      handleColumnDrop(
+                        event,
+                        column.id,
+                      )
+                    }
                     className={`flex min-h-[600px] w-80 shrink-0 flex-col rounded-lg border bg-white shadow-sm transition ${
-                      dragOverColumnId === column.id
+                      dragOverColumnId ===
+                      column.id
                         ? "border-gray-400 ring-2 ring-gray-200"
                         : "border-gray-200"
                     }`}
                   >
                     <ColumnHeader
                       column={column}
-                      taskCount={columnTasks.length}
-                      isEditing={editingColumnId === column.id}
-                      editTitle={columnTitleInput}
-                      canManage={canManageColumn(column)}
-                      onEditingStart={() => startEditingColumn(column)}
-                      onEditTitleChange={setColumnTitleInput}
-                      onEditCommit={commitColumnTitle}
-                      onDelete={() => handleDeleteColumn(column.id)}
+                      taskCount={
+                        columnTasks.length
+                      }
+                      isEditing={
+                        editingColumnId ===
+                        column.id
+                      }
+                      editTitle={
+                        columnTitleInput
+                      }
+                      canManage={canManageColumn(
+                        column,
+                      )}
+                      onEditingStart={() =>
+                        startEditingColumn(
+                          column,
+                        )
+                      }
+                      onEditTitleChange={
+                        setColumnTitleInput
+                      }
+                      onEditCommit={
+                        commitColumnTitle
+                      }
+                      onDelete={() =>
+                        handleDeleteColumn(
+                          column.id,
+                        )
+                      }
                       onDragStart={(event) =>
-                        handleColumnDragStart(event, column.id)
+                        handleColumnDragStart(
+                          event,
+                          column.id,
+                        )
                       }
                     />
 
                     <div className="flex-1 space-y-3 overflow-y-auto overflow-x-visible px-4 py-4 sm:px-5">
-                      {columnTasks.length === 0 && (
+                      {columnTasks.length ===
+                        0 && (
                         <p className="rounded-lg border-2 border-dashed border-gray-200 py-8 text-center text-xs text-gray-400">
                           Sem tarefas
                         </p>
                       )}
 
-                      {columnTasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onSelect={() => setSelectedTaskId(task.id)}
-                          onDelete={() => handleDeleteTask(task.id)}
-                          draggable
-                          onDragStart={(event) =>
-                            handleTaskDragStart(event, task.id)
-                          }
-                          onDragOver={(event) => event.preventDefault()}
-                          onDrop={(event) =>
-                            handleTaskDrop(event, task.id, column.id)
-                          }
-                        />
-                      ))}
+                      {columnTasks.map(
+                        (task) => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            onSelect={() =>
+                              setSelectedTaskId(
+                                task.id,
+                              )
+                            }
+                            onDelete={() =>
+                              handleDeleteTask(
+                                task.id,
+                              )
+                            }
+                            draggable
+                            onDragStart={(
+                              event,
+                            ) =>
+                              handleTaskDragStart(
+                                event,
+                                task.id,
+                              )
+                            }
+                            onDragOver={(event) =>
+                              event.preventDefault()
+                            }
+                            onDrop={(event) =>
+                              handleTaskDrop(
+                                event,
+                                task.id,
+                                column.id,
+                              )
+                            }
+                          />
+                        ),
+                      )}
                     </div>
 
                     <div className="space-y-3 border-t border-gray-200 px-4 py-4 sm:px-5">
                       <input
                         type="text"
-                        value={taskInputs[column.id] ?? ""}
+                        value={
+                          taskInputs[
+                            column.id
+                          ] ?? ""
+                        }
                         onChange={(event) =>
-                          setTaskInputs((prev) => ({
-                            ...prev,
-                            [column.id]: event.target.value,
-                          }))
+                          setTaskInputs(
+                            (previous) => ({
+                              ...previous,
+                              [column.id]:
+                                event.target
+                                  .value,
+                            }),
+                          )
                         }
                         onKeyDown={(event) => {
-                          if (event.key === "Enter") void handleAddTask(column.id);
+                          if (
+                            event.key ===
+                            "Enter"
+                          ) {
+                            void handleAddTask(
+                              column.id,
+                            );
+                          }
                         }}
                         placeholder="Nova tarefa..."
                         className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
@@ -770,7 +1188,11 @@ export default function KanbanBoard({
 
                       <button
                         type="button"
-                        onClick={() => void handleAddTask(column.id)}
+                        onClick={() =>
+                          void handleAddTask(
+                            column.id,
+                          )
+                        }
                         className="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1"
                       >
                         Adicionar tarefa
@@ -784,16 +1206,31 @@ export default function KanbanBoard({
                 <AddColumnForm
                   isAdding={isAddingList}
                   listInput={listInput}
-                  onInputChange={setListInput}
-                  onAddClick={handleAddColumn}
+                  onInputChange={
+                    setListInput
+                  }
+                  onAddClick={
+                    handleAddColumn
+                  }
                   onCancelClick={() => {
                     setIsAddingList(false);
                     setListInput("");
                   }}
-                  onToggleForm={() => setIsAddingList((open) => !open)}
+                  onToggleForm={() =>
+                    setIsAddingList(
+                      (open) => !open,
+                    )
+                  }
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") void handleAddColumn();
-                    if (event.key === "Escape") {
+                    if (
+                      event.key === "Enter"
+                    ) {
+                      void handleAddColumn();
+                    }
+
+                    if (
+                      event.key === "Escape"
+                    ) {
                       setIsAddingList(false);
                       setListInput("");
                     }
@@ -812,24 +1249,45 @@ export default function KanbanBoard({
         memberPickerOpen={memberPickerOpen}
         titleDraft={titleDraft}
         onClose={closeModal}
-        onDelete={() => selectedTaskId && handleDeleteTask(selectedTaskId)}
+        onDelete={() =>
+          selectedTaskId &&
+          handleDeleteTask(
+            selectedTaskId,
+          )
+        }
         onTitleChange={setTitleDraft}
         onTitleCommit={commitTitle}
-        onCompletionChange={updateTaskCompletion}
-        onPriorityChange={updatePriority}
-        onStartDateChange={updateStartDate}
-        onDueDateChange={updateDueDate}
-        onDescriptionChange={(description) =>
-          selectedTask && updateTaskLocal(selectedTask.id, { description })
+        onCompletionChange={
+          updateTaskCompletion
         }
-        onDescriptionBlur={updateDescription}
-        onMemberToggle={toggleTaskMember}
-        onMemberPickerToggle={setMemberPickerOpen}
+        onPriorityChange={updatePriority}
+        onStartDateChange={
+          updateStartDate
+        }
+        onDueDateChange={updateDueDate}
+        onDescriptionChange={(
+          description,
+        ) =>
+          selectedTask &&
+          updateTaskLocal(
+            selectedTask.id,
+            { description },
+          )
+        }
+        onDescriptionBlur={
+          updateDescription
+        }
+        onMemberToggle={
+          toggleTaskMember
+        }
+        onMemberPickerToggle={
+          setMemberPickerOpen
+        }
         getColumnTitle={(columnId) =>
-          getColumn(columnId)?.title ?? "Lista indisponível"
+          getColumn(columnId)?.title ??
+          "Lista indisponível"
         }
       />
-
     </>
   );
 }
