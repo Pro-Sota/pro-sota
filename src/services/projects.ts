@@ -127,6 +127,13 @@ type UserProjectResult = {
   projects: Project | null;
 };
 
+export async function getAllProjects(){
+  const {data, error} = await supabase
+    .from("projects")
+    .select("*");
+    return data;
+}
+
 export async function getUserProjects(userId: string): Promise<Project[]> {
   const { data, error } = await supabase
     .from("project_members")

@@ -29,10 +29,10 @@ export default function ProjectNavbar({
       name: "Documentos",
       href: `/management/projects/${projectId}/documents?view=list`,
     },
-    {
+  /*   {
       name: "Orçamento e custos",
       href: `/management/projects/${projectId}/budget`,
-    },
+    }, */
     {
       name: "Aprovações e Comentários",
       href: `/management/projects/${projectId}/approvals-and-reviews`,
