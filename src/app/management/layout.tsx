@@ -1,35 +1,36 @@
-import type { Metadata } from "next";
 import DashboardLayoutClient from "./dashboard_layout";
-import { requireUser } from "../lib/supabase/auth";
-import { ToastProvider } from "../components/toast/toast_provider";
 
-export const metadata: Metadata = {
-  title: {
-    template: "%s | ProSota",
-    default: "Dashboard | ProSota",
-  },
-  description: "ProSota Management Dashboard",
-  openGraph: {
-    title: "ProSota Management Dashboard",
-    description: "ProSota Management Dashboard",
-  },
-};
+import {
+  getCurrentUserPermissions,
+} from "@/app/lib/permissions/server";
 
-export default async function DashboardLayout({
+import PermissionProvider from "@/app/components/permission_provider";
+
+export default async function ManagementLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { userRole, userDepartment } = await requireUser();
-  const safeUserRole = userRole ?? null;
-  const safeUserDepartment = userDepartment ?? null;
+  const auth = await getCurrentUserPermissions();
+
+
+  const userRole = auth.role;
+  const userDepartment = auth.department;;
+
+  const permissions = Array.from(
+    auth.permissions,
+  );
 
   return (
-    <DashboardLayoutClient
-      userRole={safeUserRole}
-      userDepartment={safeUserDepartment}
+    <PermissionProvider
+      permissions={permissions}
     >
-      <ToastProvider>{children}</ToastProvider>
-    </DashboardLayoutClient>
+      <DashboardLayoutClient
+        userRole={userRole}
+        userDepartment={userDepartment}
+      >
+        {children}
+      </DashboardLayoutClient>
+    </PermissionProvider>
   );
 }

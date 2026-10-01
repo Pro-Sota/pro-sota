@@ -80,3 +80,21 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
         };
     });
 }
+
+export async function getUserById(userId: string): Promise<Profile | null> {
+    const cookieStore = await cookies();
+    const supabase = await createClient(cookieStore);
+
+    const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("profile_id", userId)
+        .single();
+
+    if (error) {
+        console.error("getUserById error:", error);
+        return null;
+    }
+
+    return profile;
+}

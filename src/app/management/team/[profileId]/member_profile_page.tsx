@@ -10,6 +10,7 @@ import {
     Pencil,
     UserRound,
     ExternalLink,
+    ShieldCheck,
 } from "lucide-react";
 
 import type { TeamMemberProfile } from "@/services/team_profile";
@@ -37,9 +38,7 @@ const getInitials = (
     return `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
 };
 
-const getStatusLabel = (
-    status?: string | null
-) => {
+const getStatusLabel = (status?: string | null) => {
     switch (status) {
         case "Active":
             return "Activo";
@@ -58,9 +57,7 @@ const getStatusLabel = (
     }
 };
 
-const getStatusClasses = (
-    status?: string | null
-) => {
+const getStatusClasses = (status?: string | null) => {
     switch (status) {
         case "Active":
             return "bg-emerald-50 text-emerald-700";
@@ -103,6 +100,9 @@ export default function MemberProfilePage({
 
     const visibleProjects = projects.slice(0, 5);
 
+    const permissionsUrl = `/management/team/${member.profile_id}/permissions`;
+    const editUrl = `/management/team/${member.profile_id}/edit`;
+
     return (
         <div className="min-h-screen p-6 md:p-10">
             <div className="mx-auto max-w-6xl space-y-6">
@@ -116,13 +116,25 @@ export default function MemberProfilePage({
                         Voltar à equipa
                     </Link>
 
-                    <Link
-                        href={`/management/team/${member.profile_id}/edit`}
-                        className="flex w-fit items-center gap-2 rounded-lg bg-[#002950] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#002950]/90"
-                    >
-                        <Pencil size={15} />
-                        Editar colaborador
-                    </Link>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        {/* Permissions */}
+                        <Link
+                            href={permissionsUrl}
+                            className="flex w-fit items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                        >
+                            <ShieldCheck size={15} />
+                            Permissões
+                        </Link>
+
+                        {/* Edit */}
+                        <Link
+                            href={editUrl}
+                            className="flex w-fit items-center justify-center gap-2 rounded-lg bg-[#002950] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#002950]/90"
+                        >
+                            <Pencil size={15} />
+                            Editar colaborador
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Profile */}
@@ -231,7 +243,7 @@ export default function MemberProfilePage({
 
                 {/* Projects */}
                 <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                    <div className="flex items-center justify-between border-b border-slate-100 p-5">
+                    <div className="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <h2 className="font-semibold text-slate-900">
                                 Projectos
@@ -246,7 +258,7 @@ export default function MemberProfilePage({
                         {projects.length > 0 && (
                             <Link
                                 href={`/management/team/${member.profile_id}/projects`}
-                                className="text-sm font-medium text-[#002950] transition hover:underline"
+                                className="w-fit text-sm font-medium text-[#002950] transition hover:underline"
                             >
                                 Ver todos
                             </Link>
