@@ -7,7 +7,7 @@ import {
 
 import {
   getMessageAction,
-} from "@/actions/message";
+} from "@/actions/get_message";
 
 import type { MessageView } from "@/services/messages";
 

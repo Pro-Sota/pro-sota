@@ -2,7 +2,7 @@
 
 import {
   formatMessageDate,
-} from "./utils/message_date";
+} from "../utils/message_date";
 
 interface Props {
   timestamp: string;

@@ -12,7 +12,7 @@ import MessageBubble from "./message_bubble";
 import MessageDateDivider from "./message_date_divider";
 import {
   getDateKey,
-} from "./utils/message_date";
+} from "../utils/message_date";
 
 interface Props {
   messages: MessageView[];
