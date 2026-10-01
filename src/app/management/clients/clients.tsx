@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import {
   Building2,
   Briefcase,
-  Download,
   Plus,
   Users,
 } from "lucide-react";
@@ -20,16 +19,64 @@ interface Props {
   allClients: ClientWithProjectCount[];
 }
 
+type ClientFilters = {
+  query: string;
+  status: string;
+  type: string;
+  projects: string;
+};
+
+function normalizeSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+function escapeCsvValue(value: unknown): string {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function downloadCsv(
+  filename: string,
+  rows: Array<Array<unknown>>,
+) {
+  const csv = rows
+    .map((row) => row.map(escapeCsvValue).join(","))
+    .join("\n");
+
+  const blob = new Blob(["\uFEFF", csv], {
+    type: "text/csv;charset=utf-8",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+
 export default function ClientsPage({ allClients }: Props) {
   const router = useRouter();
 
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [typeFilter, setTypeFilter] = useState("All");
-  const [projectFilter, setProjectFilter] = useState("All");
+  const [filters, setFilters] = useState<ClientFilters>({
+    query: "",
+    status: "All",
+    type: "All",
+    projects: "All",
+  });
 
-  const filtered = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+  const filteredClients = useMemo(() => {
+    const normalizedQuery = normalizeSearch(filters.query);
 
     return allClients.filter((client) => {
       const searchableValues = [
@@ -48,28 +95,27 @@ export default function ClientsPage({ allClients }: Props) {
 
       const matchesQuery =
         !normalizedQuery ||
-        searchableValues
-          .filter(
-            (value): value is string =>
-              Boolean(value)
-          )
-          .some((value) =>
-            value.toLowerCase().includes(normalizedQuery)
-          );
+        searchableValues.some(
+          (value) =>
+            Boolean(value) &&
+            normalizeSearch(String(value)).includes(
+              normalizedQuery,
+            ),
+        );
 
       const matchesStatus =
-        statusFilter === "All" ||
-        client.status === statusFilter;
+        filters.status === "All" ||
+        client.status === filters.status;
 
       const matchesType =
-        typeFilter === "All" ||
-        client.client_type === typeFilter;
+        filters.type === "All" ||
+        client.client_type === filters.type;
 
       const matchesProjects =
-        projectFilter === "All" ||
-        (projectFilter === "WithProjects" &&
+        filters.projects === "All" ||
+        (filters.projects === "WithProjects" &&
           client.projectCount > 0) ||
-        (projectFilter === "WithoutProjects" &&
+        (filters.projects === "WithoutProjects" &&
           client.projectCount === 0);
 
       return (
@@ -79,30 +125,49 @@ export default function ClientsPage({ allClients }: Props) {
         matchesProjects
       );
     });
-  }, [
-    allClients,
-    query,
-    statusFilter,
-    typeFilter,
-    projectFilter,
-  ]);
+  }, [allClients, filters]);
 
-  const companies = allClients.filter(
-    (client) => client.client_type === "Company"
-  ).length;
+  const stats = useMemo(() => {
+    return allClients.reduce(
+      (result, client) => {
+        result.projectCount += client.projectCount;
 
-  const projectCount = allClients.reduce(
-    (total, client) => total + client.projectCount,
-    0
-  );
+        if (client.status === "Active") {
+          result.activeClients += 1;
+        }
 
-  const activeClients = allClients.filter(
-    (client) => client.status === "Active"
-  ).length;
+        if (client.status === "Prospective") {
+          result.prospectiveClients += 1;
+        }
 
-  const prospectiveClients = allClients.filter(
-    (client) => client.status === "Prospective"
-  ).length;
+        return result;
+      },
+      {
+        activeClients: 0,
+        prospectiveClients: 0,
+        projectCount: 0,
+      },
+    );
+  }, [allClients]);
+
+  function updateFilter<K extends keyof ClientFilters>(
+    key: K,
+    value: ClientFilters[K],
+  ) {
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function resetFilters() {
+    setFilters({
+      query: "",
+      status: "All",
+      type: "All",
+      projects: "All",
+    });
+  }
 
   function exportClients() {
     const rows = [
@@ -116,7 +181,7 @@ export default function ClientsPage({ allClients }: Props) {
         "Estado",
         "Projectos",
       ],
-      ...filtered.map((client) => [
+      ...filteredClients.map((client) => [
         client.name ?? "",
         client.client_type,
         client.nif ?? "",
@@ -124,41 +189,15 @@ export default function ClientsPage({ allClients }: Props) {
         client.phone ?? "",
         client.city ?? "",
         client.status,
-        String(client.projectCount),
+        client.projectCount,
       ]),
     ];
 
-    const csv = rows
-      .map((row) =>
-        row
-          .map((value) =>
-            `"${String(value).replaceAll('"', '""')}"`
-          )
-          .join(",")
-      )
-      .join("\n");
-
-    const url = URL.createObjectURL(
-      new Blob(["\uFEFF", csv], {
-        type: "text/csv;charset=utf-8",
-      })
-    );
-
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = "clientes.csv";
-    link.click();
-
-    URL.revokeObjectURL(url);
+    downloadCsv("clientes.csv", rows);
   }
 
-  function resetFilters() {
-    setQuery("");
-    setStatusFilter("All");
-    setTypeFilter("All");
-    setProjectFilter("All");
-  }
+  const hasClients = allClients.length > 0;
+  const hasFilteredClients = filteredClients.length > 0;
 
   return (
     <div className="min-h-screen p-6 md:p-10">
@@ -178,17 +217,20 @@ export default function ClientsPage({ allClients }: Props) {
             type="button"
             onClick={() =>
               router.push(
-                "/management/clients/create-client"
+                "/management/clients/create-client",
               )
             }
             className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2.5 text-sm font-medium text-[#002950] transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
           >
-            <Plus size={18} />
+            <Plus size={18} aria-hidden="true" />
             Novo Cliente
           </button>
         </header>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section
+          aria-label="Resumo de clientes"
+          className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        >
           <StatCard
             icon={<Users size={22} />}
             title="Total Clientes"
@@ -198,63 +240,73 @@ export default function ClientsPage({ allClients }: Props) {
           <StatCard
             icon={<Users size={22} />}
             title="Clientes Activos"
-            value={String(activeClients)}
+            value={String(stats.activeClients)}
           />
 
           <StatCard
             icon={<Briefcase size={22} />}
             title="Potenciais"
-            value={String(prospectiveClients)}
+            value={String(stats.prospectiveClients)}
           />
 
           <StatCard
             icon={<Building2 size={22} />}
             title="Projectos"
-            value={String(projectCount)}
+            value={String(stats.projectCount)}
           />
-        </div>
+        </section>
 
         <ClientsFilters
-          query={query}
-          setQuery={setQuery}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          typeFilter={typeFilter}
-          setTypeFilter={setTypeFilter}
-          projectFilter={projectFilter}
-          setProjectFilter={setProjectFilter}
+          query={filters.query}
+          setQuery={(value) => updateFilter("query", value)}
+          statusFilter={filters.status}
+          setStatusFilter={(value) =>
+            updateFilter("status", value)
+          }
+          typeFilter={filters.type}
+          setTypeFilter={(value) =>
+            updateFilter("type", value)
+          }
+          projectFilter={filters.projects}
+          setProjectFilter={(value) =>
+            updateFilter("projects", value)
+          }
           onExport={exportClients}
           onReset={resetFilters}
-          resultCount={filtered.length}
+          resultCount={filteredClients.length}
           totalCount={allClients.length}
         />
 
-        <ClientsTable clients={filtered} />
-
-        {!filtered.length && (
-          <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center">
+        {hasFilteredClients ? (
+          <ClientsTable clients={filteredClients} />
+        ) : (
+          <div
+            role="status"
+            className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center"
+          >
             <Users
               size={32}
+              aria-hidden="true"
               className="mx-auto text-gray-300"
             />
 
-            <h3 className="mt-3 font-semibold text-gray-900">
-              {allClients.length
+            <h2 className="mt-3 font-semibold text-gray-900">
+              {hasClients
                 ? "Nenhum cliente encontrado"
                 : "Ainda não existem clientes"}
-            </h3>
+            </h2>
 
             <p className="mx-auto mt-1 max-w-md text-sm text-gray-500">
-              {allClients.length
+              {hasClients
                 ? "Tente alterar a pesquisa ou remover os filtros."
                 : "Adicione o primeiro cliente para começar a gerir a sua carteira de clientes."}
             </p>
 
-            {allClients.length ? (
+            {hasClients ? (
               <button
                 type="button"
                 onClick={resetFilters}
-                className="mt-4 cursor-pointer text-sm font-medium text-[#002950] underline"
+                className="mt-4 cursor-pointer text-sm font-medium text-[#002950] underline underline-offset-2 transition hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
               >
                 Limpar pesquisa e filtros
               </button>
@@ -263,12 +315,12 @@ export default function ClientsPage({ allClients }: Props) {
                 type="button"
                 onClick={() =>
                   router.push(
-                    "/management/clients/create-client"
+                    "/management/clients/create-client",
                   )
                 }
-                className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2 text-sm font-medium text-[#002950]"
+                className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2 text-sm font-medium text-[#002950] transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
               >
-                <Plus size={17} />
+                <Plus size={17} aria-hidden="true" />
                 Novo Cliente
               </button>
             )}
