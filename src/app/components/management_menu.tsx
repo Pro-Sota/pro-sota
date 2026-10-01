@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -15,18 +14,24 @@ import {
   LogOut,
   LucideIcon,
   MessageCircle,
-  Sidebar,
   User,
   UserPlus,
   Users,
   UsersRound,
   WalletCards,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 import { createClient } from "@/app/lib/supabase/client";
+import { useState } from "react";
 
-type SystemRole = "Superadmin" | "Admin" | "Director" | "Utilizador";
+type SystemRole =
+  | "Superadmin"
+  | "Admin"
+  | "Director"
+  | "Utilizador";
 
 type Department =
   | "DC"
@@ -55,17 +60,16 @@ type SidebarItem = {
 type SidebarItemProps = {
   item: SidebarItem;
   active: boolean;
-  expanded: boolean;
+  collapsed?: boolean;
   onLogout?: () => void;
   logoutLoading?: boolean;
 };
 
 type Props = {
-  collapsed: boolean;
-  setCollapsedAction: (value: boolean) => void;
   userRole?: string | null;
   userDepartment?: string | null;
-  onHoverChange: (value: boolean) => void;
+  collapsed: boolean;
+  setCollapsedAction: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 /*
@@ -222,7 +226,9 @@ function normalizeRole(role?: string | null): SystemRole {
  * ============================================================
  */
 
-function normalizeDepartment(department?: string | null): Department | null {
+function normalizeDepartment(
+  department?: string | null,
+): Department | null {
   if (!department) {
     return null;
   }
@@ -329,7 +335,10 @@ function canAccessItem(
     }
 
     if (role === "Utilizador") {
-      return department !== null && item.departments.includes(department);
+      return (
+        department !== null &&
+        item.departments.includes(department)
+      );
     }
 
     return false;
@@ -341,6 +350,12 @@ function canAccessItem(
 
   return true;
 }
+
+/*
+ * ============================================================
+ * SHARED NAVIGATION
+ * ============================================================
+ */
 
 export function getVisibleNavigation(
   userRole?: string | null,
@@ -367,22 +382,20 @@ export function getVisibleNavigation(
  */
 
 export default function ManagementMenu({
-  collapsed,
-  setCollapsedAction,
   userRole,
   userDepartment,
-  onHoverChange,
+  collapsed,
+  setCollapsedAction,
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const [hovered, setHovered] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
-  const role = normalizeRole(userRole);
-
-  const department = normalizeDepartment(userDepartment);
+  const {
+    menuItems: visibleMenuItems,
+    bottomItems: visibleBottomItems,
+  } = getVisibleNavigation(userRole, userDepartment);
 
   /*
    * ========================================================
@@ -404,7 +417,6 @@ export default function ManagementMenu({
 
       if (error) {
         console.error("Logout failed:", error);
-
         setLogoutLoading(false);
         return;
       }
@@ -413,60 +425,9 @@ export default function ManagementMenu({
       router.refresh();
     } catch (error) {
       console.error("Unexpected logout error:", error);
-
       setLogoutLoading(false);
     }
   };
-
-  /*
-   * ========================================================
-   * AUTO COLLAPSE
-   * ========================================================
-   */
-
-  const isInsideProject =
-    pathname.startsWith("/management/projects/") &&
-    pathname !== "/management/projects/create-project";
-
-  const isInsideChat = pathname.startsWith("/management/messages/");
-
-  const shouldAutoCollapse = isInsideProject || isInsideChat;
-
-  const expanded = !shouldAutoCollapse && (!collapsed || hovered);
-
-  /*
-   * ========================================================
-   * FILTER NAVIGATION
-   * ========================================================
-   */
-
-  const visibleMenuItems = menuItems.filter((item) =>
-    canAccessItem(item, role, department),
-  );
-
-  const visibleBottomItems = bottomItems.filter((item) =>
-    canAccessItem(item, role, department),
-  );
-
-  /*
-   * ========================================================
-   * MOBILE
-   * ========================================================
-   */
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-
-    window.addEventListener("resize", checkMobile);
-
-    return () => {
-      window.removeEventListener("resize", checkMobile);
-    };
-  }, []);
 
   /*
    * ========================================================
@@ -474,29 +435,16 @@ export default function ManagementMenu({
    * ========================================================
    */
 
-  if (isMobile) {
-    return null;
-  }
-
   return (
     <nav
       aria-label="Navegação principal"
-      onMouseEnter={() => {
-        if (collapsed && !shouldAutoCollapse) {
-          setHovered(true);
-          onHoverChange?.(true);
-        }
-      }}
-      onMouseLeave={() => {
-        setHovered(false);
-        onHoverChange?.(false);
-      }}
       className={[
         "fixed left-0 top-0 z-50 hidden h-screen",
         "flex-col border-r border-[#BD9655]",
-        "bg-[#F7F7F5] md:flex",
-        "transition-[width] duration-200 ease-out",
-        expanded ? "w-64" : "w-20",
+        "bg-[#F7F7F5]",
+        "transition-[width] duration-200 ease-in-out",
+        "md:flex",
+        collapsed ? "w-20" : "w-64",
       ].join(" ")}
     >
       {/* ================================================= */}
@@ -505,17 +453,31 @@ export default function ManagementMenu({
 
       <div
         className={[
-          "flex h-20 shrink-0 items-center",
+          "relative flex h-20 shrink-0 items-center",
           "border-b border-[#BD9655]",
-          expanded ? "justify-between px-4" : "justify-center px-2",
+          collapsed
+            ? "justify-center px-2"
+            : "justify-between px-4",
         ].join(" ")}
       >
-        {expanded && (
-          <Link
-            href="/management"
-            aria-label="Ir para a visão geral"
-            className="min-w-0"
-          >
+        <Link
+          href="/management"
+          aria-label="Ir para a visão geral"
+          className={[
+            "min-w-0",
+            collapsed ? "flex justify-center" : "",
+          ].join(" ")}
+        >
+          {collapsed ? (
+            <Image
+              src="/images/logo.png"
+              alt="Pro-Sota"
+              width={42}
+              height={42}
+              priority
+              className="h-9 w-9 object-contain object-left"
+            />
+          ) : (
             <Image
               src="/images/logo.png"
               alt="Pro-Sota"
@@ -524,44 +486,61 @@ export default function ManagementMenu({
               priority
               className="h-auto max-w-full object-contain"
             />
-          </Link>
+          )}
+        </Link>
+
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={() => setCollapsedAction(true)}
+            aria-label="Recolher menu"
+            aria-expanded={!collapsed}
+            className={[
+              "flex h-8 w-8 shrink-0 items-center justify-center",
+              "rounded-md text-gray-600",
+              "transition-colors",
+              "hover:bg-gray-100 hover:text-[#BD9655]",
+              "focus-visible:outline-none",
+              "focus-visible:ring-2",
+              "focus-visible:ring-[#002950]",
+              "focus-visible:ring-offset-2",
+            ].join(" ")}
+          >
+            <PanelLeftClose
+              aria-hidden="true"
+              className="h-[18px] w-[18px]"
+              strokeWidth={1.8}
+            />
+          </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => {
-            if (shouldAutoCollapse) {
-              return;
-            }
-
-            setHovered(false);
-
-            setCollapsedAction(!collapsed);
-          }}
-          disabled={shouldAutoCollapse}
-          aria-label={expanded ? "Recolher menu" : "Expandir menu"}
-          aria-expanded={expanded}
-          className={[
-            "flex h-9 w-9 shrink-0",
-            "items-center justify-center",
-            "rounded-md text-gray-400",
-            "transition-colors duration-150",
-            "hover:bg-[#BD9655]",
-            "hover:text-[#002950]",
-            "focus-visible:outline-none",
-            "focus-visible:ring-2",
-            "focus-visible:ring-[#002950]",
-            "focus-visible:ring-offset-2",
-            "disabled:cursor-not-allowed",
-            "disabled:opacity-50",
-          ].join(" ")}
-        >
-          <Sidebar
-            aria-hidden="true"
-            className="h-[18px] w-[18px]"
-            strokeWidth={1.8}
-          />
-        </button>
+        {collapsed && (
+          <button
+            type="button"
+            onClick={() => setCollapsedAction(false)}
+            aria-label="Expandir menu"
+            aria-expanded={false}
+            className={[
+              "absolute right-[-14px] top-6",
+              "flex h-7 w-7 items-center justify-center",
+              "rounded-full border border-[#BD9655]",
+              "bg-[#F7F7F5] text-gray-600",
+              "shadow-sm",
+              "transition-colors",
+              "hover:bg-gray-100 hover:text-[#BD9655]",
+              "focus-visible:outline-none",
+              "focus-visible:ring-2",
+              "focus-visible:ring-[#002950]",
+              "focus-visible:ring-offset-2",
+            ].join(" ")}
+          >
+            <PanelLeftOpen
+              aria-hidden="true"
+              className="h-4 w-4"
+              strokeWidth={1.8}
+            />
+          </button>
+        )}
       </div>
 
       {/* ================================================= */}
@@ -572,7 +551,7 @@ export default function ManagementMenu({
         className={[
           "sidebar-scroll min-h-0 flex-1",
           "overflow-x-hidden overflow-y-auto",
-          "px-3 py-5",
+          collapsed ? "px-2 py-5" : "px-3 py-5",
         ].join(" ")}
       >
         <div className="space-y-1">
@@ -581,7 +560,7 @@ export default function ManagementMenu({
               key={item.href}
               item={item}
               active={isActiveRoute(pathname, item.href)}
-              expanded={expanded}
+              collapsed={collapsed}
             />
           ))}
         </div>
@@ -592,17 +571,23 @@ export default function ManagementMenu({
       {/* ================================================= */}
 
       <div
-        className={["shrink-0 border-t", "border-[#BD9655]", "px-3 py-3"].join(
-          " ",
-        )}
+        className={[
+          "shrink-0 border-t",
+          "border-[#BD9655]",
+          collapsed ? "px-2 py-3" : "px-3 py-3",
+        ].join(" ")}
       >
         <div className="space-y-1">
           {visibleBottomItems.map((item) => (
             <SidebarItem
-              key={item.action === "logout" ? "logout" : item.href}
+              key={
+                item.action === "logout"
+                  ? "logout"
+                  : item.href
+              }
               item={item}
               active={isActiveRoute(pathname, item.href)}
-              expanded={expanded}
+              collapsed={collapsed}
               onLogout={handleLogout}
               logoutLoading={logoutLoading}
             />
@@ -619,7 +604,10 @@ export default function ManagementMenu({
  * ============================================================
  */
 
-function isActiveRoute(pathname: string, href: string): boolean {
+function isActiveRoute(
+  pathname: string,
+  href: string,
+): boolean {
   if (!href) {
     return false;
   }
@@ -628,7 +616,10 @@ function isActiveRoute(pathname: string, href: string): boolean {
     return pathname === href;
   }
 
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return (
+    pathname === href ||
+    pathname.startsWith(`${href}/`)
+  );
 }
 
 /*
@@ -637,7 +628,11 @@ function isActiveRoute(pathname: string, href: string): boolean {
  * ============================================================
  */
 
-function SidebarIcon({ children }: { children: React.ReactNode }) {
+function SidebarIcon({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <span className="flex h-5 w-5 shrink-0 items-center justify-center">
       {children}
@@ -654,68 +649,30 @@ function SidebarIcon({ children }: { children: React.ReactNode }) {
 function SidebarItem({
   item,
   active,
-  expanded,
+  collapsed = false,
   onLogout,
   logoutLoading = false,
 }: SidebarItemProps) {
   const Icon = item.icon;
 
   const label =
-    item.action === "logout" && logoutLoading ? "A sair..." : item.name;
+    item.action === "logout" && logoutLoading
+      ? "A sair..."
+      : item.name;
 
   const itemClasses = [
     "group relative flex w-full min-w-0",
-    "items-center rounded-md",
+    "h-10 items-center rounded-md",
     "text-sm font-medium",
     "transition-colors duration-150",
     "focus-visible:outline-none",
     "focus-visible:ring-2",
     "focus-visible:ring-[#002950]",
     "focus-visible:ring-offset-2",
-    expanded ? "h-10 gap-3 px-3" : "h-10 justify-center px-0",
+    collapsed
+      ? "justify-center px-0"
+      : "gap-3 px-3",
   ].join(" ");
-
-  const tooltip = !expanded ? (
-    <span
-      role="tooltip"
-      className={[
-        "pointer-events-none absolute left-full top-1/2 z-[100]",
-        "ml-3 -translate-y-1/2",
-        "whitespace-nowrap rounded-md",
-        "bg-[#002950] px-3 py-2",
-        "text-xs font-medium text-white",
-        "shadow-lg",
-        "opacity-0 invisible",
-        "translate-x-[-4px]",
-        "transition-[opacity,transform,visibility]",
-        "duration-150",
-        "group-hover:visible group-hover:translate-x-0",
-        "group-hover:opacity-100",
-        "group-focus-visible:visible",
-        "group-focus-visible:translate-x-0",
-        "group-focus-visible:opacity-100",
-      ].join(" ")}
-    >
-      {label}
-
-      <span
-        aria-hidden="true"
-        className={[
-          "absolute right-full top-1/2",
-          "-translate-y-1/2",
-          "border-y-[5px] border-r-[5px]",
-          "border-y-transparent",
-          "border-r-[#002950]",
-        ].join(" ")}
-      />
-    </span>
-  ) : null;
-
-  /*
-   * ========================================================
-   * LOGOUT
-   * ========================================================
-   */
 
   if (item.action === "logout") {
     return (
@@ -724,6 +681,7 @@ function SidebarItem({
         onClick={onLogout}
         disabled={logoutLoading}
         aria-label={label}
+        title={collapsed ? label : undefined}
         className={[
           itemClasses,
           "text-gray-600",
@@ -749,33 +707,20 @@ function SidebarItem({
           )}
         </SidebarIcon>
 
-        <span
-          className={[
-            "min-w-0 overflow-hidden",
-            "whitespace-nowrap",
-            "transition-[max-width,opacity]",
-            "duration-150",
-            expanded ? "max-w-[180px] opacity-100" : "max-w-0 opacity-0",
-          ].join(" ")}
-        >
-          {label}
-        </span>
-
-        {tooltip}
+        {!collapsed && (
+          <span className="min-w-0 overflow-hidden whitespace-nowrap">
+            {label}
+          </span>
+        )}
       </button>
     );
   }
-
-  /*
-   * ========================================================
-   * NORMAL LINK
-   * ========================================================
-   */
 
   return (
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
+      title={collapsed ? item.name : undefined}
       className={[
         itemClasses,
         active
@@ -784,11 +729,16 @@ function SidebarItem({
               "border-[#BD9655]",
               "bg-[#BD9655]",
               "text-[#002950]",
-              expanded ? "pl-[9px]" : "border-l-0",
+              collapsed ? "pl-0" : "pl-[9px]",
             ].join(" ")
-          : ["text-gray-600", "hover:bg-gray-100", "hover:text-[#BD9655]"].join(
-              " ",
-            ),
+          : [
+              "text-gray-600",
+              "hover:bg-gray-100",
+              "hover:text-[#BD9655]",
+              collapsed
+                ? "border-l-[3px] border-transparent"
+                : "",
+            ].join(" "),
       ].join(" ")}
     >
       <SidebarIcon>
@@ -799,19 +749,11 @@ function SidebarItem({
         />
       </SidebarIcon>
 
-      <span
-        className={[
-          "min-w-0 overflow-hidden",
-          "whitespace-nowrap",
-          "transition-[max-width,opacity]",
-          "duration-150",
-          expanded ? "max-w-[180px] opacity-100" : "max-w-0 opacity-0",
-        ].join(" ")}
-      >
-        {item.name}
-      </span>
-
-      {tooltip}
+      {!collapsed && (
+        <span className="min-w-0 overflow-hidden whitespace-nowrap">
+          {item.name}
+        </span>
+      )}
     </Link>
   );
 }
