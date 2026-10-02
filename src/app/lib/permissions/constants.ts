@@ -43,11 +43,11 @@ export const ALL_PERMISSIONS: Permission[] = [
   "attendance.view",
   "attendance.manage",
 
-  "resources.view",
-  "resources.create",
-  "resources.edit",
-  "resources.delete",
-  "resources.move",
+  "work_resources.view",
+  "work_resources.create",
+  "work_resources.edit",
+  "work_resources.delete",
+  "work_resources.move",
 
   "suppliers.view",
   "suppliers.create",
@@ -141,11 +141,11 @@ export const ADMIN_PERMISSIONS: Permission[] = [
   "attendance.view",
   "attendance.manage",
 
-  "resources.view",
-  "resources.create",
-  "resources.edit",
-  "resources.delete",
-  "resources.move",
+  "work_resources.view",
+  "work_resources.create",
+  "work_resources.edit",
+  "work_resources.delete",
+  "work_resources.move",
 
   "suppliers.view",
   "suppliers.create",
@@ -199,7 +199,7 @@ export const DIRECTOR_PERMISSIONS: Permission[] = [
 
   "attendance.view",
 
-  "resources.view",
+  "work_resources.view",
 
   "suppliers.view",
 

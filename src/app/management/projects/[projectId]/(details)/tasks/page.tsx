@@ -1,4 +1,4 @@
-import KanbanBoard from '@/app/components/kanban/kanban_board';
+import KanbanBoard from '@/app/components/kanban_board/kanban_board';
 import { getTaskBoard } from '@/services/projects_server';
 
 type TasksAndWorkflowProps = {
@@ -16,8 +16,16 @@ export default async function TasksAndWorkflow({
 
   return (
     <KanbanBoard
-      projectId={projectId}
-      initialBoard={board}
-    />
+      scope={{
+        type: 'project',
+        projectId
+      }} initialBoard={{
+        scope: {
+          type: 'general',
+          projectId: null
+        },
+        columns: [],
+        tasks: []
+      }}    />
   );
 }

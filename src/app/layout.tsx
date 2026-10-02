@@ -59,8 +59,8 @@ export default function RootLayout({
       className={cn(
         "h-full",
         "antialiased",
-        dmSans.variable,
-        dmMono.variable,
+        roboto.variable,
+        robotoMono.variable,
         "font-sans",
         inter.variable,
       )}

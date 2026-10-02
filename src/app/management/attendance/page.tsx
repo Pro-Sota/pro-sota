@@ -28,19 +28,51 @@ function getCurrentMonth(): string {
     return getLuandaToday().slice(0, 7);
 }
 
-function getMonthRange(month: string) {
-    const [year, monthNumber] = month.split("-").map(Number);
+function isValidDate(value: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return false;
+    }
 
-    if (
-        !Number.isInteger(year) ||
-        !Number.isInteger(monthNumber) ||
-        monthNumber < 1 ||
-        monthNumber > 12
-    ) {
+    const [year, month, day] = value
+        .split("-")
+        .map(Number);
+
+    const date = new Date(
+        year,
+        month - 1,
+        day,
+    );
+
+    return (
+        date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day
+    );
+}
+
+function isValidMonth(value: string): boolean {
+    if (!/^\d{4}-\d{2}$/.test(value)) {
+        return false;
+    }
+
+    const [, month] = value.split("-").map(Number);
+
+    return month >= 1 && month <= 12;
+}
+
+function getMonthRange(month: string) {
+    if (!isValidMonth(month)) {
         return getMonthRange(getCurrentMonth());
     }
 
-    const start = `${year}-${String(monthNumber).padStart(2, "0")}-01`;
+    const [year, monthNumber] = month
+        .split("-")
+        .map(Number);
+
+    const start = `${year}-${String(monthNumber).padStart(
+        2,
+        "0",
+    )}-01`;
 
     const lastDay = new Date(
         year,
@@ -48,9 +80,10 @@ function getMonthRange(month: string) {
         0,
     ).getDate();
 
-    const end = `${year}-${String(monthNumber).padStart(2, "0")}-${String(
-        lastDay,
-    ).padStart(2, "0")}`;
+    const end = `${year}-${String(monthNumber).padStart(
+        2,
+        "0",
+    )}-${String(lastDay).padStart(2, "0")}`;
 
     return {
         start,
@@ -88,7 +121,7 @@ export default async function AttendancePage({
     const params = await searchParams;
 
     const today = getLuandaToday();
-    const currentMonth = getCurrentMonth();
+    const currentMonth = today.slice(0, 7);
 
     const view =
         params.view === "month"
@@ -96,11 +129,12 @@ export default async function AttendancePage({
             : "day";
 
     const selectedDate =
-        params.date ?? today;
+        params.date && isValidDate(params.date)
+            ? params.date
+            : today;
 
     const selectedMonth =
-        params.month &&
-        /^\d{4}-\d{2}$/.test(params.month)
+        params.month && isValidMonth(params.month)
             ? params.month
             : currentMonth;
 
@@ -117,8 +151,7 @@ export default async function AttendancePage({
         getAttendanceByMonth(start, end),
     ]);
 
-    const profiles =
-        profilesResult ?? [];
+    const profiles = profilesResult ?? [];
 
     const attendanceRecords: AttendanceWithProfile[] =
         attendanceResult ?? [];
@@ -127,8 +160,7 @@ export default async function AttendancePage({
         monthlyRecordsResult ?? []
     ).map((record) => ({
         profileId: record.profile_id,
-        attendanceDate:
-            record.attendance_date,
+        attendanceDate: record.attendance_date,
         checkIn: record.check_in,
         checkOut: record.check_out,
         status: record.status,
