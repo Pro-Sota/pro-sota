@@ -9,33 +9,32 @@ export const eventStyles: Record<
 > = {
     project: {
         label: "Projecto",
-        className:
-            "bg-orange-50 text-orange-700 border-orange-100",
+        className: "bg-orange-50 text-orange-700 border-orange-100",
     },
 
     task: {
         label: "Tarefa",
-        className:
-            "bg-blue-50 text-blue-700 border-blue-100",
+        className: "bg-blue-50 text-blue-700 border-blue-100",
     },
 
     meeting: {
         label: "Reunião",
-        className:
-            "bg-purple-50 text-purple-700 border-purple-100",
+        className: "bg-purple-50 text-purple-700 border-purple-100",
     },
 
     site_visit: {
         label: "Visita à obra",
-        className:
-            "bg-emerald-50 text-emerald-700 border-emerald-100",
+        className: "bg-emerald-50 text-emerald-700 border-emerald-100",
     },
 
     deadline: {
         label: "Prazo",
-        className:
-            "bg-red-50 text-red-700 border-red-100",
+        className: "bg-red-50 text-red-700 border-red-100",
     },
+    submission: {
+        label: "Submissão",
+        className: "bg-yellow-50 text-yellow-700 border-yellow-100",
+    }
 };
 
 export const weekDays = [

@@ -1,24 +1,41 @@
-"use client";
+import { getChats } from "@/services/messages";
 
-import { useState } from "react";
-
-import NewConversationModal from "@/app/management/messages/components/new_message_modal";
+import CommunicationMobile from "./components/mobile_view";
 import EmptyMessageState from "./components/empty_message_state";
 
-export default function CommunicationPage() {
-    const [showNewConversationModal, setShowNewConversationModal] =
-        useState(false);
+export default async function CommunicationPage() {
+    const [projectConversations, directConversations] =
+        await Promise.all([
+            getChats({
+                conversationType: "project",
+            }),
+            getChats({
+                conversationType: "direct",
+            }),
+        ]);
+
+    const hasConversations =
+        projectConversations.length > 0 ||
+        directConversations.length > 0;
 
     return (
         <div className="flex h-full min-h-0 w-full min-w-0 flex-1">
-            <EmptyMessageState
-                onNewMessage={() => setShowNewConversationModal(true)}
-            />
+            {/* Desktop */}
+            <div className="hidden h-full min-h-0 w-full min-w-0 flex-1 lg:flex">
+                <EmptyMessageState />
+            </div>
 
-            <NewConversationModal
-                open={showNewConversationModal}
-                onClose={() => setShowNewConversationModal(false)}
-            />
+            {/* Mobile */}
+            <div className="flex h-full min-h-0 w-full min-w-0 flex-1 lg:hidden">
+                {hasConversations ? (
+                    <CommunicationMobile
+                        projectConversations={projectConversations}
+                        directConversations={directConversations}
+                    />
+                ) : (
+                    <EmptyMessageState />
+                )}
+            </div>
         </div>
     );
 }

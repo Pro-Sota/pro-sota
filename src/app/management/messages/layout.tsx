@@ -16,7 +16,7 @@ export default async function CommunicationLayout({
 
   return (
     <div className="flex h-dvh min-h-0 w-full overflow-hidden">
-      <aside className="h-full shrink-0 overflow-hidden border-r border-slate-200">
+      <aside className="hidden h-full shrink-0 lg:flex">
         <MessageSideBar
           projectConversations={projectChats}
           directConversations={directChats}
@@ -27,5 +27,6 @@ export default async function CommunicationLayout({
         {children}
       </main>
     </div>
+
   );
 }

@@ -101,7 +101,7 @@ export default function ChatView({
                 if (
                     !newMessage.id ||
                     newMessage.conversation_id !==
-                    chatId
+                        chatId
                 ) {
                     return;
                 }
@@ -148,8 +148,7 @@ export default function ChatView({
                     return;
                 }
 
-                const realtimeMessage: MessageView =
-                {
+                const realtimeMessage: MessageView = {
                     id: newMessage.id,
                     content:
                         newMessage.content ?? "",
@@ -241,7 +240,7 @@ export default function ChatView({
 
     /*
      * --------------------------------------------------
-     * SCROLL
+     * SCROLL TO LATEST MESSAGE
      * --------------------------------------------------
      */
 
@@ -263,8 +262,8 @@ export default function ChatView({
 
     if (error) {
         return (
-            <div className="flex h-full items-center justify-center">
-                <div className="text-center">
+            <div className="flex h-full min-h-0 w-full items-center justify-center">
+                <div className="px-6 text-center">
                     <p className="text-sm text-red-500">
                         {error}
                     </p>
@@ -289,41 +288,53 @@ export default function ChatView({
      * --------------------------------------------------
      */
 
-   return (
-    <div className="flex h-full min-h-0 w-full min-w-0">
-        <section className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-            <MessageHeader
-                conversation={conversation}
-            />
-
-            <div className="min-h-0 flex-1 overflow-y-auto bg-white p-2">
-                {messages.length === 0 ? (
-                    <div className="flex h-full items-center justify-center">
-                        <p className="text-sm text-slate-500">
-                            Nenhuma mensagem nesta conversa
-                        </p>
-                    </div>
-                ) : (
-                    <MessageList
-                        messages={messages}
-                        messagesEndRef={messagesEndRef}
+    return (
+        <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-white">
+            {/* CHAT */}
+            <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white">
+                {/* Fixed chat header */}
+                <div className="shrink-0">
+                    <MessageHeader
+                        conversation={conversation}
                     />
+                </div>
+
+                {/* Scrollable messages area */}
+                <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-white px-3 py-3 sm:px-6 sm:py-6">
+                    {messages.length === 0 ? (
+                        <div className="flex min-h-full items-center justify-center">
+                            <p className="text-center text-sm text-slate-500">
+                                Nenhuma mensagem nesta conversa
+                            </p>
+                        </div>
+                    ) : (
+                        <MessageList
+                            messages={messages}
+                            messagesEndRef={messagesEndRef}
+                        />
+                    )}
+                </main>
+
+                {/* Fixed chat input */}
+                <div className="shrink-0 border-t border-slate-200 bg-white">
+                    <MessageInput
+                        conversationId={chatId}
+                    />
+                </div>
+            </section>
+
+            {/* Project sidebar - desktop only */}
+            {conversation.conversationType ===
+                "project" &&
+                projectSidebarData && (
+                    <aside className="hidden h-full min-h-0 shrink-0 lg:flex">
+                        <ProjectSideBar
+                            data={projectSidebarData}
+                        />
+                    </aside>
                 )}
-            </div>
-
-            <MessageInput
-                conversationId={chatId}
-            />
-        </section>
-
-        {conversation.conversationType === "project" &&
-            projectSidebarData && (
-                <ProjectSideBar
-                    data={projectSidebarData}
-                />
-            )}
-    </div>
-);
+        </div>
+    );
 }
 
 /*
@@ -370,8 +381,7 @@ function MessageList({
         const todayKey =
             getDateKey(now.toISOString());
 
-        const yesterday =
-            new Date(now);
+        const yesterday = new Date(now);
 
         yesterday.setDate(
             yesterday.getDate() - 1,
@@ -385,17 +395,11 @@ function MessageList({
         const messageDateKey =
             getDateKey(timestamp);
 
-        if (
-            messageDateKey ===
-            todayKey
-        ) {
+        if (messageDateKey === todayKey) {
             return "Hoje";
         }
 
-        if (
-            messageDateKey ===
-            yesterdayKey
-        ) {
+        if (messageDateKey === yesterdayKey) {
             return "Ontem";
         }
 
@@ -424,8 +428,8 @@ function MessageList({
                     const previousDateKey =
                         previousMessage
                             ? getDateKey(
-                                previousMessage.timestamp,
-                            )
+                                  previousMessage.timestamp,
+                              )
                             : null;
 
                     const showDateDivider =
@@ -449,16 +453,18 @@ function MessageList({
                             )}
 
                             <div
-                                className={`flex ${message.isOwn
+                                className={`flex ${
+                                    message.isOwn
                                         ? "justify-end"
                                         : "justify-start"
-                                    }`}
+                                }`}
                             >
                                 <div
-                                    className={`max-w-xs rounded-lg px-4 py-2 lg:max-w-md xl:max-w-lg ${message.isOwn
+                                    className={`max-w-[85%] rounded-lg px-4 py-2 sm:max-w-xs lg:max-w-md xl:max-w-lg ${
+                                        message.isOwn
                                             ? "rounded-br-none bg-[#002950] text-white"
                                             : "rounded-bl-none bg-[#F1F5F9] text-slate-900"
-                                        }`}
+                                    }`}
                                 >
                                     {!message.isOwn && (
                                         <p className="mb-1 text-xs font-semibold opacity-75">
@@ -475,10 +481,11 @@ function MessageList({
                                     </p>
 
                                     <p
-                                        className={`mt-1 text-xs ${message.isOwn
+                                        className={`mt-1 text-xs ${
+                                            message.isOwn
                                                 ? "text-slate-300"
                                                 : "text-slate-600"
-                                            }`}
+                                        }`}
                                     >
                                         {new Date(
                                             message.timestamp,

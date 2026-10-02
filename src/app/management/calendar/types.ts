@@ -1,22 +1,25 @@
 export type EventType =
-    | "project"
-    | "task"
     | "meeting"
     | "site_visit"
-    | "deadline";
+    | "task"
+    | "deadline"
+    | "submission"
+    | "project";
 
 export type CalendarEvent = {
     id: string;
     title: string;
     date: string;
-    time: string;
+    time?: string;
     type: EventType;
-    project?: string | null;
-    location?: string | null;
-    people?: string | null;
+    project?: string;
+    projectId?: string;
+    location?: string;
+    description?: string;
+    source: EventType;
+    sourceId?: string;
 };
 
 export type CalendarPageInitProps = {
     events: CalendarEvent[];
-    todayKey: string;
 };
