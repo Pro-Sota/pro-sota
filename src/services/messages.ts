@@ -6,6 +6,7 @@ import { createClient } from "@/app/lib/supabase/server";
 export interface ChatSummary {
   id: string;
   conversationType: "direct" | "project";
+  projectId: string | null;
   displayName: string;
   isOnline: boolean;
   unreadCount: number;
@@ -44,6 +45,27 @@ interface ProfilePreview {
   status: string | null;
 }
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function validateId(value: string, label: string) {
+  if (
+    !value ||
+    value === "undefined" ||
+    value === "null"
+  ) {
+    throw new Error(`${label} is required`);
+  }
+
+  if (!UUID_REGEX.test(value)) {
+    throw new Error(
+      `Invalid ${label.toLowerCase()} format: ${value}`,
+    );
+  }
+
+  return value;
+}
+
 async function getAuthenticatedClient() {
   const supabase = createClient(await cookies());
 
@@ -53,7 +75,9 @@ async function getAuthenticatedClient() {
   } = await supabase.auth.getUser();
 
   if (error) {
-    throw new Error(`Authentication error: ${error.message}`);
+    throw new Error(
+      `Authentication error: ${error.message}`,
+    );
   }
 
   if (!user) {
@@ -67,14 +91,15 @@ async function getAuthenticatedClient() {
 }
 
 async function assertParticipant(
+  supabase: Awaited<
+    ReturnType<typeof getAuthenticatedClient>
+  >["supabase"],
   conversationId: string,
   userId: string,
 ) {
-  const { supabase } = await getAuthenticatedClient();
-
   const { data, error } = await supabase
     .from("conversation_participants")
-    .select("profile_id")
+    .select("conversation_id")
     .eq("conversation_id", conversationId)
     .eq("profile_id", userId)
     .maybeSingle();
@@ -92,9 +117,18 @@ async function assertParticipant(
   }
 }
 
+/**
+ * Finds an existing direct conversation between the
+ * authenticated user and another user, or creates one.
+ *
+ * The lookup intentionally avoids loading every participant
+ * from every direct conversation.
+ */
 export async function getOrCreateConversation(
   otherUserId: string,
 ): Promise<string> {
+  validateId(otherUserId, "User ID");
+
   const { supabase, user } =
     await getAuthenticatedClient();
 
@@ -104,40 +138,54 @@ export async function getOrCreateConversation(
     );
   }
 
+  /*
+   * First get only the current user's direct conversations.
+   */
   const {
-    data: existingConversation,
-    error: queryError,
+    data: ownConversations,
+    error: ownConversationsError,
   } = await supabase
     .from("conversation_participants")
-    .select(`
-      conversation_id,
-      conversations!inner(
-        id,
-        is_group
-      )
-    `)
+    .select(
+      `
+        conversation_id,
+        conversations!inner(
+          id,
+          conversation_type
+        )
+      `,
+    )
     .eq("profile_id", user.id)
-    .eq("conversations.conversation_type", "direct");
+    .eq(
+      "conversations.conversation_type",
+      "direct",
+    );
 
-  if (queryError) {
+  if (ownConversationsError) {
     throw new Error(
-      `Failed to load conversations: ${queryError.message}`,
+      `Failed to load conversations: ${ownConversationsError.message}`,
     );
   }
 
-  if (
-    existingConversation &&
-    existingConversation.length > 0
-  ) {
-    const conversationIds =
-      existingConversation.map(
-        (participant) =>
-          participant.conversation_id,
-      );
+  const conversationIds =
+    ownConversations
+      ?.map(
+        (conversation) =>
+          conversation.conversation_id,
+      )
+      .filter(Boolean) ?? [];
 
+  /*
+   * If the user has direct conversations, only search
+   * for the selected person inside those conversations.
+   *
+   * This is substantially cheaper than loading all
+   * participants for every conversation.
+   */
+  if (conversationIds.length > 0) {
     const {
-      data: participants,
-      error: participantsError,
+      data: matchingParticipants,
+      error: matchingParticipantsError,
     } = await supabase
       .from("conversation_participants")
       .select(
@@ -146,51 +194,53 @@ export async function getOrCreateConversation(
       .in(
         "conversation_id",
         conversationIds,
-      );
+      )
+      .in("profile_id", [
+        user.id,
+        otherUserId,
+      ]);
 
-    if (participantsError) {
+    if (matchingParticipantsError) {
       throw new Error(
-        `Failed to load participants: ${participantsError.message}`,
+        `Failed to find existing conversation: ${matchingParticipantsError.message}`,
       );
     }
 
-    const membersByConversation =
-      new Map<string, string[]>();
+    const participantCounts =
+      new Map<string, Set<string>>();
 
-    for (const participant of participants ?? []) {
+    for (const participant of
+      matchingParticipants ?? []) {
       const members =
-        membersByConversation.get(
+        participantCounts.get(
           participant.conversation_id,
-        ) ?? [];
+        ) ?? new Set<string>();
 
-      members.push(participant.profile_id);
+      members.add(participant.profile_id);
 
-      membersByConversation.set(
+      participantCounts.set(
         participant.conversation_id,
         members,
       );
     }
 
-    const found = conversationIds.find(
-      (conversationId) => {
-        const members =
-          membersByConversation.get(
-            conversationId,
-          ) ?? [];
-
-        return (
-          members.length === 2 &&
-          members.includes(user.id) &&
-          members.includes(otherUserId)
-        );
-      },
-    );
-
-    if (found) {
-      return found;
+    for (const [
+      conversationId,
+      members,
+    ] of participantCounts) {
+      if (
+        members.size === 2 &&
+        members.has(user.id) &&
+        members.has(otherUserId)
+      ) {
+        return conversationId;
+      }
     }
   }
 
+  /*
+   * No existing conversation was found.
+   */
   const {
     data: conversation,
     error: conversationError,
@@ -235,7 +285,10 @@ export async function getOrCreateConversation(
     await supabase
       .from("conversations")
       .delete()
-      .eq("id", conversation.id);
+      .eq(
+        "id",
+        conversation.id,
+      );
 
     throw new Error(
       `Failed to add conversation participants: ${insertError.message}`,
@@ -268,8 +321,7 @@ export async function getChats(
   } = await supabase
     .from("conversation_participants")
     .select("conversation_id")
-    .eq("profile_id", user.id)
-    .limit(limit + 1);
+    .eq("profile_id", user.id);
 
   if (participantError) {
     throw new Error(
@@ -278,14 +330,19 @@ export async function getChats(
   }
 
   const ids =
-    participantRows?.map(
-      (row) => row.conversation_id,
-    ) ?? [];
+    participantRows
+      ?.map(
+        (row) => row.conversation_id,
+      )
+      .filter(Boolean) ?? [];
 
   if (ids.length === 0) {
     return [];
   }
 
+  /*
+   * Load conversations and participants in parallel.
+   */
   const [
     {
       data: conversations,
@@ -334,66 +391,22 @@ export async function getChats(
   const conversationList =
     conversations ?? [];
 
+  if (conversationList.length === 0) {
+    return [];
+  }
+
   const participantList =
     participants ?? [];
 
-  const latestMessages =
-    new Map<
-      string,
-      {
-        content: string;
-        created_at: string | null;
-      }
-    >();
+  const conversationIds =
+    conversationList.map(
+      (conversation) =>
+        conversation.id,
+    );
 
-  if (conversationList.length > 0) {
-    const conversationIds =
-      conversationList.map(
-        (conversation) => conversation.id,
-      );
-
-    const {
-      data: messages,
-      error: messagesError,
-    } = await supabase
-      .from("messages")
-      .select(
-        "conversation_id, content, created_at",
-      )
-      .in(
-        "conversation_id",
-        conversationIds,
-      )
-      .order("created_at", {
-        ascending: false,
-      });
-
-    if (messagesError) {
-      throw new Error(
-        `Failed to load messages: ${messagesError.message}`,
-      );
-    }
-
-    for (const message of messages ?? []) {
-      if (
-        message.conversation_id &&
-        !latestMessages.has(
-          message.conversation_id,
-        )
-      ) {
-        latestMessages.set(
-          message.conversation_id,
-          {
-            content:
-              message.content ?? "",
-            created_at:
-              message.created_at,
-          },
-        );
-      }
-    }
-  }
-
+  /*
+   * Load messages and profiles in parallel.
+   */
   const profileIds = [
     ...new Set(
       participantList
@@ -405,77 +418,147 @@ export async function getChats(
     ),
   ];
 
+  const projectIds = [
+    ...new Set(
+      conversationList
+        .map(
+          (conversation) =>
+            conversation.project_id,
+        )
+        .filter(
+          (
+            projectId,
+          ): projectId is string =>
+            Boolean(projectId),
+        ),
+    ),
+  ];
+
+  const [
+    {
+      data: messages,
+      error: messagesError,
+    },
+    {
+      data: profiles,
+      error: profilesError,
+    },
+    {
+      data: projects,
+      error: projectsError,
+    },
+  ] = await Promise.all([
+    supabase
+      .from("messages")
+      .select(
+        "conversation_id, content, created_at",
+      )
+      .in(
+        "conversation_id",
+        conversationIds,
+      )
+      .order("created_at", {
+        ascending: false,
+      }),
+
+    profileIds.length > 0
+      ? supabase
+          .from("profiles")
+          .select(
+            "profile_id, first_name, last_name, status",
+          )
+          .in(
+            "profile_id",
+            profileIds,
+          )
+      : Promise.resolve({
+          data: [],
+          error: null,
+        }),
+
+    projectIds.length > 0
+      ? supabase
+          .from("projects")
+          .select(
+            "project_id, title",
+          )
+          .in(
+            "project_id",
+            projectIds,
+          )
+      : Promise.resolve({
+          data: [],
+          error: null,
+        }),
+  ]);
+
+  if (messagesError) {
+    throw new Error(
+      `Failed to load messages: ${messagesError.message}`,
+    );
+  }
+
+  if (profilesError) {
+    throw new Error(
+      `Failed to load profiles: ${profilesError.message}`,
+    );
+  }
+
+  if (projectsError) {
+    throw new Error(
+      `Failed to load projects: ${projectsError.message}`,
+    );
+  }
+
+  const latestMessages =
+    new Map<
+      string,
+      {
+        content: string;
+        created_at: string | null;
+      }
+    >();
+
+  for (const message of messages ?? []) {
+    if (
+      message.conversation_id &&
+      !latestMessages.has(
+        message.conversation_id,
+      )
+    ) {
+      latestMessages.set(
+        message.conversation_id,
+        {
+          content:
+            message.content ?? "",
+          created_at:
+            message.created_at,
+        },
+      );
+    }
+  }
+
   const profilesById =
     new Map<
       string,
       ProfilePreview
     >();
 
-  if (profileIds.length > 0) {
-    const {
-      data: profiles,
-      error: profilesError,
-    } = await supabase
-      .from("profiles")
-      .select(
-        "profile_id, first_name, last_name, status",
-      )
-      .in(
-        "profile_id",
-        profileIds,
-      );
-
-    if (profilesError) {
-      throw new Error(
-        `Failed to load profiles: ${profilesError.message}`,
-      );
-    }
-
-    for (const profile of profiles ?? []) {
-      profilesById.set(
-        profile.profile_id,
-        profile,
-      );
-    }
-  }
-
-  const projectIds =
-    conversationList.flatMap(
-      (conversation) =>
-        conversation.project_id
-          ? [conversation.project_id]
-          : [],
+  for (const profile of profiles ?? []) {
+    profilesById.set(
+      profile.profile_id,
+      profile,
     );
+  }
 
   const projectNames =
     new Map<string, string>();
 
-  if (projectIds.length > 0) {
-    const {
-      data: projects,
-      error: projectsError,
-    } = await supabase
-      .from("projects")
-      .select(
-        "project_id, title",
-      )
-      .in(
-        "project_id",
-        projectIds,
-      );
-
-    if (projectsError) {
-      throw new Error(
-        `Failed to load projects: ${projectsError.message}`,
-      );
-    }
-
-    for (const project of projects ?? []) {
-      projectNames.set(
-        project.project_id,
-        project.title,
-      );
-    }
+  for (const project of projects ?? []) {
+    projectNames.set(
+      project.project_id,
+      project.title,
+    );
   }
 
   const participantsByConversation =
@@ -537,6 +620,9 @@ export async function getChats(
       return {
         id: conversation.id,
         conversationType,
+        projectId:
+          conversation.project_id ??
+          null,
         displayName:
           conversationType === "project"
             ? projectNames.get(
@@ -550,7 +636,8 @@ export async function getChats(
           "Active",
         unreadCount: 0,
         lastMessage:
-          latestMessage?.content ?? "",
+          latestMessage?.content ??
+          "",
         lastMessageAt:
           latestMessage?.created_at ??
           conversation.created_at,
@@ -573,6 +660,222 @@ export async function getChats(
     });
 }
 
+export async function getConversation(
+  conversationId: string,
+): Promise<ChatSummary | null> {
+  validateId(
+    conversationId,
+    "Conversation ID",
+  );
+
+  const { supabase, user } =
+    await getAuthenticatedClient();
+
+  /*
+   * Verify access and load the conversation
+   * at the same time.
+   */
+  const [
+    {
+      data: participant,
+      error: participantError,
+    },
+    {
+      data: conversation,
+      error: conversationError,
+    },
+  ] = await Promise.all([
+    supabase
+      .from("conversation_participants")
+      .select("conversation_id")
+      .eq(
+        "conversation_id",
+        conversationId,
+      )
+      .eq("profile_id", user.id)
+      .maybeSingle(),
+
+    supabase
+      .from("conversations")
+      .select(
+        "id, project_id, conversation_type, created_at",
+      )
+      .eq("id", conversationId)
+      .maybeSingle(),
+  ]);
+
+  if (participantError) {
+    throw new Error(
+      `Failed to verify conversation access: ${participantError.message}`,
+    );
+  }
+
+  if (!participant) {
+    return null;
+  }
+
+  if (conversationError) {
+    throw new Error(
+      `Failed to load conversation: ${conversationError.message}`,
+    );
+  }
+
+  if (!conversation) {
+    return null;
+  }
+
+  /*
+   * Participants and latest message are independent.
+   */
+  const [
+    {
+      data: participants,
+      error: participantsError,
+    },
+    {
+      data: latestMessage,
+      error: latestMessageError,
+    },
+  ] = await Promise.all([
+    supabase
+      .from("conversation_participants")
+      .select("profile_id")
+      .eq(
+        "conversation_id",
+        conversationId,
+      ),
+
+    supabase
+      .from("messages")
+      .select(
+        "content, created_at",
+      )
+      .eq(
+        "conversation_id",
+        conversationId,
+      )
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if (participantsError) {
+    throw new Error(
+      `Failed to load conversation participants: ${participantsError.message}`,
+    );
+  }
+
+  if (latestMessageError) {
+    throw new Error(
+      `Failed to load latest conversation message: ${latestMessageError.message}`,
+    );
+  }
+
+  const participantIds =
+    participants?.map(
+      (item) => item.profile_id,
+    ) ?? [];
+
+  const otherParticipantId =
+    participantIds.find(
+      (profileId) =>
+        profileId !== user.id,
+    );
+
+  let displayName = "Conversa direta";
+  let isOnline = false;
+
+  if (
+    conversation.conversation_type ===
+    "project"
+  ) {
+    if (conversation.project_id) {
+      const {
+        data: project,
+        error: projectError,
+      } = await supabase
+        .from("projects")
+        .select(
+          "project_id, title",
+        )
+        .eq(
+          "project_id",
+          conversation.project_id,
+        )
+        .maybeSingle();
+
+      if (projectError) {
+        throw new Error(
+          `Failed to load conversation project: ${projectError.message}`,
+        );
+      }
+
+      displayName =
+        project?.title ??
+        "Projeto sem nome";
+    } else {
+      displayName =
+        "Projeto sem nome";
+    }
+  } else if (otherParticipantId) {
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabase
+      .from("profiles")
+      .select(
+        "profile_id, first_name, last_name, status",
+      )
+      .eq(
+        "profile_id",
+        otherParticipantId,
+      )
+      .maybeSingle();
+
+    if (profileError) {
+      throw new Error(
+        `Failed to load conversation profile: ${profileError.message}`,
+      );
+    }
+
+    const firstName =
+      profile?.first_name?.trim() ??
+      "";
+
+    const lastName =
+      profile?.last_name?.trim() ??
+      "";
+
+    displayName =
+      `${firstName} ${lastName}`.trim() ||
+      "Conversa direta";
+
+    isOnline =
+      profile?.status === "Active";
+  }
+
+  return {
+    id: conversation.id,
+    conversationType:
+      conversation.conversation_type ===
+      "project"
+        ? "project"
+        : "direct",
+    projectId:
+      conversation.project_id ?? null,
+    displayName,
+    isOnline,
+    unreadCount: 0,
+    lastMessage:
+      latestMessage?.content ?? "",
+    lastMessageAt:
+      latestMessage?.created_at ??
+      conversation.created_at,
+  };
+}
+
 export interface GetMessagesOptions {
   conversationId: string;
   limit?: number;
@@ -588,26 +891,10 @@ export async function getMessages(
     cursor,
   } = options;
 
-  if (
-    !conversationId ||
-    conversationId === "undefined" ||
-    conversationId === "null"
-  ) {
-    throw new Error(
-      `Invalid conversation ID: ${String(
-        conversationId,
-      )}`,
-    );
-  }
-
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-  if (!uuidRegex.test(conversationId)) {
-    throw new Error(
-      `Invalid conversation ID format: ${conversationId}`,
-    );
-  }
+  validateId(
+    conversationId,
+    "Conversation ID",
+  );
 
   const safeLimit = Math.min(
     Math.max(
@@ -620,7 +907,16 @@ export async function getMessages(
   const { supabase, user } =
     await getAuthenticatedClient();
 
+  /*
+   * IMPORTANT:
+   *
+   * assertParticipant now reuses the same
+   * authenticated Supabase client.
+   *
+   * Previously this caused another auth request.
+   */
   await assertParticipant(
+    supabase,
     conversationId,
     user.id,
   );
@@ -671,12 +967,13 @@ export async function getMessages(
   const messageList =
     messages ?? [];
 
-  const hasMore =
-    messageList.length > safeLimit;
-
-  const paginatedMessages = hasMore
-    ? messageList.slice(0, safeLimit)
-    : messageList;
+  const paginatedMessages =
+    messageList.length > safeLimit
+      ? messageList.slice(
+          0,
+          safeLimit,
+        )
+      : messageList;
 
   const senderIds = [
     ...new Set(
@@ -723,7 +1020,8 @@ export async function getMessages(
       );
     }
 
-    for (const profile of profiles ?? []) {
+    for (const profile of
+      profiles ?? []) {
       profilesById.set(
         profile.profile_id,
         {
@@ -764,7 +1062,8 @@ export async function getMessages(
           message.created_at ??
           new Date(0).toISOString(),
         isOwn:
-          message.sender_id === user.id,
+          message.sender_id ===
+          user.id,
       };
     });
 }
@@ -773,14 +1072,13 @@ export async function sendMessage(
   conversationId: string,
   content: string,
 ): Promise<MessageView> {
+  validateId(
+    conversationId,
+    "Conversation ID",
+  );
+
   const trimmedContent =
     content.trim();
-
-  if (!conversationId) {
-    throw new Error(
-      "Conversation ID is required",
-    );
-  }
 
   if (!trimmedContent) {
     throw new Error(
@@ -798,6 +1096,7 @@ export async function sendMessage(
     await getAuthenticatedClient();
 
   await assertParticipant(
+    supabase,
     conversationId,
     user.id,
   );
@@ -853,7 +1152,8 @@ export async function sendMessage(
   const senderName =
     `${senderProfile?.first_name ?? ""} ${
       senderProfile?.last_name ?? ""
-    }`.trim() || "Utilizador";
+    }`.trim() ||
+    "Utilizador";
 
   return {
     id: data.id,

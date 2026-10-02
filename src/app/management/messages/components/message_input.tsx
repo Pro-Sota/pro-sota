@@ -6,87 +6,76 @@ import {
   Paperclip,
   Send,
 } from "lucide-react";
-import { useParams } from "next/navigation";
 
 import { LABELS } from "./chat_labels";
 import { sendMessageAction } from "@/actions/message";
 
-export default function MessageInput() {
-  const params =
-    useParams<{
-      chatId?: string | string[];
-    }>();
+interface MessageInputProps {
+  conversationId: string;
+}
 
-  const selectedChatId =
-    Array.isArray(params.chatId)
-      ? params.chatId[0]
-      : params.chatId;
+export default function MessageInput({
+  conversationId,
+}: MessageInputProps) {
+  const [messageInput, setMessageInput] =
+    useState("");
 
-  const [
-    messageInput,
-    setMessageInput,
-  ] = useState("");
-
-  const [
-    isSending,
-    setIsSending,
-  ] = useState(false);
+  const [isSending, setIsSending] =
+    useState(false);
 
   const [error, setError] =
     useState<string | null>(null);
 
-  const handleSendMessage =
-    async () => {
-      const content =
-        messageInput.trim();
+  const handleSendMessage = async () => {
+    const content = messageInput.trim();
 
-      if (
-        !content ||
-        !selectedChatId ||
-        isSending
-      ) {
-        return;
-      }
+    if (
+      !content ||
+      !conversationId ||
+      isSending
+    ) {
+      return;
+    }
 
-      setIsSending(true);
-      setError(null);
+    setIsSending(true);
+    setError(null);
 
-      try {
-        const sentMessage =
-          await sendMessageAction(
-            selectedChatId,
-            content,
-          );
-
-        /*
-         * Tell ChatPage about the newly
-         * created message immediately.
-         */
-        window.dispatchEvent(
-          new CustomEvent(
-            "message:sent",
-            {
-              detail: sentMessage,
-            },
-          ),
+    try {
+      const sentMessage =
+        await sendMessageAction(
+          conversationId,
+          content,
         );
 
-        setMessageInput("");
-      } catch (err) {
-        console.error(
-          "Error sending message:",
-          err,
-        );
+      /*
+       * Immediately notify the active chat.
+       *
+       * The realtime subscription will also
+       * receive the INSERT event, so the chat
+       * component must deduplicate by message ID.
+       */
+      window.dispatchEvent(
+        new CustomEvent("message:sent", {
+          detail: sentMessage,
+        }),
+      );
 
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Não foi possível enviar a mensagem",
-        );
-      } finally {
-        setIsSending(false);
-      }
-    };
+      setMessageInput("");
+    } catch (err) {
+      console.error(
+        "Error sending message:",
+        err,
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível enviar a mensagem",
+      );
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const handleKeyDown = (
     event: React.KeyboardEvent<HTMLInputElement>,
@@ -96,28 +85,32 @@ export default function MessageInput() {
       !event.shiftKey
     ) {
       event.preventDefault();
+
       void handleSendMessage();
     }
   };
 
+  const canSend =
+    Boolean(messageInput.trim()) &&
+    !isSending;
+
   return (
-    <div className="border-t border-[#BD9655] bg-white p-4">
+    <div className="shrink-0 border-t border-slate-200 bg-white p-4">
       <div className="flex items-end gap-3">
         <button
           type="button"
-          disabled={!selectedChatId}
           aria-label="Anexar ficheiro"
-          className="rounded-lg border border-[#BD9655] p-3 transition-colors hover:bg-[#BD9655]/50 disabled:cursor-not-allowed disabled:opacity-50"
-          title={
-            !selectedChatId
-              ? "Selecione uma conversa primeiro"
-              : "Anexar ficheiro"
-          }
+          title="Anexar ficheiro"
+          className="shrink-0 rounded-lg border border-[#BD9655] p-3 text-slate-600 transition-colors hover:bg-[#BD9655]/10"
         >
-          <Paperclip size={17} />
+          <Paperclip
+            size={17}
+            aria-hidden="true"
+          />
         </button>
 
         <input
+          type="text"
           value={messageInput}
           onChange={(event) => {
             setMessageInput(
@@ -129,15 +122,10 @@ export default function MessageInput() {
             }
           }}
           onKeyDown={handleKeyDown}
-          placeholder={
-            LABELS.typeMessage
-          }
-          disabled={
-            !selectedChatId ||
-            isSending
-          }
+          placeholder={LABELS.typeMessage}
+          disabled={isSending}
           aria-label="Mensagem"
-          className="flex-1 rounded-lg border border-[#BD9955] px-4 py-3 placeholder-slate-500 focus:border-[#BD9655] focus:outline-none disabled:cursor-not-allowed disabled:bg-[#BD9955]/50"
+          className="min-w-0 flex-1 rounded-lg border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-[#BD9655] focus:ring-1 focus:ring-[#BD9655] disabled:cursor-not-allowed disabled:bg-slate-50"
         />
 
         <button
@@ -145,21 +133,22 @@ export default function MessageInput() {
           onClick={() => {
             void handleSendMessage();
           }}
-          disabled={
-            !selectedChatId ||
-            !messageInput.trim() ||
-            isSending
-          }
+          disabled={!canSend}
           aria-label="Enviar mensagem"
-          className="rounded-lg bg-[#BD9655] p-3 text-[#00950] transition-colors hover:bg-[#BD9655] disabled:cursor-not-allowed disabled:bg-[#BD9655]/50"
+          title="Enviar mensagem"
+          className="shrink-0 rounded-lg bg-[#BD9655] p-3 text-white transition-colors hover:bg-[#a98248] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSending ? (
             <Loader2
               size={17}
               className="animate-spin"
+              aria-hidden="true"
             />
           ) : (
-            <Send size={17} />
+            <Send
+              size={17}
+              aria-hidden="true"
+            />
           )}
         </button>
       </div>

@@ -1,87 +1,82 @@
 "use server";
 
 import {
-  getChats,
-  getMessageRecipients,
-  getMessages,
-  getOrCreateConversation,
-  sendMessage,
+    getChats,
+    getMessageRecipients,
+    getMessages,
+    getOrCreateConversation,
+    sendMessage,
 } from "@/services/messages";
 
-export async function createConversationAction(
-  otherUserId: string,
+function validateId(
+    value: string,
+    label: string,
 ) {
-  if (
-    !otherUserId ||
-    otherUserId === "undefined" ||
-    otherUserId === "null"
-  ) {
-    throw new Error(
-      "User ID is required",
-    );
-  }
+    if (
+        !value ||
+        value === "undefined" ||
+        value === "null"
+    ) {
+        throw new Error(`${label} is required`);
+    }
 
-  return getOrCreateConversation(
-    otherUserId,
-  );
+    return value;
+}
+
+export async function createConversationAction(
+    otherUserId: string,
+) {
+    validateId(otherUserId, "User ID");
+
+    return getOrCreateConversation(
+        otherUserId,
+    );
 }
 
 export async function getChatsAction(
-  conversationType:
-    | "direct"
-    | "project",
+    conversationType:
+        | "direct"
+        | "project",
 ) {
-  return getChats({
-    conversationType,
-  });
+    return getChats({
+        conversationType,
+    });
 }
 
 export async function getMessagesAction(
-  conversationId: string,
+    conversationId: string,
 ) {
-  if (
-    !conversationId ||
-    conversationId === "undefined" ||
-    conversationId === "null"
-  ) {
-    throw new Error(
-      `Invalid conversation ID passed to getMessagesAction: ${String(
+    validateId(
         conversationId,
-      )}`,
+        "Conversation ID",
     );
-  }
 
-  return getMessages({
-    conversationId,
-  });
+    return getMessages({
+        conversationId,
+    });
 }
 
 export async function sendMessageAction(
-  conversationId: string,
-  content: string,
+    conversationId: string,
+    content: string,
 ) {
-  if (
-    !conversationId ||
-    conversationId === "undefined" ||
-    conversationId === "null"
-  ) {
-    throw new Error(
-      "Conversation ID is required",
+    validateId(
+        conversationId,
+        "Conversation ID",
     );
-  }
 
-  if (!content?.trim()) {
-    throw new Error(
-      "Message content is required",
+    if (!content?.trim()) {
+        throw new Error(
+            "Message content is required",
+        );
+    }
+
+    return sendMessage(
+        conversationId,
+        content.trim(),
     );
-  }
-
-  return sendMessage(
-    conversationId,
-    content.trim(),
-  );
 }
 
 export async function getMessageRecipientsAction() {
-  return getMessageRecipients();
+    return getMessageRecipients();
 }

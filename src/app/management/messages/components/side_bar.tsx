@@ -1,8 +1,8 @@
 "use client";
 
 import { Search, Building2, User } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { LABELS } from "./chat_labels";
 import ChatSection from "./chat_section";
@@ -13,20 +13,90 @@ interface MessageSideBarProps {
   directConversations: ConversationWithDetails[];
 }
 
+interface MessagesUpdatedDetail {
+  conversationId: string;
+  userId?: string;
+  name: string;
+  department?: string | null;
+  isOnline: boolean;
+}
+
 export default function MessageSideBar({
   projectConversations,
   directConversations,
 }: MessageSideBarProps) {
-  const router = useRouter();
-  const params = useParams<{ chatId?: string | string[] }>();
+  const params = useParams();
 
-  const selectedChatId = Array.isArray(params.chatId)
-    ? params.chatId[0]
-    : params.chatId;
+  const chatId =
+    typeof params.chatId === "string"
+      ? params.chatId
+      : Array.isArray(params.chatId)
+        ? params.chatId[0]
+        : undefined;
+
+  const [projectChats, setProjectChats] = useState(
+    projectConversations,
+  );
+
+  const [directChats, setDirectChats] = useState(
+    directConversations,
+  );
 
   useEffect(() => {
-    const handleMessagesUpdated = () => {
-      router.refresh();
+    setProjectChats(projectConversations);
+  }, [projectConversations]);
+
+  useEffect(() => {
+    setDirectChats(directConversations);
+  }, [directConversations]);
+
+  useEffect(() => {
+    const handleMessagesUpdated = (event: Event) => {
+      const customEvent =
+        event as CustomEvent<MessagesUpdatedDetail>;
+
+      const detail = customEvent.detail;
+
+      if (!detail?.conversationId || !detail?.name) {
+        return;
+      }
+
+      const newChat: ConversationWithDetails = {
+        id: detail.conversationId,
+        conversationType: "direct",
+        projectId: null,
+        displayName: detail.name,
+        isOnline: detail.isOnline,
+        unreadCount: 0,
+        lastMessage: "",
+        lastMessageAt: null,
+      };
+
+      setDirectChats((currentChats) => {
+        const existingIndex = currentChats.findIndex(
+          (chat) => chat.id === detail.conversationId,
+        );
+
+        if (existingIndex === -1) {
+          return [newChat, ...currentChats];
+        }
+
+        const updatedChats = [...currentChats];
+
+        const existingChat = updatedChats.splice(
+          existingIndex,
+          1,
+        )[0];
+
+        return [
+          {
+            ...existingChat,
+            displayName: detail.name,
+            isOnline: detail.isOnline,
+          },
+          ...updatedChats,
+        ];
+      });
     };
 
     window.addEventListener(
@@ -40,46 +110,43 @@ export default function MessageSideBar({
         handleMessagesUpdated,
       );
     };
-  }, [router]);
+  }, []);
 
   return (
-    <aside className="hidden h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-[#BD9655] bg-white lg:flex">
-      {/* Header */}
-      <header className="shrink-0 space-y-4 border-b border-[#BD9655] p-5">
+    <aside className="hidden h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white lg:flex">
+      <header className="shrink-0 space-y-4 border-b border-slate-200 p-5">
         <h1 className="text-xl font-bold tracking-tight text-[#181818]">
           {LABELS.messages}
         </h1>
 
-        {/* Search Bar */}
         <div className="relative">
           <Search
-            className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#BD9655]"
+            size={16}
             aria-hidden="true"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
 
           <input
             type="search"
             placeholder={LABELS.search}
-            aria-label={LABELS.search}
-            className="w-full rounded-lg border border-[#BD9655] bg-gray py-2.5 pl-10 pr-4 text-sm text-[#737373] outline-none transition placeholder:text-[#737373] focus:border-slate-400 focus:bg-white focus:ring-1 focus:ring-slate-900/5"
+            className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-[#BD9655] focus:bg-white focus:ring-1 focus:ring-[#BD9655]"
           />
         </div>
       </header>
 
-      {/* Chat Sections */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <ChatSection
           title={LABELS.projectMessages}
-          chats={projectConversations}
-          icon={<Building2 size={18} />}
-          selectedChatId={selectedChatId}
+          chats={projectChats}
+          icon={<Building2 size={17} />}
+          selectedChatId={chatId}
         />
 
         <ChatSection
           title={LABELS.directMessages}
-          chats={directConversations}
-          icon={<User size={18} />}
-          selectedChatId={selectedChatId}
+          chats={directChats}
+          icon={<User size={17} />}
+          selectedChatId={chatId}
         />
       </div>
     </aside>
