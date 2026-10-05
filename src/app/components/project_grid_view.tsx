@@ -1,6 +1,6 @@
 import { Database } from "../lib/supabase/models";
 import { ProjectListItem } from "../management/projects/types";
-import ProjectCard from "./project_card";
+import ProjectGridCard from "./project_grid_card";
 
 
 export default function ProjectGridView({
@@ -41,7 +41,7 @@ export default function ProjectGridView({
             }}
           >
             <div className="flex min-w-0 w-full h-full">
-              <ProjectCard project={project} />
+              <ProjectGridCard project={project} />
             </div>
           </li>
         ))}
