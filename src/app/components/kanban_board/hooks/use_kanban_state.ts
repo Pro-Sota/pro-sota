@@ -18,15 +18,12 @@ import {
 } from '../actions/task_columns';
 
 export function useKanbanState({ scope, initialBoard }: { scope: TaskScope; initialBoard: KanbanBoardData }) {
-    const [columns, setColumns] = useState(initialBoard.columns);
-    const [tasks, setTasks] = useState(initialBoard.tasks);
+    const [columns, setColumns] = useState(() => initialBoard.columns);
+    const [tasks, setTasks] = useState(() => initialBoard.tasks);
     const [searchQuery, setSearchQuery] = useState('');
     const [deletedTask, setDeletedTask] = useState<{ task: Task; index: number } | null>(null);
     const [isPending, startTransition] = useTransition();
     const modal = useTaskModal(tasks);
-
-    useEffect(() => setColumns(initialBoard.columns), [initialBoard.columns]);
-    useEffect(() => setTasks(initialBoard.tasks), [initialBoard.tasks]);
 
     useEffect(() => {
         if (!deletedTask) return;

@@ -67,18 +67,22 @@ export default function KanbanColumn({
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
+        /* The board wrapper also handles drops; stop it running twice. */
+        event.stopPropagation();
         onColumnDrop();
       }}
       className={`
-    flex h-full min-h-0 w-80 shrink-0 flex-col
-    overflow-hidden rounded-2xl border bg-white shadow-sm
-    transition
-    ${
-      isDragOver ? "border-slate-400 ring-2 ring-slate-200" : "border-slate-200"
-    }
-  `}
+        flex h-full max-h-full min-h-0 w-80 shrink-0 flex-col
+        overflow-hidden rounded-2xl border bg-white shadow-sm
+        transition
+        ${
+          isDragOver
+            ? "border-slate-400 ring-2 ring-slate-200"
+            : "border-slate-200"
+        }
+      `}
     >
-      {/* Header */}
+      {/* Header (fixed) */}
       <header className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-slate-200 p-4">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
@@ -139,8 +143,8 @@ export default function KanbanColumn({
         </div>
       </header>
 
-      {/* Scrollable tasks */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      {/* Tasks (the only part of the column that scrolls vertically) */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 [scrollbar-color:#cbd5e1_transparent] [scrollbar-gutter:stable_both-edges] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-transparent">
         <div className="space-y-3">
           {tasks.length === 0 && (
             <p className="rounded-xl border border-dashed border-slate-200 py-8 text-center text-xs text-slate-400">
@@ -161,7 +165,7 @@ export default function KanbanColumn({
         </div>
       </div>
 
-      {/* Add task */}
+      {/* Add task (pinned to the bottom, always visible) */}
       <div className="flex-shrink-0 border-t border-slate-100 p-3">
         <AddTask onAdd={(title) => onAddTask(column.columnId, title)} />
       </div>
