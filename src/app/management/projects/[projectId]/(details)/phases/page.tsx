@@ -1,20 +1,26 @@
-import { getProjectPhases } from "@/services/project_phases";
+import { getProjectPhaseBoard } from "@/services/project_phases";
 import PhasesPageInner from "./phases_inner";
-import { Database } from "@/app/lib/supabase/models";
 
-
-type Phase = Database["public"]["Tables"]["project_phases"]["Row"];
-
-export default async function PhaseDetail({
-  params,
+export default async function PhasesPage({
+    params,
 }: {
-  params: Promise<{ projectId: string }>;
+    params: Promise<{
+        projectId: string;
+    }>;
 }) {
-  const { projectId } = await params;
+    const { projectId } = await params;
 
-  const phases: Phase[] = (await getProjectPhases(projectId)) ?? [];
+    const {
+        phases,
+        deliverables,
+        milestones,
+    } = await getProjectPhaseBoard(projectId);
 
-  return (
-    <PhasesPageInner phases = {phases} />
-  );
+    return (
+        <PhasesPageInner
+            phases={phases}
+            deliverables={deliverables}
+            milestones={milestones}
+        />
+    );
 }

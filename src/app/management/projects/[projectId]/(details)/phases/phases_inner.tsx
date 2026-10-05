@@ -1,14 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+
+import { Database } from "@/app/lib/supabase/models";
+
 import { PhaseTimeline } from "./PhaseTimeline";
 import { Metric } from "./Metric";
 import { StatusPill } from "./StatusPill";
 import { EmptyState } from "./EmptyState";
 import { ProgressBar } from "./ProgressBar";
-import Loader from "@/app/components/loader";
-import { Database } from "@/app/lib/supabase/models";
+import AddPhaseModal from "./create_phase_modal";
+
+type Phase = Database["public"]["Tables"]["project_phases"]["Row"];
+type Deliverable = Database["public"]["Tables"]["deliverables"]["Row"];
+type Milestone = Database["public"]["Tables"]["milestones"]["Row"];
+
+type PhaseStatus = Phase["status"];
 
 type StatusValue =
     | "Completed"
@@ -18,9 +26,9 @@ type StatusValue =
     | "Pending";
 
 type StatusItem = {
+    id: string;
     name: string;
     status: StatusValue;
-    phaseName: string;
 };
 
 const STATUS = {
@@ -46,18 +54,48 @@ const STATUS = {
     },
 } as const;
 
-type Phase = Database["public"]["Tables"]["project_phases"]["Row"];
+const PHASE_STATUS_LABELS: Record<string, string> = {
+    not_started: "Por iniciar",
+    in_progress: "Em curso",
+    completed: "Concluída",
+};
 
-interface props {
+const DELIVERABLE_STATUS: Record<string, StatusValue> = {
+    not_started: "Upcoming",
+    in_progress: "Current",
+    completed: "Completed",
+    on_hold: "Pending",
+    cancelled: "Pending",
+};
+
+const MILESTONE_STATUS: Record<string, StatusValue> = {
+    upcoming: "Upcoming",
+    in_progress: "Current",
+    completed: "Completed",
+    missed: "Pending",
+    cancelled: "Pending",
+};
+
+interface Props {
     phases: Phase[];
+    deliverables: Deliverable[];
+    milestones: Milestone[];
 }
 
-export default function PhasesPageInner({ phases }: props) {
-
+export default function PhasesPageInner({
+    phases,
+    deliverables,
+    milestones,
+}: Props) {
     const router = useRouter();
     const params = useParams();
+
     const projectId = params.projectId as string;
 
+    const [isAddPhaseOpen, setIsAddPhaseOpen] = useState(false);
+    const [selectedPhaseId, setSelectedPhaseId] = useState<string | undefined>(
+        undefined
+    );
 
     const sortedPhases = useMemo(
         () =>
@@ -67,108 +105,134 @@ export default function PhasesPageInner({ phases }: props) {
         [phases]
     );
 
-  
-
-    const deliverables: StatusItem[] = [];
-    const milestones: StatusItem[] = [];
-
-    const currentIndex = Math.max(
-        0,
-        phases.findIndex((p) => p.sort_order === 1)
+    const currentPhase = useMemo(
+        () =>
+            sortedPhases.find(
+                (phase) => phase.status === "in_progress"
+            ) ??
+            sortedPhases.find(
+                (phase) => phase.status === "not_started"
+            ) ??
+            sortedPhases.find(
+                (phase) => phase.status === "completed"
+            ) ??
+            sortedPhases[0],
+        [sortedPhases]
     );
-  const currentPhase =
-        sortedPhases.find((phase) => phase.status === "in_progress") ??
-        sortedPhases.find((phase) => phase.status === "not_started") ??
-        sortedPhases[sortedPhases.length - 1];
 
-    const overallProgress = computeOverallProgress(sortedPhases);
+    const selectedPhase = useMemo(
+        () =>
+            sortedPhases.find(
+                (phase) => phase.phase_id === selectedPhaseId
+            ) ?? currentPhase,
+        [sortedPhases, selectedPhaseId, currentPhase]
+    );
 
-    const [selectedPhaseName, setSelectedPhaseName] = useState<
-        string | undefined
-    >(currentPhase?.name);
-    const selectedPhase =
-        phases.find((p) => p.name === selectedPhaseName) ?? currentPhase;
+    const overallProgress = useMemo(
+        () => computeOverallProgress(sortedPhases),
+        [sortedPhases]
+    );
 
     const scopedDeliverables = useMemo(
-        () => deliverables.filter((d) => d.phaseName === selectedPhase?.name),
-        [selectedPhase]
-    );
-    const scopedMilestones = useMemo(
-        () => milestones.filter((m) => m.phaseName === selectedPhase?.name),
-        [selectedPhase]
+        () =>
+            deliverables.filter(
+                (item) => item.phase_id === selectedPhase?.phase_id
+            ),
+        [deliverables, selectedPhase?.phase_id]
     );
 
-    function computeOverallProgress(phases: Phase[]) {
-        if (!phases.length) return 0;
-        const total = phases.reduce((sum, phase) => {
-            if (phase.status === "Completed") return sum + 100;
-            if (phase.status === "Current") return sum + (phase.progress ?? 0);
-            return sum;
-        }, 0);
-        return Math.round(total / phases.length);
-    }
+    const scopedMilestones = useMemo(
+        () =>
+            milestones.filter(
+                (item) => item.phase_id === selectedPhase?.phase_id
+            ),
+        [milestones, selectedPhase?.phase_id]
+    );
+
+    const handleAddPhase = () => {
+        setIsAddPhaseOpen(true);
+    };
 
     const handleViewDetails = () => {
-        if (selectedPhase?.phase_id) {
-            router.push(
-                `/management/projects/${projectId}/phases/${selectedPhase.phase_id}`
-            );
-        }
+        if (!selectedPhase?.phase_id) return;
+
+        router.push(
+            `/management/projects/${projectId}/phases/${selectedPhase.phase_id}`
+        );
     };
+
+    function handleSelectPhase(phaseId: string) {
+        setSelectedPhaseId(phaseId);
+    }
 
     return (
         <div className="min-h-screen">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
                 <div className="space-y-8 sm:space-y-10">
                     {/* Header */}
                     <div className="border-b border-gray-200 pb-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
+                                <h1 className="text-2xl font-semibold text-gray-900 sm:text-3xl">
                                     Fases
                                 </h1>
+
                                 <p className="mt-1 text-sm text-gray-600">
-                                    Metodologia do projecto · {phases.length} fases definidas
+                                    Metodologia do projecto ·{" "}
+                                    {phases.length}{" "}
+                                    {phases.length === 1
+                                        ? "fase definida"
+                                        : "fases definidas"}
                                 </p>
                             </div>
-                            <div className="flex gap-4">
+
+                            <div className="flex gap-3">
                                 <button
-                                    onClick={handleViewDetails}
-                                    disabled={!selectedPhase}
-                                    className="cursor-pointer font-medium inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg bg-[#BD9655] text-[#002950] hover:bg-[#BD9655]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
+                                    type="button"
+                                    onClick={handleAddPhase}
+                                    className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-[#BD9655] px-4 py-2.5 text-sm font-medium text-[#002950] transition-colors hover:bg-[#BD9655]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
                                 >
-                                    Add a phase
+                                    Adicionar fase
                                 </button>
+
                                 <button
+                                    type="button"
                                     onClick={handleViewDetails}
                                     disabled={!selectedPhase}
-                                    className="cursor-pointer font-medium inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg bg-[#BD9655] text-[#002950] hover:bg-[#BD9655]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
+                                    className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
                                 >
-                                    Ver detalhes da fase
+                                    Ver detalhes
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    {/* Current Phase Hero Card */}
-                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                        <div className="border-b border-gray-200 px-6 sm:px-8 py-5 sm:py-6">
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-4">
-                                <div className="flex-1 min-w-0">
-                                    <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
-                                        {currentPhase?.name ?? "Sem fase actual"}
+                    {/* Current Phase */}
+                    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <div className="border-b border-gray-200 px-6 py-5 sm:px-8 sm:py-6">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
+                                <div className="min-w-0 flex-1">
+                                    <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl">
+                                        {currentPhase?.name ??
+                                            "Sem fase actual"}
                                     </h2>
-                                    <p className="text-sm text-gray-500 mt-2 font-mono">
-                                        {"Datas a definir"}
+
+                                    <p className="mt-2 text-sm text-gray-500">
+                                        {currentPhase
+                                            ? PHASE_STATUS_LABELS[
+                                                  currentPhase.status
+                                              ] ?? currentPhase.status
+                                            : "Ainda não existem fases definidas"}
                                     </p>
                                 </div>
 
                                 <div className="flex items-baseline gap-6 sm:text-right">
-                                    <div className="flex-1 sm:flex-none">
-                                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
+                                    <div>
+                                        <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">
                                             Progresso Geral
                                         </p>
-                                        <p className="text-3xl sm:text-4xl font-bold text-gray-900 font-mono tabular-nums">
+
+                                        <p className="font-mono text-3xl font-bold tabular-nums text-gray-900 sm:text-4xl">
                                             {overallProgress}%
                                         </p>
                                     </div>
@@ -177,39 +241,45 @@ export default function PhasesPageInner({ phases }: props) {
                         </div>
 
                         {currentPhase && (
-                            <div className="px-6 sm:px-8 py-6 sm:py-8">
+                            <div className="px-6 py-6 sm:px-8 sm:py-8">
                                 <div className="space-y-3">
-                                    <div className="flex justify-between items-baseline">
+                                    <div className="flex items-baseline justify-between">
                                         <label className="text-sm font-medium text-gray-700">
                                             Conclusão da fase actual
                                         </label>
-                                        <span className="text-sm font-mono font-semibold text-gray-900">
-                                            {currentPhase.progress}%
+
+                                        <span className="font-mono text-sm font-semibold text-gray-900">
+                                            {currentPhase.progress ?? 0}%
                                         </span>
                                     </div>
-                                    <ProgressBar percent={currentPhase.progress ?? 0} />
+
+                                    <ProgressBar
+                                        percent={currentPhase.progress ?? 0}
+                                    />
                                 </div>
                             </div>
                         )}
                     </div>
 
                     {/* Timeline */}
-                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                        <div className="border-b border-gray-200 px-6 sm:px-8 py-5 sm:py-6">
+                    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <div className="border-b border-gray-200 px-6 py-5 sm:px-8 sm:py-6">
                             <h2 className="text-lg font-semibold text-gray-900">
                                 Mapa de evolução
                             </h2>
-                            <p className="text-sm text-gray-600 mt-1">
-                                Clique numa fase para ver os detalhes e entregas associadas
+
+                            <p className="mt-1 text-sm text-gray-600">
+                                Clique numa fase para ver os detalhes e
+                                entregas associadas
                             </p>
                         </div>
 
-                        <div className="px-6 sm:px-8 py-6 sm:py-8">
-                            {phases.length > 0 ? (
+                        <div className="px-6 py-6 sm:px-8 sm:py-8">
+                            {sortedPhases.length > 0 ? (
                                 <PhaseTimeline
                                     phases={sortedPhases}
                                     selectedPhaseId={selectedPhase?.phase_id}
-                                    onSelectPhaseAction={setSelectedPhaseName}
+                                    onSelectPhaseAction={handleSelectPhase}
                                 />
                             ) : (
                                 <EmptyState message="Ainda não existem fases definidas para este projecto." />
@@ -224,37 +294,85 @@ export default function PhasesPageInner({ phases }: props) {
                                 Métricas do projecto
                             </p>
                         </div>
+
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-                            <Metric title="Documentos" value="0" />
-                            <Metric title="Tarefas" value="0" />
-                            <Metric title="Comentários" value="0" />
-                            <Metric title="Equipa" value="0" />
+                            <Metric
+                                title="Entregas"
+                                value={String(deliverables.length)}
+                            />
+
+                            <Metric
+                                title="Etapas"
+                                value={String(milestones.length)}
+                            />
+
+                            <Metric
+                                title="Fases"
+                                value={String(phases.length)}
+                            />
+
+                            <Metric
+                                title="Concluídas"
+                                value={
+                                    String(phases.filter(
+                                        (phase) =>
+                                            phase.status === "completed"
+                                    ).length)
+                                }
+                            />
                         </div>
                     </div>
 
-                    {/* Deliverables & Milestones - Scoped to Selected Phase */}
+                    {/* Selected Phase */}
                     <div>
-                        <div className="mb-4 pb-3 border-b border-gray-200">
-                            <div className="flex items-baseline justify-between gap-2">
+                        <div className="mb-4 border-b border-gray-200 pb-3">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                                    Fase Selecionada
+                                    Fase seleccionada
                                 </p>
+
                                 <p className="text-sm font-medium text-gray-900">
                                     {selectedPhase?.name ?? "—"}
                                 </p>
                             </div>
                         </div>
 
-                        <div className="grid lg:grid-cols-2 gap-6">
+                        <div className="grid gap-6 lg:grid-cols-2">
                             {/* Deliverables */}
-                            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                                <div className="border-b border-gray-200 px-6 py-4 sm:py-5">
-                                    <h3 className="font-semibold text-gray-900">Entregas</h3>
+                            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 sm:py-5">
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900">
+                                            Entregas
+                                        </h3>
+
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Entregáveis associados à fase
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        className="inline-flex cursor-pointer items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                                    >
+                                        + Adicionar
+                                    </button>
                                 </div>
 
                                 <div className="px-6 py-5 sm:py-6">
                                     {scopedDeliverables.length > 0 ? (
-                                        <StatusList items={scopedDeliverables} />
+                                        <StatusList
+                                            items={scopedDeliverables.map(
+                                                (item) => ({
+                                                    id: item.id,
+                                                    name: item.title,
+                                                    status:
+                                                        DELIVERABLE_STATUS[
+                                                            item.status
+                                                        ] ?? "Pending",
+                                                })
+                                            )}
+                                        />
                                     ) : (
                                         <EmptyState message="Sem entregas associadas a esta fase." />
                                     )}
@@ -262,14 +380,40 @@ export default function PhasesPageInner({ phases }: props) {
                             </div>
 
                             {/* Milestones */}
-                            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                                <div className="border-b border-gray-200 px-6 py-4 sm:py-5">
-                                    <h3 className="font-semibold text-gray-900">Etapas</h3>
+                            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 sm:py-5">
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900">
+                                            Etapas
+                                        </h3>
+
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Marcos importantes da fase
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        className="inline-flex cursor-pointer items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                                    >
+                                        + Adicionar
+                                    </button>
                                 </div>
 
                                 <div className="px-6 py-5 sm:py-6">
                                     {scopedMilestones.length > 0 ? (
-                                        <StatusList items={scopedMilestones} />
+                                        <StatusList
+                                            items={scopedMilestones.map(
+                                                (item) => ({
+                                                    id: item.id,
+                                                    name: item.title,
+                                                    status:
+                                                        MILESTONE_STATUS[
+                                                            item.status
+                                                        ] ?? "Pending",
+                                                })
+                                            )}
+                                        />
                                     ) : (
                                         <EmptyState message="Sem etapas associadas a esta fase." />
                                     )}
@@ -280,28 +424,59 @@ export default function PhasesPageInner({ phases }: props) {
                 </div>
             </div>
 
-
+            {isAddPhaseOpen && (
+                <AddPhaseModal
+                    projectId={projectId}
+                    nextSortOrder={sortedPhases.length + 1}
+                    onClose={() => setIsAddPhaseOpen(false)}
+                />
+            )}
         </div>
     );
+}
+
+function computeOverallProgress(phases: Phase[]) {
+    if (!phases.length) return 0;
+
+    const total = phases.reduce((sum, phase) => {
+        if (phase.status === "completed") {
+            return sum + 100;
+        }
+
+        if (phase.status === "in_progress") {
+            return sum + (phase.progress ?? 0);
+        }
+
+        return sum;
+    }, 0);
+
+    return Math.round(total / phases.length);
 }
 
 function StatusList({ items }: { items: StatusItem[] }) {
     return (
         <div className="divide-y divide-gray-100">
-            {items.map((item, idx) => (
-                <div
-                    key={item.name}
-                    className={`flex justify-between items-center gap-3 py-3 ${idx === 0 ? "" : ""
-                        }`}
-                >
-                    <span className="text-sm text-gray-700 flex-1 min-w-0">
-                        {item.name}
-                    </span>
-                    <div className="flex-shrink-0">
-                        <StatusPill label={item.name} color={STATUS[item.status].color} />
+            {items.map((item) => {
+                const config = STATUS[item.status];
+
+                return (
+                    <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-3 py-3"
+                    >
+                        <span className="min-w-0 flex-1 text-sm text-gray-700">
+                            {item.name}
+                        </span>
+
+                        <div className="shrink-0">
+                            <StatusPill
+                                label={config.label}
+                                color={config.color}
+                            />
+                        </div>
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 }

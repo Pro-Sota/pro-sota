@@ -5,6 +5,10 @@ import Link from "next/link";
 
 import { Database } from "../lib/supabase/models";
 
+/* -------------------------------------------------------------------------- */
+/* Constants                                                                  */
+/* -------------------------------------------------------------------------- */
+
 const STATUS_LABELS = {
   "em-curso": "Em curso",
   concluido: "Concluído",
@@ -13,17 +17,24 @@ const STATUS_LABELS = {
 } as const;
 
 const STATUS_COLORS = {
-  "em-curso": "bg-blue-100 text-blue-700 border border-blue-200",
-  concluido: "bg-green-100 text-green-700 border border-green-200",
+  "em-curso":
+    "border-blue-200/80 bg-blue-50/95 text-blue-700",
+  concluido:
+    "border-emerald-200/80 bg-emerald-50/95 text-emerald-700",
   "em-observacao":
-    "bg-amber-100 text-amber-700 border border-amber-200",
-  "em-pausa": "bg-gray-100 text-gray-700 border border-gray-200",
+    "border-amber-200/80 bg-amber-50/95 text-amber-700",
+  "em-pausa":
+    "border-gray-200/80 bg-gray-50/95 text-gray-700",
 } as const;
 
 const DEFAULT_PROJECT_IMAGE = "/images/arch.jpg";
 
 const IMAGE_WIDTH = 400;
 const IMAGE_HEIGHT = 300;
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 type Project =
   Database["public"]["Tables"]["projects"]["Row"] & {
@@ -36,30 +47,59 @@ type Project =
     } | null;
   };
 
+type ProjectStatus = keyof typeof STATUS_LABELS;
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function getStatusKey(
+  status: string | null
+): ProjectStatus | null {
+  if (!status) return null;
+
+  return status in STATUS_LABELS
+    ? (status as ProjectStatus)
+    : null;
+}
+
+function formatDate(date: string | null): string {
+  if (!date) return "Sem prazo";
+
+  const parsedDate = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return date;
+  }
+
+  return parsedDate.toLocaleDateString("pt-AO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
+
 export default function ProjectCard({
   project,
 }: {
   project: Project;
 }) {
   const projectImage =
-    project.image ?? DEFAULT_PROJECT_IMAGE;
+    project.image || DEFAULT_PROJECT_IMAGE;
 
-  const statusKey =
-    project.status as
-      | keyof typeof STATUS_LABELS
-      | undefined;
+  const statusKey = getStatusKey(project.status);
 
-  const statusLabel =
-    statusKey &&
-    statusKey in STATUS_LABELS
-      ? STATUS_LABELS[statusKey]
-      : project.status ?? "Sem estado";
+  const statusLabel = statusKey
+    ? STATUS_LABELS[statusKey]
+    : project.status || "Sem estado";
 
-  const statusColor =
-    statusKey &&
-    statusKey in STATUS_COLORS
-      ? STATUS_COLORS[statusKey]
-      : "bg-gray-100 text-gray-600 border border-gray-200";
+  const statusColor = statusKey
+    ? STATUS_COLORS[statusKey]
+    : "border-gray-200/80 bg-gray-50/95 text-gray-600";
 
   const progress = Math.min(
     Math.max(project.progress ?? 0, 0),
@@ -67,174 +107,230 @@ export default function ProjectCard({
   );
 
   const clientName =
-    project.clients?.name ??
-    project.client_id ??
+    project.clients?.name?.trim() ||
+    project.client_id ||
     null;
 
-  const hasClient = Boolean(clientName);
-
-  const hasLocation =
-    Boolean(project.address_line_1?.trim());
+  const location =
+    project.address_line_1?.trim() || null;
 
   const managerName =
-    project.project_manager?.name ??
+    project.project_manager?.name?.trim() ||
     "Sem responsável";
+
+  const endDate = formatDate(project.end_date);
 
   return (
     <Link
       href={`/management/projects/${project.project_id}`}
       className="
-        group block
-        bg-white rounded-xl shadow-sm border border-gray-200
-        hover:shadow-lg hover:border-gray-300 transition-all duration-300
-        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#002950] focus:ring-offset-gray-100
-        overflow-hidden
+        group block overflow-hidden
+        rounded-xl border border-gray-200/80
+        bg-white
+        shadow-[0_1px_2px_rgba(0,0,0,0.04)]
+        transition-all duration-300 ease-out
+        hover:-translate-y-0.5
+        hover:border-gray-300
+        hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]
+        focus:outline-none
+        focus:ring-2 focus:ring-[#002950]/30
+        focus:ring-offset-2
       "
     >
-      {/* Image Container */}
-      <div className="relative w-full aspect-video bg-gray-100 overflow-hidden flex-shrink-0">
+      {/* Image */}
+      <div className="relative aspect-video w-full overflow-hidden bg-gray-100">
         <Image
           src={projectImage}
           alt={`Imagem do projeto ${project.title}`}
           width={IMAGE_WIDTH}
           height={IMAGE_HEIGHT}
           className="
-            object-cover w-full h-full
-            group-hover:scale-110 transition-transform duration-500 ease-out
+            h-full w-full object-cover
+            transition-transform duration-500 ease-out
+            group-hover:scale-[1.04]
           "
-          priority={false}
         />
 
-        {/* Status Badge Overlay */}
-        <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
+        {/* Image overlay */}
+        <div
+          className="
+            pointer-events-none absolute inset-0
+            bg-gradient-to-t
+            from-black/10 via-transparent to-black/5
+            opacity-60
+          "
+        />
+
+        {/* Status */}
+        <div className="absolute right-3 top-3 sm:right-4 sm:top-4">
           <span
             className={`
-              inline-flex px-2.5 py-1 rounded-md text-xs font-medium
-              backdrop-blur-sm bg-white/90
+              inline-flex items-center
+              rounded-full border
+              px-2.5 py-1
+              text-[11px] font-semibold
+              tracking-tight
+              shadow-sm
+              backdrop-blur-md
               ${statusColor}
-              transition-all duration-300
             `}
           >
+            <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-current opacity-70" />
             {statusLabel}
           </span>
         </div>
       </div>
 
-      {/* Content Container */}
-      <div className="flex flex-col h-full p-3 sm:p-2 md:p-4 gap-3 sm:gap-2">
-        {/* Title */}
-        <div className="flex-shrink-0 min-w-0">
-          <h2
-            className="
-              text-base sm:text-lg font-semibold text-gray-900
-              line-clamp-2
-              group-hover:text-gray-700 transition-colors duration-200
-            "
-          >
-            {project.title}
-          </h2>
-        </div>
+      {/* Content */}
+      <div className="flex flex-col gap-2 p-3 sm:p-4">          {/* Title */}
+        <h2
+          className="
+    line-clamp-2
+    min-h-[2.5rem]
+    text-base font-semibold
+    leading-6 tracking-[-0.01em]
+    text-gray-900
+    transition-colors duration-200
+    group-hover:text-[#002950]
+    sm:text-lg
+  "
+        >
+          {project.title}
+        </h2>
 
-        {/* Progress Section */}
-        <div className="flex-shrink-0">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs sm:text-sm text-gray-600 font-medium">
+        {/* Progress */}
+        {/* Progress */}
+        <div className="mt-0.5">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-gray-500 sm:text-sm">
               Progresso
             </span>
 
-            <span className="text-sm sm:text-base font-semibold text-gray-900 tabular-nums">
+            <span className="text-sm font-semibold tabular-nums text-gray-900 sm:text-base">
               {progress}
-              <span className="text-gray-500 font-normal">
+              <span className="ml-0.5 font-normal text-gray-400">
                 %
               </span>
             </span>
           </div>
 
-          {/* Progress Bar */}
           <div
             className="
-              w-full h-2 bg-gray-200 rounded-full
-              overflow-hidden flex-shrink-0 ring-1 ring-gray-300/50
-            "
+      h-1.5 w-full overflow-hidden
+      rounded-full bg-gray-100
+      ring-1 ring-gray-200/70
+    "
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Progresso do projeto: ${progress}%`}
           >
             <div
               className="
-                h-full bg-gradient-to-r from-gray-900 to-gray-800
-                transition-all duration-700 ease-out
-                rounded-full
-              "
-              style={{
-                width: `${progress}%`,
-              }}
-              role="progressbar"
-              aria-valuenow={progress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`Progresso do projeto: ${progress}%`}
+        h-full rounded-full
+        bg-[#002950]
+        transition-[width] duration-700 ease-out
+      "
+              style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        {/* Info Section */}
-        <div className="flex-grow min-w-0 gap-2 mt-2">
-          <div className="space-y-2 text-xs sm:text-sm">
-            {hasClient && (
-              <div className="flex items-start gap-2 min-w-0">
-                <span className="text-gray-500 flex-shrink-0 font-medium">
-                  Cliente:
-                </span>
+        {/* Project information */}
+        {/* Project information */}
+        <div className="mt-1 space-y-2.5 text-xs sm:text-sm">
+          {/* Client */}
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="w-[76px] shrink-0 text-gray-400">
+              Cliente
+            </span>
 
-                <span className="text-gray-700 truncate font-medium">
-                  {clientName}
-                </span>
-              </div>
-            )}
+            <span
+              className={`
+        min-w-0 truncate
+        ${clientName
+                  ? "font-medium text-gray-700"
+                  : "text-gray-300"
+                }
+      `}
+            >
+              {clientName || "Não definido"}
+            </span>
+          </div>
 
-            {hasLocation && (
-              <div className="flex items-start gap-2 min-w-0">
-                <span className="text-gray-500 flex-shrink-0 font-medium">
-                  Localização:
-                </span>
+          {/* Location */}
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="w-[76px] shrink-0 text-gray-400">
+              Localização
+            </span>
 
-                <span className="text-gray-700 truncate">
-                  {project.address_line_1}
-                </span>
-              </div>
-            )}
+            <span
+              className={`
+        min-w-0 truncate
+        ${location
+                  ? "text-gray-700"
+                  : "text-gray-300"
+                }
+      `}
+            >
+              {location || "Não definida"}
+            </span>
+          </div>
 
-            <div className="flex items-start gap-2 min-w-0">
-              <span className="text-gray-500 flex-shrink-0 font-medium">
-                Responsável:
-              </span>
+          {/* Manager */}
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="w-[76px] shrink-0 text-gray-400">
+              Responsável
+            </span>
 
-              <span className="text-gray-700 truncate font-medium">
-                {managerName}
-              </span>
-            </div>
+            <span className="min-w-0 truncate font-medium text-gray-700">
+              {managerName}
+            </span>
+          </div>
 
-            <div className="flex items-start gap-2 min-w-0">
-              <span className="text-gray-500 flex-shrink-0 font-medium">
-                Prazo:
-              </span>
+          {/* Deadline */}
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="w-[76px] shrink-0 text-gray-400">
+              Prazo
+            </span>
 
-              <span className="text-gray-700 truncate font-medium">
-                {project.end_date}
-              </span>
-            </div>
-
-            {!hasClient && !hasLocation && (
-              <p className="text-gray-400 text-xs italic pt-1">
-                Sem detalhes adicionais
-              </p>
-            )}
+            <span className="min-w-0 truncate font-medium text-gray-700">
+              {endDate}
+            </span>
           </div>
         </div>
 
-        {/* Footer Action Hint */}
-        <div className="flex-shrink-0 pt-2 border-t border-gray-100">
-          <p className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors duration-200">
-            Clique para ver detalhes →
-          </p>
+        {/* Footer */}
+        <div
+          className="
+            flex h-8 items-center
+            border-t border-gray-100
+          "
+        >
+          <span
+            className="
+              inline-flex items-center gap-1
+              text-xs font-medium
+              text-gray-400
+              transition-all duration-200
+              group-hover:translate-x-0.5
+              group-hover:text-[#002950]
+            "
+          >
+            Ver detalhes
+
+            <span
+              aria-hidden="true"
+              className="
+                text-sm
+                transition-transform duration-200
+                group-hover:translate-x-0.5
+              "
+            >
+              →
+            </span>
+          </span>
         </div>
       </div>
     </Link>

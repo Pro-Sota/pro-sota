@@ -21,31 +21,30 @@ import ProjectGridView from "@/app/components/project_grid_view";
 import ProjectMapView from "@/app/components/project_map_view";
 import { Database } from "@/app/lib/supabase/models";
 
+/* -------------------------------------------------------------------------- */
+/* Constants                                                                  */
+/* -------------------------------------------------------------------------- */
+
 const filters = [
   {
     value: "todos",
     label: "Todos",
-    status: null,
   },
   {
     value: "em-curso",
     label: "Em curso",
-    status: "Em Curso",
   },
   {
     value: "em-pausa",
     label: "Em pausa",
-    status: "Em Pausa",
   },
   {
     value: "concluido",
     label: "Concluído",
-    status: "Concluído",
   },
   {
     value: "em-observacao",
     label: "Em observação",
-    status: "Em Observação",
   },
 ] as const;
 
@@ -73,6 +72,39 @@ type Project =
 type ViewMode =
   (typeof views)[number]["value"];
 
+type FilterValue =
+  (typeof filters)[number]["value"];
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Normalises project statuses so the filter works regardless of
+ * whether Supabase contains:
+ *
+ * "Em Curso"
+ * "em-curso"
+ * "EM CURSO"
+ * "em curso"
+ */
+function normalizeStatus(
+  value: string | null | undefined,
+) {
+  return (
+    value
+      ?.trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[\s_]+/g, "-") ?? ""
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
+
 export default function ProjectsPageInner({
   projects,
 }: {
@@ -88,31 +120,37 @@ export default function ProjectsPageInner({
   const inputRef =
     useRef<HTMLInputElement>(null);
 
-  const clearButtonRef =
-    useRef<HTMLButtonElement>(null);
+  const filterParam =
+    searchParams.get("filter");
 
-  const filter =
-    searchParams.get("filter") ??
-    "todos";
+  const filter: FilterValue =
+    filters.some(
+      (item) => item.value === filterParam,
+    )
+      ? (filterParam as FilterValue)
+      : "todos";
 
   const requestedView =
     searchParams.get("view");
 
   const viewMode: ViewMode =
     requestedView === "list" ||
-      requestedView === "map" ||
-      requestedView === "grid"
+    requestedView === "map" ||
+    requestedView === "grid"
       ? requestedView
       : "grid";
+
+  /* ------------------------------------------------------------------------ */
+  /* URL                                                                      */
+  /* ------------------------------------------------------------------------ */
 
   const updateSearchParams = (
     key: string,
     value: string,
   ) => {
-    const params =
-      new URLSearchParams(
-        searchParams.toString(),
-      );
+    const params = new URLSearchParams(
+      searchParams.toString(),
+    );
 
     if (
       (key === "filter" &&
@@ -125,21 +163,27 @@ export default function ProjectsPageInner({
       params.set(key, value);
     }
 
-    const queryString =
-      params.toString();
+    const queryString = params.toString();
 
     router.replace(
       queryString
         ? `${pathname}?${queryString}`
         : pathname,
+      {
+        scroll: false,
+      },
     );
   };
+
+  /* ------------------------------------------------------------------------ */
+  /* Search                                                                   */
+  /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  const closeSearch = () => {
+  const clearSearch = () => {
     setSearchTerm("");
 
     requestAnimationFrame(() => {
@@ -147,43 +191,57 @@ export default function ProjectsPageInner({
     });
   };
 
+  /* ------------------------------------------------------------------------ */
+  /* Selected filter                                                          */
+  /* ------------------------------------------------------------------------ */
+
   const selectedFilter = useMemo(
     () =>
       filters.find(
-        (item) =>
-          item.value === filter,
+        (item) => item.value === filter,
       ) ?? filters[0],
     [filter],
   );
 
+  /* ------------------------------------------------------------------------ */
+  /* Filter projects                                                          */
+  /* ------------------------------------------------------------------------ */
+
   const filteredProjects = useMemo(() => {
-    const term =
-      searchTerm
-        .trim()
-        .toLowerCase();
+    const term = searchTerm
+      .trim()
+      .toLowerCase();
 
-    return projects.filter(
-      (project) => {
-        const projectTitle =
-          project.title?.toLowerCase() ??
-          "";
+    return projects.filter((project) => {
+      const projectTitle =
+        project.title
+          ?.trim()
+          .toLowerCase() ?? "";
 
-        const matchesSearch =
-          !term ||
-          projectTitle.includes(term);
+      const matchesSearch =
+        !term ||
+        projectTitle.includes(term);
 
-        const matchesFilter =
-          selectedFilter.value ===
-          "todos" ||
-          project.status ===
-          selectedFilter.status;
+      if (selectedFilter.value === "todos") {
+        return matchesSearch;
+      }
 
-        return (
-          matchesSearch &&
-          matchesFilter
+      const projectStatus =
+        normalizeStatus(project.status);
+
+      const selectedStatus =
+        normalizeStatus(
+          selectedFilter.value,
         );
-      },
-    );
+
+      const matchesFilter =
+        projectStatus === selectedStatus;
+
+      return (
+        matchesSearch &&
+        matchesFilter
+      );
+    });
   }, [
     projects,
     searchTerm,
@@ -192,7 +250,10 @@ export default function ProjectsPageInner({
 
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-gray-900">
-      {/* Header */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Header                                                             */}
+      {/* ------------------------------------------------------------------ */}
+
       <header className="bg-white">
         <div className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -203,13 +264,11 @@ export default function ProjectsPageInner({
 
               <p className="mt-1 text-sm text-gray-500">
                 {filteredProjects.length}{" "}
-                {filteredProjects.length ===
-                  1
+                {filteredProjects.length === 1
                   ? "projecto"
                   : "projectos"}{" "}
                 encontrado
-                {filteredProjects.length !==
-                  1
+                {filteredProjects.length !== 1
                   ? "s"
                   : ""}
               </p>
@@ -233,7 +292,10 @@ export default function ProjectsPageInner({
         </div>
       </header>
 
-      {/* Controls */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Controls                                                           */}
+      {/* ------------------------------------------------------------------ */}
+
       <div className="sticky top-0 z-30 border-b border-gray-200/50 bg-white/95 backdrop-blur-sm">
         <div className="px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
           <div className="flex flex-col gap-3.5">
@@ -257,10 +319,9 @@ export default function ProjectsPageInner({
 
               {searchTerm && (
                 <button
-                  ref={clearButtonRef}
                   type="button"
                   aria-label="Limpar pesquisa"
-                  onClick={closeSearch}
+                  onClick={clearSearch}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]/20"
                 >
                   <X className="h-4 w-4" />
@@ -280,19 +341,18 @@ export default function ProjectsPageInner({
                     <button
                       key={item.value}
                       type="button"
-                      aria-pressed={
-                        isActive
-                      }
+                      aria-pressed={isActive}
                       onClick={() =>
                         updateSearchParams(
                           "filter",
                           item.value,
                         )
                       }
-                      className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${isActive
-                        ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
-                        : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-100"
-                        }`}
+                      className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
+                        isActive
+                          ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
+                          : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-100"
+                      }`}
                     >
                       {item.label}
                     </button>
@@ -314,19 +374,14 @@ export default function ProjectsPageInner({
                       icon: Icon,
                     }) => {
                       const isActive =
-                        viewMode ===
-                        value;
+                        viewMode === value;
 
                       return (
                         <button
                           key={value}
                           type="button"
-                          aria-label={
-                            label
-                          }
-                          aria-pressed={
-                            isActive
-                          }
+                          aria-label={label}
+                          aria-pressed={isActive}
                           title={label}
                           onClick={() =>
                             updateSearchParams(
@@ -334,10 +389,11 @@ export default function ProjectsPageInner({
                               value,
                             )
                           }
-                          className={`cursor-pointer rounded p-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${isActive
-                            ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
-                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                            }`}
+                          className={`cursor-pointer rounded p-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
+                            isActive
+                              ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
+                              : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                          }`}
                         >
                           <Icon className="h-4 w-4" />
                         </button>
@@ -351,10 +407,12 @@ export default function ProjectsPageInner({
         </div>
       </div>
 
-      {/* Content */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Content                                                            */}
+      {/* ------------------------------------------------------------------ */}
+
       <main className="flex-1 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-        {filteredProjects.length ===
-          0 ? (
+        {filteredProjects.length === 0 ? (
           <div className="flex items-center justify-center py-16 sm:py-24">
             <div className="max-w-sm text-center">
               <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gray-200">
@@ -367,14 +425,13 @@ export default function ProjectsPageInner({
 
               <p className="mb-6 text-sm text-gray-600">
                 {searchTerm ||
-                  filter !== "todos"
+                filter !== "todos"
                   ? "Tente ajustar os seus filtros ou pesquisa."
                   : "Comece por criar o seu primeiro projecto."}
               </p>
 
               {!searchTerm &&
-                filter ===
-                "todos" && (
+                filter === "todos" && (
                   <Link
                     href="/management/projects/create-project"
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#002950] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003b70] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
@@ -389,25 +446,19 @@ export default function ProjectsPageInner({
           <div className="animate-fade-in">
             {viewMode === "grid" && (
               <ProjectGridView
-                projects={
-                  filteredProjects
-                }
+                projects={filteredProjects}
               />
             )}
 
             {viewMode === "list" && (
               <ProjectTableView
-                projects={
-                  filteredProjects
-                }
+                projects={filteredProjects}
               />
             )}
 
             {viewMode === "map" && (
               <ProjectMapView
-                projects={
-                  filteredProjects
-                }
+                projects={filteredProjects}
               />
             )}
           </div>

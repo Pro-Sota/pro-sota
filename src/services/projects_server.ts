@@ -375,23 +375,12 @@ export async function getProjectTaskBoard(
 
   return getTaskBoard(projectId);
 }
-
 export async function getProjects(options?: { all?: boolean }) {
   const supabase = createClient(await cookies());
 
-  if (options?.all) {
-    const { data, error } = await supabase
-      .from("projects")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Failed to fetch all projects:", error);
-      throw new Error("Failed to fetch projects");
-    }
-
-    return data ?? [];
-  }
+  /* ------------------------------------------------------------------------ */
+  /* Current user                                                             */
+  /* ------------------------------------------------------------------------ */
 
   const {
     data: { user },
@@ -402,19 +391,229 @@ export async function getProjects(options?: { all?: boolean }) {
     throw new Error("Utilizador não autenticado.");
   }
 
-  const { data, error } = await supabase
+  /* ------------------------------------------------------------------------ */
+  /* Get accessible project IDs                                               */
+  /* ------------------------------------------------------------------------ */
+
+  let projectIds: string[] | null = null;
+
+  if (!options?.all) {
+    const {
+      data: memberships,
+      error: membershipsError,
+    } = await supabase
+      .from("project_members")
+      .select("project_id")
+      .eq("profile_id", user.id);
+
+    if (membershipsError) {
+      console.error(
+        "Failed to fetch project memberships:",
+        membershipsError.message,
+        membershipsError.details,
+        membershipsError.hint,
+        membershipsError.code,
+      );
+
+      throw new Error(
+        membershipsError.message,
+      );
+    }
+
+    projectIds = [
+      ...new Set(
+        (memberships ?? [])
+          .map(
+            (membership) =>
+              membership.project_id,
+          )
+          .filter(
+            (id): id is string =>
+              Boolean(id),
+          ),
+      ),
+    ];
+
+    if (projectIds.length === 0) {
+      return [];
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Projects                                                                 */
+  /* ------------------------------------------------------------------------ */
+
+  let projectsQuery = supabase
     .from("projects")
     .select(`
       *,
-      project_members!inner(*)
+      clients (
+        name
+      )
     `)
-    .eq("project_members.profile_id", user.id)
-    .order("created_at", { ascending: false });
+    .order("created_at", {
+      ascending: false,
+    });
 
-  if (error) {
-    console.error("Failed to fetch user projects:", error);
-    throw new Error("Failed to fetch projects");
+  if (projectIds) {
+    projectsQuery = projectsQuery.in(
+      "project_id",
+      projectIds,
+    );
   }
 
-  return data ?? [];
+  const {
+    data: projects,
+    error: projectsError,
+  } = await projectsQuery;
+
+  if (projectsError) {
+    console.error(
+      "Failed to fetch projects:",
+      projectsError.message,
+      projectsError.details,
+      projectsError.hint,
+      projectsError.code,
+    );
+
+    throw new Error(
+      projectsError.message,
+    );
+  }
+
+  if (!projects || projects.length === 0) {
+    return [];
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Project managers                                                         */
+  /* ------------------------------------------------------------------------ */
+
+  const allProjectIds = projects.map(
+    (project) => project.project_id,
+  );
+
+  const {
+    data: managers,
+    error: managersError,
+  } = await supabase
+    .from("project_members")
+    .select(`
+      project_id,
+      profile_id
+    `)
+    .in("project_id", allProjectIds)
+    .eq("role_id", 3);
+
+  if (managersError) {
+    console.error(
+      "Failed to fetch project managers:",
+      managersError.message,
+      managersError.details,
+      managersError.hint,
+      managersError.code,
+    );
+
+    throw new Error(
+      managersError.message,
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Manager profiles                                                         */
+  /* ------------------------------------------------------------------------ */
+
+  const managerProfileIds = [
+    ...new Set(
+      (managers ?? [])
+        .map(
+          (manager) =>
+            manager.profile_id,
+        )
+        .filter(
+          (id): id is string =>
+            Boolean(id),
+        ),
+    ),
+  ];
+
+  let profiles: Array<{
+    profile_id: string;
+    first_name: string;
+    last_name: string;
+  }> = [];
+
+  if (managerProfileIds.length > 0) {
+    const {
+      data: profileData,
+      error: profilesError,
+    } = await supabase
+      .from("profiles")
+      .select(`
+        profile_id,
+        first_name,
+        last_name
+      `)
+      .in(
+        "profile_id",
+        managerProfileIds,
+      );
+
+    if (profilesError) {
+      console.error(
+        "Failed to fetch manager profiles:",
+        profilesError.message,
+        profilesError.details,
+        profilesError.hint,
+        profilesError.code,
+      );
+
+      throw new Error(
+        profilesError.message,
+      );
+    }
+
+    profiles = profileData ?? [];
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Profile lookup                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  const profileMap = new Map(
+    profiles.map((profile) => [
+      profile.profile_id,
+      profile,
+    ]),
+  );
+
+  /* ------------------------------------------------------------------------ */
+  /* Return projects with project manager                                     */
+  /* ------------------------------------------------------------------------ */
+
+  return projects.map((project) => {
+    const manager = managers?.find(
+      (member) =>
+        member.project_id ===
+        project.project_id,
+    );
+
+    const managerProfile = manager?.profile_id
+      ? profileMap.get(manager.profile_id)
+      : null;
+
+    const managerName = managerProfile
+      ? `${managerProfile.first_name} ${managerProfile.last_name}`.trim()
+      : null;
+
+    return {
+      ...project,
+
+      project_manager: managerName
+        ? {
+            name: managerName,
+          }
+        : null,
+    };
+  });
 }
