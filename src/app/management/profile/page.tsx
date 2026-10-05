@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getProfile } from "@/services/auth_server";
 import { getProjects } from "@/services/projects_server";
 import { redirect } from "next/navigation";
