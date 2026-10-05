@@ -23,7 +23,6 @@ export type Task = {
   taskId: string;
   projectId: string | null;
   columnId: string | null;
-  assignedTo: string | null;
   title: string;
   description: string | null;
   priority: TaskPriority;

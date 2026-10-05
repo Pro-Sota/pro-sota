@@ -1,5 +1,6 @@
 import KanbanBoard from '@/app/components/kanban_board/kanban_board';
-import { getTaskBoard } from '@/services/projects_server';
+import { requireUser } from '@/app/lib/supabase/auth';
+import { getTaskBoard } from '@/services/task';
 
 type TasksAndWorkflowProps = {
   params: Promise<{
@@ -10,22 +11,20 @@ type TasksAndWorkflowProps = {
 export default async function TasksAndWorkflow({
   params,
 }: TasksAndWorkflowProps) {
+
   const { projectId } = await params;
 
-  const board = await getTaskBoard(projectId);
+  await requireUser();
+
+  const scope = {
+    type: 'project' as const,
+    projectId: projectId,
+  };
+
+  const initialBoard = await getTaskBoard(scope);
 
   return (
     <KanbanBoard
-      scope={{
-        type: 'project',
-        projectId
-      }} initialBoard={{
-        scope: {
-          type: 'general',
-          projectId: null
-        },
-        columns: [],
-        tasks: []
-      }}    />
+      scope={scope} initialBoard={initialBoard} />
   );
 }

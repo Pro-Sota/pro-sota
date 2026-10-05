@@ -2365,7 +2365,6 @@ export type Database = {
       tasks: {
         Row: {
           actual_hours: number | null
-          assigned_to: string | null
           column_id: string | null
           completed: boolean
           created_at: string
@@ -2383,7 +2382,6 @@ export type Database = {
         }
         Insert: {
           actual_hours?: number | null
-          assigned_to?: string | null
           column_id?: string | null
           completed?: boolean
           created_at?: string
@@ -2401,7 +2399,6 @@ export type Database = {
         }
         Update: {
           actual_hours?: number | null
-          assigned_to?: string | null
           column_id?: string | null
           completed?: boolean
           created_at?: string
@@ -2418,13 +2415,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "tasks_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
           {
             foreignKeyName: "tasks_column_id_fkey"
             columns: ["column_id"]
