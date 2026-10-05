@@ -20,7 +20,7 @@ export default function TaskMembers({ members, onAdd, onRemove }: { members: Tas
             const name = `${member.firstName} ${member.lastName}`.trim();
             return (
               <span key={member.profileId} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1">
-                <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold text-white ${getAvatarColor(name)}`}>{getInitials(member.firstName, member.lastName)}</span>
+                <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold text-white ${getAvatarColor()}`}>{getInitials(member.firstName, member.lastName)}</span>
                 <span className="text-xs font-medium text-slate-700">{name}</span>
                 <button type="button" onClick={() => onRemove(member.profileId)} aria-label={`Remover ${name}`} className="text-slate-400 hover:text-red-500"><X size={12} /></button>
               </span>
