@@ -547,58 +547,59 @@ export async function getProjectActivity(projectId: string) {
   return data;
 }
 
-
 export async function getProjectPhaseBoard(projectId: string) {
     const supabase = await getSupabase();
 
-    const [phasesResult, deliverablesResult, milestonesResult] =
-        await Promise.all([
+    const { data: phases, error: phasesError } = await supabase
+        .from("project_phases")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("sort_order", { ascending: true });
+
+    if (phasesError) {
+        throw phasesError;
+    }
+
+    const phaseIds = (phases ?? []).map(
+        (phase) => phase.phase_id
+    );
+
+    let steps = [];
+    let deliverables = [];
+
+    if (phaseIds.length > 0) {
+        const [
+            stepsResult,
+            deliverablesResult,
+        ] = await Promise.all([
             supabase
-                .from("project_phases")
+                .from("phase_steps")
                 .select("*")
-                .eq("project_id", projectId)
+                .in("phase_id", phaseIds)
                 .order("sort_order", { ascending: true }),
 
             supabase
                 .from("deliverables")
                 .select("*")
-                .eq(
-                    "phase_id",
-                 
-                    ""
-                ),
-
-            supabase
-                .from("milestones")
-                .select("*")
-                .eq("project_id", projectId)
-                .order("date", { ascending: true }),
+                .in("phase_id", phaseIds)
+                .order("sort_order", { ascending: true }),
         ]);
 
-    if (phasesResult.error) throw phasesResult.error;
-    if (milestonesResult.error) throw milestonesResult.error;
+        if (stepsResult.error) {
+            throw stepsResult.error;
+        }
 
-    const phaseIds = (phasesResult.data ?? []).map(
-        (phase) => phase.phase_id
-    );
+        if (deliverablesResult.error) {
+            throw deliverablesResult.error;
+        }
 
-    let deliverables = [];
-
-    if (phaseIds.length > 0) {
-        const { data, error } = await supabase
-            .from("deliverables")
-            .select("*")
-            .in("phase_id", phaseIds)
-            .order("sort_order", { ascending: true });
-
-        if (error) throw error;
-
-        deliverables = data ?? [];
+        steps = stepsResult.data ?? [];
+        deliverables = deliverablesResult.data ?? [];
     }
 
     return {
-        phases: phasesResult.data ?? [],
+        phases: phases ?? [],
+        steps,
         deliverables,
-        milestones: milestonesResult.data ?? [],
     };
 }

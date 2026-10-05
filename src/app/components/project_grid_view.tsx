@@ -1,12 +1,12 @@
 import { Database } from "../lib/supabase/models";
+import { ProjectListItem } from "../management/projects/types";
 import ProjectCard from "./project_card";
 
-type Project = Database["public"]["Tables"]["projects"]["Row"];
 
 export default function ProjectGridView({
   projects,
 }: {
-  projects: Project[];
+  projects: ProjectListItem[];
 }) {
   if (projects.length === 0) {
     return (

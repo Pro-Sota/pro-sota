@@ -20,6 +20,7 @@ import ProjectTableView from "@/app/components/project_table_view";
 import ProjectGridView from "@/app/components/project_grid_view";
 import ProjectMapView from "@/app/components/project_map_view";
 import { Database } from "@/app/lib/supabase/models";
+import { ProjectListItem } from "./types";
 
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                  */
@@ -66,8 +67,6 @@ const views = [
   },
 ] as const;
 
-type Project =
-  Database["public"]["Tables"]["projects"]["Row"];
 
 type ViewMode =
   (typeof views)[number]["value"];
@@ -108,7 +107,7 @@ function normalizeStatus(
 export default function ProjectsPageInner({
   projects,
 }: {
-  projects: Project[];
+  projects: ProjectListItem[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
