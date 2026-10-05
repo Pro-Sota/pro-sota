@@ -1,17 +1,12 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import {
-  ChevronDown,
-  Folder,
-  FolderPlus,
-  Loader2,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, FolderPlus, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 
 import { createClient } from "@/app/lib/supabase/client";
 
-type FolderRow = {
+export type FolderRow = {
   folder_id: string;
   project_id: string;
   parent_id: string | null;
@@ -24,10 +19,9 @@ type FolderRow = {
 };
 
 type CreateFolderDialogProps = {
-  folders?: FolderRow[];
+  folders: FolderRow[];
   parentFolderId?: string | null;
   onCreated?: (folder: FolderRow) => void;
-  onFoldersChange?: (folders: FolderRow[]) => void;
 };
 
 function createSlug(name: string) {
@@ -41,10 +35,9 @@ function createSlug(name: string) {
 }
 
 export default function CreateFolderDialog({
-  folders = [],
+  folders,
   parentFolderId = null,
   onCreated,
-  onFoldersChange,
 }: CreateFolderDialogProps) {
   const { projectId } = useParams<{ projectId: string }>();
 
@@ -58,37 +51,24 @@ export default function CreateFolderDialog({
 
   const supabase = useMemo(() => createClient(), []);
 
-  // Update selectedParentId when parentFolderId prop changes
   useEffect(() => {
     if (open) {
       setSelectedParentId(parentFolderId);
     }
   }, [parentFolderId, open]);
 
-  /*
-   * Build the complete hierarchy path for every folder.
-   *
-   * Example:
-   *
-   * Arquitectura
-   * Arquitectura / Plantas
-   * Arquitectura / Plantas / Piso 1
-   * Construção
-   * Construção / Orçamento
-   */
   const folderOptions = useMemo(() => {
     const projectFolders = folders.filter(
       (folder) => folder.project_id === projectId,
     );
 
     function getFolderPath(folder: FolderRow): string {
-      const path: string[] = [folder.name];
+      const path = [folder.name];
       const visited = new Set<string>();
 
       let currentParentId = folder.parent_id;
 
       while (currentParentId) {
-        // Protect against malformed/cyclic folder relationships.
         if (visited.has(currentParentId)) {
           break;
         }
@@ -122,20 +102,6 @@ export default function CreateFolderDialog({
       );
   }, [folders, projectId]);
 
-  const selectedParent = useMemo(() => {
-    if (!selectedParentId) {
-      return null;
-    }
-
-    return (
-      folders.find(
-        (folder) =>
-          folder.folder_id === selectedParentId &&
-          folder.project_id === projectId,
-      ) ?? null
-    );
-  }, [folders, selectedParentId, projectId]);
-
   const selectedParentPath = useMemo(() => {
     if (!selectedParentId) {
       return "Pasta principal";
@@ -144,22 +110,14 @@ export default function CreateFolderDialog({
     return (
       folderOptions.find(
         (folder) => folder.folder_id === selectedParentId,
-      )?.path ??
-      selectedParent?.name ??
-      "Pasta principal"
+      )?.path ?? "Pasta principal"
     );
-  }, [folderOptions, selectedParent, selectedParentId]);
-
-  function resetForm() {
-    setName("");
-    setSelectedParentId(parentFolderId);
-    setError("");
-  }
+  }, [folderOptions, selectedParentId]);
 
   function openDialog() {
-    setSelectedParentId(parentFolderId);
     setName("");
     setError("");
+    setSelectedParentId(parentFolderId);
     setOpen(true);
   }
 
@@ -169,7 +127,9 @@ export default function CreateFolderDialog({
     }
 
     setOpen(false);
-    resetForm();
+    setName("");
+    setError("");
+    setSelectedParentId(parentFolderId);
   }
 
   async function handleCreateFolder() {
@@ -186,20 +146,12 @@ export default function CreateFolderDialog({
     }
 
     if (trimmedName.length > 100) {
-      setError("O nome da pasta não pode ultrapassar 100 caracteres.");
+      setError(
+        "O nome da pasta não pode ultrapassar 100 caracteres.",
+      );
       return;
     }
 
-    /*
-     * Check duplicates only inside the selected parent.
-     *
-     * This allows:
-     *
-     * Arquitectura / Plantas
-     * Construção / Plantas
-     *
-     * because they have different parent_id values.
-     */
     const duplicate = folders.some(
       (folder) =>
         folder.project_id === projectId &&
@@ -226,15 +178,13 @@ export default function CreateFolderDialog({
     setError("");
 
     try {
-      /*
-       * Get the next sort order only from siblings
-       * inside the selected parent.
-       */
       let sortQuery = supabase
         .from("folders")
         .select("sort_order")
         .eq("project_id", projectId)
-        .order("sort_order", { ascending: false })
+        .order("sort_order", {
+          ascending: false,
+        })
         .limit(1);
 
       if (selectedParentId) {
@@ -271,7 +221,7 @@ export default function CreateFolderDialog({
           is_system: false,
           slug,
         })
-        .select()
+        .select("*")
         .single();
 
       if (insertError) {
@@ -291,13 +241,11 @@ export default function CreateFolderDialog({
         );
       }
 
-      // Add new folder to the list so it's available immediately
-      const updatedFolders = [...folders, data];
-      onFoldersChange?.(updatedFolders);
-      onCreated?.(data);
+      const newFolder = data as FolderRow;
 
-      setOpen(false);
-      resetForm();
+      onCreated?.(newFolder);
+
+      closeDialog();
     } catch (err) {
       console.error("Create folder error:", err);
 
@@ -316,10 +264,14 @@ export default function CreateFolderDialog({
       <button
         type="button"
         onClick={openDialog}
-        aria-label="Criar nova pasta"
-        className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-[#BD9655] px-3 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90"
+        aria-label={
+          parentFolderId
+            ? "Criar subpasta"
+            : "Criar nova pasta"
+        }
+        className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md bg-[#BD9655] px-3 text-xs font-medium text-[#002950] transition hover:bg-[#002950] hover:text-white"
       >
-        <FolderPlus className="h-4 w-4" />
+        <FolderPlus className="h-3.5 w-3.5" />
         Nova pasta
       </button>
 
@@ -347,17 +299,17 @@ export default function CreateFolderDialog({
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
-                Organize os documentos do projecto criando uma nova
-                pasta.
+                {selectedParentId
+                  ? `Criar uma pasta dentro de ${selectedParentPath}.`
+                  : "Criar uma nova pasta principal."}
               </p>
             </div>
 
             <div className="space-y-5 px-6 py-5">
-              {/* Folder name */}
               <div>
                 <label
                   htmlFor="folder-name"
-                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                  className="mb-1.5 block text-sm font-medium text-[#002950]"
                 >
                   Nome da pasta
                 </label>
@@ -368,10 +320,7 @@ export default function CreateFolderDialog({
                   value={name}
                   onChange={(event) => {
                     setName(event.target.value);
-
-                    if (error) {
-                      setError("");
-                    }
+                    setError("");
                   }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !loading) {
@@ -383,15 +332,14 @@ export default function CreateFolderDialog({
                   maxLength={100}
                   autoFocus
                   disabled={loading}
-                  className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/20 disabled:cursor-not-allowed disabled:bg-gray-50"
+                  className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-[#002950] outline-none transition placeholder:text-gray-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/20 disabled:cursor-not-allowed disabled:bg-gray-50"
                 />
               </div>
 
-              {/* Parent folder */}
               <div>
                 <label
                   htmlFor="folder-parent"
-                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                  className="mb-1.5 block text-sm font-medium text-[#002950]"
                 >
                   Dentro de
                 </label>
@@ -404,13 +352,10 @@ export default function CreateFolderDialog({
                       setSelectedParentId(
                         event.target.value || null,
                       );
-
-                      if (error) {
-                        setError("");
-                      }
+                      setError("");
                     }}
                     disabled={loading}
-                    className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-900 outline-none transition focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/20 disabled:cursor-not-allowed disabled:bg-gray-50"
+                    className="h-10 w-full appearance-none rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-[#002950] outline-none transition focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/20 disabled:cursor-not-allowed disabled:bg-gray-50"
                   >
                     <option value="">
                       Pasta principal
@@ -426,26 +371,10 @@ export default function CreateFolderDialog({
                     ))}
                   </select>
 
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                </div>
-
-                {/* Selected location */}
-                <div className="mt-2 flex items-center gap-2 rounded-md bg-gray-50 px-3 py-2">
-                  <Folder className="h-4 w-4 shrink-0 text-[#BD9655]" />
-
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
-                      Localização
-                    </p>
-
-                    <p className="truncate text-sm text-[#002950]">
-                      {selectedParentPath}
-                    </p>
-                  </div>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#002950]" />
                 </div>
               </div>
 
-              {/* Error */}
               {error && (
                 <div
                   role="alert"
@@ -456,12 +385,12 @@ export default function CreateFolderDialog({
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-6 py-4">
+            <div className="flex justify-end gap-2 border-t border-gray-200 px-6 py-4">
               <button
                 type="button"
                 onClick={closeDialog}
                 disabled={loading}
-                className="h-9 rounded-md px-4 text-sm font-medium text-[#BD9655] transition hover:bg-[#002950]/15 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-9 rounded-md px-4 text-sm font-medium text-[#002950] hover:bg-[#BD9655]/10 disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -470,7 +399,7 @@ export default function CreateFolderDialog({
                 type="button"
                 onClick={handleCreateFolder}
                 disabled={loading || !name.trim()}
-                className="inline-flex h-9 items-center gap-2 rounded-md bg-[#BD9655] px-4 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-2 rounded-md bg-[#BD9655] px-4 text-sm font-medium text-[#002950] transition hover:bg-[#002950] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading && (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -483,158 +412,5 @@ export default function CreateFolderDialog({
         </div>
       )}
     </>
-  );
-}
-
-/**
- * ============================================================================
- * EXAMPLE PARENT COMPONENT - How to use CreateFolderDialog correctly
- * ============================================================================
- */
-
-type FolderTreeNodeProps = {
-  folder: FolderRow;
-  folders: FolderRow[];
-  onFoldersChange: (folders: FolderRow[]) => void;
-};
-
-function FolderTreeNode({
-  folder,
-  folders,
-  onFoldersChange,
-}: FolderTreeNodeProps) {
-  const [expanded, setExpanded] = useState(false);
-
-  const childFolders = folders.filter(
-    (f) => f.parent_id === folder.folder_id,
-  );
-
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2 px-2 py-1">
-        {childFolders.length > 0 && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="p-0.5 hover:bg-gray-100 rounded"
-          >
-            <ChevronDown
-              className={`h-4 w-4 transition ${
-                expanded ? "" : "-rotate-90"
-              }`}
-            />
-          </button>
-        )}
-
-        {childFolders.length === 0 && (
-          <div className="w-5" />
-        )}
-
-        <Folder className="h-4 w-4 text-[#BD9655]" />
-        <span className="text-sm">{folder.name}</span>
-
-        {/* Create subfolder button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-          className="ml-auto text-xs text-[#BD9655] hover:text-[#002950]"
-        >
-          {/* Use CreateFolderDialog with this folder as parent */}
-          <CreateFolderDialog
-            folders={folders}
-            parentFolderId={folder.folder_id}
-            onFoldersChange={onFoldersChange}
-          />
-        </button>
-      </div>
-
-      {expanded && childFolders.length > 0 && (
-        <div className="ml-4 space-y-1">
-          {childFolders.map((childFolder) => (
-            <FolderTreeNode
-              key={childFolder.folder_id}
-              folder={childFolder}
-              folders={folders}
-              onFoldersChange={onFoldersChange}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function ProjectFolderPage() {
-  const { projectId } = useParams<{ projectId: string }>();
-  const [folders, setFolders] = useState<FolderRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const supabase = useMemo(() => createClient(), []);
-
-  // Fetch all folders on mount
-  useEffect(() => {
-    const fetchFolders = async () => {
-      if (!projectId) return;
-
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("folders")
-          .select("*")
-          .eq("project_id", projectId)
-          .order("sort_order", { ascending: true });
-
-        if (error) throw error;
-
-        setFolders(data || []);
-      } catch (err) {
-        console.error("Failed to fetch folders:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFolders();
-  }, [projectId, supabase]);
-
-  const rootFolders = useMemo(() => {
-    return folders.filter((folder) => folder.parent_id === null);
-  }, [folders]);
-
-  if (loading) {
-    return <div className="p-8">A carregador pastas...</div>;
-  }
-
-  return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#002950]">
-          Pastas do Projecto
-        </h1>
-        {/* Create root folder button */}
-        <CreateFolderDialog
-          folders={folders}
-          parentFolderId={null}
-          onFoldersChange={setFolders}
-        />
-      </div>
-
-      <div className="space-y-2">
-        {rootFolders.length === 0 ? (
-          <p className="text-gray-500">
-            Nenhuma pasta criada ainda. Crie a primeira pasta para começar.
-          </p>
-        ) : (
-          rootFolders.map((folder) => (
-            <FolderTreeNode
-              key={folder.folder_id}
-              folder={folder}
-              folders={folders}
-              onFoldersChange={setFolders}
-            />
-          ))
-        )}
-      </div>
-    </div>
   );
 }

@@ -8,7 +8,6 @@ export function taskMatchesSearch(task: Task, query: string) {
     task.title,
     task.description ?? '',
     task.priority,
-    task.assignedTo ?? '',
     ...task.members.flatMap((member) => [member.firstName, member.lastName]),
   ].some((field) => field.toLowerCase().includes(value));
 }

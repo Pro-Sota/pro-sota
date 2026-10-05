@@ -3,6 +3,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import CreateFolderDialog from "./create_folder_dialog";
 import UploadDocument from "./upload_document";
+import { Database } from "../../../../../../../../models";
+
+type Folder = Database["public"]["Tables"]["folders"]["Row"];
 
 const viewOptions = [
   { value: "list", label: "List", icon: List },
@@ -10,8 +13,10 @@ const viewOptions = [
 ] as const;
 
 export default function DocumentToolbar({
+  folders,
   view,
 }: {
+  folders: Folder[];
   view: "list" | "grid";
 }) {
   const router = useRouter();
@@ -31,7 +36,11 @@ export default function DocumentToolbar({
   return (
     <div className="sticky top-0 z-10 flex h-[60px] items-center justify-between gap-2 border-b bg-white px-4">
       <div className="flex items-center gap-2">
-        <CreateFolderDialog />
+        <CreateFolderDialog
+          folders={folders}
+          parentFolderId={null}
+          onCreated={() => {}}
+        />
         <UploadDocument />
       </div>
 

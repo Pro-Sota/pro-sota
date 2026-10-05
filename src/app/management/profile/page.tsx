@@ -1,5 +1,5 @@
 import { getProfile } from "@/services/auth_server";
-import { getUserProjects } from "@/services/projects";
+import { getProjects } from "@/services/projects_server";
 import { redirect } from "next/navigation";
 import ProfileClient from "./profile_page";
 
@@ -12,7 +12,7 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  const projects = await getUserProjects(profile.profile_id) ;
+  const projects = await getProjects();
 
   return (
     <ProfileClient

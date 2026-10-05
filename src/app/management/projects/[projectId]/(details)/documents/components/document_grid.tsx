@@ -1,4 +1,5 @@
 "use client";
+
 import DocumentCard from "./document_card";
 import EmptyFolder from "./empty_folder";
 import FolderCard from "./folder_card";
@@ -31,7 +32,7 @@ export default function DocumentGridView({
 
   return (
     <div className="pb-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 auto-rows-min">
+      <div className="grid auto-rows-min grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {folders.map((folder) => (
           <div key={folder.folder_id}>
             <FolderCard folder={folder} view={view} />

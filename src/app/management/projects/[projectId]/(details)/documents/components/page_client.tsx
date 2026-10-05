@@ -645,7 +645,7 @@ export default function DocumentInit({
             {/* Toolbar */}
 
             <div className="shrink-0">
-              <DocumentToolbar view={view} />
+              <DocumentToolbar folders={folders} view={view} />
             </div>
           </div>
         </header>
