@@ -15,9 +15,11 @@ const viewOptions = [
 export default function DocumentToolbar({
   folders,
   view,
+  projectId
 }: {
   folders: Folder[];
   view: "list" | "grid";
+  projectId: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();

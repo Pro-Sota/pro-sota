@@ -13,14 +13,18 @@ interface DocumentGridViewProps {
   folders: Folder[];
   documents: Document[];
   view: string;
+  projectId: string;
 }
 
 export default function DocumentGridView({
   folders,
   documents,
   view,
+  projectId,
 }: DocumentGridViewProps) {
   const isEmpty = folders.length === 0 && documents.length === 0;
+
+  
 
   if (isEmpty) {
     return (
@@ -35,7 +39,7 @@ export default function DocumentGridView({
       <div className="grid auto-rows-min grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {folders.map((folder) => (
           <div key={folder.folder_id}>
-            <FolderCard folder={folder} view={view} />
+            <FolderCard folder={folder} view={view} folders={folders} projectId={projectId} />
           </div>
         ))}
 

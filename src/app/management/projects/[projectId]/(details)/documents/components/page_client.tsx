@@ -24,10 +24,10 @@ type Document = Database["public"]["Tables"]["documents"]["Row"];
 
 interface EmptyStateProps {
   type:
-    | "all-files"
-    | "recents"
-    | "empty-folder"
-    | "no-documents";
+  | "all-files"
+  | "recents"
+  | "empty-folder"
+  | "no-documents";
   currentView: "grid" | "list";
   folderName?: string;
   onUploadClick?: () => void;
@@ -189,7 +189,7 @@ function DocumentBreadcrumb({
   isRecents,
 }: DocumentBreadcrumbProps) {
 
-  
+
   const router = useRouter();
 
   const basePath =
@@ -232,7 +232,7 @@ function DocumentBreadcrumb({
       .join("/");
   }
 
-  
+
 
   return (
     <nav
@@ -326,8 +326,8 @@ function DocumentBreadcrumb({
             : isRecents
               ? "Recentes"
               : breadcrumbFolders[
-                    breadcrumbFolders.length - 1
-                  ]?.name ?? "Documentos"}
+                breadcrumbFolders.length - 1
+              ]?.name ?? "Documentos"}
         </span>
       </div>
     </nav>
@@ -347,7 +347,7 @@ export default function DocumentInit({
   onUpload,
 }: DocumentPageClientProps) {
 
-   const normalizedFolder = useMemo(() => {
+  const normalizedFolder = useMemo(() => {
     return folder.map((segment) => {
       return normalizeSlug(segment);
     });
@@ -383,7 +383,7 @@ export default function DocumentInit({
   /* Resolve current folder                                                   */
   /* ------------------------------------------------------------------------ */
 
-    const currentFolder = useMemo(() => {
+  const currentFolder = useMemo(() => {
     if (isAllFiles || isRecents) {
       return null;
     }
@@ -516,7 +516,7 @@ export default function DocumentInit({
       : isAllFiles
         ? "all-files"
         : filteredFolders.length > 0 &&
-            filteredDocuments.length === 0
+          filteredDocuments.length === 0
           ? "no-documents"
           : "empty-folder";
 
@@ -645,7 +645,7 @@ export default function DocumentInit({
             {/* Toolbar */}
 
             <div className="shrink-0">
-              <DocumentToolbar folders={folders} view={view} />
+              <DocumentToolbar folders={folders} view={view} projectId={projectId} />
             </div>
           </div>
         </header>
@@ -723,8 +723,7 @@ export default function DocumentInit({
                   <DocumentGridView
                     folders={filteredFolders}
                     documents={filteredDocuments}
-                    view={view}
-                  />
+                    view={view} projectId={projectId} />
                 )}
               </div>
             )}
