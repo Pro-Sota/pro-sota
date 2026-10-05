@@ -64,7 +64,7 @@ export default function KanbanTaskCard({
             {task.members.slice(0, 3).map((member) => {
               const name = `${member.firstName} ${member.lastName}`.trim();
               return (
-                <span key={member.profileId} title={name} className={`flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold text-white ring-2 ring-slate-50 ${getAvatarColor(name)}`}>
+                <span key={member.profileId} title={name} className={`flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold text-white ring-2 ring-slate-50 ${getAvatarColor()}`}>
                   {getInitials(member.firstName, member.lastName)}
                 </span>
               );
