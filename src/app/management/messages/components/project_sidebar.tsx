@@ -18,9 +18,83 @@ interface ProjectSideBarProps {
   data: ProjectSidebarData;
 }
 
+function getRoleLabel(role: unknown): string {
+  if (typeof role === "string") {
+    return role.trim() || "Membro";
+  }
+
+  if (typeof role === "number") {
+    return `Função ${role}`;
+  }
+
+  if (role && typeof role === "object") {
+    const value = role as Record<string, unknown>;
+
+    if (typeof value.name === "string") {
+      return value.name.trim() || "Membro";
+    }
+
+    if (typeof value.role_name === "string") {
+      return value.role_name.trim() || "Membro";
+    }
+
+    if (typeof value.label === "string") {
+      return value.label.trim() || "Membro";
+    }
+  }
+
+  return "Membro";
+}
+
 export default function ProjectSideBar({
   data,
 }: ProjectSideBarProps) {
+  /**
+   * project_members contains one row per:
+   *
+   * profile + project + role
+   *
+   * A person can therefore legitimately appear multiple
+   * times when they have multiple roles in the project.
+   *
+   * The sidebar represents people, so group memberships
+   * by profile_id and combine their roles.
+   */
+  const membersByProfile = new Map<
+    string,
+    {
+      profile: (typeof data.members)[number]["profile"];
+      roles: string[];
+    }
+  >();
+
+  for (const member of data.members) {
+    const profileId = member.profile.profile_id;
+
+    if (!profileId) {
+      continue;
+    }
+
+    const role = getRoleLabel(member.role);
+
+    const existing = membersByProfile.get(profileId);
+
+    if (existing) {
+      if (!existing.roles.includes(role)) {
+        existing.roles.push(role);
+      }
+    } else {
+      membersByProfile.set(profileId, {
+        profile: member.profile,
+        roles: [role],
+      });
+    }
+  }
+
+  const uniqueMembers = Array.from(
+    membersByProfile.values(),
+  );
+
   return (
     <aside className="hidden h-full min-h-0 w-[320px] shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-white xl:flex">
       {/* Header */}
@@ -37,9 +111,7 @@ export default function ProjectSideBar({
           <InfoCard
             icon={<Building2 size={16} />}
             label={LABELS.status}
-            value={
-              data.project.status ?? "—"
-            }
+            value={data.project.status ?? "—"}
           />
 
           {/* Deadline */}
@@ -50,14 +122,11 @@ export default function ProjectSideBar({
               data.project.end_date
                 ? new Date(
                     data.project.end_date,
-                  ).toLocaleDateString(
-                    "pt-AO",
-                    {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    },
-                  )
+                  ).toLocaleDateString("pt-AO", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })
                 : "—"
             }
           />
@@ -66,19 +135,18 @@ export default function ProjectSideBar({
           <InfoCard
             icon={<Users size={16} />}
             label={LABELS.team}
-            value={`${data.members.length} ${LABELS.members}`}
+            value={`${uniqueMembers.length} ${LABELS.members}`}
           />
 
           {/* Recent file */}
           <InfoCard
             icon={<FolderOpen size={16} />}
             label={LABELS.recentFiles}
-            value={
-              data.recentFile?.name ?? "—"
-            }
+            value={data.recentFile?.name ?? "—"}
           />
 
-          {data.members.length > 0 && (
+          {/* Team members */}
+          {uniqueMembers.length > 0 && (
             <>
               <div className="my-4 h-px bg-slate-200" />
 
@@ -88,8 +156,8 @@ export default function ProjectSideBar({
                 </h3>
 
                 <div className="space-y-3">
-                  {data.members.map(
-                    ({ profile, role }) => {
+                  {uniqueMembers.map(
+                    ({ profile, roles }) => {
                       const fullName = [
                         profile.first_name,
                         profile.last_name,
@@ -116,9 +184,7 @@ export default function ProjectSideBar({
 
                       return (
                         <div
-                          key={
-                            profile.profile_id
-                          }
+                          key={profile.profile_id}
                           className="flex items-center gap-3"
                         >
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-300 text-xs font-semibold text-white">
@@ -131,8 +197,7 @@ export default function ProjectSideBar({
                             </p>
 
                             <p className="text-xs text-slate-500">
-                              {role ??
-                                "Membro"}
+                              {roles.join(" • ")}
                             </p>
                           </div>
                         </div>

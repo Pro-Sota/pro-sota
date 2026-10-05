@@ -3,75 +3,95 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-interface ProjectSideBarProps {
+interface ProjectNavbarProps {
   projectId: string;
 }
 
 export default function ProjectNavbar({
   projectId,
-}: ProjectSideBarProps) {
+}: ProjectNavbarProps) {
   const pathname = usePathname();
+
+  const basePath = `/management/projects/${projectId}`;
 
   const tabMenu = [
     {
       name: "Overview",
-      href: `/management/projects/${projectId}/overview`,
+      href: `${basePath}/overview`,
     },
     {
       name: "Fases",
-      href: `/management/projects/${projectId}/phases`,
+      href: `${basePath}/phases`,
     },
     {
       name: "Tarefas",
-      href: `/management/projects/${projectId}/tasks`,
+      href: `${basePath}/tasks`,
     },
     {
       name: "Documentos",
-      href: `/management/projects/${projectId}/documents?view=list`,
+      href: `${basePath}/documents?view=list`,
+      matchPath: `${basePath}/documents`,
     },
-  /*   {
-      name: "Orçamento e custos",
-      href: `/management/projects/${projectId}/budget`,
-    }, */
     {
       name: "Aprovações e Comentários",
-      href: `/management/projects/${projectId}/approvals-and-reviews`,
+      href: `${basePath}/approvals-and-reviews`,
     },
     {
       name: "Equipa",
-      href: `/management/projects/${projectId}/team`,
+      href: `${basePath}/team`,
     },
   ];
 
-  const isActive = (href: string) => {
-    if (href.includes("/documents")) {
-      return pathname.startsWith(
-        `/management/projects/${projectId}/documents`
-      );
-    }
+  const isActive = (item: (typeof tabMenu)[number]) => {
+    const pathToMatch = item.matchPath ?? item.href.split("?")[0];
 
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return (
+      pathname === pathToMatch ||
+      pathname.startsWith(`${pathToMatch}/`)
+    );
   };
 
   return (
-    <nav className="shrink-0 border-b border-gray-200 px-4 bg-white">
-      <ul className="flex flex-row gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <nav
+      aria-label="Navegação do projecto"
+      className="shrink-0 border-b border-gray-200 bg-white px-4"
+    >
+      <ul
+        className="
+          flex flex-row gap-2 overflow-x-auto
+          [-ms-overflow-style:none]
+          [scrollbar-width:none]
+          [&::-webkit-scrollbar]:hidden
+        "
+      >
         {tabMenu.map((item) => {
-          const active = isActive(item.href);
+          const active = isActive(item);
+
           return (
             <li key={item.href} className="shrink-0">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative block whitespace-nowrap px-3 py-3 text-sm font-medium transition-colors ${active
+                className={[
+                  "relative block whitespace-nowrap px-3 py-3",
+                  "text-sm font-medium transition-colors",
+                  "focus-visible:outline-none",
+                  "focus-visible:ring-2 focus-visible:ring-[#002950]",
+                  "focus-visible:ring-offset-2",
+                  active
                     ? "text-gray-900"
-                    : "text-gray-500 hover:text-gray-900"
-                  }`}
+                    : "text-gray-500 hover:text-gray-900",
+                ].join(" ")}
               >
                 {item.name}
+
                 <span
-                  className={`absolute inset-x-0 -bottom-px h-0.5 rounded-full transition-colors ${active ? "bg-gray-900" : "bg-transparent"
-                    }`}
+                  aria-hidden="true"
+                  className={[
+                    "absolute inset-x-0 -bottom-px h-0.5 rounded-full",
+                    "transition-colors",
+                    active ? "bg-gray-900" : "bg-transparent",
+                  ].join(" ")}
                 />
               </Link>
             </li>

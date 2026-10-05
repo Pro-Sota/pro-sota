@@ -45,10 +45,10 @@ export interface AdminDashboardData extends DashboardData {
   teamWorkload: TeamWorkload[];
 }
 
-/**
- * Current authenticated user's dashboard.
- * Data is scoped to the authenticated user where appropriate.
- */
+/* -------------------------------------------------------------------------- */
+/* User dashboard                                                             */
+/* -------------------------------------------------------------------------- */
+
 export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await getSupabase();
 
@@ -71,41 +71,59 @@ export async function getDashboardData(): Promise<DashboardData> {
     projectsResult,
     clientsResult,
     documentsResult,
-    tasksResult,
+    taskMembersResult,
     deadlinesResult,
     activitiesResult,
   ] = await Promise.all([
+    /* Current profile */
     supabase
       .from("profiles")
       .select("*")
       .eq("profile_id", user.id)
       .maybeSingle(),
 
+    /* Projects where the current user is a member */
     supabase
       .from("projects")
       .select("*, project_members!inner(*)")
       .eq("project_members.profile_id", user.id),
 
+    /* Clients */
     supabase
       .from("clients")
       .select("*"),
 
+    /* Documents uploaded by the current user */
     supabase
       .from("documents")
       .select("*")
       .eq("uploaded_by", user.id),
 
+    /*
+     * Tasks assigned to the current user.
+     *
+     * IMPORTANT:
+     * tasks.assigned_to no longer exists.
+     * Assignment is now represented by task_members.
+     */
     supabase
-      .from("tasks")
-      .select("*")
-      .eq("assigned_to", user.id),
+      .from("task_members")
+      .select(`
+        task_id,
+        tasks (*)
+      `)
+      .eq("profile_id", user.id),
 
+    /* Tasks with deadlines assigned to the current user */
     supabase
-      .from("tasks")
-      .select("*")
-      .not("due_date", "is", null)
-      .order("due_date", { ascending: true }),
+      .from("task_members")
+      .select(`
+        task_id,
+        tasks (*)
+      `)
+      .eq("profile_id", user.id),
 
+    /* Recent activities */
     supabase
       .from("activities")
       .select("*")
@@ -117,7 +135,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     projectsResult.error,
     clientsResult.error,
     documentsResult.error,
-    tasksResult.error,
+    taskMembersResult.error,
     deadlinesResult.error,
     activitiesResult.error,
   ].filter(Boolean);
@@ -131,26 +149,57 @@ export async function getDashboardData(): Promise<DashboardData> {
     throw new Error("Failed to fetch dashboard data");
   }
 
+  /*
+   * task_members is the assignment table.
+   * Extract the actual tasks from the relationship.
+   */
+  const tasks: Task[] = (taskMembersResult.data ?? []).flatMap((member) => {
+    const relatedTasks = member.tasks;
+
+    if (!relatedTasks) {
+      return [];
+    }
+
+    return Array.isArray(relatedTasks) ? relatedTasks : [relatedTasks];
+  });
+
+  /*
+   * Remove duplicates because a task should normally have one membership
+   * for the current user, but this also protects the dashboard from
+   * accidental duplicate task_members rows.
+   */
+  const uniqueTasks = Array.from(
+    new Map(tasks.map((task) => [task.task_id, task])).values(),
+  );
+
+  /*
+   * Only return tasks that actually have a deadline.
+   */
+  const deadlines: Task[] = uniqueTasks
+    .filter((task) => task.due_date !== null)
+    .sort((a, b) => {
+      const dateA = new Date(a.due_date!).getTime();
+      const dateB = new Date(b.due_date!).getTime();
+
+      return dateA - dateB;
+    });
+
   return {
     currentUser: currentUserResult.data ?? null,
     users: [],
     projects: projectsResult.data ?? [],
     clients: clientsResult.data ?? [],
     documents: documentsResult.data ?? [],
-    tasks: tasksResult.data ?? [],
-    deadlines: deadlinesResult.data ?? [],
+    tasks: uniqueTasks,
+    deadlines,
     activities: activitiesResult.data ?? [],
   };
 }
 
-/**
- * Admin dashboard.
- *
- * Unlike getDashboardData(), this function does NOT scope the data
- * to the currently authenticated user.
- *
- * The admin receives company-wide data.
- */
+/* -------------------------------------------------------------------------- */
+/* Admin dashboard                                                            */
+/* -------------------------------------------------------------------------- */
+
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const supabase = await getSupabase();
 
@@ -169,8 +218,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   }
 
   /*
-   * First get the authenticated profile.
-   * This also lets us verify that the caller is an administrator.
+   * Get the authenticated profile first.
    */
   const currentUserResult = await supabase
     .from("profiles")
@@ -197,17 +245,6 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     throw new Error("Acesso não autorizado.");
   }
 
-  /*
-   * Admin data:
-   *
-   * profiles   -> all users
-   * projects   -> all projects
-   * clients    -> all clients
-   * documents  -> all documents
-   * tasks      -> all tasks
-   * deadlines  -> all tasks with deadlines
-   * activities -> all activities
-   */
   const [
     usersResult,
     projectsResult,
@@ -218,37 +255,45 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     activitiesResult,
     workloadResult,
   ] = await Promise.all([
+    /* All users */
     supabase
       .from("profiles")
       .select("*"),
 
+    /* All projects */
     supabase
       .from("projects")
       .select("*"),
 
+    /* All clients */
     supabase
       .from("clients")
       .select("*"),
 
+    /* All documents */
     supabase
       .from("documents")
       .select("*"),
 
+    /* All tasks */
     supabase
       .from("tasks")
       .select("*"),
 
+    /* All tasks with deadlines */
     supabase
       .from("tasks")
       .select("*")
       .not("due_date", "is", null)
       .order("due_date", { ascending: true }),
 
+    /* Recent activities */
     supabase
       .from("activities")
       .select("*")
       .order("created_at", { ascending: false }),
 
+    /* Workload based on task_members */
     getTeamWorkload(),
   ]);
 
@@ -284,59 +329,72 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   };
 }
 
-/**
- * Calculates workload for the entire team.
- */
+/* -------------------------------------------------------------------------- */
+/* Team workload                                                              */
+/* -------------------------------------------------------------------------- */
+
 export async function getTeamWorkload(): Promise<TeamWorkload[]> {
   const supabase = await getSupabase();
 
-  const { data: tasks, error } = await supabase
-    .from("tasks")
-    .select(
-      `
+  /*
+   * IMPORTANT:
+   *
+   * tasks.assigned_to no longer exists.
+   *
+   * Assignment is:
+   *
+   * task_members.profile_id
+   * task_members.task_id
+   *
+   * Therefore workload must be calculated from task_members.
+   */
+  const { data: taskMembers, error } = await supabase
+    .from("task_members")
+    .select(`
+      task_id,
+      profile_id,
+      tasks (
         task_id,
-        assigned_to,
         estimated_hours,
         actual_hours,
-        completed,
-        profiles:assigned_to(
-          profile_id,
-          first_name,
-          last_name
-        )
-      `,
-    )
-    .not("assigned_to", "is", null);
+        completed
+      ),
+      profiles (
+        profile_id,
+        first_name,
+        last_name
+      )
+    `);
 
   if (error) {
-    if (error) {
-      console.error("Error fetching team workload:", {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      });
-
-      return [];
-    }
+    console.error("Error fetching team workload:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
 
     return [];
   }
 
-  if (!tasks || tasks.length === 0) {
+  if (!taskMembers || taskMembers.length === 0) {
     return [];
   }
 
   const members = new Map<string, TeamWorkload>();
 
-  for (const task of tasks) {
-    if (!task.assigned_to) {
+  for (const member of taskMembers) {
+    const task = Array.isArray(member.tasks)
+      ? member.tasks[0]
+      : member.tasks;
+
+    if (!member.profile_id || !task) {
       continue;
     }
 
-    const profile = Array.isArray(task.profiles)
-      ? task.profiles[0]
-      : task.profiles;
+    const profile = Array.isArray(member.profiles)
+      ? member.profiles[0]
+      : member.profiles;
 
     const firstName = profile?.first_name ?? "";
     const lastName = profile?.last_name ?? "";
@@ -347,10 +405,12 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     const estimatedHours = Number(task.estimated_hours ?? 0);
     const actualHours = Number(task.actual_hours ?? 0);
 
-    const isCompleted =
-      task.completed === "completed";
+    /*
+     * tasks.completed is a boolean in the current schema.
+     */
+    const isCompleted = Boolean(task.completed);
 
-    const existing = members.get(task.assigned_to);
+    const existing = members.get(member.profile_id);
 
     if (existing) {
       existing.total_tasks += 1;
@@ -363,8 +423,8 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
         existing.pending_tasks += 1;
       }
     } else {
-      members.set(task.assigned_to, {
-        user_id: task.assigned_to,
+      members.set(member.profile_id, {
+        user_id: member.profile_id,
         name,
         total_tasks: 1,
         completed_tasks: isCompleted ? 1 : 0,
@@ -381,16 +441,23 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
 
   const workload = Array.from(members.values());
 
+  /*
+   * Calculate remaining hours.
+   */
   for (const member of workload) {
     member.hours_remaining =
       member.pending_tasks > 0
         ? Math.max(
-          0,
-          member.estimated_hours - member.actual_hours,
-        )
+            0,
+            member.estimated_hours -
+              member.actual_hours,
+          )
         : 0;
   }
 
+  /*
+   * Calculate percentage of total remaining workload.
+   */
   const totalRemainingHours = workload.reduce(
     (total, member) =>
       total + member.hours_remaining,
@@ -401,13 +468,16 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     member.workload_percentage =
       totalRemainingHours > 0
         ? Math.round(
-          (member.hours_remaining /
-            totalRemainingHours) *
-          100,
-        )
+            (member.hours_remaining /
+              totalRemainingHours) *
+              100,
+          )
         : 0;
   }
 
+  /*
+   * Highest workload first.
+   */
   workload.sort(
     (a, b) =>
       b.workload_percentage -

@@ -2,9 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+
 import { Database } from "../lib/supabase/models";
-import { getProjectManager } from "@/services/projects";
-import { useEffect, useState } from "react";
 
 const STATUS_LABELS = {
   "em-curso": "Em curso",
@@ -16,51 +15,71 @@ const STATUS_LABELS = {
 const STATUS_COLORS = {
   "em-curso": "bg-blue-100 text-blue-700 border border-blue-200",
   concluido: "bg-green-100 text-green-700 border border-green-200",
-  "em-observacao": "bg-amber-100 text-amber-700 border border-amber-200",
+  "em-observacao":
+    "bg-amber-100 text-amber-700 border border-amber-200",
   "em-pausa": "bg-gray-100 text-gray-700 border border-gray-200",
 } as const;
 
 const DEFAULT_PROJECT_IMAGE = "/images/arch.jpg";
+
 const IMAGE_WIDTH = 400;
 const IMAGE_HEIGHT = 300;
 
-type Project = Database["public"]["Tables"]["projects"]["Row"] & {
-  progress?: number | null;
-  clients?: {
-    name: string;
-  } | null;
-};
+type Project =
+  Database["public"]["Tables"]["projects"]["Row"] & {
+    progress?: number | null;
+    clients?: {
+      name: string;
+    } | null;
+    project_manager?: {
+      name: string | null;
+    } | null;
+  };
 
-export default function ProjectCard({ project }: { project: Project }) {
-  const projectImage = project.image ?? DEFAULT_PROJECT_IMAGE;
+export default function ProjectCard({
+  project,
+}: {
+  project: Project;
+}) {
+  const projectImage =
+    project.image ?? DEFAULT_PROJECT_IMAGE;
 
-  const statusKey = project.status as keyof typeof STATUS_LABELS | undefined;
+  const statusKey =
+    project.status as
+      | keyof typeof STATUS_LABELS
+      | undefined;
+
   const statusLabel =
-    statusKey && statusKey in STATUS_LABELS
+    statusKey &&
+    statusKey in STATUS_LABELS
       ? STATUS_LABELS[statusKey]
       : project.status ?? "Sem estado";
 
   const statusColor =
-    statusKey && statusKey in STATUS_COLORS
+    statusKey &&
+    statusKey in STATUS_COLORS
       ? STATUS_COLORS[statusKey]
       : "bg-gray-100 text-gray-600 border border-gray-200";
 
-  const progress = Math.min(Math.max(project.progress ?? 0, 0), 100);
+  const progress = Math.min(
+    Math.max(project.progress ?? 0, 0),
+    100
+  );
 
-  const clientName = project.client_id ?? null;
+  const clientName =
+    project.clients?.name ??
+    project.client_id ??
+    null;
+
   const hasClient = Boolean(clientName);
-  const hasLocation = Boolean(project.address_line_1?.trim());
-  const [manager, setManager] = useState("");
 
-  useEffect(() => {
-    async function setProjectManager(){
-      const manager = await getProjectManager(project.project_id);
-      setManager(manager ?? "Sem responsável");
-    }
+  const hasLocation =
+    Boolean(project.address_line_1?.trim());
 
-    setProjectManager();
-  },[project.project_id, setManager])
-  
+  const managerName =
+    project.project_manager?.name ??
+    "Sem responsável";
+
   return (
     <Link
       href={`/management/projects/${project.project_id}`}
@@ -122,8 +141,12 @@ export default function ProjectCard({ project }: { project: Project }) {
             <span className="text-xs sm:text-sm text-gray-600 font-medium">
               Progresso
             </span>
+
             <span className="text-sm sm:text-base font-semibold text-gray-900 tabular-nums">
-              {progress}<span className="text-gray-500 font-normal">%</span>
+              {progress}
+              <span className="text-gray-500 font-normal">
+                %
+              </span>
             </span>
           </div>
 
@@ -152,7 +175,7 @@ export default function ProjectCard({ project }: { project: Project }) {
           </div>
         </div>
 
-        {/* Info Section - Flexes to fill space */}
+        {/* Info Section */}
         <div className="flex-grow min-w-0 gap-2 mt-2">
           <div className="space-y-2 text-xs sm:text-sm">
             {hasClient && (
@@ -160,6 +183,7 @@ export default function ProjectCard({ project }: { project: Project }) {
                 <span className="text-gray-500 flex-shrink-0 font-medium">
                   Cliente:
                 </span>
+
                 <span className="text-gray-700 truncate font-medium">
                   {clientName}
                 </span>
@@ -171,6 +195,7 @@ export default function ProjectCard({ project }: { project: Project }) {
                 <span className="text-gray-500 flex-shrink-0 font-medium">
                   Localização:
                 </span>
+
                 <span className="text-gray-700 truncate">
                   {project.address_line_1}
                 </span>
@@ -178,21 +203,24 @@ export default function ProjectCard({ project }: { project: Project }) {
             )}
 
             <div className="flex items-start gap-2 min-w-0">
-                <span className="text-gray-500 flex-shrink-0 font-medium">
-                  Responsavel:
-                </span>
-                <span className="text-gray-700 truncate font-medium">
-                  {manager}
-                </span>
-              </div>
+              <span className="text-gray-500 flex-shrink-0 font-medium">
+                Responsável:
+              </span>
+
+              <span className="text-gray-700 truncate font-medium">
+                {managerName}
+              </span>
+            </div>
+
             <div className="flex items-start gap-2 min-w-0">
-                <span className="text-gray-500 flex-shrink-0 font-medium">
-                  Prazo:
-                </span>
-                <span className="text-gray-700 truncate font-medium">
-                  {project.end_date}
-                </span>
-              </div>
+              <span className="text-gray-500 flex-shrink-0 font-medium">
+                Prazo:
+              </span>
+
+              <span className="text-gray-700 truncate font-medium">
+                {project.end_date}
+              </span>
+            </div>
 
             {!hasClient && !hasLocation && (
               <p className="text-gray-400 text-xs italic pt-1">
@@ -202,7 +230,7 @@ export default function ProjectCard({ project }: { project: Project }) {
           </div>
         </div>
 
-        {/* Footer Action Hint - Only on hover */}
+        {/* Footer Action Hint */}
         <div className="flex-shrink-0 pt-2 border-t border-gray-100">
           <p className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors duration-200">
             Clique para ver detalhes →

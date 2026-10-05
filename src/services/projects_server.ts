@@ -2,99 +2,6 @@ import { createClient } from "@/app/lib/supabase/server";
 import { cookies } from "next/headers";
 
 
-export async function getProjects() {
-  try {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
-
-    /* ---------------------------------------------------------------------- */
-    /* Current authenticated user                                             */
-    /* ---------------------------------------------------------------------- */
-
-    const {
-      data: { user },                
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) {
-      throw new Error(userError.message);
-    }
-
-    if (!user) {
-      return [];
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* User profile                                                            */
-    /* ---------------------------------------------------------------------- */
-
-    const {
-      data: profile,
-      error: profileError,  
-    } = await supabase
-      .from("profiles")
-      .select("profile_id")
-      .eq("profile_id", user.id)
-      .single();
-
-    if (profileError) {
-      throw new Error(profileError.message);
-    }
-
-    if (!profile) {
-      return [];
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* Projects                                                                */
-    /* ---------------------------------------------------------------------- */
-
-    const {
-      data,
-      error,
-    } = await supabase
-      .from("projects")
-      .select(`
-        *,
-        project_members!inner (
-          profile_id
-        )
-      `)
-      .eq(
-        "project_members.profile_id",
-        profile.profile_id,
-      )
-      .order("created_at", {
-        ascending: false,
-      });
-
-    if (error) {
-      console.error(
-        "getProjects error:",
-        error,
-      );
-
-      throw new Error(error.message);
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* Remove project_members from returned project objects                    */
-    /* ---------------------------------------------------------------------- */
-
-    return (data ?? []).map(
-      ({ project_members, ...project }) =>
-        project,
-    );
-  } catch (error) {
-    console.error(
-      "getProjects error:",
-      error,
-    );
-
-    throw error;
-  }
-}
-
 // src/services/project_tasks_server.ts
 
 import type {
@@ -467,4 +374,47 @@ export async function getProjectTaskBoard(
   }
 
   return getTaskBoard(projectId);
+}
+
+export async function getProjects(options?: { all?: boolean }) {
+  const supabase = createClient(await cookies());
+
+  if (options?.all) {
+    const { data, error } = await supabase
+      .from("projects")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Failed to fetch all projects:", error);
+      throw new Error("Failed to fetch projects");
+    }
+
+    return data ?? [];
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Utilizador não autenticado.");
+  }
+
+  const { data, error } = await supabase
+    .from("projects")
+    .select(`
+      *,
+      project_members!inner(*)
+    `)
+    .eq("project_members.profile_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Failed to fetch user projects:", error);
+    throw new Error("Failed to fetch projects");
+  }
+
+  return data ?? [];
 }

@@ -44,9 +44,7 @@ import {
   prepareProjectPayload,
 } from "./utils";
 
-const DRAFT_STORAGE_KEY =
-  "pro-sota:new-project:draft";
-
+const DRAFT_STORAGE_KEY = "pro-sota:new-project:draft";
 const DRAFT_VERSION = 1;
 
 type StoredProjectDraft = {
@@ -71,34 +69,23 @@ export default function NewProjectForm({
   const router = useRouter();
 
   const [form, setForm] =
-    useState<ProjectFormState>(
-      INITIAL_PROJECT
-    );
+    useState<ProjectFormState>(INITIAL_PROJECT);
 
-  const [submitted, setSubmitted] =
+  const [submitted, setSubmitted] = useState(false);
+
+  const [createdProjectId, setCreatedProjectId] =
+    useState<string | null>(null);
+
+  const [showCancelConfirm, setShowCancelConfirm] =
     useState(false);
 
-  const [
-    createdProjectId,
-    setCreatedProjectId,
-  ] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [
-    showCancelConfirm,
-    setShowCancelConfirm,
-  ] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
 
-  const [submitting, setSubmitting] =
-    useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
 
-  const [savingDraft, setSavingDraft] =
-    useState(false);
-
-  const [draftLoaded, setDraftLoaded] =
-    useState(false);
-
-  const [hasDraft, setHasDraft] =
-    useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
 
   const [draftSavedAt, setDraftSavedAt] =
     useState<Date | null>(null);
@@ -112,21 +99,13 @@ export default function NewProjectForm({
   const [formError, setFormError] =
     useState<string | null>(null);
 
-  const initialLoadRef =
-    useRef(true);
+  const initialLoadRef = useRef(true);
 
   const autoSaveTimeoutRef =
-    useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
+    useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sectionRefs =
-    useRef<
-      Record<
-        string,
-        HTMLDivElement | null
-      >
-    >({});
+    useRef<Record<string, HTMLDivElement | null>>({});
 
   const progress = useMemo(
     () => calculateProgress(form),
@@ -134,44 +113,29 @@ export default function NewProjectForm({
   );
 
   const duration = useMemo(() => {
-    if (
-      !form.start_date ||
-      !form.end_date
-    ) {
+    if (!form.start_date || !form.end_date) {
       return 0;
     }
 
-    const durationInfo =
-      calculateDuration(
-        form.start_date,
-        form.end_date
-      );
+    const durationInfo = calculateDuration(
+      form.start_date,
+      form.end_date
+    );
 
     return durationInfo.invalid
       ? 0
       : durationInfo.totalDays ?? 0;
-  }, [
-    form.start_date,
-    form.end_date,
-  ]);
+  }, [form.start_date, form.end_date]);
 
   const isComplete = useMemo(() => {
-    const title = String(
-      form.title ?? ""
-    ).trim();
-
+    const title = String(form.title ?? "").trim();
     const projectCode = String(
       form.project_code ?? ""
     ).trim();
-
-    const projectType = String(
-      form.type ?? ""
-    ).trim();
-
+    const projectType = String(form.type ?? "").trim();
     const municipality = String(
       form.municipality ?? ""
     ).trim();
-
     const address = String(
       form.address_line_1 ?? ""
     ).trim();
@@ -184,13 +148,8 @@ export default function NewProjectForm({
     if (!form.start_date) return false;
     if (!form.end_date) return false;
 
-    const start = new Date(
-      form.start_date
-    );
-
-    const end = new Date(
-      form.end_date
-    );
+    const start = new Date(form.start_date);
+    const end = new Date(form.end_date);
 
     if (
       Number.isNaN(start.getTime()) ||
@@ -228,9 +187,7 @@ export default function NewProjectForm({
       }
 
       const parsed =
-        JSON.parse(
-          rawDraft
-        ) as StoredProjectDraft;
+        JSON.parse(rawDraft) as StoredProjectDraft;
 
       if (
         !parsed ||
@@ -254,14 +211,9 @@ export default function NewProjectForm({
       setHasDraft(true);
 
       if (parsed.savedAt) {
-        const savedDate =
-          new Date(parsed.savedAt);
+        const savedDate = new Date(parsed.savedAt);
 
-        if (
-          !Number.isNaN(
-            savedDate.getTime()
-          )
-        ) {
+        if (!Number.isNaN(savedDate.getTime())) {
           setDraftSavedAt(savedDate);
         }
       }
@@ -286,8 +238,7 @@ export default function NewProjectForm({
 
   const persistDraft = useCallback(
     (currentForm: ProjectFormState) => {
-      const savedAt =
-        new Date().toISOString();
+      const savedAt = new Date().toISOString();
 
       const draft: StoredProjectDraft = {
         version: DRAFT_VERSION,
@@ -301,49 +252,43 @@ export default function NewProjectForm({
       );
 
       setHasDraft(true);
-      setDraftSavedAt(
-        new Date(savedAt)
-      );
+      setDraftSavedAt(new Date(savedAt));
       setDraftSaveError(null);
     },
     []
   );
 
-  const handleSaveDraft =
-    useCallback(async () => {
-      if (
-        savingDraft ||
-        submitting
-      ) {
-        return;
-      }
+  const handleSaveDraft = useCallback(async () => {
+    if (savingDraft || submitting) {
+      return;
+    }
 
-      setSavingDraft(true);
-      setDraftSaveError(null);
-      setFormError(null);
+    setSavingDraft(true);
+    setDraftSaveError(null);
+    setFormError(null);
 
-      try {
-        persistDraft(form);
-      } catch (error) {
-        console.error(
-          "[NewProject] Save draft error:",
-          error
-        );
+    try {
+      persistDraft(form);
+    } catch (error) {
+      console.error(
+        "[NewProject] Save draft error:",
+        error
+      );
 
-        setDraftSaveError(
-          error instanceof Error
-            ? error.message
-            : "Não foi possível guardar o rascunho."
-        );
-      } finally {
-        setSavingDraft(false);
-      }
-    }, [
-      form,
-      persistDraft,
-      savingDraft,
-      submitting,
-    ]);
+      setDraftSaveError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível guardar o rascunho."
+      );
+    } finally {
+      setSavingDraft(false);
+    }
+  }, [
+    form,
+    persistDraft,
+    savingDraft,
+    submitting,
+  ]);
 
   useEffect(() => {
     if (!draftLoaded) {
@@ -355,71 +300,50 @@ export default function NewProjectForm({
     }
 
     if (autoSaveTimeoutRef.current) {
-      clearTimeout(
-        autoSaveTimeoutRef.current
-      );
+      clearTimeout(autoSaveTimeoutRef.current);
     }
 
     const hasContent =
-      Boolean(
-        String(
-          form.title ?? ""
-        ).trim()
-      ) ||
+      Boolean(String(form.title ?? "").trim()) ||
       Boolean(form.start_date) ||
       Boolean(form.end_date) ||
       Boolean(
-        String(
-          form.description ?? ""
-        ).trim()
+        String(form.description ?? "").trim()
       );
 
     if (!hasContent) {
       return;
     }
 
-    autoSaveTimeoutRef.current =
-      setTimeout(() => {
-        try {
-          setIsAutoSaving(true);
-          persistDraft(form);
-        } catch (error) {
-          console.error(
-            "[NewProject] Auto-save error:",
-            error
-          );
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      try {
+        setIsAutoSaving(true);
+        persistDraft(form);
+      } catch (error) {
+        console.error(
+          "[NewProject] Auto-save error:",
+          error
+        );
 
-          setDraftSaveError(
-            "Não foi possível guardar automaticamente o rascunho."
-          );
-        } finally {
-          setIsAutoSaving(false);
-        }
-      }, 1000);
+        setDraftSaveError(
+          "Não foi possível guardar automaticamente o rascunho."
+        );
+      } finally {
+        setIsAutoSaving(false);
+      }
+    }, 1000);
 
     return () => {
-      if (
-        autoSaveTimeoutRef.current
-      ) {
-        clearTimeout(
-          autoSaveTimeoutRef.current
-        );
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [
-    form,
-    draftLoaded,
-    persistDraft,
-  ]);
+  }, [form, draftLoaded, persistDraft]);
 
   useEffect(() => {
     return () => {
-      if (
-        autoSaveTimeoutRef.current
-      ) {
-        clearTimeout(
-          autoSaveTimeoutRef.current
-        );
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
       }
     };
   }, []);
@@ -436,25 +360,22 @@ export default function NewProjectForm({
     setDraftSaveError(null);
   }
 
-  const scrollToSection =
-    useCallback(
-      (section: SectionKey) => {
-        const element =
-          sectionRefs.current[
-            section
-          ];
+  const scrollToSection = useCallback(
+    (section: SectionKey) => {
+      const element =
+        sectionRefs.current[section];
 
-        if (!element) {
-          return;
-        }
+      if (!element) {
+        return;
+      }
 
-        element.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      },
-      []
-    );
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    },
+    []
+  );
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>
@@ -478,43 +399,53 @@ export default function NewProjectForm({
     setSubmitting(true);
 
     try {
-      if (
-        autoSaveTimeoutRef.current
-      ) {
-        clearTimeout(
-          autoSaveTimeoutRef.current
-        );
+      /* ------------------------------------------------------------------ */
+      /* Cancel pending autosave                                            */
+      /* ------------------------------------------------------------------ */
 
-        autoSaveTimeoutRef.current =
-          null;
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+        autoSaveTimeoutRef.current = null;
       }
 
-      const payload =
-        prepareProjectPayload(form);
+      /* ------------------------------------------------------------------ */
+      /* Prepare payload                                                     */
+      /* ------------------------------------------------------------------ */
 
-      const [data, error] =
-        await createProject(
-          payload
-        );
+      const payload = prepareProjectPayload(form);
 
-      if (error) {
-        throw new Error(
-          error.message ||
-            "Não foi possível criar o projecto."
-        );
-      }
+      /* ------------------------------------------------------------------ */
+      /* Create project                                                      */
+      /* ------------------------------------------------------------------ */
 
-      if (!data) {
-        throw new Error(
-          "O projecto não foi criado."
-        );
-      }
+      const {
+        project,
+        provisioning,
+      } = await createProject(payload);
 
-      if (!data.project_id) {
+      /* ------------------------------------------------------------------ */
+      /* Validate response                                                   */
+      /* ------------------------------------------------------------------ */
+
+      if (!project?.project_id) {
         throw new Error(
           "O projecto foi criado, mas o ID não foi retornado."
         );
       }
+
+      console.log(
+        "[NewProject] Project created:",
+        project
+      );
+
+      console.log(
+        "[NewProject] Project provisioning:",
+        provisioning
+      );
+
+      /* ------------------------------------------------------------------ */
+      /* Remove saved draft                                                  */
+      /* ------------------------------------------------------------------ */
 
       try {
         window.localStorage.removeItem(
@@ -526,11 +457,13 @@ export default function NewProjectForm({
 
       setHasDraft(false);
       setDraftSavedAt(null);
+      setDraftSaveError(null);
 
-      setCreatedProjectId(
-        data.project_id
-      );
+      /* ------------------------------------------------------------------ */
+      /* Success                                                             */
+      /* ------------------------------------------------------------------ */
 
+      setCreatedProjectId(project.project_id);
       setSubmitted(true);
     } catch (error) {
       console.error(
@@ -568,10 +501,7 @@ export default function NewProjectForm({
   }
 
   function handleCancelClick() {
-    if (
-      submitting ||
-      savingDraft
-    ) {
+    if (submitting || savingDraft) {
       return;
     }
 
@@ -581,9 +511,7 @@ export default function NewProjectForm({
   function confirmCancel() {
     setShowCancelConfirm(false);
 
-    router.push(
-      "/management/projects"
-    );
+    router.push("/management/projects");
   }
 
   function resetForCreateAnother() {
@@ -604,10 +532,7 @@ export default function NewProjectForm({
     setDraftSaveError(null);
   }
 
-  if (
-    submitted &&
-    createdProjectId
-  ) {
+  if (submitted && createdProjectId) {
     return (
       <SuccessScreen
         projectName={form.title}
@@ -617,9 +542,7 @@ export default function NewProjectForm({
             `/management/projects/${createdProjectId}`
           )
         }
-        onCreateAnother={
-          resetForCreateAnother
-        }
+        onCreateAnother={resetForCreateAnother}
       />
     );
   }
@@ -635,10 +558,7 @@ export default function NewProjectForm({
             <button
               type="button"
               onClick={handleCancelClick}
-              disabled={
-                submitting ||
-                savingDraft
-              }
+              disabled={submitting || savingDraft}
               className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900 disabled:opacity-50"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -678,23 +598,22 @@ export default function NewProjectForm({
                 </>
               )}
 
-              {!isAutoSaving &&
-                draftSavedAt && (
-                  <>
-                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+              {!isAutoSaving && draftSavedAt && (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-600" />
 
-                    <span>
-                      Guardado às{" "}
-                      {draftSavedAt.toLocaleTimeString(
-                        "pt-AO",
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )}
-                    </span>
-                  </>
-                )}
+                  <span>
+                    Guardado às{" "}
+                    {draftSavedAt.toLocaleTimeString(
+                      "pt-AO",
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }
+                    )}
+                  </span>
+                </>
+              )}
 
               {!isAutoSaving &&
                 !draftSavedAt &&
@@ -786,8 +705,7 @@ export default function NewProjectForm({
                   onChange={(event) =>
                     handleFormChange({
                       client_id:
-                        event.target.value ||
-                        null,
+                        event.target.value || null,
                     })
                   }
                   disabled={submitting}
@@ -799,20 +717,14 @@ export default function NewProjectForm({
                       : "Seleccionar cliente"}
                   </option>
 
-                  {clients.map(
-                    (client) => (
-                      <option
-                        key={
-                          client.client_id
-                        }
-                        value={
-                          client.client_id
-                        }
-                      >
-                        {client.label}
-                      </option>
-                    )
-                  )}
+                  {clients.map((client) => (
+                    <option
+                      key={client.client_id}
+                      value={client.client_id}
+                    >
+                      {client.label}
+                    </option>
+                  ))}
                 </select>
 
                 <button
@@ -955,46 +867,25 @@ export default function NewProjectForm({
                 <div className="mt-4 space-y-1">
                   {(
                     [
-                      [
-                        "information",
-                        "Informações",
-                      ],
-                      [
-                        "client",
-                        "Cliente",
-                      ],
-                      [
-                        "location",
-                        "Localização",
-                      ],
-                      [
-                        "timeline",
-                        "Planeamento",
-                      ],
+                      ["information", "Informações"],
+                      ["client", "Cliente"],
+                      ["location", "Localização"],
+                      ["timeline", "Planeamento"],
                     ] as const
-                  ).map(
-                    ([
-                      section,
-                      label,
-                    ]) => (
-                      <button
-                        key={section}
-                        type="button"
-                        onClick={() =>
-                          scrollToSection(
-                            section
-                          )
-                        }
-                        className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-                      >
-                        <span>
-                          {label}
-                        </span>
+                  ).map(([section, label]) => (
+                    <button
+                      key={section}
+                      type="button"
+                      onClick={() =>
+                        scrollToSection(section)
+                      }
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                    >
+                      <span>{label}</span>
 
-                        <ChevronRight className="h-4 w-4 text-slate-300" />
-                      </button>
-                    )
-                  )}
+                      <ChevronRight className="h-4 w-4 text-slate-300" />
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -1015,10 +906,7 @@ export default function NewProjectForm({
                     style={{
                       width: `${Math.min(
                         100,
-                        Math.max(
-                          0,
-                          progress
-                        )
+                        Math.max(0, progress)
                       )}%`,
                     }}
                   />
@@ -1054,8 +942,7 @@ export default function NewProjectForm({
                 type="button"
                 onClick={handleCancelClick}
                 disabled={
-                  submitting ||
-                  savingDraft
+                  submitting || savingDraft
                 }
                 className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -1067,8 +954,7 @@ export default function NewProjectForm({
                   type="button"
                   onClick={discardDraft}
                   disabled={
-                    submitting ||
-                    savingDraft
+                    submitting || savingDraft
                   }
                   className="rounded-lg border border-rose-200 px-4 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1078,12 +964,9 @@ export default function NewProjectForm({
 
               <button
                 type="button"
-                onClick={
-                  handleSaveDraft
-                }
+                onClick={handleSaveDraft}
                 disabled={
-                  submitting ||
-                  savingDraft
+                  submitting || savingDraft
                 }
                 className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
