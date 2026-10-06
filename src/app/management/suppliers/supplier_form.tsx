@@ -14,15 +14,19 @@ import type {
   Supplier,
 } from "./types";
 
+type SupplierFormProps = {
+  supplier?: Supplier;
+  action: (formData: FormData) => Promise<void>;
+  mode: "create" | "edit";
+};
+
+
+
 export default function SupplierForm({
   supplier,
   action,
   mode,
-}: {
-  supplier?: Supplier;
-  action: (formData: FormData) => void | Promise<void>;
-  mode: "create" | "edit";
-}) {
+}: SupplierFormProps) {
   const isEdit = mode === "edit";
 
   const tags = Array.isArray(supplier?.tags)

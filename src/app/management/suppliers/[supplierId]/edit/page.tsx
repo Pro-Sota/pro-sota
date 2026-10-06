@@ -16,8 +16,7 @@ export default async function EditSupplierPage({
 }: Props) {
   const { supplierId } = await params;
 
-  const supplier =
-    await getSupplierById(supplierId);
+  const supplier = await getSupplierById(supplierId);
 
   if (!supplier) {
     notFound();
@@ -26,14 +25,7 @@ export default async function EditSupplierPage({
   return (
     <SupplierForm
       supplier={supplier}
-      action={async (formData) =>
-        updateSupplierAction(
-          supplierId,
-          Object.fromEntries(formData.entries()) as Parameters<
-            typeof updateSupplierAction
-          >[1],
-        )
-      }
+      action={updateSupplierAction}
       mode="edit"
     />
   );

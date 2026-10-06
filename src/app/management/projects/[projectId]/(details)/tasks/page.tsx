@@ -24,7 +24,6 @@ export default async function TasksAndWorkflow({
 
     const [initialBoard, availableMembers] = await Promise.all([getTaskBoard(scope), getTaskMembers()]);
   
-
   return (
     <KanbanBoard
       scope={scope} initialBoard={initialBoard} availableMembers={availableMembers} />

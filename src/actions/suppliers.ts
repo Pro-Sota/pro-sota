@@ -1,14 +1,18 @@
 "use server";
 
-import { createClient } from "@/app/lib/supabase/server";
 import {
   addSupplierProject,
   createSupplierActivity,
   createSupplierEvaluation,
   removeSupplierProject,
-  SupplierUpdate,
+  updateSupplier,
+  type SupplierUpdate,
 } from "@/services/supplier";
-import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
+
+/* -------------------------------------------------------------------------- */
+/* Supplier evaluation                                                       */
+/* -------------------------------------------------------------------------- */
 
 export async function createSupplierEvaluationAction(
   supplierId: string,
@@ -38,19 +42,25 @@ export async function createSupplierEvaluationAction(
     comment: input.comment ?? null,
   });
 
+  const rating = calculateRating(input);
+
   await createSupplierActivity(
     supplierId,
     "evaluation_created",
-    `Avaliação adicionada — ${calculateRating(input).toFixed(1)}`,
+    `Avaliação adicionada — ${rating.toFixed(1)}`,
     null,
     {
       evaluation_id: evaluation.evaluation_id,
-      rating: calculateRating(input),
+      rating,
     }
   );
 
   return evaluation;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Supplier project                                                          */
+/* -------------------------------------------------------------------------- */
 
 export async function addSupplierProjectAction(
   supplierId: string,
@@ -93,6 +103,112 @@ export async function removeSupplierProjectAction(
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Update supplier                                                            */
+/* -------------------------------------------------------------------------- */
+
+export async function updateSupplierAction(
+  formData: FormData
+): Promise<void> {
+  const supplierId = String(
+    formData.get("supplier_id") ?? ""
+  ).trim();
+
+  if (!supplierId) {
+    throw new Error(
+      "O ID do fornecedor é obrigatório."
+    );
+  }
+
+  const supplierName = String(
+    formData.get("supplier_name") ?? ""
+  ).trim();
+
+  if (!supplierName) {
+    throw new Error(
+      "O nome do fornecedor é obrigatório."
+    );
+  }
+
+  const ratingValue = String(
+    formData.get("rating") ?? ""
+  ).trim();
+
+  const rating = ratingValue
+    ? Number(ratingValue)
+    : null;
+
+  if (
+    rating !== null &&
+    (!Number.isFinite(rating) ||
+      rating < 1 ||
+      rating > 5)
+  ) {
+    throw new Error(
+      "A avaliação deve estar entre 1 e 5."
+    );
+  }
+
+  const tags = String(
+    formData.get("tags") ?? ""
+  )
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+  const data: SupplierUpdate = {
+    supplier_name: supplierName,
+    nif: String(
+      formData.get("nif") ?? ""
+    ).trim(),
+    person_of_contact: String(
+      formData.get("person_of_contact") ?? ""
+    ).trim(),
+    phone_number: String(
+      formData.get("phone_number") ?? ""
+    ).trim(),
+    address_line_1: String(
+      formData.get("address_line_1") ?? ""
+    ).trim(),
+    city: String(
+      formData.get("city") ?? ""
+    ).trim(),
+    country:
+      String(
+        formData.get("country") ?? ""
+      ).trim() || "Angola",
+    category: String(
+      formData.get("category") ?? ""
+    ).trim(),
+    sub_category: String(
+      formData.get("sub_category") ?? ""
+    ).trim(),
+    tags,
+    rating,
+    status:
+      String(
+        formData.get("status") ?? ""
+      ).trim() || "Prospective",
+  };
+
+  await updateSupplier(
+    supplierId,
+    data
+  );
+
+  revalidatePath("/management/suppliers");
+  revalidatePath(
+    `/management/suppliers/${supplierId}`
+  );
+  revalidatePath(
+    `/management/suppliers/${supplierId}/edit`
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
 function calculateRating(input: {
   quality: number;
   delivery: number;
@@ -108,34 +224,4 @@ function calculateRating(input: {
       input.reliability) /
     5
   );
-}
-
-
-export async function updateSupplierAction(
-  supplierId: string,
-  data: SupplierUpdate
-) {
-  const supabase = createClient(await cookies());
-
-  const { data: supplier, error } = await supabase
-    .from("suppliers")
-    .update(data)
-    .eq("supplier_id", supplierId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("updateSupplier:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
-
-    throw new Error(
-      "Não foi possível actualizar o fornecedor."
-    );
-  }
-
-  return supplier;
 }
