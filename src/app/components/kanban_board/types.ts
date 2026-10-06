@@ -1,8 +1,18 @@
-export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
+export type TaskPriority =
+  | "low"
+  | "medium"
+  | "high"
+  | "critical";
 
 export type TaskScope =
-  | { type: 'general'; projectId: null }
-  | { type: 'project'; projectId: string };
+  | {
+      type: "general";
+      projectId: null;
+    }
+  | {
+      type: "project";
+      projectId: string;
+    };
 
 export type KanbanColumn = {
   columnId: string;
@@ -20,19 +30,46 @@ export type TaskMember = {
 
 export type Task = {
   taskId: string;
+
+  /**
+   * Null for general/personal tasks.
+   * Set for project tasks.
+   */
   projectId: string | null;
+
+  /**
+   * User who created the task.
+   *
+   * This is NOT an assignment.
+   * The creator does not automatically become a task member.
+   */
+  createdBy: string;
+
   columnId: string | null;
+
   title: string;
   description: string | null;
+
   priority: TaskPriority;
+
   startDate: string | null;
   dueDate: string | null;
+
   estimatedHours: number | null;
   actualHours: number | null;
+
   position: number;
+
   createdAt: string;
   updatedAt: string;
+
   completed: boolean;
+
+  /**
+   * Users explicitly assigned to the task.
+   *
+   * The creator may or may not be included here.
+   */
   members: TaskMember[];
 };
 
@@ -45,15 +82,27 @@ export type KanbanBoardData = {
 export type CreateTaskInput = {
   title: string;
   description?: string | null;
+
   columnId?: string | null;
-  assignedTo?: string | null;
+
+  /**
+   * Explicitly assigned users.
+   *
+   * Do not automatically add the authenticated user here.
+   */
+  memberIds?: string[];
+
   priority?: TaskPriority;
+
   startDate?: string | null;
   dueDate?: string | null;
+
   estimatedHours?: number | null;
 };
 
-export type UpdateTaskInput = Partial<Omit<CreateTaskInput, 'columnId'>> & {
+export type UpdateTaskInput = Partial<
+  Omit<CreateTaskInput, "columnId">
+> & {
   columnId?: string | null;
   actualHours?: number | null;
   completed?: boolean;

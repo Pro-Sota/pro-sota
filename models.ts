@@ -1150,6 +1150,13 @@ export type Database = {
             referencedRelation: "projects"
             referencedColumns: ["project_id"]
           },
+          {
+            foreignKeyName: "project_phases_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
         ]
       }
       project_resource_stock: {
@@ -2405,6 +2412,7 @@ export type Database = {
           is_completed: boolean
           name: string
           position: number
+          profile_id: string | null
           project_id: string | null
           updated_at: string
         }
@@ -2414,6 +2422,7 @@ export type Database = {
           is_completed?: boolean
           name: string
           position?: number
+          profile_id?: string | null
           project_id?: string | null
           updated_at?: string
         }
@@ -2423,10 +2432,18 @@ export type Database = {
           is_completed?: boolean
           name?: string
           position?: number
+          profile_id?: string | null
           project_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "task_columns_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
           {
             foreignKeyName: "task_columns_project_id_fkey"
             columns: ["project_id"]
@@ -2478,6 +2495,7 @@ export type Database = {
           column_id: string | null
           completed: boolean
           created_at: string
+          created_by: string | null
           description: string | null
           due_date: string | null
           estimated_hours: number | null
@@ -2495,6 +2513,7 @@ export type Database = {
           column_id?: string | null
           completed?: boolean
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           estimated_hours?: number | null
@@ -2512,6 +2531,7 @@ export type Database = {
           column_id?: string | null
           completed?: boolean
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           estimated_hours?: number | null
@@ -2549,6 +2569,10 @@ export type Database = {
       get_or_create_direct_conversation: {
         Args: { other_user: string; profile_id: string }
         Returns: string
+      }
+      provision_project_defaults: {
+        Args: { p_creator_profile_id: string; p_project_id: string }
+        Returns: Json
       }
     }
     Enums: {

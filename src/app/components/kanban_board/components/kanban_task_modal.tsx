@@ -44,22 +44,29 @@ export default function TaskModal({
   onDelete,
 }: TaskModalProps) {
   const [title, setTitle] = useState(task.title);
+
   const [members, setMembers] = useState<TaskMember[]>(
     task.members ?? [],
   );
+
   const [description, setDescription] = useState(
     task.description ?? "",
   );
+
   const [completed, setCompleted] = useState(
     Boolean(task.completed),
   );
+
   const [priority, setPriority] = useState(task.priority);
+
   const [startDate, setStartDate] = useState(
     task.startDate ?? "",
   );
+
   const [dueDate, setDueDate] = useState(
     task.dueDate ?? "",
   );
+
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -119,11 +126,17 @@ export default function TaskModal({
 
     const input: UpdateTaskInput = {
       title: trimmedTitle,
-      description: trimmedDescription,
+      description: trimmedDescription || null,
       completed,
       priority,
       startDate: startDate || null,
       dueDate: dueDate || null,
+
+      // Explicit assignment list.
+      // The creator is NOT automatically added.
+      memberIds: members.map(
+        (member) => member.profileId,
+      ),
     };
 
     setIsSaving(true);
@@ -220,7 +233,8 @@ export default function TaskModal({
                 }
                 aria-label="Eliminar tarefa"
                 title="Eliminar tarefa"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500"
+                disabled={isSaving}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -230,7 +244,8 @@ export default function TaskModal({
                 onClick={onClose}
                 aria-label="Fechar"
                 title="Fechar"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                disabled={isSaving}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <X className="h-4 w-4" />
               </button>

@@ -37,41 +37,42 @@ function mapTask(row: any): Task {
     : [];
 
   return {
-    taskId: row.task_id,
-    projectId: row.project_id,
-    columnId: row.column_id,
+  taskId: row.task_id,
+  projectId: row.project_id,
+  columnId: row.column_id,
 
-    title: row.title,
-    description: row.description,
+  title: row.title,
+  description: row.description,
 
-    priority: row.priority,
+  priority: row.priority,
 
-    startDate: row.start_date,
-    dueDate: row.due_date,
+  startDate: row.start_date,
+  dueDate: row.due_date,
 
-    estimatedHours: row.estimated_hours,
-    actualHours: row.actual_hours,
+  estimatedHours: row.estimated_hours,
+  actualHours: row.actual_hours,
 
-    position: row.position,
+  position: row.position,
 
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
 
-    completed: row.completed,
+  completed: row.completed,
 
-    members: members.map((member: any) => {
-      const profile = Array.isArray(member.profiles)
-        ? member.profiles[0]
-        : member.profiles;
+  members: members.map((member: any) => {
+    const profile = Array.isArray(member.profiles)
+      ? member.profiles[0]
+      : member.profiles;
 
-      return {
-        profileId: member.profile_id,
-        firstName: profile?.first_name ?? '',
-        lastName: profile?.last_name ?? '',
-        picture: profile?.profile_picture ?? null,
-      };
-    }),
-  };
+    return {
+      profileId: member.profile_id,
+      firstName: profile?.first_name ?? '',
+      lastName: profile?.last_name ?? '',
+      picture: profile?.profile_picture ?? null,
+    };
+  }),
+  createdBy: ""
+};
 }
 
 /* -------------------------------------------------------------------------- */
@@ -93,39 +94,30 @@ export async function getTaskBoard(
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    throw new Error('Utilizador não autenticado.');
+    throw new Error("Utilizador não autenticado.");
   }
 
   /* ---------------------------------------------------------------------- */
   /* User profile                                                           */
   /* ---------------------------------------------------------------------- */
 
-  /*
-   * IMPORTANT:
-   *
-   * This assumes profiles.profile_id is the auth user's ID.
-   *
-   * If your profiles table has a separate auth/user column,
-   * change this query to use that column instead.
-   */
-
   const {
     data: profile,
     error: profileError,
   } = await supabase
-    .from('profiles')
-    .select('profile_id')
-    .eq('profile_id', user.id)
+    .from("profiles")
+    .select("profile_id")
+    .eq("profile_id", user.id)
     .single();
 
   if (profileError || !profile) {
     console.error(
-      'Failed to find user profile:',
+      "Failed to find user profile:",
       profileError,
     );
 
     throw new Error(
-      'Perfil do utilizador não encontrado.',
+      "Perfil do utilizador não encontrado.",
     );
   }
 
@@ -136,23 +128,36 @@ export async function getTaskBoard(
   /* ---------------------------------------------------------------------- */
 
   let columnsQuery = supabase
-    .from('task_columns')
+    .from("task_columns")
     .select(`
       column_id,
       project_id,
+      profile_id,
       name,
       position,
       is_completed,
       created_at,
       updated_at
     `)
-    .order('position', { ascending: true });
+    .order("position", { ascending: true });
 
-  if (scope.type === 'general') {
-    columnsQuery = columnsQuery.is('project_id', null);
+  if (scope.type === "general") {
+    /*
+     * General columns are PERSONAL.
+     *
+     * Only return columns belonging to the current profile.
+     */
+    columnsQuery = columnsQuery
+      .is("project_id", null)
+      .eq("profile_id", profileId);
   } else {
+    /*
+     * Project columns are SHARED.
+     *
+     * Project membership should be validated before reaching this point.
+     */
     columnsQuery = columnsQuery.eq(
-      'project_id',
+      "project_id",
       scope.projectId,
     );
   }
@@ -164,7 +169,7 @@ export async function getTaskBoard(
 
   if (columnsError) {
     console.error(
-      'Failed to fetch task columns:',
+      "Failed to fetch task columns:",
       columnsError,
     );
 
@@ -176,17 +181,18 @@ export async function getTaskBoard(
   /* ---------------------------------------------------------------------- */
 
   if (
-    scope.type === 'general' &&
+    scope.type === "general" &&
     (!columns || columns.length === 0)
   ) {
     const {
       data: createdColumns,
       error: createColumnsError,
     } = await supabase
-      .from('task_columns')
+      .from("task_columns")
       .insert(
         DEFAULT_GENERAL_COLUMNS.map((column) => ({
           project_id: null,
+          profile_id: profileId,
           name: column.name,
           position: column.position,
           is_completed: column.is_completed,
@@ -195,34 +201,38 @@ export async function getTaskBoard(
       .select(`
         column_id,
         project_id,
+        profile_id,
         name,
         position,
         is_completed,
         created_at,
         updated_at
       `)
-      .order('position', { ascending: true });
+      .order("position", { ascending: true });
 
     if (createColumnsError) {
       /*
-       * Another request may have created them at the same time.
+       * Another request may have created the columns at the
+       * same time. Fetch only this user's general columns.
        */
       const {
         data: existingColumns,
         error: retryError,
       } = await supabase
-        .from('task_columns')
+        .from("task_columns")
         .select(`
           column_id,
           project_id,
+          profile_id,
           name,
           position,
           is_completed,
           created_at,
           updated_at
         `)
-        .is('project_id', null)
-        .order('position', { ascending: true });
+        .is("project_id", null)
+        .eq("profile_id", profileId)
+        .order("position", { ascending: true });
 
       if (retryError) {
         throw new Error(retryError.message);
@@ -239,7 +249,7 @@ export async function getTaskBoard(
   /* ---------------------------------------------------------------------- */
 
   let tasksQuery = supabase
-    .from('tasks')
+    .from("tasks")
     .select(`
       task_id,
       project_id,
@@ -268,24 +278,30 @@ export async function getTaskBoard(
       )
     `)
     .eq(
-      'task_members.profile_id',
+      "task_members.profile_id",
       profileId,
     )
-    .order('position', { ascending: true })
-    .order('created_at', { ascending: false });
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: false });
 
   /* ---------------------------------------------------------------------- */
   /* Scope                                                                  */
   /* ---------------------------------------------------------------------- */
 
-  if (scope.type === 'general') {
+  if (scope.type === "general") {
+    /*
+     * General tasks are personal/assigned tasks.
+     */
     tasksQuery = tasksQuery.is(
-      'project_id',
+      "project_id",
       null,
     );
   } else {
+    /*
+     * Project tasks are shared within the project.
+     */
     tasksQuery = tasksQuery.eq(
-      'project_id',
+      "project_id",
       scope.projectId,
     );
   }
@@ -297,14 +313,12 @@ export async function getTaskBoard(
 
   if (tasksError) {
     console.error(
-      'Failed to fetch tasks:',
+      "Failed to fetch tasks:",
       tasksError,
     );
 
     throw new Error(tasksError.message);
   }
-
-  console.log("Task Rows:", taskRows);
 
   /* ---------------------------------------------------------------------- */
   /* Normalize tasks                                                        */
@@ -335,7 +349,7 @@ export async function getTaskBoard(
   /* ---------------------------------------------------------------------- */
 
   console.log(
-    '[getTaskBoard]',
+    "[getTaskBoard]",
     {
       userId: user.id,
       profileId,

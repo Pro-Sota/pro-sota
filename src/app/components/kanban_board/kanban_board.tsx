@@ -28,6 +28,15 @@ interface KanbanBoardProps {
   scope: TaskScope;
   initialBoard: KanbanBoardData;
   availableMembers: TaskMember[];
+
+  /**
+   * Controls whether the current user can mutate
+   * the board through the UI.
+   *
+   * The server/actions/services must still enforce
+   * the same permission.
+   */
+  canManageBoard?: boolean;
 }
 
 const useIsomorphicLayoutEffect =
@@ -48,12 +57,16 @@ function useFillViewportHeight<
   useIsomorphicLayoutEffect(() => {
     const element = ref.current;
 
-    if (!element) return;
+    if (!element) {
+      return;
+    }
 
     function measure() {
       const current = ref.current;
 
-      if (!current) return;
+      if (!current) {
+        return;
+      }
 
       const rect =
         current.getBoundingClientRect();
@@ -112,6 +125,7 @@ export default function KanbanBoard({
   scope,
   initialBoard,
   availableMembers,
+  canManageBoard = true,
 }: KanbanBoardProps) {
   const board = useKanbanState({
     scope,
@@ -171,6 +185,10 @@ export default function KanbanBoard({
   function handleColumnDragStart(
     columnId: string,
   ) {
+    if (!canManageBoard) {
+      return;
+    }
+
     setDraggedColumnId(columnId);
     setDraggedTaskId(null);
     setDragOverColumnId(null);
@@ -179,6 +197,10 @@ export default function KanbanBoard({
   function handleTaskDragStart(
     taskId: string,
   ) {
+    if (!canManageBoard) {
+      return;
+    }
+
     setDraggedTaskId(taskId);
     setDraggedColumnId(null);
     setDragOverColumnId(null);
@@ -187,6 +209,10 @@ export default function KanbanBoard({
   function handleColumnDragOver(
     columnId: string,
   ) {
+    if (!canManageBoard) {
+      return;
+    }
+
     if (
       !draggedColumnId &&
       !draggedTaskId
@@ -200,6 +226,11 @@ export default function KanbanBoard({
   function handleColumnDrop(
     targetColumnId: string,
   ) {
+    if (!canManageBoard) {
+      clearDragState();
+      return;
+    }
+
     if (!draggedColumnId) {
       return;
     }
@@ -237,6 +268,7 @@ export default function KanbanBoard({
     }
 
     ids.splice(from, 1);
+
     ids.splice(
       to,
       0,
@@ -251,6 +283,11 @@ export default function KanbanBoard({
   function handleTaskDrop(
     targetColumnId: string,
   ) {
+    if (!canManageBoard) {
+      clearDragState();
+      return;
+    }
+
     if (!draggedTaskId) {
       return;
     }
@@ -286,6 +323,11 @@ export default function KanbanBoard({
   function handleDrop(
     columnId: string,
   ) {
+    if (!canManageBoard) {
+      clearDragState();
+      return;
+    }
+
     if (draggedTaskId) {
       handleTaskDrop(columnId);
       return;
@@ -301,6 +343,10 @@ export default function KanbanBoard({
     targetColumnId: string,
     orderedTaskIds: string[],
   ) {
+    if (!canManageBoard) {
+      return;
+    }
+
     board.moveTask(
       taskId,
       targetColumnId,
@@ -312,12 +358,11 @@ export default function KanbanBoard({
     clearDragState();
   }
 
-  const boardAreaStyle: CSSProperties =
-    {
-      height: boardHeight
-        ? `${boardHeight}px`
-        : "calc(100dvh - 14rem)",
-    };
+  const boardAreaStyle: CSSProperties = {
+    height: boardHeight
+      ? `${boardHeight}px`
+      : "calc(100dvh - 14rem)",
+  };
 
   return (
     <div className="box-border flex h-full min-h-0 flex-col overflow-hidden p-8">
@@ -444,6 +489,10 @@ export default function KanbanBoard({
                     ) => {
                       event.preventDefault();
 
+                      if (!canManageBoard) {
+                        return;
+                      }
+
                       event.dataTransfer.dropEffect =
                         "move";
 
@@ -457,6 +506,12 @@ export default function KanbanBoard({
                       event.preventDefault();
 
                       if (
+                        !canManageBoard
+                      ) {
+                        return;
+                      }
+
+                      if (
                         draggedColumnId ||
                         draggedTaskId
                       ) {
@@ -467,6 +522,11 @@ export default function KanbanBoard({
                     }}
                     onDrop={(event) => {
                       event.preventDefault();
+
+                      if (!canManageBoard) {
+                        clearDragState();
+                        return;
+                      }
 
                       handleDrop(
                         column.columnId,
@@ -479,41 +539,60 @@ export default function KanbanBoard({
                         columnTasks
                       }
                       onAddTask={
-                        board.addTask
+                        canManageBoard
+                          ? board.addTask
+                          : undefined
                       }
                       onOpenTask={
                         board.openTask
                       }
                       onDeleteTask={
-                        board.deleteTask
+                        canManageBoard
+                          ? board.deleteTask
+                          : undefined
                       }
                       onMoveTask={
-                        handleMoveTask
+                        canManageBoard
+                          ? handleMoveTask
+                          : undefined
                       }
                       onTaskDragStart={
-                        handleTaskDragStart
+                        canManageBoard
+                          ? handleTaskDragStart
+                          : undefined
                       }
                       onDeleteColumn={
-                        board.deleteColumn
+                        canManageBoard
+                          ? board.deleteColumn
+                          : undefined
                       }
                       onRenameColumn={
-                        board.renameColumn
+                        canManageBoard
+                          ? board.renameColumn
+                          : undefined
                       }
-                      onColumnDragStart={() =>
-                        handleColumnDragStart(
-                          column.columnId,
-                        )
+                      onColumnDragStart={
+                        canManageBoard
+                          ? () =>
+                              handleColumnDragStart(
+                                column.columnId,
+                              )
+                          : undefined
                       }
-                      onColumnDrop={() =>
-                        handleDrop(
-                          column.columnId,
-                        )
+                      onColumnDrop={
+                        canManageBoard
+                          ? () =>
+                              handleDrop(
+                                column.columnId,
+                              )
+                          : undefined
                       }
                       isDragOver={
-                        draggedColumnId ===
+                        canManageBoard &&
+                        (draggedColumnId ===
                           column.columnId ||
-                        dragOverColumnId ===
-                          column.columnId
+                          dragOverColumnId ===
+                            column.columnId)
                       }
                     />
                   </div>
@@ -521,14 +600,16 @@ export default function KanbanBoard({
               },
             )}
 
-            {/* Always available */}
-            <div className="h-full shrink-0">
-              <AddColumn
-                onAdd={
-                  board.addColumn
-                }
-              />
-            </div>
+            {/* Only users who can manage the board can add columns. */}
+            {canManageBoard && (
+              <div className="h-full shrink-0">
+                <AddColumn
+                  onAdd={
+                    board.addColumn
+                  }
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

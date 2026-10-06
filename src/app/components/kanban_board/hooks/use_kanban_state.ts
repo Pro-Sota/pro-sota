@@ -3,7 +3,6 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
   useTransition,
 } from "react";
@@ -32,21 +31,6 @@ import {
   updateTaskColumnAction,
 } from "../actions/task_columns";
 
-const DEFAULT_COLUMNS = [
-  {
-    name: "Por fazer",
-    isCompleted: false,
-  },
-  {
-    name: "Em curso",
-    isCompleted: false,
-  },
-  {
-    name: "Concluído",
-    isCompleted: true,
-  },
-] as const;
-
 export function useKanbanState({
   scope,
   initialBoard,
@@ -62,71 +46,36 @@ export function useKanbanState({
     () => initialBoard.tasks,
   );
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] =
+    useState("");
 
-  const [deletedTask, setDeletedTask] = useState<{
-    task: Task;
-    index: number;
-  } | null>(null);
+  const [deletedTask, setDeletedTask] =
+    useState<{
+      task: Task;
+      index: number;
+    } | null>(null);
 
   const [isPending, startTransition] =
     useTransition();
 
   const modal = useTaskModal(tasks);
 
-  /*
-   * Prevents the default columns from being created
-   * more than once during the lifetime of this board.
-   *
-   * Important: we only initialize when the board
-   * originally arrived without columns.
-   *
-   * If the user later deletes all columns manually,
-   * we do NOT recreate them automatically.
-   */
-  const initializedDefaults = useRef(
-    initialBoard.columns.length > 0,
-  );
+  /* ---------------------------------------------------------------------- */
+  /* Sync board when the server provides a new board                        */
+  /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
-    if (initializedDefaults.current) {
-      return;
-    }
+    setColumns(initialBoard.columns);
+    setTasks(initialBoard.tasks);
+    setSearchQuery("");
+    setDeletedTask(null);
+  }, [
+    initialBoard,
+  ]);
 
-    initializedDefaults.current = true;
-
-    for (const defaultColumn of DEFAULT_COLUMNS) {
-      startTransition(async () => {
-        const column = await createTaskColumnAction(
-          scope,
-          {
-            name: defaultColumn.name,
-            isCompleted: defaultColumn.isCompleted,
-          },
-        );
-
-        if (column) {
-          setColumns((current) => {
-            /*
-             * Prevent accidental duplicates if the action
-             * or component lifecycle is triggered twice.
-             */
-            if (
-              current.some(
-                (item) =>
-                  item.columnId ===
-                  column.columnId,
-              )
-            ) {
-              return current;
-            }
-
-            return [...current, column];
-          });
-        }
-      });
-    }
-  }, [scope]);
+  /* ---------------------------------------------------------------------- */
+  /* Delete undo timeout                                                    */
+  /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
     if (!deletedTask) return;
@@ -140,6 +89,10 @@ export function useKanbanState({
       window.clearTimeout(timeout);
   }, [deletedTask]);
 
+  /* ---------------------------------------------------------------------- */
+  /* Search                                                                 */
+  /* ---------------------------------------------------------------------- */
+
   const visibleTasks = useMemo(
     () =>
       tasks.filter((task) =>
@@ -148,11 +101,21 @@ export function useKanbanState({
           searchQuery,
         ),
       ),
-    [tasks, searchQuery],
+    [
+      tasks,
+      searchQuery,
+    ],
   );
 
+  /* ---------------------------------------------------------------------- */
+  /* Tasks by column                                                        */
+  /* ---------------------------------------------------------------------- */
+
   const tasksByColumn = useMemo(() => {
-    const result: Record<string, Task[]> = {};
+    const result: Record<
+      string,
+      Task[]
+    > = {};
 
     for (const column of columns) {
       result[column.columnId] = [];
@@ -163,27 +126,43 @@ export function useKanbanState({
         task.columnId &&
         result[task.columnId]
       ) {
-        result[task.columnId].push(task);
+        result[task.columnId].push(
+          task,
+        );
       }
     }
 
     return result;
-  }, [columns, visibleTasks]);
+  }, [
+    columns,
+    visibleTasks,
+  ]);
+
+  /* ---------------------------------------------------------------------- */
+  /* Add task                                                               */
+  /* ---------------------------------------------------------------------- */
 
   async function addTask(
     columnId: string,
     title: string,
   ) {
-    if (!title.trim()) return;
+    const normalizedTitle =
+      title.trim();
+
+    if (!normalizedTitle) {
+      return;
+    }
 
     startTransition(async () => {
-      const task = await createTaskAction(
-        scope,
-        {
-          title: title.trim(),
-          columnId,
-        },
-      );
+      const task =
+        await createTaskAction(
+          scope,
+          {
+            title:
+              normalizedTitle,
+            columnId,
+          },
+        );
 
       if (task) {
         setTasks((current) => [
@@ -193,6 +172,10 @@ export function useKanbanState({
       }
     });
   }
+
+  /* ---------------------------------------------------------------------- */
+  /* Update task                                                             */
+  /* ---------------------------------------------------------------------- */
 
   async function updateTask(
     taskId: string,
@@ -205,29 +188,39 @@ export function useKanbanState({
           input,
         );
 
-      if (updated) {
-        setTasks((current) =>
-          current.map((task) =>
-            task.taskId === taskId
-              ? updated
-              : task,
-          ),
-        );
+      if (!updated) {
+        return;
       }
+
+      setTasks((current) =>
+        current.map((task) =>
+          task.taskId === taskId
+            ? updated
+            : task,
+        ),
+      );
     });
   }
+
+  /* ---------------------------------------------------------------------- */
+  /* Delete task                                                             */
+  /* ---------------------------------------------------------------------- */
 
   async function deleteTask(
     taskId: string,
   ) {
-    const index = tasks.findIndex(
-      (task) =>
-        task.taskId === taskId,
-    );
+    const index =
+      tasks.findIndex(
+        (task) =>
+          task.taskId === taskId,
+      );
 
-    if (index === -1) return;
+    if (index === -1) {
+      return;
+    }
 
-    const task = tasks[index];
+    const task =
+      tasks[index];
 
     setDeletedTask({
       task,
@@ -237,12 +230,14 @@ export function useKanbanState({
     setTasks((current) =>
       current.filter(
         (item) =>
-          item.taskId !== taskId,
+          item.taskId !==
+          taskId,
       ),
     );
 
     if (
-      modal.selectedTaskId === taskId
+      modal.selectedTaskId ===
+      taskId
     ) {
       modal.closeTask();
     }
@@ -254,7 +249,9 @@ export function useKanbanState({
         );
       } catch (error) {
         setTasks((current) => {
-          const next = [...current];
+          const next = [
+            ...current,
+          ];
 
           next.splice(
             Math.min(
@@ -275,60 +272,76 @@ export function useKanbanState({
     });
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Move task                                                               */
+  /* ---------------------------------------------------------------------- */
+
   async function moveTask(
     taskId: string,
     columnId: string,
     orderedTaskIds: string[],
   ) {
-    const previous = tasks;
+    const previous =
+      tasks;
 
     setTasks((current) => {
-      const moved = current.find(
-        (task) =>
-          task.taskId === taskId,
-      );
-
-      if (!moved) return current;
-
-      const updated = current.map(
-        (task) =>
-          task.taskId === taskId
-            ? {
-                ...task,
-                columnId,
-              }
-            : task,
-      );
-
-      return updated.sort((a, b) => {
-        if (
-          a.columnId !== columnId &&
-          b.columnId !== columnId
-        ) {
-          return (
-            a.position - b.position
-          );
-        }
-
-        const aIndex =
-          orderedTaskIds.indexOf(
-            a.taskId,
-          );
-
-        const bIndex =
-          orderedTaskIds.indexOf(
-            b.taskId,
-          );
-
-        return (
-          (aIndex === -1
-            ? 999999
-            : aIndex) -
-          (bIndex === -1
-            ? 999999
-            : bIndex)
+      const moved =
+        current.find(
+          (task) =>
+            task.taskId ===
+            taskId,
         );
-      });
+
+      if (!moved) {
+        return current;
+      }
+
+      const updated =
+        current.map(
+          (task) =>
+            task.taskId ===
+            taskId
+              ? {
+                  ...task,
+                  columnId,
+                }
+              : task,
+        );
+
+      return updated.sort(
+        (a, b) => {
+          if (
+            a.columnId !==
+              columnId &&
+            b.columnId !==
+              columnId
+          ) {
+            return (
+              a.position -
+              b.position
+            );
+          }
+
+          const aIndex =
+            orderedTaskIds.indexOf(
+              a.taskId,
+            );
+
+          const bIndex =
+            orderedTaskIds.indexOf(
+              b.taskId,
+            );
+
+          return (
+            (aIndex === -1
+              ? 999999
+              : aIndex) -
+            (bIndex === -1
+              ? 999999
+              : bIndex)
+          );
+        },
+      );
     });
 
     startTransition(async () => {
@@ -345,18 +358,28 @@ export function useKanbanState({
     });
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Add column                                                             */
+  /* ---------------------------------------------------------------------- */
+
   async function addColumn(
     name: string,
     isCompleted = false,
   ) {
-    if (!name.trim()) return;
+    const normalizedName =
+      name.trim();
+
+    if (!normalizedName) {
+      return;
+    }
 
     startTransition(async () => {
       const column =
         await createTaskColumnAction(
           scope,
           {
-            name: name.trim(),
+            name:
+              normalizedName,
             isCompleted,
           },
         );
@@ -370,39 +393,58 @@ export function useKanbanState({
     });
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Rename column                                                          */
+  /* ---------------------------------------------------------------------- */
+
   async function renameColumn(
     columnId: string,
     name: string,
   ) {
-    if (!name.trim()) return;
+    const normalizedName =
+      name.trim();
+
+    if (!normalizedName) {
+      return;
+    }
 
     startTransition(async () => {
       const updated =
         await updateTaskColumnAction(
           columnId,
           {
-            name: name.trim(),
+            name:
+              normalizedName,
           },
         );
 
-      if (updated) {
-        setColumns((current) =>
-          current.map((column) =>
-            column.columnId ===
-            columnId
-              ? updated
-              : column,
-          ),
-        );
+      if (!updated) {
+        return;
       }
+
+      setColumns((current) =>
+        current.map((column) =>
+          column.columnId ===
+          columnId
+            ? updated
+            : column,
+        ),
+      );
     });
   }
+
+  /* ---------------------------------------------------------------------- */
+  /* Delete column                                                          */
+  /* ---------------------------------------------------------------------- */
 
   async function deleteColumn(
     columnId: string,
   ) {
-    const previousColumns = columns;
-    const previousTasks = tasks;
+    const previousColumns =
+      columns;
+
+    const previousTasks =
+      tasks;
 
     setColumns((current) =>
       current.filter(
@@ -426,26 +468,38 @@ export function useKanbanState({
           columnId,
         );
       } catch (error) {
-        setColumns(previousColumns);
-        setTasks(previousTasks);
+        setColumns(
+          previousColumns,
+        );
+
+        setTasks(
+          previousTasks,
+        );
+
         throw error;
       }
     });
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Reorder columns                                                        */
+  /* ---------------------------------------------------------------------- */
+
   async function reorderColumns(
     orderedColumnIds: string[],
   ) {
-    const previous = columns;
+    const previous =
+      columns;
 
-    const order = new Map(
-      orderedColumnIds.map(
-        (id, index) => [
-          id,
-          index,
-        ],
-      ),
-    );
+    const order =
+      new Map(
+        orderedColumnIds.map(
+          (id, index) => [
+            id,
+            index,
+          ],
+        ),
+      );
 
     setColumns((current) =>
       [...current].sort(
@@ -472,11 +526,19 @@ export function useKanbanState({
     });
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Undo delete                                                            */
+  /* ---------------------------------------------------------------------- */
+
   function undoDelete() {
-    if (!deletedTask) return;
+    if (!deletedTask) {
+      return;
+    }
 
     setTasks((current) => {
-      const next = [...current];
+      const next = [
+        ...current,
+      ];
 
       next.splice(
         Math.min(
@@ -493,8 +555,13 @@ export function useKanbanState({
     setDeletedTask(null);
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Return                                                                 */
+  /* ---------------------------------------------------------------------- */
+
   return {
     scope,
+
     columns,
     tasks,
     visibleTasks,

@@ -1,46 +1,46 @@
-import { cookies } from 'next/headers';
+"use server";
 
-import { createClient } from '@/app/lib/supabase/server';
+import { cookies } from "next/headers";
+
+import { createClient } from "@/app/lib/supabase/server";
 
 import type {
   CreateTaskInput,
   KanbanBoardData,
   Task,
+  TaskMember,
   TaskScope,
   UpdateTaskInput,
-} from '../types';
+} from "../types";
 
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                  */
 /* -------------------------------------------------------------------------- */
 
-export const VALID_PRIORITIES = [
-  'Low',
-  'Medium',
-  'High',
-  'Critical',
+const VALID_PRIORITIES = [
+  "Low",
+  "Medium",
+  "High",
+  "Critical",
 ] as const;
 
 export type TaskPriority =
   (typeof VALID_PRIORITIES)[number];
 
-const PRIORITY_MAP: Record<
-  string,
-  TaskPriority
-> = {
-  low: 'Low',
-  baixa: 'Low',
+const PRIORITY_MAP: Record<string, TaskPriority> = {
+  low: "Low",
+  baixa: "Low",
 
-  medium: 'Medium',
-  media: 'Medium',
-  média: 'Medium',
+  medium: "Medium",
+  media: "Medium",
+  média: "Medium",
 
-  high: 'High',
-  alta: 'High',
+  high: "High",
+  alta: "High",
 
-  critical: 'Critical',
-  critica: 'Critical',
-  crítica: 'Critical',
+  critical: "Critical",
+  critica: "Critical",
+  crítica: "Critical",
 };
 
 /* -------------------------------------------------------------------------- */
@@ -74,7 +74,7 @@ function isValidPriority(
   value: unknown,
 ): value is TaskPriority {
   return (
-    typeof value === 'string' &&
+    typeof value === "string" &&
     VALID_PRIORITIES.includes(
       value as TaskPriority,
     )
@@ -88,8 +88,8 @@ function normalizePriority(
     return value;
   }
 
-  if (typeof value !== 'string') {
-    return 'Medium';
+  if (typeof value !== "string") {
+    return "Medium";
   }
 
   const normalized = value
@@ -97,12 +97,12 @@ function normalizePriority(
     .toLowerCase();
 
   if (!normalized) {
-    return 'Medium';
+    return "Medium";
   }
 
   return (
     PRIORITY_MAP[normalized] ??
-    'Medium'
+    "Medium"
   );
 }
 
@@ -110,8 +110,8 @@ function normalizeNullableString(
   value: unknown,
 ): string | null {
   if (
-    typeof value !== 'string' ||
-    value.trim() === ''
+    typeof value !== "string" ||
+    value.trim() === ""
   ) {
     return null;
   }
@@ -119,13 +119,31 @@ function normalizeNullableString(
   return value.trim();
 }
 
+function normalizeMemberIds(
+  value: unknown,
+): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      value
+        .filter(
+          (id): id is string =>
+            typeof id === "string" &&
+            id.trim().length > 0,
+        )
+        .map((id) => id.trim()),
+    ),
+  ];
+}
+
 /* -------------------------------------------------------------------------- */
 /* Task mapper                                                                */
 /* -------------------------------------------------------------------------- */
 
-function mapTask(
-  row: any,
-): Task {
+function mapTask(row: any): Task {
   const members: TaskMemberRow[] =
     Array.isArray(row.task_members)
       ? row.task_members
@@ -137,29 +155,22 @@ function mapTask(
     projectId:
       row.project_id ?? null,
 
+    createdBy:
+      row.created_by,
+
     columnId:
       row.column_id ?? null,
 
-    title: row.title,
+    title:
+      row.title,
 
     description:
       row.description ?? null,
 
-    /*
-     * The database stores:
-     *
-     * Low
-     * Medium
-     * High
-     * Critical
-     *
-     * Your UI type may use lowercase values.
-     * Convert only at the boundary if necessary.
-     */
     priority:
       normalizePriority(
         row.priority,
-      ).toLowerCase() as Task['priority'],
+      ).toLowerCase() as Task["priority"],
 
     startDate:
       row.start_date ?? null,
@@ -187,7 +198,7 @@ function mapTask(
 
     members:
       members.map(
-        (item) => {
+        (item): TaskMember => {
           const profile =
             Array.isArray(
               item.profiles,
@@ -201,15 +212,11 @@ function mapTask(
 
             firstName:
               profile?.first_name ??
-              '',
+              "",
 
             lastName:
               profile?.last_name ??
-              '',
-
-            picture:
-              profile?.profile_picture ??
-              null,
+              "",
           };
         },
       ),
@@ -217,7 +224,7 @@ function mapTask(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Supabase                                                                    */
+/* Supabase                                                                   */
 /* -------------------------------------------------------------------------- */
 
 async function getSupabase() {
@@ -230,12 +237,215 @@ async function getSupabase() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Current user                                                               */
+/* -------------------------------------------------------------------------- */
+
+async function getCurrentUserId(
+  supabase: Awaited<
+    ReturnType<typeof getSupabase>
+  >,
+): Promise<string> {
+  const {
+    data: { user },
+    error,
+  } =
+    await supabase.auth.getUser();
+
+  if (
+    error ||
+    !user
+  ) {
+    throw new Error(
+      "Utilizador não autenticado.",
+    );
+  }
+
+  return user.id;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Current profile                                                            */
+/* -------------------------------------------------------------------------- */
+
+async function getCurrentProfileId(
+  supabase: Awaited<
+    ReturnType<typeof getSupabase>
+  >,
+): Promise<string> {
+  const userId =
+    await getCurrentUserId(
+      supabase,
+    );
+
+  const {
+    data: profile,
+    error,
+  } =
+    await supabase
+      .from("profiles")
+      .select(
+        "profile_id",
+      )
+      .eq(
+        "profile_id",
+        userId,
+      )
+      .single();
+
+  if (
+    error ||
+    !profile
+  ) {
+    throw new Error(
+      "Perfil do utilizador não encontrado.",
+    );
+  }
+
+  return profile.profile_id;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Project membership                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Project access rule:
+ *
+ * A user can access a project only when a row exists in
+ * project_members for:
+ *
+ *     project_id = selected project
+ *     profile_id = authenticated user
+ */
+async function assertProjectMember(
+  supabase: Awaited<
+    ReturnType<typeof getSupabase>
+  >,
+  projectId: string,
+): Promise<string> {
+  if (!projectId) {
+    throw new Error(
+      "Project ID is required.",
+    );
+  }
+
+  const userId =
+    await getCurrentUserId(
+      supabase,
+    );
+
+  const {
+    data: member,
+    error,
+  } =
+    await supabase
+      .from("project_members")
+      .select(
+        "project_id",
+      )
+      .eq(
+        "project_id",
+        projectId,
+      )
+      .eq(
+        "profile_id",
+        userId,
+      )
+      .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to verify project membership: ${error.message}`,
+    );
+  }
+
+  if (!member) {
+    throw new Error(
+      "Não tem acesso a este projecto.",
+    );
+  }
+
+  return userId;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Validate project task members                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Project tasks may only be assigned to people who are
+ * members of the same project.
+ */
+async function validateProjectMemberIds(
+  supabase: Awaited<
+    ReturnType<typeof getSupabase>
+  >,
+  projectId: string,
+  profileIds: string[],
+): Promise<void> {
+  if (
+    profileIds.length === 0
+  ) {
+    return;
+  }
+
+  const {
+    data: members,
+    error,
+  } =
+    await supabase
+      .from("project_members")
+      .select(
+        "profile_id",
+      )
+      .eq(
+        "project_id",
+        projectId,
+      )
+      .in(
+        "profile_id",
+        profileIds,
+      );
+
+  if (error) {
+    throw new Error(
+      `Failed to validate task members: ${error.message}`,
+    );
+  }
+
+  const validIds =
+    new Set(
+      (members ?? []).map(
+        (member) =>
+          member.profile_id,
+      ),
+    );
+
+  const invalidIds =
+    profileIds.filter(
+      (profileId) =>
+        !validIds.has(
+          profileId,
+        ),
+    );
+
+  if (
+    invalidIds.length > 0
+  ) {
+    throw new Error(
+      "Uma ou mais pessoas seleccionadas não pertencem ao projecto.",
+    );
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Shared task select                                                         */
 /* -------------------------------------------------------------------------- */
 
 const TASK_SELECT = `
   task_id,
   project_id,
+  created_by,
   column_id,
   title,
   description,
@@ -260,74 +470,6 @@ const TASK_SELECT = `
 `;
 
 /* -------------------------------------------------------------------------- */
-/* Current profile                                                            */
-/* -------------------------------------------------------------------------- */
-
-async function getCurrentProfileId(
-  supabase: Awaited<
-    ReturnType<typeof getSupabase>
-  >,
-): Promise<string> {
-  const {
-    data: {
-      user,
-    },
-    error: userError,
-  } =
-    await supabase.auth.getUser();
-
-  if (
-    userError ||
-    !user
-  ) {
-    throw new Error(
-      'Utilizador não autenticado.',
-    );
-  }
-
-  /*
-   * Current schema assumption:
-   *
-   * profiles.profile_id === auth.users.id
-   *
-   * If your profiles table has a separate
-   * user_id column, change this to:
-   *
-   * .eq('user_id', user.id)
-   */
-  const {
-    data: profile,
-    error: profileError,
-  } =
-    await supabase
-      .from('profiles')
-      .select(
-        'profile_id',
-      )
-      .eq(
-        'profile_id',
-        user.id,
-      )
-      .single();
-
-  if (
-    profileError ||
-    !profile
-  ) {
-    console.error(
-      'Failed to find user profile:',
-      profileError,
-    );
-
-    throw new Error(
-      'Perfil do utilizador não encontrado.',
-    );
-  }
-
-  return profile.profile_id;
-}
-
-/* -------------------------------------------------------------------------- */
 /* Get tasks                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -337,85 +479,80 @@ export async function getTasks(
   const supabase =
     await getSupabase();
 
-  const currentProfileId =
-    await getCurrentProfileId(
+  const currentUserId =
+    await getCurrentUserId(
       supabase,
     );
 
-  /*
-   * task_members is the source of truth.
-   *
-   * !inner guarantees that only tasks
-   * belonging to the current user are
-   * returned.
-   */
   let query = supabase
-    .from('tasks')
-    .select(`
-      task_id,
-      project_id,
-      column_id,
-      title,
-      description,
-      priority,
-      start_date,
-      due_date,
-      estimated_hours,
-      actual_hours,
-      position,
-      created_at,
-      updated_at,
-      completed,
-      task_members!inner (
-        profile_id,
-        profiles (
-          profile_id,
-          first_name,
-          last_name,
-          profile_picture
-        )
-      )
-    `)
-    .eq(
-      'task_members.profile_id',
-      currentProfileId,
+    .from("tasks")
+    .select(
+      TASK_SELECT,
     )
-    .order('position', {
-      ascending: true,
-    })
-    .order('created_at', {
-      ascending: false,
-    });
+    .order(
+      "position",
+      {
+        ascending: true,
+      },
+    )
+    .order(
+      "created_at",
+      {
+        ascending: false,
+      },
+    );
+
+  /* ---------------------------------------------------------------------- */
+  /* General board                                                          */
+  /* ---------------------------------------------------------------------- */
 
   if (
     scope.type ===
-    'general'
+    "general"
   ) {
-    query =
-      query.is(
-        'project_id',
+    /*
+     * General tasks are personal.
+     *
+     * The task must:
+     * - have no project
+     * - have been created by the current user
+     */
+    query = query
+      .is(
+        "project_id",
         null,
+      )
+      .eq(
+        "created_by",
+        currentUserId,
       );
-  } else {
-    query =
-      query.eq(
-        'project_id',
-        scope.projectId,
-      );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Project board                                                          */
+  /* ---------------------------------------------------------------------- */
+
+  else {
+    /*
+     * Project tasks are shared only with project members.
+     */
+    await assertProjectMember(
+      supabase,
+      scope.projectId,
+    );
+
+    query = query.eq(
+      "project_id",
+      scope.projectId,
+    );
   }
 
   const {
     data,
     error,
-  } =
-    await query;
+  } = await query;
 
   if (error) {
-    console.error(
-      'Failed to load tasks:',
-      error,
-    );
-
     throw new Error(
       `Failed to load tasks: ${error.message}`,
     );
@@ -438,28 +575,173 @@ export async function getTask(
   const supabase =
     await getSupabase();
 
+  const currentUserId =
+    await getCurrentUserId(
+      supabase,
+    );
+
+  if (!taskId) {
+    throw new Error(
+      "Task ID is required.",
+    );
+  }
+
   const {
     data,
     error,
   } =
     await supabase
-      .from('tasks')
+      .from("tasks")
       .select(
         TASK_SELECT,
       )
       .eq(
-        'task_id',
+        "task_id",
         taskId,
       )
       .single();
 
-  if (error) {
+  if (
+    error ||
+    !data
+  ) {
     throw new Error(
-      `Failed to load task: ${error.message}`,
+      `Failed to load task: ${
+        error?.message ??
+        "Tarefa não encontrada."
+      }`,
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* General task                                                           */
+  /* ---------------------------------------------------------------------- */
+
+  if (
+    data.project_id ===
+    null
+  ) {
+    /*
+     * Personal tasks can only be accessed
+     * by their creator.
+     */
+    if (
+      data.created_by !==
+      currentUserId
+    ) {
+      throw new Error(
+        "Não tem acesso a esta tarefa.",
+      );
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Project task                                                           */
+  /* ---------------------------------------------------------------------- */
+
+  else {
+    /*
+     * Project tasks can only be accessed
+     * by project members.
+     */
+    await assertProjectMember(
+      supabase,
+      data.project_id,
     );
   }
 
   return mapTask(data);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Validate task column                                                       */
+/* -------------------------------------------------------------------------- */
+
+async function validateTaskColumn(
+  supabase: Awaited<
+    ReturnType<typeof getSupabase>
+  >,
+  scope: TaskScope,
+  columnId: string,
+  currentProfileId: string,
+) {
+  const {
+    data: column,
+    error,
+  } =
+    await supabase
+      .from("task_columns")
+      .select(
+        "column_id, project_id, profile_id",
+      )
+      .eq(
+        "column_id",
+        columnId,
+      )
+      .single();
+
+  if (
+    error ||
+    !column
+  ) {
+    throw new Error(
+      "A coluna selecionada não existe.",
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* General column                                                         */
+  /* ---------------------------------------------------------------------- */
+
+  if (
+    scope.type ===
+    "general"
+  ) {
+    /*
+     * Personal column must:
+     *
+     * project_id = NULL
+     * profile_id = current user
+     */
+    if (
+      column.project_id !==
+        null ||
+      column.profile_id !==
+        currentProfileId
+    ) {
+      throw new Error(
+        "A coluna não pertence ao seu quadro pessoal.",
+      );
+    }
+
+    return column;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Project column                                                         */
+  /* ---------------------------------------------------------------------- */
+
+  /*
+   * Column must belong to this project.
+   */
+  if (
+    column.project_id !==
+    scope.projectId
+  ) {
+    throw new Error(
+      "A coluna não pertence a este projecto.",
+    );
+  }
+
+  /*
+   * User must be a member of this project.
+   */
+  await assertProjectMember(
+    supabase,
+    scope.projectId,
+  );
+
+  return column;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -473,31 +755,42 @@ export async function createTask(
   const supabase =
     await getSupabase();
 
-  /*
-   * Get the authenticated user's
-   * profile before creating anything.
-   *
-   * This is important because the newly
-   * created task must be inserted into
-   * task_members.
-   */
+  const currentUserId =
+    await getCurrentUserId(
+      supabase,
+    );
+
   const currentProfileId =
     await getCurrentProfileId(
       supabase,
     );
 
-  const projectId =
-    scope.type === 'general'
-      ? null
-      : scope.projectId;
+  /* ---------------------------------------------------------------------- */
+  /* Determine scope                                                        */
+  /* ---------------------------------------------------------------------- */
 
-  const priority =
-    normalizePriority(
-      input.priority,
+  let projectId: string | null =
+    null;
+
+  if (
+    scope.type ===
+    "project"
+  ) {
+    /*
+     * User must belong to the project
+     * before creating a task there.
+     */
+    await assertProjectMember(
+      supabase,
+      scope.projectId,
     );
 
+    projectId =
+      scope.projectId;
+  }
+
   /* ---------------------------------------------------------------------- */
-  /* Validate title                                                         */
+  /* Validate basic fields                                                  */
   /* ---------------------------------------------------------------------- */
 
   const title =
@@ -505,13 +798,14 @@ export async function createTask(
 
   if (!title) {
     throw new Error(
-      'O título da tarefa é obrigatório.',
+      "O título da tarefa é obrigatório.",
     );
   }
 
-  /* ---------------------------------------------------------------------- */
-  /* Normalize column                                                       */
-  /* ---------------------------------------------------------------------- */
+  const priority =
+    normalizePriority(
+      input.priority,
+    );
 
   const columnId =
     normalizeNullableString(
@@ -519,17 +813,54 @@ export async function createTask(
     );
 
   /* ---------------------------------------------------------------------- */
+  /* Validate column                                                        */
+  /* ---------------------------------------------------------------------- */
+
+  if (columnId) {
+    await validateTaskColumn(
+      supabase,
+      scope,
+      columnId,
+      currentProfileId,
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Validate assignments                                                   */
+  /* ---------------------------------------------------------------------- */
+
+  const memberIds =
+    normalizeMemberIds(
+      input.memberIds,
+    );
+
+  if (
+    scope.type ===
+    "project"
+  ) {
+    /*
+     * Project tasks can only be assigned
+     * to members of the same project.
+     */
+    await validateProjectMemberIds(
+      supabase,
+      scope.projectId,
+      memberIds,
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
   /* Calculate position                                                     */
   /* ---------------------------------------------------------------------- */
 
   let positionQuery =
     supabase
-      .from('tasks')
+      .from("tasks")
       .select(
-        'position',
+        "position",
       )
       .order(
-        'position',
+        "position",
         {
           ascending:
             false,
@@ -540,30 +871,35 @@ export async function createTask(
   if (columnId) {
     positionQuery =
       positionQuery.eq(
-        'column_id',
+        "column_id",
         columnId,
       );
   } else {
     positionQuery =
       positionQuery.is(
-        'column_id',
+        "column_id",
         null,
       );
   }
 
   if (
     scope.type ===
-    'general'
+    "general"
   ) {
     positionQuery =
-      positionQuery.is(
-        'project_id',
-        null,
-      );
+      positionQuery
+        .is(
+          "project_id",
+          null,
+        )
+        .eq(
+          "created_by",
+          currentUserId,
+        );
   } else {
     positionQuery =
       positionQuery.eq(
-        'project_id',
+        "project_id",
         projectId,
       );
   }
@@ -597,10 +933,16 @@ export async function createTask(
     error,
   } =
     await supabase
-      .from('tasks')
+      .from("tasks")
       .insert({
         project_id:
           projectId,
+
+        /*
+         * tasks.created_by references auth.users(id).
+         */
+        created_by:
+          currentUserId,
 
         column_id:
           columnId,
@@ -628,7 +970,7 @@ export async function createTask(
         position,
       })
       .select(
-        'task_id',
+        "task_id",
       )
       .single();
 
@@ -642,53 +984,50 @@ export async function createTask(
     data.task_id;
 
   /* ---------------------------------------------------------------------- */
-  /* Add task member                                                        */
+  /* Assign members                                                         */
   /* ---------------------------------------------------------------------- */
 
-  /*
-   * IMPORTANT:
-   *
-   * Every task created without an explicit
-   * assignee is automatically assigned to
-   * the current authenticated user.
-   *
-   * If the UI explicitly selected another
-   * user, that user becomes the member instead.
-   */
-  const memberProfileId =
-    input.assignedTo ??
-    currentProfileId;
+  if (
+    memberIds.length > 0
+  ) {
+    const {
+      error:
+        memberError,
+    } =
+      await supabase
+        .from(
+          "task_members",
+        )
+        .insert(
+          memberIds.map(
+            (profileId) => ({
+              task_id:
+                taskId,
 
-  const {
-    error:
-      memberError,
-  } =
-    await supabase
-      .from('task_members')
-      .insert({
-        task_id:
+              profile_id:
+                profileId,
+            }),
+          ),
+        );
+
+    if (
+      memberError
+    ) {
+      /*
+       * Clean up task if assignment fails.
+       */
+      await supabase
+        .from("tasks")
+        .delete()
+        .eq(
+          "task_id",
           taskId,
+        );
 
-        profile_id:
-          memberProfileId,
-      });
-
-  if (memberError) {
-    /*
-     * Remove the task if the member
-     * insertion fails.
-     */
-    await supabase
-      .from('tasks')
-      .delete()
-      .eq(
-        'task_id',
-        taskId,
+      throw new Error(
+        `Failed to assign task members: ${memberError.message}`,
       );
-
-    throw new Error(
-      `Failed to assign task member: ${memberError.message}`,
-    );
+    }
   }
 
   return getTask(
@@ -707,9 +1046,79 @@ export async function updateTask(
   const supabase =
     await getSupabase();
 
+  const currentUserId =
+    await getCurrentUserId(
+      supabase,
+    );
+
+  const currentProfileId =
+    await getCurrentProfileId(
+      supabase,
+    );
+
   if (!taskId) {
     throw new Error(
-      'Task ID is required.',
+      "Task ID is required.",
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Load existing task                                                     */
+  /* ---------------------------------------------------------------------- */
+
+  const {
+    data: existingTask,
+    error:
+      existingTaskError,
+  } =
+    await supabase
+      .from("tasks")
+      .select(
+        "task_id, project_id, created_by",
+      )
+      .eq(
+        "task_id",
+        taskId,
+      )
+      .single();
+
+  if (
+    existingTaskError ||
+    !existingTask
+  ) {
+    throw new Error(
+      "Tarefa não encontrada.",
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Verify task access                                                     */
+  /* ---------------------------------------------------------------------- */
+
+  if (
+    existingTask.project_id ===
+    null
+  ) {
+    /*
+     * Personal task:
+     * only creator can edit it.
+     */
+    if (
+      existingTask.created_by !==
+      currentUserId
+    ) {
+      throw new Error(
+        "Não tem permissão para editar esta tarefa.",
+      );
+    }
+  } else {
+    /*
+     * Project task:
+     * user must be a project member.
+     */
+    await assertProjectMember(
+      supabase,
+      existingTask.project_id,
     );
   }
 
@@ -719,7 +1128,7 @@ export async function updateTask(
   > = {};
 
   /* ---------------------------------------------------------------------- */
-  /* Task fields                                                            */
+  /* Basic fields                                                           */
   /* ---------------------------------------------------------------------- */
 
   if (
@@ -731,7 +1140,7 @@ export async function updateTask(
 
     if (!title) {
       throw new Error(
-        'O título da tarefa é obrigatório.',
+        "O título da tarefa é obrigatório.",
       );
     }
 
@@ -748,15 +1157,48 @@ export async function updateTask(
       null;
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Column                                                                  */
+  /* ---------------------------------------------------------------------- */
+
   if (
     input.columnId !==
     undefined
   ) {
-    payload.column_id =
+    const columnId =
       normalizeNullableString(
         input.columnId,
       );
+
+    if (columnId) {
+      const taskScope: TaskScope =
+        existingTask.project_id ===
+        null
+          ? {
+              type: "general",
+              projectId: null,
+            }
+          : {
+              type: "project",
+              projectId:
+                existingTask.project_id,
+            };
+
+      await validateTaskColumn(
+        supabase,
+        taskScope,
+        columnId,
+        currentProfileId,
+      );
+    }
+
+    payload.column_id =
+      columnId;
   }
+
+  /* ---------------------------------------------------------------------- */
+  /* Priority                                                                */
+  /* ---------------------------------------------------------------------- */
 
   if (
     input.priority !==
@@ -767,6 +1209,10 @@ export async function updateTask(
         input.priority,
       );
   }
+
+  /* ---------------------------------------------------------------------- */
+  /* Dates                                                                    */
+  /* ---------------------------------------------------------------------- */
 
   if (
     input.startDate !==
@@ -786,6 +1232,10 @@ export async function updateTask(
       null;
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Hours                                                                    */
+  /* ---------------------------------------------------------------------- */
+
   if (
     input.estimatedHours !==
     undefined
@@ -804,6 +1254,10 @@ export async function updateTask(
       null;
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Completed                                                                */
+  /* ---------------------------------------------------------------------- */
+
   if (
     input.completed !==
     undefined
@@ -815,7 +1269,7 @@ export async function updateTask(
   }
 
   /* ---------------------------------------------------------------------- */
-  /* Update task                                                            */
+  /* Update task                                                              */
   /* ---------------------------------------------------------------------- */
 
   if (
@@ -826,25 +1280,16 @@ export async function updateTask(
       error,
     } =
       await supabase
-        .from('tasks')
+        .from("tasks")
         .update(
           payload,
         )
         .eq(
-          'task_id',
+          "task_id",
           taskId,
         );
 
     if (error) {
-      console.error(
-        'Failed to update task:',
-        {
-          taskId,
-          payload,
-          error,
-        },
-      );
-
       throw new Error(
         `Failed to update task: ${error.message}`,
       );
@@ -852,15 +1297,36 @@ export async function updateTask(
   }
 
   /* ---------------------------------------------------------------------- */
-  /* Update assignment                                                      */
+  /* Update assignments                                                      */
   /* ---------------------------------------------------------------------- */
 
   if (
-    input.assignedTo !==
+    input.memberIds !==
     undefined
   ) {
+    const memberIds =
+      normalizeMemberIds(
+        input.memberIds,
+      );
+
     /*
-     * Remove existing assignment.
+     * Project tasks:
+     * every assigned member must belong
+     * to the same project.
+     */
+    if (
+      existingTask.project_id !==
+      null
+    ) {
+      await validateProjectMemberIds(
+        supabase,
+        existingTask.project_id,
+        memberIds,
+      );
+    }
+
+    /*
+     * Delete previous assignments.
      */
     const {
       error:
@@ -868,11 +1334,11 @@ export async function updateTask(
     } =
       await supabase
         .from(
-          'task_members',
+          "task_members",
         )
         .delete()
         .eq(
-          'task_id',
+          "task_id",
           taskId,
         );
 
@@ -880,19 +1346,15 @@ export async function updateTask(
       deleteMemberError
     ) {
       throw new Error(
-        `Failed to update task member: ${deleteMemberError.message}`,
+        `Failed to update task members: ${deleteMemberError.message}`,
       );
     }
 
     /*
-     * If the new assignee is provided,
-     * insert them.
-     *
-     * If assignedTo is null/empty,
-     * the task becomes unassigned.
+     * Insert new assignments.
      */
     if (
-      input.assignedTo
+      memberIds.length > 0
     ) {
       const {
         error:
@@ -900,21 +1362,25 @@ export async function updateTask(
       } =
         await supabase
           .from(
-            'task_members',
+            "task_members",
           )
-          .insert({
-            task_id:
-              taskId,
+          .insert(
+            memberIds.map(
+              (profileId) => ({
+                task_id:
+                  taskId,
 
-            profile_id:
-              input.assignedTo,
-          });
+                profile_id:
+                  profileId,
+              }),
+            ),
+          );
 
       if (
         memberError
       ) {
         throw new Error(
-          `Failed to assign task member: ${memberError.message}`,
+          `Failed to assign task members: ${memberError.message}`,
         );
       }
     }
@@ -935,14 +1401,84 @@ export async function deleteTask(
   const supabase =
     await getSupabase();
 
+  const currentUserId =
+    await getCurrentUserId(
+      supabase,
+    );
+
+  if (!taskId) {
+    throw new Error(
+      "Task ID is required.",
+    );
+  }
+
+  const {
+    data: task,
+    error: taskError,
+  } =
+    await supabase
+      .from("tasks")
+      .select(
+        "task_id, project_id, created_by",
+      )
+      .eq(
+        "task_id",
+        taskId,
+      )
+      .single();
+
+  if (
+    taskError ||
+    !task
+  ) {
+    throw new Error(
+      "Tarefa não encontrada.",
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Verify task access                                                     */
+  /* ---------------------------------------------------------------------- */
+
+  if (
+    task.project_id ===
+    null
+  ) {
+    /*
+     * Personal task:
+     * only creator can delete it.
+     */
+    if (
+      task.created_by !==
+      currentUserId
+    ) {
+      throw new Error(
+        "Não tem permissão para eliminar esta tarefa.",
+      );
+    }
+  } else {
+    /*
+     * Project task:
+     * any project member can delete it.
+     */
+    await assertProjectMember(
+      supabase,
+      task.project_id,
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Delete task                                                             */
+  /* ---------------------------------------------------------------------- */
+
   const {
     error,
   } =
     await supabase
-      .from('tasks')
+      .from("tasks")
       .delete()
       .eq(
-        'task_id',
+        "task_id",
         taskId,
       );
 
@@ -965,9 +1501,19 @@ export async function reorderTasks(
   const supabase =
     await getSupabase();
 
+  const currentUserId =
+    await getCurrentUserId(
+      supabase,
+    );
+
+  const currentProfileId =
+    await getCurrentProfileId(
+      supabase,
+    );
+
   if (!columnId) {
     throw new Error(
-      'Column ID is required.',
+      "Column ID is required.",
     );
   }
 
@@ -977,6 +1523,35 @@ export async function reorderTasks(
   ) {
     return;
   }
+
+  /* ---------------------------------------------------------------------- */
+  /* Verify board access                                                    */
+  /* ---------------------------------------------------------------------- */
+
+  if (
+    scope.type ===
+    "project"
+  ) {
+    await assertProjectMember(
+      supabase,
+      scope.projectId,
+    );
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Verify destination column                                              */
+  /* ---------------------------------------------------------------------- */
+
+  await validateTaskColumn(
+    supabase,
+    scope,
+    columnId,
+    currentProfileId,
+  );
+
+  /* ---------------------------------------------------------------------- */
+  /* Reorder                                                                 */
+  /* ---------------------------------------------------------------------- */
 
   for (
     let index = 0;
@@ -989,7 +1564,7 @@ export async function reorderTasks(
 
     let query =
       supabase
-        .from('tasks')
+        .from("tasks")
         .update({
           column_id:
             columnId,
@@ -998,23 +1573,38 @@ export async function reorderTasks(
             index,
         })
         .eq(
-          'task_id',
+          "task_id",
           taskId,
         );
 
+    /* -------------------------------------------------------------------- */
+    /* General board                                                        */
+    /* -------------------------------------------------------------------- */
+
     if (
       scope.type ===
-      'general'
+      "general"
     ) {
       query =
-        query.is(
-          'project_id',
-          null,
-        );
-    } else {
+        query
+          .is(
+            "project_id",
+            null,
+          )
+          .eq(
+            "created_by",
+            currentUserId,
+          );
+    }
+
+    /* -------------------------------------------------------------------- */
+    /* Project board                                                        */
+    /* -------------------------------------------------------------------- */
+
+    else {
       query =
         query.eq(
-          'project_id',
+          "project_id",
           scope.projectId,
         );
     }
@@ -1032,24 +1622,25 @@ export async function reorderTasks(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Get complete Kanban board                                                 */
+/* Get complete Kanban board                                                  */
 /* -------------------------------------------------------------------------- */
 
 export async function getKanbanBoard(
   scope: TaskScope,
 ): Promise<KanbanBoardData> {
-  const [
-    { getTaskColumns },
-    tasks,
-  ] = await Promise.all([
-    import('./task_columns'),
-    getTasks(scope),
-  ]);
+  const {
+    getTaskColumns,
+  } = await import(
+    "./task_columns"
+  );
 
-  const columns =
-    await getTaskColumns(
-      scope,
-    );
+  const [
+    tasks,
+    columns,
+  ] = await Promise.all([
+    getTasks(scope),
+    getTaskColumns(scope),
+  ]);
 
   return {
     scope,

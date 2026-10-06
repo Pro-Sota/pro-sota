@@ -51,12 +51,14 @@ export default function TaskMembers({
       .slice(0, 6);
   }, [availableMembers, members, search]);
 
-  function handleOpen() {
-    if (isAdding) {
-      setSearch("");
-    }
+  function handleToggleAdd() {
+    setIsAdding((current) => {
+      if (current) {
+        setSearch("");
+      }
 
-    setIsAdding((value) => !value);
+      return !current;
+    });
   }
 
   function handleSelect(member: TaskMember) {
@@ -67,14 +69,21 @@ export default function TaskMembers({
 
   return (
     <div className="space-y-3">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Membros
-        </p>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Membros
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            Atribua esta tarefa a um ou mais membros.
+          </p>
+        </div>
 
         <button
           type="button"
-          onClick={handleOpen}
+          onClick={handleToggleAdd}
           aria-label={
             isAdding
               ? "Fechar pesquisa de membros"
@@ -85,20 +94,21 @@ export default function TaskMembers({
               ? "Fechar pesquisa"
               : "Adicionar membro"
           }
-          className={`rounded-lg border p-1.5 transition ${
+          className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
             isAdding
               ? "border-gray-300 bg-gray-100 text-gray-800"
-              : "border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-800"
           }`}
         >
           {isAdding ? (
-            <X size={14} />
+            <X className="h-3.5 w-3.5" />
           ) : (
-            <Plus size={14} />
+            <Plus className="h-3.5 w-3.5" />
           )}
         </button>
       </div>
 
+      {/* Add member */}
       {isAdding && (
         <div className="relative">
           <div className="relative">
@@ -112,6 +122,7 @@ export default function TaskMembers({
               }
               autoFocus
               placeholder="Pesquisar membro..."
+              aria-label="Pesquisar membro"
               className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
             />
           </div>
@@ -141,11 +152,13 @@ export default function TaskMembers({
                       )}
                     </span>
 
-                    <span className="min-w-0">
+                    <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-gray-800">
                         {name || "Membro sem nome"}
                       </span>
                     </span>
+
+                    <Plus className="h-4 w-4 shrink-0 text-gray-400" />
                   </button>
                 );
               })}
@@ -162,6 +175,7 @@ export default function TaskMembers({
         </div>
       )}
 
+      {/* Assigned members */}
       {members.length === 0 ? (
         <p className="text-sm text-slate-400">
           Sem membros atribuídos.
@@ -179,7 +193,7 @@ export default function TaskMembers({
                 className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1"
               >
                 <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold text-white ${getAvatarColor()}`}
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white ${getAvatarColor()}`}
                 >
                   {getInitials(
                     member.firstName,
@@ -187,7 +201,7 @@ export default function TaskMembers({
                   )}
                 </span>
 
-                <span className="text-xs font-medium text-slate-700">
+                <span className="max-w-40 truncate text-xs font-medium text-slate-700">
                   {name || "Membro"}
                 </span>
 
@@ -198,9 +212,9 @@ export default function TaskMembers({
                   }
                   aria-label={`Remover ${name || "membro"}`}
                   title={`Remover ${name || "membro"}`}
-                  className="text-slate-400 transition hover:text-red-500"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-500"
                 >
-                  <X size={12} />
+                  <X className="h-3 w-3" />
                 </button>
               </span>
             );
