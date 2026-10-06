@@ -56,12 +56,14 @@ function EmptyState({
   const router = useRouter();
 
   return (
-    <div className="flex min-h-[180px] flex-col items-center justify-center py-8 text-center">
+    <div className="flex min-h-[180px] flex-col items-center justify-center px-4 py-8 text-center">
       <div className="mb-4 rounded-full bg-gray-100 p-4">
         <Icon className="h-6 w-6 text-gray-400" />
       </div>
 
-      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+      <h3 className="text-sm font-semibold text-gray-900">
+        {title}
+      </h3>
 
       <p className="mt-1 max-w-sm text-sm leading-6 text-gray-500">
         {description}
@@ -81,11 +83,59 @@ function EmptyState({
   );
 }
 
+const getProjectStatus = (status: string | null) => {
+  const statusConfig = {
+    active: {
+      label: "Em curso",
+      className: "bg-green-50 text-green-700",
+      dot: "bg-green-500",
+    },
+    "on track": {
+      label: "Em curso",
+      className: "bg-green-50 text-green-700",
+      dot: "bg-green-500",
+    },
+    "at risk": {
+      label: "Em risco",
+      className: "bg-orange-50 text-orange-700",
+      dot: "bg-orange-500",
+    },
+    delayed: {
+      label: "Atrasado",
+      className: "bg-red-50 text-red-700",
+      dot: "bg-red-500",
+    },
+  };
+
+  return (
+    statusConfig[
+      status?.toLowerCase() as keyof typeof statusConfig
+    ] ?? {
+      label: status || "Sem estado",
+      className: "bg-gray-100 text-gray-700",
+      dot: "bg-gray-400",
+    }
+  );
+};
+
+const formatDate = (value: string | null) => {
+  if (!value) return null;
+
+  return new Date(value).toLocaleDateString("pt-PT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 export default function Dashboard({ data }: DashboardProps) {
   const router = useRouter();
-  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
 
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] =
+    useState(false);
+
+  const [isUploadModalOpen, setIsUploadModalOpen] =
+    useState(false);
 
   const currentUser = data.currentUser;
   const projects = data.projects ?? [];
@@ -101,7 +151,10 @@ export default function Dashboard({ data }: DashboardProps) {
       task.status === "done",
   ).length;
 
-  const openTasks = Math.max(tasks.length - completedTasks, 0);
+  const openTasks = Math.max(
+    tasks.length - completedTasks,
+    0,
+  );
 
   const firstName =
     currentUser?.first_name?.trim() ||
@@ -122,10 +175,6 @@ export default function Dashboard({ data }: DashboardProps) {
     return "Boa noite";
   };
 
-  /*
-   * Quick actions are for actions the user can perform.
-   * Stats below are for understanding the user's current workload.
-   */
   const quickActions = [
     {
       label: "Nova tarefa",
@@ -153,10 +202,6 @@ export default function Dashboard({ data }: DashboardProps) {
     },
   ];
 
-  /*
-   * Stats are intentionally different from the quick actions.
-   * They provide a summary rather than another set of navigation shortcuts.
-   */
   const stats = [
     {
       title: "Projectos activos",
@@ -189,12 +234,13 @@ export default function Dashboard({ data }: DashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F7F5]">
+    <div className="min-h-screen overflow-x-hidden bg-[#F7F7F5]">
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-        <div className="space-y-6 sm:space-y-8">
+        <div className="min-w-0 space-y-6 sm:space-y-8">
+
           {/* Header */}
           <header className="border-b border-gray-200 pb-6">
-            <div className="flex flex-col gap-2">
+            <div className="flex min-w-0 flex-col gap-2">
               <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
                 {getGreeting()}, {firstName}
               </h1>
@@ -213,7 +259,7 @@ export default function Dashboard({ data }: DashboardProps) {
                 <button
                   key={action.label}
                   type="button"
-                                    onClick={() => {
+                  onClick={() => {
                     if (action.label === "Agendar reunião") {
                       setIsMeetingModalOpen(true);
                       return;
@@ -226,12 +272,13 @@ export default function Dashboard({ data }: DashboardProps) {
 
                     router.push(action.href);
                   }}
-                  className={`group flex min-h-[92px] cursor-pointer flex-col items-start justify-between rounded-lg px-4 py-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 sm:min-h-[104px] sm:px-5 sm:py-5 ${action.variant === "primary"
+                  className={`group flex min-h-[88px] cursor-pointer flex-col items-start justify-between rounded-lg px-4 py-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 sm:min-h-[104px] sm:px-5 sm:py-5 ${
+                    action.variant === "primary"
                       ? "bg-[#BD9655] text-[#002950] hover:bg-[#C8A66E]"
                       : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:shadow-sm"
-                    }`}
+                  }`}
                 >
-                  <action.icon className="h-5 w-5" />
+                  <action.icon className="h-5 w-5 shrink-0" />
 
                   <span className="text-xs font-medium sm:text-sm">
                     {action.label}
@@ -249,7 +296,7 @@ export default function Dashboard({ data }: DashboardProps) {
                   key={item.title}
                   type="button"
                   onClick={() => router.push(item.href)}
-                  className="group cursor-pointer rounded-lg border border-gray-200 bg-white p-4 text-left transition-all duration-200 hover:border-gray-300 hover:bg-gray-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 sm:p-5 lg:p-6"
+                  className="group min-w-0 cursor-pointer rounded-lg border border-gray-200 bg-white p-4 text-left transition-all duration-200 hover:border-gray-300 hover:bg-gray-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 sm:p-5 lg:p-6"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -262,8 +309,8 @@ export default function Dashboard({ data }: DashboardProps) {
                       </p>
                     </div>
 
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 transition-colors group-hover:bg-gray-200 sm:h-10 sm:w-10">
-                      <item.icon className="h-4 w-4 text-[#002950] sm:h-5 sm:w-5" />
+                    <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 transition-colors group-hover:bg-gray-200 sm:flex">
+                      <item.icon className="h-5 w-5 text-[#002950]" />
                     </div>
                   </div>
                 </button>
@@ -272,16 +319,17 @@ export default function Dashboard({ data }: DashboardProps) {
           </section>
 
           {/* Main Dashboard Grid */}
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.8fr)]">
+          <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.8fr)]">
+
             {/* Projects */}
             <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
-              <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
-                <div>
+              <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
+                <div className="min-w-0">
                   <h2 className="text-base font-semibold text-gray-900">
                     Projectos Activos
                   </h2>
 
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 truncate text-xs text-gray-500">
                     {projects.length > 6
                       ? `A mostrar 6 de ${projects.length} projectos`
                       : "Projectos em que participa actualmente"}
@@ -290,8 +338,10 @@ export default function Dashboard({ data }: DashboardProps) {
 
                 <button
                   type="button"
-                  onClick={() => router.push("/management/projects")}
-                  className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
+                  onClick={() =>
+                    router.push("/management/projects")
+                  }
+                  className="ml-2 shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
                 >
                   Ver todos
                 </button>
@@ -309,166 +359,230 @@ export default function Dashboard({ data }: DashboardProps) {
                     }}
                   />
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[680px] border-separate border-spacing-0 text-sm">
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                            Projecto
-                          </th>
+                  <>
+                    {/* Mobile project cards */}
+                    <div className="space-y-2 md:hidden">
+                      {projects.slice(0, 6).map((project) => {
+                        const progress = 0;
+                        const config = getProjectStatus(
+                          project.status,
+                        );
 
-                          <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                            Estado
-                          </th>
+                        return (
+                          <button
+                            key={project.project_id}
+                            type="button"
+                            onClick={() =>
+                              handleProjectClick(
+                                project.project_id,
+                              )
+                            }
+                            className="group w-full rounded-lg border border-gray-100 p-4 text-left transition-colors hover:border-gray-200 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
+                          >
+                            <div className="flex min-w-0 items-start gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
+                                <Building2 className="h-4 w-4" />
+                              </div>
 
-                          <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                            Progresso
-                          </th>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-gray-900">
+                                  {project.title}
+                                </p>
 
-                          <th className="border-b border-gray-200 px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                            Prazo
-                          </th>
-                        </tr>
-                      </thead>
+                                <p className="mt-0.5 truncate text-xs text-gray-500">
+                                  {project.project_code}
+                                  {project.location &&
+                                    ` · ${project.location}`}
+                                </p>
+                              </div>
 
-                      <tbody>
-                        {projects.slice(0, 6).map((project) => {
-                          const progress = 0;
+                              <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-500" />
+                            </div>
 
-                          const statusConfig = {
-                            active: {
-                              label: "Em curso",
-                              className: "bg-green-50 text-green-700",
-                              dot: "bg-green-500",
-                            },
-                            "on track": {
-                              label: "Em curso",
-                              className: "bg-green-50 text-green-700",
-                              dot: "bg-green-500",
-                            },
-                            "at risk": {
-                              label: "Em risco",
-                              className: "bg-orange-50 text-orange-700",
-                              dot: "bg-orange-500",
-                            },
-                            delayed: {
-                              label: "Atrasado",
-                              className: "bg-red-50 text-red-700",
-                              dot: "bg-red-500",
-                            },
-                          };
-
-                          const config =
-                            statusConfig[
-                            project.status?.toLowerCase() as keyof typeof statusConfig
-                            ] ?? {
-                              label: project.status || "Sem estado",
-                              className: "bg-gray-100 text-gray-700",
-                              dot: "bg-gray-400",
-                            };
-
-                          return (
-                            <tr
-                              key={project.project_id}
-                              onClick={() =>
-                                handleProjectClick(project.project_id)
-                              }
-                              className="group cursor-pointer transition-colors hover:bg-gray-50"
-                            >
-                              <td className="border-b border-gray-100 px-4 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-                                    <Building2 className="h-4 w-4" />
-                                  </div>
-
-                                  <div className="min-w-0">
-                                    <p className="truncate font-semibold text-gray-900">
-                                      {project.title}
-                                    </p>
-
-                                    <p className="mt-0.5 truncate text-xs text-gray-500">
-                                      {project.project_code}
-                                      {project.location &&
-                                        ` · ${project.location}`}
-                                    </p>
-                                  </div>
-                                </div>
-                              </td>
-
-                              <td className="border-b border-gray-100 px-4 py-4">
+                            <div className="mt-4 flex min-w-0 items-center justify-between gap-3">
+                              <span
+                                className={`inline-flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${config.className}`}
+                              >
                                 <span
-                                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${config.className}`}
-                                >
-                                  <span
-                                    className={`h-1.5 w-1.5 rounded-full ${config.dot}`}
-                                  />
+                                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${config.dot}`}
+                                />
+
+                                <span className="truncate">
                                   {config.label}
                                 </span>
-                              </td>
+                              </span>
 
-                              <td className="border-b border-gray-100 px-4 py-4">
-                                <div className="w-32">
-                                  <div className="mb-1.5 flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-gray-900">
-                                      {progress}%
-                                    </span>
-                                  </div>
+                              <span className="shrink-0 text-xs font-medium text-gray-500">
+                                {formatDate(project.end_date) ||
+                                  "Sem prazo"}
+                              </span>
+                            </div>
 
-                                  <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
-                                    <div
-                                      className="h-full rounded-full bg-gray-900 transition-all"
-                                      style={{
-                                        width: `${Math.min(
-                                          Math.max(progress, 0),
-                                          100,
-                                        )}%`,
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              </td>
-
-                              <td className="border-b border-gray-100 px-4 py-4 text-right">
-                                <span className="whitespace-nowrap text-sm font-medium text-gray-700">
-                                  {project.end_date
-                                    ? new Date(
-                                      project.end_date,
-                                    ).toLocaleDateString("pt-PT", {
-                                      day: "2-digit",
-                                      month: "short",
-                                      year: "numeric",
-                                    })
-                                    : "—"}
+                            <div className="mt-4">
+                              <div className="mb-1.5 flex items-center justify-between">
+                                <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                  Progresso
                                 </span>
-                              </td>
+
+                                <span className="text-xs font-semibold text-gray-700">
+                                  {progress}%
+                                </span>
+                              </div>
+
+                              <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+                                <div
+                                  className="h-full rounded-full bg-gray-900 transition-all"
+                                  style={{
+                                    width: `${Math.min(
+                                      Math.max(progress, 0),
+                                      100,
+                                    )}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Desktop / Tablet */}
+                    <div className="hidden md:block">
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[620px] border-separate border-spacing-0 text-sm">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                                Projecto
+                              </th>
+
+                              <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                                Estado
+                              </th>
+
+                              <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                                Progresso
+                              </th>
+
+                              <th className="border-b border-gray-200 px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                                Prazo
+                              </th>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                          </thead>
+
+                          <tbody>
+                            {projects.slice(0, 6).map((project) => {
+                              const progress = 0;
+                              const config = getProjectStatus(
+                                project.status,
+                              );
+
+                              return (
+                                <tr
+                                  key={project.project_id}
+                                  onClick={() =>
+                                    handleProjectClick(
+                                      project.project_id,
+                                    )
+                                  }
+                                  className="group cursor-pointer transition-colors hover:bg-gray-50"
+                                >
+                                  <td className="max-w-[320px] border-b border-gray-100 px-4 py-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
+                                        <Building2 className="h-4 w-4" />
+                                      </div>
+
+                                      <div className="min-w-0">
+                                        <p className="truncate font-semibold text-gray-900">
+                                          {project.title}
+                                        </p>
+
+                                        <p className="mt-0.5 truncate text-xs text-gray-500">
+                                          {project.project_code}
+                                          {project.location &&
+                                            ` · ${project.location}`}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  <td className="border-b border-gray-100 px-4 py-4">
+                                    <span
+                                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${config.className}`}
+                                    >
+                                      <span
+                                        className={`h-1.5 w-1.5 rounded-full ${config.dot}`}
+                                      />
+
+                                      {config.label}
+                                    </span>
+                                  </td>
+
+                                  <td className="border-b border-gray-100 px-4 py-4">
+                                    <div className="w-32">
+                                      <div className="mb-1.5 flex items-center justify-between">
+                                        <span className="text-xs font-semibold text-gray-900">
+                                          {progress}%
+                                        </span>
+                                      </div>
+
+                                      <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+                                        <div
+                                          className="h-full rounded-full bg-gray-900 transition-all"
+                                          style={{
+                                            width: `${Math.min(
+                                              Math.max(
+                                                progress,
+                                                0,
+                                              ),
+                                              100,
+                                            )}%`,
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  <td className="border-b border-gray-100 px-4 py-4 text-right">
+                                    <span className="whitespace-nowrap text-sm font-medium text-gray-700">
+                                      {formatDate(
+                                        project.end_date,
+                                      ) || "—"}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </section>
 
             {/* Deadlines */}
-            <section className="min-w-0 rounded-lg border border-gray-200 bg-white">
+            <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
               <div className="border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex min-w-0 items-center justify-between gap-3">
+                  <div className="min-w-0">
                     <h2 className="text-base font-semibold text-gray-900">
                       Próximos Prazos
                     </h2>
 
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 truncate text-xs text-gray-500">
                       Tarefas com datas próximas
                     </p>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => router.push("/management/tasks")}
-                    className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+                    onClick={() =>
+                      router.push("/management/tasks")
+                    }
+                    className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
                   >
                     Ver
                   </button>
@@ -491,11 +605,13 @@ export default function Dashboard({ data }: DashboardProps) {
                         onClick={() =>
                           item.project_id
                             ? router.push(
-                              `/management/projects/${item.project_id}/tasks`,
-                            )
-                            : router.push("/management/tasks")
+                                `/management/projects/${item.project_id}/tasks`,
+                              )
+                            : router.push(
+                                "/management/tasks",
+                              )
                         }
-                        className="flex w-full gap-3 rounded-lg p-3 text-left transition-colors hover:bg-gray-50"
+                        className="group flex w-full min-w-0 gap-3 rounded-lg p-3 text-left transition-colors hover:bg-gray-50"
                       >
                         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
                           <CalendarDays className="h-4 w-4 text-gray-500" />
@@ -507,22 +623,17 @@ export default function Dashboard({ data }: DashboardProps) {
                           </p>
 
                           <p className="mt-0.5 truncate text-xs text-gray-500">
-                            {item.project_id || "Sem projecto"}
+                            {item.project_id ||
+                              "Sem projecto"}
                           </p>
 
                           <p className="mt-1 text-xs font-medium text-gray-400">
-                            {item.due_date
-                              ? new Date(item.due_date).toLocaleDateString(
-                                "pt-PT",
-                                {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                },
-                              )
-                              : "Sem data"}
+                            {formatDate(item.due_date) ||
+                              "Sem data"}
                           </p>
                         </div>
+
+                        <ArrowRight className="mt-2 hidden h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 sm:block" />
                       </button>
                     ))}
                   </div>
@@ -532,13 +643,19 @@ export default function Dashboard({ data }: DashboardProps) {
           </div>
 
           {/* Activity + Documents */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <RecentActivitiesSection activities={activities} />
-            <RecentDocumentsSection documents={documents} />
+          <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+            <RecentActivitiesSection
+              activities={activities}
+            />
+
+            <RecentDocumentsSection
+              documents={documents}
+            />
           </div>
         </div>
       </div>
 
+      {/* Upload document */}
       {isUploadModalOpen && (
         <UploadDocument
           projects={projects.map((project) => ({
@@ -550,9 +667,12 @@ export default function Dashboard({ data }: DashboardProps) {
         />
       )}
 
+      {/* Meeting */}
       <CreateMeetingModal
         open={isMeetingModalOpen}
-        onClose={() => setIsMeetingModalOpen(false)}
+        onClose={() =>
+          setIsMeetingModalOpen(false)
+        }
       />
     </div>
   );
@@ -566,22 +686,24 @@ function RecentActivitiesSection({
   const router = useRouter();
 
   return (
-    <section className="min-w-0 rounded-lg border border-gray-200 bg-white">
-      <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900">
+    <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold text-gray-900">
             Actividades Recentes
           </h2>
 
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 truncate text-xs text-gray-500">
             Actividade recente no sistema
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => router.push("/management/activity")}
-          className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+          onClick={() =>
+            router.push("/management/activity")
+          }
+          className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
         >
           Ver todas
         </button>
@@ -598,20 +720,22 @@ function RecentActivitiesSection({
           <div className="divide-y divide-gray-100">
             {activities.slice(0, 6).map((activity) => {
               const initials = activity.user_id
-                ? activity.user_id.substring(0, 2).toUpperCase()
+                ? activity.user_id
+                    .substring(0, 2)
+                    .toUpperCase()
                 : "?";
 
               return (
                 <div
                   key={activity.activity_id}
-                  className="flex gap-3 py-4 first:pt-0 last:pb-0"
+                  className="flex min-w-0 gap-3 py-4 first:pt-0 last:pb-0"
                 >
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
                     {initials}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-5 text-gray-900">
+                    <p className="break-words text-sm leading-5 text-gray-900">
                       {activity.description}
                     </p>
 
@@ -623,16 +747,18 @@ function RecentActivitiesSection({
 
                     <p className="mt-1 text-xs text-gray-400">
                       {activity.created_at
-                        ? new Date(activity.created_at).toLocaleDateString(
-                          "pt-PT",
-                          {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )
+                        ? new Date(
+                            activity.created_at,
+                          ).toLocaleDateString(
+                            "pt-PT",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )
                         : ""}
                     </p>
                   </div>
@@ -654,27 +780,27 @@ function RecentDocumentsSection({
   const router = useRouter();
 
   return (
-    <section className="min-w-0 rounded-lg border border-gray-200 bg-white">
-      <div className="border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-gray-900">
-              Documentos Recentes
-            </h2>
+    <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold text-gray-900">
+            Documentos Recentes
+          </h2>
 
-            <p className="mt-1 text-xs text-gray-500">
-              Documentos adicionados recentemente
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => router.push("/management/documents")}
-            className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
-          >
-            Ver todos
-          </button>
+          <p className="mt-1 truncate text-xs text-gray-500">
+            Documentos adicionados recentemente
+          </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            router.push("/management/documents")
+          }
+          className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+        >
+          Ver todos
+        </button>
       </div>
 
       <div className="p-5 sm:p-6">
@@ -700,10 +826,12 @@ function RecentDocumentsSection({
                       `/management/projects/${doc.project_id}/documents`,
                     );
                   } else {
-                    router.push("/management/documents");
+                    router.push(
+                      "/management/documents",
+                    );
                   }
                 }}
-                className="group flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-gray-50"
+                className="group flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-gray-50"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 transition-colors group-hover:bg-gray-200">
                   <FileText className="h-5 w-5 text-gray-600" />
@@ -720,14 +848,21 @@ function RecentDocumentsSection({
 
                   <p className="mt-1 text-xs text-gray-400">
                     {doc.created_at
-                      ? new Date(doc.created_at).toLocaleDateString("pt-PT", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })
+                      ? new Date(
+                          doc.created_at,
+                        ).toLocaleDateString(
+                          "pt-PT",
+                          {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          },
+                        )
                       : ""}
                   </p>
                 </div>
+
+                <ArrowRight className="hidden h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 sm:block" />
               </button>
             ))}
           </div>

@@ -26,9 +26,7 @@ export default function CalendarPageInit({
     });
 
     const openEventModal = (date?: string) => {
-        setEventModalDate(
-            date ?? calendar.selectedDate
-        );
+        setEventModalDate(date ?? calendar.selectedDate);
     };
 
     const closeEventModal = () => {
@@ -36,22 +34,21 @@ export default function CalendarPageInit({
     };
 
     return (
-        <main className="min-h-screen bg-[#F7F7F5] px-4 py-6 md:px-6 lg:px-8 lg:py-8">
-            {/* One consistent vertical rhythm: gap-6 between every section */}
-            <div className="mx-auto flex max-w-[1600px] flex-col gap-6">
+        <main className="min-h-screen overflow-x-hidden bg-[#F7F7F5] px-3 py-4 sm:px-4 sm:py-6 md:px-6 lg:px-8 lg:py-8">
+            <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 sm:gap-6">
                 {/* Header */}
-                <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
+                <header className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
                         <div className="mb-1.5 flex items-center gap-2 text-sm text-neutral-500">
-                            <CalendarDays className="h-4 w-4" />
+                            <CalendarDays className="h-4 w-4 shrink-0" />
                             <span>Planeamento</span>
                         </div>
 
-                        <h1 className="text-3xl font-semibold tracking-tight text-neutral-950">
+                        <h1 className="text-2xl font-semibold tracking-tight text-neutral-950 sm:text-3xl">
                             Calendário
                         </h1>
 
-                        <p className="mt-1 text-sm text-neutral-500">
+                        <p className="mt-1 max-w-2xl text-sm leading-5 text-neutral-500">
                             Acompanhe projectos, tarefas, reuniões e
                             prazos.
                         </p>
@@ -60,65 +57,78 @@ export default function CalendarPageInit({
                     <button
                         type="button"
                         onClick={() => openEventModal()}
-                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-5 text-sm font-semibold text-[#002950] transition hover:bg-[#a9854b] focus:outline-none focus:ring-4 focus:ring-[#BD9655]/20 sm:w-auto"
+                        className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-5 text-sm font-semibold text-[#002950] transition hover:bg-[#a9854b] focus:outline-none focus:ring-4 focus:ring-[#BD9655]/20 sm:w-auto"
                     >
                         <Plus className="h-4 w-4" />
-                        Novo evento
+                        <span>Novo evento</span>
                     </button>
                 </header>
 
                 {/* Stats */}
-                <CalendarStats
-                    monthCount={calendar.monthEvents.length}
-                    todayCount={calendar.todayEvents.length}
-                    nextSevenDaysCount={
-                        calendar.nextSevenDaysEvents.length
-                    }
-                    upcomingDeadlinesCount={
-                        calendar.upcomingDeadlines.length
-                    }
-                />
+                <div className="min-w-0">
+                    <CalendarStats
+                        monthCount={calendar.monthEvents.length}
+                        todayCount={calendar.todayEvents.length}
+                        nextSevenDaysCount={
+                            calendar.nextSevenDaysEvents.length
+                        }
+                        upcomingDeadlinesCount={
+                            calendar.upcomingDeadlines.length
+                        }
+                    />
+                </div>
 
-                {/* Content: both columns stretch to the same height */}
-                <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-                    {/* Main Calendar */}
+                {/* Calendar + sidebar */}
+                <div className="grid min-w-0 items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                     {/* Main Calendar */}
                     <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-neutral-200/80 bg-white">
-                        {/* Toolbar: month nav + search */}
-                        <div className="border-b border-neutral-200/80 px-4 py-4 sm:px-6 sm:py-5">
-                            <CalendarToolbar
-                                monthLabel={calendar.monthLabel}
-                                search={calendar.search}
-                                onSearchChange={calendar.setSearch}
-                                onPreviousMonth={() => calendar.changeMonth(-1)}
-                                onNextMonth={() => calendar.changeMonth(1)}
-                                onToday={calendar.goToday}
-                            />
+                        {/* Toolbar */}
+                        <div className="border-b border-neutral-200/80 px-3 py-3 sm:px-5 sm:py-4 lg:px-6 lg:py-5">
+                            <div className="min-w-0 overflow-x-auto">
+                                <CalendarToolbar
+                                    monthLabel={calendar.monthLabel}
+                                    search={calendar.search}
+                                    onSearchChange={calendar.setSearch}
+                                    onPreviousMonth={() =>
+                                        calendar.changeMonth(-1)
+                                    }
+                                    onNextMonth={() =>
+                                        calendar.changeMonth(1)
+                                    }
+                                    onToday={calendar.goToday}
+                                />
+                            </div>
                         </div>
 
                         {/* Filters */}
-                        <div className="border-b border-neutral-200/80 px-4 py-3 sm:px-6 sm:py-4">
-                            <CalendarFilters
-                                activeFilter={calendar.activeFilter}
-                                onChange={calendar.setActiveFilter}
-                            />
+                        <div className="border-b border-neutral-200/80 px-3 py-3 sm:px-5 sm:py-4 lg:px-6">
+                            <div className="min-w-0 overflow-x-auto">
+                                <CalendarFilters
+                                    activeFilter={calendar.activeFilter}
+                                    onChange={calendar.setActiveFilter}
+                                />
+                            </div>
                         </div>
 
-                        {/* Grid */}
-                        <div className="flex-1 p-4 sm:p-6">
-                            <CalendarGrid
-                                calendarDays={calendar.calendarDays}
-                                currentDate={calendar.currentDate}
-                                todayKey={calendar.todayKey}
-                                selectedDate={calendar.selectedDate}
-                                eventsByDate={calendar.eventsByDate}
-                                onSelectDate={calendar.setSelectedDate}
-                            />
+                        {/* Calendar Grid */}
+                        <div className="min-w-0 p-2 sm:p-4 lg:p-6">
+                            <div className="min-w-0 overflow-hidden">
+                                <CalendarGrid
+                                    calendarDays={calendar.calendarDays}
+                                    currentDate={calendar.currentDate}
+                                    todayKey={calendar.todayKey}
+                                    selectedDate={calendar.selectedDate}
+                                    eventsByDate={calendar.eventsByDate}
+                                    onSelectDate={
+                                        calendar.setSelectedDate
+                                    }
+                                />
+                            </div>
                         </div>
                     </section>
 
                     {/* Right Panel */}
-                    <aside className="flex min-w-0 flex-col gap-6">
+                    <aside className="grid min-w-0 gap-5 sm:gap-6 xl:flex xl:flex-col">
                         <SelectedDayAgenda
                             selectedDate={calendar.selectedDate}
                             selectedEvents={calendar.selectedEvents}
@@ -128,7 +138,7 @@ export default function CalendarPageInit({
                             onAddEvent={() =>
                                 openEventModal(
                                     calendar.selectedDate ??
-                                    undefined,
+                                        undefined,
                                 )
                             }
                         />
