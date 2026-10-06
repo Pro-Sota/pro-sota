@@ -79,7 +79,7 @@ export function prepareProjectPayload(form: ProjectFormState) {
     end_date: form.end_date,
     budget: form.budget,
     estimated_cost: form.estimated_cost ?? form.budget,
-    status: form.status || "planning",
+    status: form.status || "Em observação",
     urgency: form.urgency ?? null,
     location: form.location ?? null,
     created_by: form.created_by ?? null,

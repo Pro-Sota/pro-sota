@@ -52,6 +52,14 @@ type StoredProjectDraft = {
   form: ProjectFormState;
   savedAt: string;
 };
+export const PROJECT_STATUSES = [
+    "Em curso",
+    "Em observação",
+    "Concluído",
+    "Em pausa",
+] as const;
+
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 
 type SectionKey =
   | "information"

@@ -179,7 +179,7 @@ export default function Dashboard({ data }: DashboardProps) {
     {
       label: "Nova tarefa",
       icon: Plus,
-      href: "/management/tasks/create",
+      href: "/management/tasks",
       variant: "primary" as const,
     },
     {

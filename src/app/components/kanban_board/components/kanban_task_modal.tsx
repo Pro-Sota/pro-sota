@@ -1,13 +1,22 @@
 "use client";
 
-import { Trash2, X, Check, Calendar } from "lucide-react";
+import {
+  Trash2,
+  X,
+  Check,
+  Calendar,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { PRIORITY_CONFIG, TASK_PRIORITIES } from "../constants";
+import {
+  PRIORITY_CONFIG,
+  TASK_PRIORITIES,
+} from "../constants";
+
 import type {
   KanbanColumn,
   Task,
-  TaskPriority,
+  TaskMember,
   UpdateTaskInput,
 } from "../types";
 
@@ -17,52 +26,117 @@ import TaskMembers from "./kanban_task_members";
 type TaskModalProps = {
   task: Task;
   columns: KanbanColumn[];
+  availableMembers: TaskMember[];
   onClose: () => void;
   onUpdate: (
     taskId: string,
     input: UpdateTaskInput,
-  ) => void;
+  ) => void | Promise<void>;
   onDelete: (taskId: string) => void;
 };
 
 export default function TaskModal({
   task,
   columns,
+  availableMembers,
   onClose,
   onUpdate,
   onDelete,
 }: TaskModalProps) {
   const [title, setTitle] = useState(task.title);
+  const [members, setMembers] = useState<TaskMember[]>(
+    task.members ?? [],
+  );
+  const [description, setDescription] = useState(
+    task.description ?? "",
+  );
+  const [completed, setCompleted] = useState(
+    Boolean(task.completed),
+  );
+  const [priority, setPriority] = useState(task.priority);
+  const [startDate, setStartDate] = useState(
+    task.startDate ?? "",
+  );
+  const [dueDate, setDueDate] = useState(
+    task.dueDate ?? "",
+  );
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setTitle(task.title);
-  }, [task.taskId, task.title]);
+    setDescription(task.description ?? "");
+    setCompleted(Boolean(task.completed));
+    setPriority(task.priority);
+    setStartDate(task.startDate ?? "");
+    setDueDate(task.dueDate ?? "");
+    setMembers(task.members ?? []);
+  }, [
+    task.taskId,
+    task.title,
+    task.description,
+    task.completed,
+    task.priority,
+    task.startDate,
+    task.dueDate,
+    task.members,
+  ]);
+
+  function handleAddMember(member: TaskMember) {
+    setMembers((current) => {
+      const alreadyAdded = current.some(
+        (item) => item.profileId === member.profileId,
+      );
+
+      if (alreadyAdded) {
+        return current;
+      }
+
+      return [...current, member];
+    });
+  }
+
+  function handleRemoveMember(profileId: string) {
+    setMembers((current) =>
+      current.filter(
+        (member) => member.profileId !== profileId,
+      ),
+    );
+  }
 
   const currentColumn =
     columns.find(
       (column) => column.columnId === task.columnId,
     )?.name ?? "Sem estado";
 
-  const isCompleted = Boolean(task.completed);
+  async function handleSave() {
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
 
-  function commitTitle() {
-    const value = title.trim();
-
-    if (value && value !== task.title) {
-      onUpdate(task.taskId, {
-        title: value,
-      });
-
+    if (!trimmedTitle) {
+      setTitle(task.title);
       return;
     }
 
-    setTitle(task.title);
-  }
+    const input: UpdateTaskInput = {
+      title: trimmedTitle,
+      description: trimmedDescription,
+      completed,
+      priority,
+      startDate: startDate || null,
+      dueDate: dueDate || null,
+    };
 
-  function toggleCompleted() {
-    onUpdate(task.taskId, {
-      completed: !isCompleted,
-    });
+    setIsSaving(true);
+
+    try {
+      await Promise.resolve(
+        onUpdate(task.taskId, input),
+      );
+
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -71,23 +145,26 @@ export default function TaskModal({
       onMouseDown={onClose}
     >
       <div
-        onMouseDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) =>
+          event.stopPropagation()
+        }
         className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
       >
         {/* Header */}
         <header className="border-b border-gray-100 px-6 py-5">
           <div className="flex items-start gap-4">
-            {/* Completion */}
             <button
               type="button"
-              onClick={toggleCompleted}
+              onClick={() =>
+                setCompleted((value) => !value)
+              }
               aria-label={
-                isCompleted
+                completed
                   ? "Marcar tarefa como incompleta"
                   : "Marcar tarefa como concluída"
               }
               className={`mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
-                isCompleted
+                completed
                   ? "border-emerald-500 bg-emerald-500 text-white"
                   : "border-gray-300 bg-white text-transparent hover:border-emerald-400"
               }`}
@@ -95,14 +172,12 @@ export default function TaskModal({
               <Check className="h-4 w-4" />
             </button>
 
-            {/* Title */}
             <div className="min-w-0 flex-1">
               <input
                 value={title}
                 onChange={(event) =>
                   setTitle(event.target.value)
                 }
-                onBlur={commitTitle}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.currentTarget.blur();
@@ -114,7 +189,7 @@ export default function TaskModal({
                   }
                 }}
                 className={`w-full bg-transparent text-xl font-semibold tracking-tight outline-none ${
-                  isCompleted
+                  completed
                     ? "text-gray-400 line-through"
                     : "text-gray-900"
                 }`}
@@ -130,18 +205,19 @@ export default function TaskModal({
                 </span>
 
                 <span className="text-xs text-gray-400">
-                  {isCompleted
+                  {completed
                     ? "Concluída"
                     : "Em aberto"}
                 </span>
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
-                onClick={() => onDelete(task.taskId)}
+                onClick={() =>
+                  onDelete(task.taskId)
+                }
                 aria-label="Eliminar tarefa"
                 title="Eliminar tarefa"
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500"
@@ -173,7 +249,7 @@ export default function TaskModal({
                 </p>
 
                 <p className="mt-1 text-sm font-medium text-gray-800">
-                  {isCompleted
+                  {completed
                     ? "Concluída"
                     : currentColumn}
                 </p>
@@ -181,21 +257,23 @@ export default function TaskModal({
 
               <button
                 type="button"
-                onClick={toggleCompleted}
+                onClick={() =>
+                  setCompleted((value) => !value)
+                }
                 aria-label={
-                  isCompleted
+                  completed
                     ? "Marcar como incompleta"
                     : "Marcar como concluída"
                 }
                 className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                  isCompleted
+                  completed
                     ? "bg-emerald-500"
                     : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                    isCompleted
+                    completed
                       ? "translate-x-5"
                       : "translate-x-0.5"
                   }`}
@@ -216,21 +294,19 @@ export default function TaskModal({
               </div>
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {TASK_PRIORITIES.map(({ value: priority }) => {
+                {TASK_PRIORITIES.map(({ value }) => {
                   const selected =
-                    task.priority === priority;
+                    priority === value;
 
                   const priorityConfig =
-                    PRIORITY_CONFIG[priority];
+                    PRIORITY_CONFIG[value];
 
                   return (
                     <button
-                      key={priority}
+                      key={value}
                       type="button"
                       onClick={() =>
-                        onUpdate(task.taskId, {
-                          priority,
-                        })
+                        setPriority(value)
                       }
                       className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-left transition ${
                         selected
@@ -265,12 +341,12 @@ export default function TaskModal({
                 </p>
 
                 <p className="mt-0.5 text-xs text-gray-400">
-                  Defina quando a tarefa começa e termina.
+                  Defina quando a tarefa começa e
+                  termina.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {/* Start date */}
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-gray-500">
                     Data de início
@@ -281,19 +357,17 @@ export default function TaskModal({
 
                     <input
                       type="date"
-                      value={task.startDate ?? ""}
+                      value={startDate}
                       onChange={(event) =>
-                        onUpdate(task.taskId, {
-                          startDate:
-                            event.target.value || null,
-                        })
+                        setStartDate(
+                          event.target.value,
+                        )
                       }
                       className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
                     />
                   </div>
                 </div>
 
-                {/* Due date */}
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-gray-500">
                     Data de conclusão
@@ -304,13 +378,12 @@ export default function TaskModal({
 
                     <input
                       type="date"
-                      value={task.dueDate ?? ""}
-                      min={task.startDate ?? undefined}
+                      value={dueDate}
+                      min={startDate || undefined}
                       onChange={(event) =>
-                        onUpdate(task.taskId, {
-                          dueDate:
-                            event.target.value || null,
-                        })
+                        setDueDate(
+                          event.target.value,
+                        )
                       }
                       className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
                     />
@@ -321,20 +394,39 @@ export default function TaskModal({
 
             {/* Members */}
             <TaskMembers
-              members={task.members}
-              onAdd={() => {}}
-              onRemove={() => {}}
+              members={members}
+              availableMembers={availableMembers}
+              onAdd={handleAddMember}
+              onRemove={handleRemoveMember}
             />
 
             {/* Description */}
-            <TaskDescription
-              task={task}
-              onChange={(description) =>
-                onUpdate(task.taskId, {
+            <div>
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-gray-900">
+                  Descrição
+                </p>
+
+                <p className="mt-0.5 text-xs text-gray-400">
+                  Adicione informações ou instruções
+                  importantes para esta tarefa.
+                </p>
+              </div>
+
+              <TaskDescription
+                task={{
+                  ...task,
                   description,
-                })
-              }
-            />
+                }}
+                onChange={setDescription}
+              />
+
+              <div className="mt-2 flex justify-end">
+                <span className="text-[11px] text-gray-400">
+                  {description.length} caracteres
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -342,31 +434,45 @@ export default function TaskModal({
         <footer className="flex items-center justify-between border-t border-gray-100 bg-gray-50/70 px-6 py-4">
           <span
             className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-              isCompleted
+              completed
                 ? "text-emerald-600"
                 : "text-gray-400"
             }`}
           >
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                isCompleted
+                completed
                   ? "bg-emerald-500"
                   : "bg-gray-300"
               }`}
             />
 
-            {isCompleted
+            {completed
               ? "Tarefa concluída"
               : "Tarefa em aberto"}
           </span>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
-          >
-            Fechar
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSaving}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSaving
+                ? "A guardar..."
+                : "Guardar alterações"}
+            </button>
+          </div>
         </footer>
       </div>
     </div>

@@ -16,7 +16,6 @@ export type TaskMember = {
   profileId: string;
   firstName: string;
   lastName: string;
-  picture: string | null;
 };
 
 export type Task = {

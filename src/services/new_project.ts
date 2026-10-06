@@ -7,6 +7,15 @@ type ProjectInsert =
 type ProjectRow =
     Database["public"]["Tables"]["projects"]["Row"];
 
+export const PROJECT_STATUSES = [
+    "Em curso",
+    "Em observação",
+    "Concluído",
+    "Em pausa",
+] as const;
+
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
 export type ProvisioningResult = {
     project_id: string;
     conversation_id: string;
@@ -49,12 +58,17 @@ export async function createProject(
     /* Create project                                                         */
     /* ---------------------------------------------------------------------- */
 
+    const projectData: ProjectInsert = {
+        ...projectInput,
+        status: projectInput.status ?? "Em observação",
+    };
+
     const {
         data: project,
         error: projectError,
     } = await supabase
         .from("projects")
-        .insert(projectInput)
+        .insert(projectData)
         .select()
         .single();
 
