@@ -27,30 +27,23 @@ type KanbanColumnProps = {
   onDeleteTask?: (
     taskId: string,
   ) => void;
-
   onMoveTask?: (
     taskId: string,
     targetColumnId: string,
     orderedTaskIds: string[],
   ) => void | Promise<void>;
-
   onTaskDragStart?: (
     taskId: string,
   ) => void;
-
   onDeleteColumn?: (
     columnId: string,
   ) => void | Promise<void>;
-
   onRenameColumn?: (
     columnId: string,
     name: string,
   ) => void | Promise<void>;
-
   onColumnDragStart?: () => void;
-
   onColumnDrop?: () => void;
-
   isDragOver: boolean;
 };
 
