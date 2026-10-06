@@ -196,6 +196,7 @@ export async function deleteSupplier(
 }
 
 
+
 type SupplierEvaluation =
   Database["public"]["Tables"]["supplier_evaluations"]["Row"];
 

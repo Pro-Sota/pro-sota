@@ -5,6 +5,8 @@ import {
   createSupplierActivity,
   createSupplierEvaluation,
   removeSupplierProject,
+  Supplier,
+  SupplierInsert,
   updateSupplier,
   type SupplierUpdate,
 } from "@/services/supplier";
@@ -225,3 +227,4 @@ function calculateRating(input: {
     5
   );
 }
+
