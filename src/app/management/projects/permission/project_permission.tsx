@@ -14,6 +14,7 @@ import PermissionSummary from "./permission_summary";
 import PermissionSaveBar from "./save_bar";
 
 import { updateProjectPermissions } from "@/actions/project_permission";
+import { useToast } from "@/app/components/toast/use_toast";
 
 export default function ProjectPermissions({
   projectId,
@@ -24,6 +25,8 @@ export default function ProjectPermissions({
   const [selected, setSelected] = useState<Set<Permission>>(
     () => new Set(initialPermissions),
   );
+
+  const toast = useToast();
 
   const [saving, setSaving] = useState(false);
 
@@ -76,10 +79,15 @@ export default function ProjectPermissions({
         member.profileId,
         Array.from(selected),
       );
+
+      toast.info(
+        "Permissões actualizadas com sucesso.",
+      );
     } catch (error) {
       console.error(error);
 
-      window.alert(
+      toast.info(
+
         error instanceof Error
           ? error.message
           : "Não foi possível guardar as permissões.",
@@ -117,7 +125,11 @@ export default function ProjectPermissions({
             )}
           </div>
 
-          <PermissionMemberHeader member={member} projectName={""} permissionCount={0} />
+          <PermissionMemberHeader
+            member={member}
+            projectName=""
+            permissionCount={0}
+          />
         </div>
       </div>
 
