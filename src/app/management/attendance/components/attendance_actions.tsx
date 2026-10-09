@@ -10,11 +10,14 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+// Adjust this import to the location of your existing useToast hook.
+
 import type {
     AttendanceActionLoading,
     AttendanceRecord,
     Profile,
 } from "../types";
+import { useToast } from "@/app/components/toast/use_toast";
 
 type Props = {
     profile: Profile;
@@ -40,6 +43,7 @@ export default function AttendanceActions({
 }: Props) {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const toast = useToast();
 
     const id = profile.profile_id;
     const label =
@@ -71,26 +75,12 @@ export default function AttendanceActions({
             }
         }
 
-        document.addEventListener(
-            "mousedown",
-            handleClickOutside,
-        );
-
-        document.addEventListener(
-            "keydown",
-            handleEscape,
-        );
+        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("keydown", handleEscape);
 
         return () => {
-            document.removeEventListener(
-                "mousedown",
-                handleClickOutside,
-            );
-
-            document.removeEventListener(
-                "keydown",
-                handleEscape,
-            );
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("keydown", handleEscape);
         };
     }, [menuOpen]);
 
@@ -105,10 +95,7 @@ export default function AttendanceActions({
     if (record?.status === "Ausente") {
         return (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600">
-                <XCircle
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                />
+                <XCircle className="h-4 w-4" aria-hidden="true" />
                 Ausente registado
             </span>
         );
@@ -117,10 +104,7 @@ export default function AttendanceActions({
     if (record?.check_in && record?.check_out) {
         return (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
-                <CheckCircle2
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                />
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                 Dia concluído
             </span>
         );
@@ -129,9 +113,13 @@ export default function AttendanceActions({
     const handleAbsent = async () => {
         setMenuOpen(false);
 
-        const confirmed = window.confirm(
-            `Tem a certeza que pretende marcar ${label} como ausente?`,
-        );
+        const confirmed = await toast.confirm({
+            title: "Marcar como ausente",
+            message: `Tem a certeza que pretende marcar ${label} como ausente?`,
+            confirmText: "Marcar como ausente",
+            cancelText: "Cancelar",
+            variant: "destructive",
+        });
 
         if (!confirmed) {
             return;
@@ -145,10 +133,6 @@ export default function AttendanceActions({
         await onMarkLate(id);
     };
 
-    /*
-     * No check-in yet:
-     * Primary action = Registar entrada
-     */
     if (!record?.check_in) {
         return (
             <div className="flex items-center justify-end gap-2">
@@ -173,10 +157,7 @@ export default function AttendanceActions({
                 </button>
 
                 {!record && (
-                    <div
-                        ref={menuRef}
-                        className="relative"
-                    >
+                    <div ref={menuRef} className="relative">
                         <button
                             type="button"
                             onClick={() =>
@@ -234,10 +215,6 @@ export default function AttendanceActions({
         );
     }
 
-    /*
-     * Check-in exists but check-out doesn't:
-     * Primary action = Registar saída
-     */
     if (!record.check_out) {
         return (
             <button
@@ -264,10 +241,7 @@ export default function AttendanceActions({
 
     return (
         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
-            <Check
-                className="h-4 w-4"
-                aria-hidden="true"
-            />
+            <Check className="h-4 w-4" aria-hidden="true" />
             Dia concluído
         </span>
     );

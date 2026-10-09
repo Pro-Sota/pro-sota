@@ -7,22 +7,23 @@ import {
   Bell,
   CalendarDays,
   Clock3,
+  FileText,
   Folder,
   Handshake,
   HomeIcon,
   ListTodo,
   LogOut,
-  LucideIcon,
+  Loader2,
   MessageCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
   User,
   UserPlus,
   Users,
   UsersRound,
   WalletCards,
-  Loader2,
-  PanelLeftClose,
-  PanelLeftOpen,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 
 import { createClient } from "@/app/lib/supabase/client";
@@ -48,9 +49,7 @@ type SidebarItemProps = {
 
 type Props = {
   collapsed: boolean;
-  setCollapsedAction: React.Dispatch<
-    React.SetStateAction<boolean>
-  >;
+  setCollapsedAction: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 /*
@@ -83,6 +82,12 @@ const menuItems: SidebarItem[] = [
     href: "/management/tasks",
     icon: ListTodo,
     permission: "tasks.view",
+  },
+  {
+    name: "Documentos",
+    href: "/management/documents",
+    icon: FileText,
+    permission: "documents.view",
   },
   {
     name: "Calendário",
@@ -173,32 +178,36 @@ export default function ManagementMenu({
   const { can } = usePermissions();
 
   /*
-   * ========================================================
+   * ==========================================================
    * PERMISSION FILTERING
-   * ========================================================
+   * ==========================================================
    *
-   * The sidebar only controls visibility.
+   * Each navigation item requires its corresponding permission.
+   * The permission provider must recognize "documents.view".
    *
-   * Actual authorization must still be handled
-   * server-side.
+   * Hiding a menu item is not server-side authorization.
    */
 
-  const visibleMenuItems = menuItems.filter(
-    (item) =>
-      !item.permission ||
-      can(item.permission),
-  );
+  const visibleMenuItems = menuItems.filter((item) => {
+    if (!item.permission) {
+      return true;
+    }
 
-  const visibleBottomItems = bottomItems.filter(
-    (item) =>
-      !item.permission ||
-      can(item.permission),
-  );
+    return can(item.permission);
+  });
+
+  const visibleBottomItems = bottomItems.filter((item) => {
+    if (!item.permission) {
+      return true;
+    }
+
+    return can(item.permission);
+  });
 
   /*
-   * ========================================================
+   * ==========================================================
    * LOGOUT
-   * ========================================================
+   * ==========================================================
    */
 
   const handleLogout = async () => {
@@ -210,16 +219,10 @@ export default function ManagementMenu({
 
     try {
       const supabase = createClient();
-
-      const { error } =
-        await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
 
       if (error) {
-        console.error(
-          "Logout failed:",
-          error,
-        );
-
+        console.error("Logout failed:", error);
         setLogoutLoading(false);
         return;
       }
@@ -227,19 +230,15 @@ export default function ManagementMenu({
       router.replace("/login");
       router.refresh();
     } catch (error) {
-      console.error(
-        "Unexpected logout error:",
-        error,
-      );
-
+      console.error("Unexpected logout error:", error);
       setLogoutLoading(false);
     }
   };
 
   /*
-   * ========================================================
+   * ==========================================================
    * RENDER
-   * ========================================================
+   * ==========================================================
    */
 
   return (
@@ -254,9 +253,7 @@ export default function ManagementMenu({
         collapsed ? "w-20" : "w-64",
       ].join(" ")}
     >
-      {/* ================================================= */}
       {/* HEADER */}
-      {/* ================================================= */}
 
       <div
         className={[
@@ -272,49 +269,35 @@ export default function ManagementMenu({
           aria-label="Ir para a visão geral"
           className={[
             "min-w-0",
-            collapsed
-              ? "flex justify-center"
-              : "",
+            collapsed ? "flex justify-center" : "",
           ].join(" ")}
         >
-          {collapsed ? (
-            <Image
-              src="/images/logo.png"
-              alt="Pro-Sota"
-              width={42}
-              height={42}
-              priority
-              className="h-9 w-9 object-contain object-left"
-            />
-          ) : (
-            <Image
-              src="/images/logo.png"
-              alt="Pro-Sota"
-              width={150}
-              height={60}
-              priority
-              className="h-auto max-w-full object-contain"
-            />
-          )}
+          <Image
+            src="/images/logo.png"
+            alt="Pro-Sota"
+            width={collapsed ? 42 : 150}
+            height={collapsed ? 42 : 60}
+            priority
+            className={
+              collapsed
+                ? "h-9 w-9 object-contain"
+                : "h-auto max-w-full object-contain"
+            }
+          />
         </Link>
 
         {!collapsed && (
           <button
             type="button"
-            onClick={() =>
-              setCollapsedAction(true)
-            }
+            onClick={() => setCollapsedAction(true)}
             aria-label="Recolher menu"
             aria-expanded={!collapsed}
             className={[
               "flex h-8 w-8 shrink-0 items-center justify-center",
-              "rounded-md text-gray-600",
-              "transition-colors",
+              "rounded-md text-gray-600 transition-colors",
               "hover:bg-gray-100 hover:text-[#BD9655]",
-              "focus-visible:outline-none",
-              "focus-visible:ring-2",
-              "focus-visible:ring-[#002950]",
-              "focus-visible:ring-offset-2",
+              "focus-visible:outline-none focus-visible:ring-2",
+              "focus-visible:ring-[#002950] focus-visible:ring-offset-2",
             ].join(" ")}
           >
             <PanelLeftClose
@@ -328,23 +311,18 @@ export default function ManagementMenu({
         {collapsed && (
           <button
             type="button"
-            onClick={() =>
-              setCollapsedAction(false)
-            }
+            onClick={() => setCollapsedAction(false)}
             aria-label="Expandir menu"
             aria-expanded={false}
             className={[
               "absolute right-[-14px] top-6",
               "flex h-7 w-7 items-center justify-center",
               "rounded-full border border-[#BD9655]",
-              "bg-[#F7F7F5] text-gray-600",
-              "shadow-sm",
-              "transition-colors",
-              "hover:bg-gray-100 hover:text-[#BD9655]",
-              "focus-visible:outline-none",
-              "focus-visible:ring-2",
-              "focus-visible:ring-[#002950]",
-              "focus-visible:ring-offset-2",
+              "bg-[#F7F7F5] text-gray-600 shadow-sm",
+              "transition-colors hover:bg-gray-100",
+              "hover:text-[#BD9655]",
+              "focus-visible:outline-none focus-visible:ring-2",
+              "focus-visible:ring-[#002950] focus-visible:ring-offset-2",
             ].join(" ")}
           >
             <PanelLeftOpen
@@ -356,71 +334,46 @@ export default function ManagementMenu({
         )}
       </div>
 
-      {/* ================================================= */}
       {/* MAIN MENU */}
-      {/* ================================================= */}
 
       <div
         className={[
           "sidebar-scroll min-h-0 flex-1",
           "overflow-x-hidden overflow-y-auto",
-          collapsed
-            ? "px-2 py-5"
-            : "px-3 py-5",
+          collapsed ? "px-2 py-5" : "px-3 py-5",
         ].join(" ")}
       >
         <div className="space-y-1">
-          {visibleMenuItems.map(
-            (item) => (
-              <SidebarItem
-                key={item.href}
-                item={item}
-                active={isActiveRoute(
-                  pathname,
-                  item.href,
-                )}
-                collapsed={collapsed}
-              />
-            ),
-          )}
+          {visibleMenuItems.map((item) => (
+            <SidebarItem
+              key={item.href}
+              item={item}
+              active={isActiveRoute(pathname, item.href)}
+              collapsed={collapsed}
+            />
+          ))}
         </div>
       </div>
 
-      {/* ================================================= */}
       {/* BOTTOM MENU */}
-      {/* ================================================= */}
 
       <div
         className={[
-          "shrink-0 border-t",
-          "border-[#BD9655]",
-          collapsed
-            ? "px-2 py-3"
-            : "px-3 py-3",
+          "shrink-0 border-t border-[#BD9655]",
+          collapsed ? "px-2 py-3" : "px-3 py-3",
         ].join(" ")}
       >
         <div className="space-y-1">
-          {visibleBottomItems.map(
-            (item) => (
-              <SidebarItem
-                key={
-                  item.action === "logout"
-                    ? "logout"
-                    : item.href
-                }
-                item={item}
-                active={isActiveRoute(
-                  pathname,
-                  item.href,
-                )}
-                collapsed={collapsed}
-                onLogout={handleLogout}
-                logoutLoading={
-                  logoutLoading
-                }
-              />
-            ),
-          )}
+          {visibleBottomItems.map((item) => (
+            <SidebarItem
+              key={item.action === "logout" ? "logout" : item.href}
+              item={item}
+              active={isActiveRoute(pathname, item.href)}
+              collapsed={collapsed}
+              onLogout={handleLogout}
+              logoutLoading={logoutLoading}
+            />
+          ))}
         </div>
       </div>
     </nav>
@@ -433,10 +386,7 @@ export default function ManagementMenu({
  * ============================================================
  */
 
-function isActiveRoute(
-  pathname: string,
-  href: string,
-): boolean {
+function isActiveRoute(pathname: string, href: string): boolean {
   if (!href) {
     return false;
   }
@@ -445,12 +395,7 @@ function isActiveRoute(
     return pathname === href;
   }
 
-  return (
-    pathname === href ||
-    pathname.startsWith(
-      `${href}/`,
-    )
-  );
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 /*
@@ -459,11 +404,7 @@ function isActiveRoute(
  * ============================================================
  */
 
-function SidebarIcon({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function SidebarIcon({ children }: { children: React.ReactNode }) {
   return (
     <span className="flex h-5 w-5 shrink-0 items-center justify-center">
       {children}
@@ -487,29 +428,21 @@ function SidebarItem({
   const Icon = item.icon;
 
   const label =
-    item.action === "logout" &&
-    logoutLoading
+    item.action === "logout" && logoutLoading
       ? "A sair..."
       : item.name;
 
   const itemClasses = [
-    "group relative flex w-full min-w-0",
-    "h-10 items-center rounded-md",
-    "text-sm font-medium",
+    "group relative flex h-10 w-full min-w-0",
+    "items-center rounded-md text-sm font-medium",
     "transition-colors duration-150",
-    "focus-visible:outline-none",
-    "focus-visible:ring-2",
-    "focus-visible:ring-[#002950]",
-    "focus-visible:ring-offset-2",
-    collapsed
-      ? "justify-center px-0"
-      : "gap-3 px-3",
+    "focus-visible:outline-none focus-visible:ring-2",
+    "focus-visible:ring-[#002950] focus-visible:ring-offset-2",
+    collapsed ? "justify-center px-0" : "gap-3 px-3",
   ].join(" ");
 
   /*
-   * ========================================================
    * LOGOUT
-   * ========================================================
    */
 
   if (item.action === "logout") {
@@ -519,18 +452,12 @@ function SidebarItem({
         onClick={onLogout}
         disabled={logoutLoading}
         aria-label={label}
-        title={
-          collapsed
-            ? label
-            : undefined
-        }
+        title={collapsed ? label : undefined}
         className={[
           itemClasses,
-          "text-gray-600",
-          "hover:bg-gray-100",
+          "text-gray-600 hover:bg-gray-100",
           "hover:text-[#BD9655]",
-          "disabled:cursor-not-allowed",
-          "disabled:opacity-60",
+          "disabled:cursor-not-allowed disabled:opacity-60",
         ].join(" ")}
       >
         <SidebarIcon>
@@ -559,43 +486,26 @@ function SidebarItem({
   }
 
   /*
-   * ========================================================
    * NORMAL LINK
-   * ========================================================
    */
 
   return (
     <Link
       href={item.href}
-      aria-current={
-        active
-          ? "page"
-          : undefined
-      }
-      title={
-        collapsed
-          ? item.name
-          : undefined
-      }
+      aria-current={active ? "page" : undefined}
+      title={collapsed ? item.name : undefined}
       className={[
         itemClasses,
         active
           ? [
-              "border-l-[3px]",
-              "border-[#BD9655]",
-              "bg-[#BD9655]",
-              "text-[#002950]",
-              collapsed
-                ? "pl-0"
-                : "pl-[9px]",
+              "border-l-[3px] border-[#BD9655]",
+              "bg-[#BD9655] text-[#002950]",
+              collapsed ? "pl-0" : "pl-[9px]",
             ].join(" ")
           : [
-              "text-gray-600",
-              "hover:bg-gray-100",
+              "text-gray-600 hover:bg-gray-100",
               "hover:text-[#BD9655]",
-              collapsed
-                ? "border-l-[3px] border-transparent"
-                : "",
+              collapsed ? "border-l-[3px] border-transparent" : "",
             ].join(" "),
       ].join(" ")}
     >

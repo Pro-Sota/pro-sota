@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { createSupplier } from "@/services/supplier_client";
+import { useToast } from "@/app/components/toast/use_toast";
 
 const DRAFT_KEY = "supplierFormDraft";
 
@@ -63,6 +65,7 @@ const CATEGORY_OPTIONS = [
 
 export default function NewSupplierPage() {
   const router = useRouter();
+  const toast = useToast();
 
   const [formData, setFormData] =
     useState<FormData>(INITIAL_FORM);
@@ -113,7 +116,7 @@ export default function NewSupplierPage() {
         }
 
         return Boolean(value);
-      }
+      },
     );
 
     if (!hasValues) return;
@@ -121,7 +124,7 @@ export default function NewSupplierPage() {
     const timer = setTimeout(() => {
       localStorage.setItem(
         DRAFT_KEY,
-        JSON.stringify(formData)
+        JSON.stringify(formData),
       );
     }, 500);
 
@@ -134,7 +137,7 @@ export default function NewSupplierPage() {
 
   const updateField = (
     field: keyof FormData,
-    value: string
+    value: string,
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -183,7 +186,7 @@ export default function NewSupplierPage() {
   // ---------------------------------------------------------
 
   const handleSubmit = async (
-    event: React.FormEvent<HTMLFormElement>
+    event: React.FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
 
@@ -211,17 +214,13 @@ export default function NewSupplierPage() {
         address_line_1:
           formData.address_line_1.trim() || null,
 
-        city:
-          formData.city.trim() || null,
+        city: formData.city.trim() || null,
 
-        country:
-          formData.country.trim() || "Angola",
+        country: formData.country.trim() || "Angola",
 
-        category:
-          formData.category.trim() || null,
+        category: formData.category.trim() || null,
 
-        sub_category:
-          formData.sub_category.trim() || null,
+        sub_category: formData.sub_category.trim() || null,
 
         rating: formData.rating
           ? Number(formData.rating)
@@ -229,10 +228,7 @@ export default function NewSupplierPage() {
 
         status: formData.status,
 
-        tags:
-          tags.length > 0
-            ? tags
-            : null,
+        tags: tags.length > 0 ? tags : null,
       });
 
       // Supplier successfully created
@@ -255,10 +251,12 @@ export default function NewSupplierPage() {
   };
 
   // ---------------------------------------------------------
-  // Cancel
+  // Cancel / Back navigation
   // ---------------------------------------------------------
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    if (submitting) return;
+
     const hasChanges = Object.entries(formData).some(
       ([key, value]) => {
         if (key === "status") {
@@ -270,32 +268,36 @@ export default function NewSupplierPage() {
         }
 
         return Boolean(value);
-      }
+      },
     );
 
     if (hasChanges) {
-      const confirmed = window.confirm(
-        "Tem alterações não guardadas. Deseja sair sem guardar?"
-      );
+      const confirmed = await toast.confirm({
+        title: "Descartar alterações?",
+        message:
+          "Tem alterações não guardadas. Deseja sair sem guardar?",
+        confirmText: "Sair sem guardar",
+        cancelText: "Continuar a editar",
+        variant: "destructive",
+      });
 
       if (!confirmed) return;
     }
 
     localStorage.removeItem(DRAFT_KEY);
-
     router.push("/management/suppliers");
   };
 
   return (
     <div className="min-h-screen bg-[#F7F7F5]">
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-
         {/* Header */}
         <div className="mb-8">
           <button
             type="button"
             onClick={handleCancel}
-            className="mb-5 flex cursor-pointer items-center gap-2 text-sm text-slate-600 transition hover:text-slate-900"
+            disabled={submitting}
+            className="mb-5 flex cursor-pointer items-center gap-2 text-sm text-slate-600 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ArrowLeft size={16} />
             Voltar aos fornecedores
@@ -316,10 +318,7 @@ export default function NewSupplierPage() {
           )}
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-6"
-        >
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* General */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-6 border-b border-slate-200 pb-5">
@@ -333,21 +332,22 @@ export default function NewSupplierPage() {
             </div>
 
             <div className="space-y-5">
-
               {/* Supplier name */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-900">
+                <label
+                  htmlFor="supplier_name"
+                  className="mb-2 block text-sm font-medium text-slate-900"
+                >
                   Nome do fornecedor *
                 </label>
 
                 <input
+                  id="supplier_name"
                   type="text"
+                  required
                   value={formData.supplier_name}
                   onChange={(e) =>
-                    updateField(
-                      "supplier_name",
-                      e.target.value
-                    )
+                    updateField("supplier_name", e.target.value)
                   }
                   placeholder="Nome da empresa ou fornecedor"
                   className={`w-full rounded-xl border px-4 py-3 outline-none transition focus:ring-2 ${
@@ -358,60 +358,52 @@ export default function NewSupplierPage() {
                 />
 
                 {errors.supplier_name && (
-                  <FieldError
-                    message={errors.supplier_name}
-                  />
+                  <FieldError message={errors.supplier_name} />
                 )}
               </div>
 
               {/* Category / Subcategory */}
               <div className="grid gap-5 md:grid-cols-2">
-
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-900">
+                  <label
+                    htmlFor="category"
+                    className="mb-2 block text-sm font-medium text-slate-900"
+                  >
                     Categoria
                   </label>
 
                   <select
+                    id="category"
                     value={formData.category}
                     onChange={(e) =>
-                      updateField(
-                        "category",
-                        e.target.value
-                      )
+                      updateField("category", e.target.value)
                     }
                     className="w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
                   >
-                    <option value="">
-                      Selecionar categoria
-                    </option>
+                    <option value="">Selecionar categoria</option>
 
-                    {CATEGORY_OPTIONS.map(
-                      (category) => (
-                        <option
-                          key={category}
-                          value={category}
-                        >
-                          {category}
-                        </option>
-                      )
-                    )}
+                    {CATEGORY_OPTIONS.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-900">
+                  <label
+                    htmlFor="sub_category"
+                    className="mb-2 block text-sm font-medium text-slate-900"
+                  >
                     Subcategoria
                   </label>
 
                   <input
+                    id="sub_category"
                     type="text"
                     value={formData.sub_category}
                     onChange={(e) =>
-                      updateField(
-                        "sub_category",
-                        e.target.value
-                      )
+                      updateField("sub_category", e.target.value)
                     }
                     placeholder="Ex.: Cimento, Carpintaria..."
                     className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
@@ -421,20 +413,20 @@ export default function NewSupplierPage() {
 
               {/* NIF / Status */}
               <div className="grid gap-5 md:grid-cols-2">
-
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-900">
+                  <label
+                    htmlFor="nif"
+                    className="mb-2 block text-sm font-medium text-slate-900"
+                  >
                     NIF
                   </label>
 
                   <input
+                    id="nif"
                     type="text"
                     value={formData.nif}
                     onChange={(e) =>
-                      updateField(
-                        "nif",
-                        e.target.value
-                      )
+                      updateField("nif", e.target.value)
                     }
                     placeholder="Número de Identificação Fiscal"
                     className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
@@ -442,47 +434,47 @@ export default function NewSupplierPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-900">
+                  <label
+                    htmlFor="status"
+                    className="mb-2 block text-sm font-medium text-slate-900"
+                  >
                     Estado
                   </label>
 
                   <select
+                    id="status"
                     value={formData.status}
                     onChange={(e) =>
                       updateField(
                         "status",
-                        e.target.value as FormData["status"]
+                        e.target.value as FormData["status"],
                       )
                     }
                     className="w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
                   >
-                    {STATUS_OPTIONS.map(
-                      (status) => (
-                        <option
-                          key={status.value}
-                          value={status.value}
-                        >
-                          {status.label}
-                        </option>
-                      )
-                    )}
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
               {/* Rating */}
               <div className="max-w-xs">
-                <label className="mb-2 block text-sm font-medium text-slate-900">
+                <label
+                  htmlFor="rating"
+                  className="mb-2 block text-sm font-medium text-slate-900"
+                >
                   Avaliação
                 </label>
 
                 <select
+                  id="rating"
                   value={formData.rating}
                   onChange={(e) =>
-                    updateField(
-                      "rating",
-                      e.target.value
-                    )
+                    updateField("rating", e.target.value)
                   }
                   className={`w-full cursor-pointer rounded-xl border bg-white px-4 py-3 outline-none transition focus:ring-2 ${
                     errors.rating
@@ -490,9 +482,7 @@ export default function NewSupplierPage() {
                       : "border-slate-300 focus:border-slate-900 focus:ring-slate-900/10"
                   }`}
                 >
-                  <option value="">
-                    Sem avaliação
-                  </option>
+                  <option value="">Sem avaliação</option>
                   <option value="1">1 / 5</option>
                   <option value="2">2 / 5</option>
                   <option value="3">3 / 5</option>
@@ -501,9 +491,7 @@ export default function NewSupplierPage() {
                 </select>
 
                 {errors.rating && (
-                  <FieldError
-                    message={errors.rating}
-                  />
+                  <FieldError message={errors.rating} />
                 )}
               </div>
             </div>
@@ -522,20 +510,20 @@ export default function NewSupplierPage() {
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
-
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-900">
+                <label
+                  htmlFor="person_of_contact"
+                  className="mb-2 block text-sm font-medium text-slate-900"
+                >
                   Pessoa de contacto
                 </label>
 
                 <input
+                  id="person_of_contact"
                   type="text"
                   value={formData.person_of_contact}
                   onChange={(e) =>
-                    updateField(
-                      "person_of_contact",
-                      e.target.value
-                    )
+                    updateField("person_of_contact", e.target.value)
                   }
                   placeholder="Nome da pessoa de contacto"
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
@@ -543,18 +531,19 @@ export default function NewSupplierPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-900">
+                <label
+                  htmlFor="phone_number"
+                  className="mb-2 block text-sm font-medium text-slate-900"
+                >
                   Telefone
                 </label>
 
                 <input
+                  id="phone_number"
                   type="tel"
                   value={formData.phone_number}
                   onChange={(e) =>
-                    updateField(
-                      "phone_number",
-                      e.target.value
-                    )
+                    updateField("phone_number", e.target.value)
                   }
                   placeholder="+244 923 000 000"
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
@@ -576,20 +565,20 @@ export default function NewSupplierPage() {
             </div>
 
             <div className="space-y-5">
-
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-900">
+                <label
+                  htmlFor="address_line_1"
+                  className="mb-2 block text-sm font-medium text-slate-900"
+                >
                   Endereço
                 </label>
 
                 <input
+                  id="address_line_1"
                   type="text"
                   value={formData.address_line_1}
                   onChange={(e) =>
-                    updateField(
-                      "address_line_1",
-                      e.target.value
-                    )
+                    updateField("address_line_1", e.target.value)
                   }
                   placeholder="Rua, avenida, edifício..."
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
@@ -597,20 +586,20 @@ export default function NewSupplierPage() {
               </div>
 
               <div className="grid gap-5 md:grid-cols-2">
-
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-900">
+                  <label
+                    htmlFor="city"
+                    className="mb-2 block text-sm font-medium text-slate-900"
+                  >
                     Cidade
                   </label>
 
                   <input
+                    id="city"
                     type="text"
                     value={formData.city}
                     onChange={(e) =>
-                      updateField(
-                        "city",
-                        e.target.value
-                      )
+                      updateField("city", e.target.value)
                     }
                     placeholder="Ex.: Luanda"
                     className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
@@ -618,18 +607,19 @@ export default function NewSupplierPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-900">
+                  <label
+                    htmlFor="country"
+                    className="mb-2 block text-sm font-medium text-slate-900"
+                  >
                     País
                   </label>
 
                   <input
+                    id="country"
                     type="text"
                     value={formData.country}
                     onChange={(e) =>
-                      updateField(
-                        "country",
-                        e.target.value
-                      )
+                      updateField("country", e.target.value)
                     }
                     placeholder="Angola"
                     className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
@@ -653,18 +643,19 @@ export default function NewSupplierPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-900">
+              <label
+                htmlFor="tags"
+                className="mb-2 block text-sm font-medium text-slate-900"
+              >
                 Tags
               </label>
 
               <input
+                id="tags"
                 type="text"
                 value={formData.tags}
                 onChange={(e) =>
-                  updateField(
-                    "tags",
-                    e.target.value
-                  )
+                  updateField("tags", e.target.value)
                 }
                 placeholder="Ex.: Local, Confiável, Materiais"
                 className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10"
@@ -690,7 +681,6 @@ export default function NewSupplierPage() {
 
           {/* Actions */}
           <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
-
             <button
               type="button"
               onClick={handleCancel}
@@ -707,9 +697,7 @@ export default function NewSupplierPage() {
             >
               <Save size={17} />
 
-              {submitting
-                ? "A guardar..."
-                : "Guardar fornecedor"}
+              {submitting ? "A guardar..." : "Guardar fornecedor"}
             </button>
           </div>
         </form>

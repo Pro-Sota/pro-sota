@@ -3,10 +3,11 @@
 import {
   ChevronDown,
   ChevronRight,
+  Folder,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-import { FolderItemType } from "../types";
+import type { FolderItemType } from "../types";
 import { capitalize } from "@/app/lib/library";
 
 interface FolderItemProps {
@@ -38,17 +39,17 @@ export default function FolderItem({
 }: FolderItemProps) {
   const pathname = usePathname();
 
-  const hasChildren =
-    folder.children && folder.children.length > 0;
+  const Icon = folder.icon ?? Folder;
+  const hasChildren = (folder.children?.length ?? 0) > 0;
 
   const folderPath = normalizePath(folder.href);
   const currentPath = normalizePath(pathname);
 
   const active = currentPath === folderPath;
 
-  const handleClick = () => {
+  function handleClick() {
     onSelected(folder.href);
-  };
+  }
 
   return (
     <li>
@@ -56,30 +57,38 @@ export default function FolderItem({
         type="button"
         onClick={handleClick}
         aria-current={active ? "page" : undefined}
+        aria-expanded={hasChildren ? expanded : undefined}
         className={[
           "flex w-full items-center rounded-md px-2 py-2",
-          "cursor-pointer transition-colors text-sm",
+          "cursor-pointer text-sm transition-colors",
           "focus:outline-none focus-visible:ring-2",
           "focus-visible:ring-slate-400",
-
           active
             ? "bg-[#BD9655] text-[#002950]"
             : "text-gray-800 hover:bg-gray-100",
         ].join(" ")}
       >
-        <folder.icon className="mr-2 h-4 w-4 shrink-0" />
+        <Icon
+          className="mr-2 h-4 w-4 shrink-0"
+          aria-hidden="true"
+        />
 
-        <span className="truncate ">
+        <span className="truncate">
           {capitalize(folder.name)}
         </span>
 
-        {hasChildren && (
-          expanded ? (
-            <ChevronDown className="ml-auto h-4 w-4 shrink-0" />
+        {hasChildren &&
+          (expanded ? (
+            <ChevronDown
+              className="ml-auto h-4 w-4 shrink-0"
+              aria-hidden="true"
+            />
           ) : (
-            <ChevronRight className="ml-auto h-4 w-4 shrink-0" />
-          )
-        )}
+            <ChevronRight
+              className="ml-auto h-4 w-4 shrink-0"
+              aria-hidden="true"
+            />
+          ))}
       </button>
 
       {expanded && hasChildren && (

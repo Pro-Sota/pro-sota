@@ -3,72 +3,29 @@
 import { Folder as FolderIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { Database } from "@/app/lib/supabase/models";
+import type { Database } from "@/app/lib/supabase/models";
 
 type Folder = Database["public"]["Tables"]["folders"]["Row"];
 
 interface FolderCardProps {
   folder: Folder;
   folders: Folder[];
-  view: string;
-  projectId: string;
+  view: "grid" | "list";
+  projectId: string | null;
 }
 
-function getFolderPath(
-  folder: Folder,
-  folders: Folder[],
-): string[] {
+function getFolderPath(folder: Folder, folders: Folder[]): string[] {
   const path: string[] = [];
   const visited = new Set<string>();
-
   let current: Folder | undefined = folder;
 
-  while (current) {
-    // Prevent an accidental circular parent relationship
-    if (visited.has(current.folder_id)) {
-      console.warn(
-        "Circular folder hierarchy detected:",
-        current.folder_id,
-      );
-      break;
-    }
-
+  while (current && !visited.has(current.folder_id)) {
     visited.add(current.folder_id);
+    path.unshift(current.slug || current.folder_id);
 
-    if (current.slug) {
-      path.unshift(current.slug);
-    } else {
-      // Fallback in case an older folder doesn't have a slug
-      path.unshift(
-        current.name
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .toLowerCase()
-          .trim()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, ""),
-      );
-    }
-
-    if (!current.parent_id) {
-      break;
-    }
-
-    const parent = folders.find(
-      (item) => item.folder_id === current?.parent_id,
-    );
-
-    if (!parent) {
-      console.warn("Parent folder not found:", {
-        folder: current.name,
-        folderId: current.folder_id,
-        parentId: current.parent_id,
-      });
-
-      break;
-    }
-
-    current = parent;
+    current = current.parent_id
+      ? folders.find((item) => item.folder_id === current?.parent_id)
+      : undefined;
   }
 
   return path;
@@ -82,41 +39,39 @@ export default function FolderCard({
 }: FolderCardProps) {
   const router = useRouter();
 
-  const base = `/management/projects/${projectId}/documents`;
-
   function handleOpenFolder() {
+    const ownerProjectId = folder.project_id || projectId;
+
+    if (!ownerProjectId) return;
+
     const path = getFolderPath(folder, folders);
+    const base = `/management/projects/${ownerProjectId}/documents`;
 
-    if (path.length === 0) {
-      return;
-    }
-
-    const encodedPath = path
-      .map((segment) => encodeURIComponent(segment))
-      .join("/");
-
-    router.push(`${base}/${encodedPath}?view=${view}`);
+    router.push(
+      `${base}/${path.map(encodeURIComponent).join("/")}?view=${view}`,
+    );
   }
 
   return (
     <button
       type="button"
       onClick={handleOpenFolder}
-      className="w-full text-left"
+      aria-label={`Abrir pasta ${folder.name}`}
+      className="group flex min-h-28 w-full items-center gap-3 rounded-xl border border-[#E8E5DE] bg-white p-4 text-left transition hover:border-[#BD9655] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655]"
     >
-      <div className="group cursor-pointer rounded-xl border border-neutral-200 bg-white p-4 transition hover:border-neutral-300 hover:shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#BD9655]/10">
-            <FolderIcon className="h-5 w-5 text-[#BD9655]" />
-          </div>
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#F7F3EA] text-[#BD9655]">
+        <FolderIcon size={23} strokeWidth={1.7} />
+      </span>
 
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[#002950]">
-              {folder.name}
-            </p>
-          </div>
-        </div>
-      </div>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-[#002950]">
+          {folder.name}
+        </span>
+
+        <span className="mt-1 block text-xs text-neutral-500">
+          Pasta
+        </span>
+      </span>
     </button>
   );
 }

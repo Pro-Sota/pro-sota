@@ -1,3 +1,5 @@
+// src/app/lib/permissions/types.ts
+
 export type SystemRole =
   | "Superadmin"
   | "Admin"
@@ -69,7 +71,7 @@ export type Permission =
   // Documents
   | "documents.view"
   | "documents.upload"
-  |"documents.create"
+  | "documents.create"
   | "documents.edit"
   | "documents.delete"
   | "documents.approve"
@@ -80,10 +82,6 @@ export type Permission =
   | "submissions.edit"
   | "submissions.delete"
   | "submissions.review"
-  | "submissions.view"
-  | "submissions.create"
-  | "submissions.edit"
-  | "submissions.delete"
   | "submissions.approve"
 
   // Notifications

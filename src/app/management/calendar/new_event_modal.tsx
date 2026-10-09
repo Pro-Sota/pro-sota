@@ -5,8 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { searchCalendarParticipants } from "@/actions/calendar";
-
-import type { CalendarParticipant } from "@/actions/calendar";
+import type { CalendarParticipant } from "@/actions/searchCalendarParticipants";
 
 import type { EventType } from "./types";
 
@@ -111,14 +110,14 @@ function getParticipantName(participant: CalendarParticipant) {
     return [participant.first_name, participant.last_name]
         .filter(Boolean)
         .join(" ")
-        .trim();
+        .trim() || participant.email || "Utilizador";
 }
 
 function getInitials(participant: CalendarParticipant) {
     const first = participant.first_name?.[0] ?? "";
     const last = participant.last_name?.[0] ?? "";
 
-    return `${first}${last}`.toUpperCase();
+    return `${first}${last}`.toUpperCase() || "?";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -164,12 +163,16 @@ export default function NewEventModal({
 
     const closeRef = useRef(onCloseAction);
 
+    const query = participantSearch.trim();
+
+    const isDropdownVisible =
+        open &&
+        showParticipantResults &&
+        query.length >= 2;
+
     useEffect(() => {
         closeRef.current = onCloseAction;
     }, [onCloseAction]);
-
-    const isDropdownVisible =
-        open && showParticipantResults && participantSearch.trim() !== "";
 
     /* ---------------------------------------------------------------------- */
     /* Reset                                                                   */
@@ -185,7 +188,9 @@ export default function NewEventModal({
         setParticipantSearch("");
         setParticipantResults([]);
         setShowParticipantResults(false);
+        setDropdownPosition(null);
         setSubmitError(null);
+        setIsSubmitting(false);
     }, [open, initialDate]);
 
     /* ---------------------------------------------------------------------- */
@@ -219,40 +224,44 @@ export default function NewEventModal({
     /* ---------------------------------------------------------------------- */
 
     useEffect(() => {
-        const query = participantSearch.trim();
+        let cancelled = false;
 
-        if (!query) {
+        if (!open || query.length < 2) {
             setParticipantResults([]);
             setIsSearchingParticipants(false);
             return;
         }
 
-        let cancelled = false;
-
         const timer = window.setTimeout(async () => {
-            try {
-                setIsSearchingParticipants(true);
+            setIsSearchingParticipants(true);
 
+            try {
                 const results = await searchCalendarParticipants(query);
 
-                if (!cancelled) {
-                    const selectedIds = new Set(
-                        selectedParticipants.map(
-                            (participant) => participant.profile_id,
-                        ),
-                    );
-
-                    setParticipantResults(
-                        results.filter(
-                            (participant) =>
-                                !selectedIds.has(participant.profile_id),
-                        ),
-                    );
-
-                    setShowParticipantResults(true);
+                if (cancelled) {
+                    return;
                 }
-            } catch {
+
+                const selectedIds = new Set(
+                    selectedParticipants.map(
+                        (participant) => participant.profile_id,
+                    ),
+                );
+
+                setParticipantResults(
+                    results.filter(
+                        (participant) =>
+                            !selectedIds.has(participant.profile_id),
+                    ),
+                );
+
+                setShowParticipantResults(true);
+            } catch (error) {
                 if (!cancelled) {
+                    console.error(
+                        "Erro ao pesquisar participantes:",
+                        error,
+                    );
                     setParticipantResults([]);
                 }
             } finally {
@@ -266,16 +275,12 @@ export default function NewEventModal({
             cancelled = true;
             window.clearTimeout(timer);
         };
-    }, [participantSearch, selectedParticipants]);
+    }, [open, query, selectedParticipants]);
 
     /* ---------------------------------------------------------------------- */
     /* Position the floating results list                                      */
     /* ---------------------------------------------------------------------- */
 
-    // The list is rendered in a portal with fixed positioning, so it floats
-    // above the modal instead of growing the scrollable form. Its position is
-    // recalculated when the window resizes or anything scrolls (including the
-    // modal body), and it flips above the field when there is no room below.
     useEffect(() => {
         if (!isDropdownVisible) {
             setDropdownPosition(null);
@@ -308,7 +313,9 @@ export default function NewEventModal({
             setDropdownPosition({
                 left: rect.left,
                 width: rect.width,
-                top: openUpwards ? undefined : rect.bottom + DROPDOWN_GAP,
+                top: openUpwards
+                    ? undefined
+                    : rect.bottom + DROPDOWN_GAP,
                 bottom: openUpwards
                     ? window.innerHeight - rect.top + DROPDOWN_GAP
                     : undefined,
@@ -343,7 +350,6 @@ export default function NewEventModal({
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as Node;
 
-            // The list lives in a portal, so check it separately.
             const insideField =
                 participantContainerRef.current?.contains(target) ?? false;
 
@@ -361,10 +367,6 @@ export default function NewEventModal({
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
-
-    if (!open) {
-        return null;
-    }
 
     /* ---------------------------------------------------------------------- */
     /* Form helpers                                                            */
@@ -392,7 +394,17 @@ export default function NewEventModal({
     };
 
     const selectParticipant = (participant: CalendarParticipant) => {
-        setSelectedParticipants((current) => [...current, participant]);
+        setSelectedParticipants((current) => {
+            if (
+                current.some(
+                    (item) => item.profile_id === participant.profile_id,
+                )
+            ) {
+                return current;
+            }
+
+            return [...current, participant];
+        });
 
         setParticipantSearch("");
         setParticipantResults([]);
@@ -420,6 +432,11 @@ export default function NewEventModal({
             return;
         }
 
+        if (!onSubmitAction) {
+            setSubmitError("A criação de eventos não está configurada.");
+            return;
+        }
+
         const payload: NewEventPayload = {
             ...form,
             title: form.title.trim(),
@@ -434,17 +451,24 @@ export default function NewEventModal({
         setIsSubmitting(true);
 
         try {
-            await onSubmitAction?.(payload);
-
+            await onSubmitAction(payload);
             onCloseAction();
-        } catch {
-            setSubmitError(
-                "Não foi possível criar o evento. Tente novamente.",
-            );
+        } catch (error) {
+            console.error("Erro ao criar evento:", error);
 
+            setSubmitError(
+                error instanceof Error
+                    ? error.message
+                    : "Não foi possível criar o evento. Tente novamente.",
+            );
+        } finally {
             setIsSubmitting(false);
         }
     };
+
+    if (!open) {
+        return null;
+    }
 
     /* ---------------------------------------------------------------------- */
     /* Render                                                                  */
@@ -457,7 +481,10 @@ export default function NewEventModal({
             aria-modal="true"
             aria-labelledby="new-event-title"
             onMouseDown={(event) => {
-                if (event.target === event.currentTarget) {
+                if (
+                    event.target === event.currentTarget &&
+                    !isSubmitting
+                ) {
                     onCloseAction();
                 }
             }}
@@ -487,7 +514,8 @@ export default function NewEventModal({
                     <button
                         type="button"
                         onClick={onCloseAction}
-                        className="rounded-lg p-2 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700"
+                        disabled={isSubmitting}
+                        className="rounded-lg p-2 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 disabled:opacity-50"
                         aria-label="Fechar"
                     >
                         <X className="h-5 w-5" />
@@ -701,9 +729,7 @@ export default function NewEventModal({
                                             </span>
 
                                             <span className="max-w-[180px] truncate">
-                                                {getParticipantName(
-                                                    participant,
-                                                )}
+                                                {getParticipantName(participant)}
                                             </span>
 
                                             <button
@@ -731,11 +757,12 @@ export default function NewEventModal({
                                             setParticipantSearch(
                                                 event.target.value,
                                             );
-
-                                            setShowParticipantResults(true);
+                                            setShowParticipantResults(
+                                                event.target.value.trim().length >= 2,
+                                            );
                                         }}
                                         onFocus={() => {
-                                            if (participantSearch.trim()) {
+                                            if (query.length >= 2) {
                                                 setShowParticipantResults(true);
                                             }
                                         }}
@@ -799,7 +826,11 @@ export default function NewEventModal({
 
                         <button
                             type="submit"
-                            disabled={endBeforeStart || isSubmitting}
+                            disabled={
+                                endBeforeStart ||
+                                isSubmitting ||
+                                !form.title.trim()
+                            }
                             className="h-10 rounded-lg bg-[#BD9655] px-5 text-sm font-semibold text-[#002950] transition hover:bg-[#a9854b] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#BD9655]/20 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {isSubmitting ? "A criar..." : "Criar evento"}
@@ -808,8 +839,7 @@ export default function NewEventModal({
                 </form>
             </div>
 
-            {/* Participant results: portal + fixed, so the list floats above
-                the modal and never changes the height of the scrollable form */}
+            {/* Floating participant results */}
             {isDropdownVisible &&
                 dropdownPosition &&
                 createPortal(
@@ -854,9 +884,7 @@ export default function NewEventModal({
 
                                         <span className="min-w-0">
                                             <span className="block truncate text-sm font-medium text-neutral-800">
-                                                {getParticipantName(
-                                                    participant,
-                                                )}
+                                                {getParticipantName(participant)}
                                             </span>
 
                                             {participant.email && (

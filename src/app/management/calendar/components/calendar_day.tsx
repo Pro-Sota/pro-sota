@@ -53,15 +53,20 @@ export default function CalendarDay({
                 isSelected
                     ? "bg-[#002950]/[0.025]"
                     : !isCurrentMonth
-                      ? "bg-black/[0.015] hover:bg-black/[0.03]"
-                      : "bg-white hover:bg-black/[0.02]",
+                        ? "bg-black/[0.015] hover:bg-black/[0.03]"
+                        : "bg-white hover:bg-black/[0.02]",
             ].join(" ")}
         >
             {/* Date number: no onClick, the click bubbles up to the cell.
                 Still a button so keyboard users can focus it and press Enter. */}
+
             <button
                 type="button"
-                className="mb-2 flex w-full items-center text-left focus:outline-none"
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectDate(dateKey);
+                }}
+                className="mb-2 flex w-full items-center text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] focus-visible:ring-offset-1"
                 aria-label={`Seleccionar ${date.toLocaleDateString("pt-PT", {
                     day: "numeric",
                     month: "long",
@@ -74,10 +79,10 @@ export default function CalendarDay({
                         isToday
                             ? "bg-[#002950] text-white"
                             : isSelected
-                              ? "bg-[#BD9655]/15 text-[#002950]"
-                              : isCurrentMonth
-                                ? "text-black/70"
-                                : "text-black/25",
+                                ? "bg-[#BD9655]/15 text-[#002950]"
+                                : isCurrentMonth
+                                    ? "text-black/70"
+                                    : "text-black/25",
                     ].join(" ")}
                 >
                     {date.getDate()}

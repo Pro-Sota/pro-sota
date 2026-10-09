@@ -36,15 +36,7 @@ type UploadMode = "new" | "version";
 
 const DOCUMENTS_BUCKET = "documents";
 
-type UploadDocumentProps = {
-  projectId?: string;
-  projects?:{
-    project_id: string;
-    project_name: string;
-  }[];
-  open?: boolean;
-  onClose?: () => void;
-};
+interface UploadDocumentProps { projectId?: string; projects?: { project_id: string; project_name: string; }[]; open?: boolean; onClose?: () => void; }
 
 export default function UploadDocument({
   projectId: providedProjectId,
@@ -75,6 +67,8 @@ export default function UploadDocument({
     }
   }
 
+ const isControlled = open !== undefined; const isOpen = isControlled ? open : internalOpen; function closeUpload() { if (!isControlled) { setInternalOpen(false); } onClose?.(); } function showUpload() { if (!isControlled) { setInternalOpen(true); } }
+
   const [folders, setFolders] = useState<Folder[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
 
@@ -92,7 +86,7 @@ export default function UploadDocument({
 
   const supabase = useMemo(() => createClient(), []);
 
-   useEffect(() => {
+  useEffect(() => {
     if (!open || !projectId) return;
 
     let cancelled = false;
@@ -295,7 +289,19 @@ export default function UploadDocument({
         });
 
       if (storageError) {
-        throw storageError;
+        console.error("Supabase Storage upload failed:", {
+          message: storageError.message,
+          name: storageError.name,
+          path: uploadedPath,
+          bucket: DOCUMENTS_BUCKET,
+        });
+
+        throw new Error(
+          storageError.message ===
+            "new row violates row-level security policy"
+            ? "Não tem permissão para carregar documentos nesta pasta. Verifique as permissões do projecto."
+            : `Falha ao carregar o ficheiro: ${storageError.message}`
+        );
       }
 
       /**
@@ -326,16 +332,16 @@ export default function UploadDocument({
           );
         }
 
-        const { data: document, error: documentError } =
-          await supabase
-            .from("documents")
-            .insert({
-              folder_id: selectedFolderId,
-              project_id: projectId,
-              name: originalName,
-            })
-            .select("document_id")
-            .single();
+        const { data: document, error: documentError } = await supabase
+          .from("documents")
+          .insert({
+            folder_id: selectedFolderId,
+            project_id: projectId,
+            name: originalName,
+            file_path: uploadedPath,
+          })
+          .select("document_id")
+          .single();
 
         if (documentError) {
           throw documentError;
@@ -472,7 +478,7 @@ export default function UploadDocument({
             </div>
 
             <div className="space-y-5 px-6 py-5">
-                {!providedProjectId && !routeProjectId && (
+              {!providedProjectId && !routeProjectId && (
                 <div>
                   <label
                     htmlFor="document-project"
@@ -526,18 +532,16 @@ export default function UploadDocument({
                     type="button"
                     onClick={() => handleModeChange("new")}
                     disabled={uploading}
-                    className={`flex items-start gap-3 rounded-lg border p-3 text-left transition ${
-                      uploadMode === "new"
-                        ? "border-[#BD9655] bg-[#BD9655]/5"
-                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                    }`}
+                    className={`flex items-start gap-3 rounded-lg border p-3 text-left transition ${uploadMode === "new"
+                      ? "border-[#BD9655] bg-[#BD9655]/5"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
                   >
                     <Circle
-                      className={`mt-0.5 h-4 w-4 shrink-0 ${
-                        uploadMode === "new"
-                          ? "fill-[#BD9655] text-[#BD9655]"
-                          : "text-gray-300"
-                      }`}
+                      className={`mt-0.5 h-4 w-4 shrink-0 ${uploadMode === "new"
+                        ? "fill-[#BD9655] text-[#BD9655]"
+                        : "text-gray-300"
+                        }`}
                     />
 
                     <div>
@@ -555,18 +559,16 @@ export default function UploadDocument({
                     type="button"
                     onClick={() => handleModeChange("version")}
                     disabled={uploading}
-                    className={`flex items-start gap-3 rounded-lg border p-3 text-left transition ${
-                      uploadMode === "version"
-                        ? "border-[#BD9655] bg-[#BD9655]/5"
-                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                    }`}
+                    className={`flex items-start gap-3 rounded-lg border p-3 text-left transition ${uploadMode === "version"
+                      ? "border-[#BD9655] bg-[#BD9655]/5"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
                   >
                     <Circle
-                      className={`mt-0.5 h-4 w-4 shrink-0 ${
-                        uploadMode === "version"
-                          ? "fill-[#BD9655] text-[#BD9655]"
-                          : "text-gray-300"
-                      }`}
+                      className={`mt-0.5 h-4 w-4 shrink-0 ${uploadMode === "version"
+                        ? "fill-[#BD9655] text-[#BD9655]"
+                        : "text-gray-300"
+                        }`}
                     />
 
                     <div>
@@ -620,7 +622,7 @@ export default function UploadDocument({
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 </div>
 
-                {projectId &&!loadingData && folders.length === 0 && (
+                {projectId && !loadingData && folders.length === 0 && (
                   <p className="mt-1.5 text-xs text-amber-600">
                     Crie uma pasta antes de carregar um documento.
                   </p>

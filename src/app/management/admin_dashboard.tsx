@@ -227,6 +227,20 @@ export default function AdminDashboard({
     router.push(`/management/projects/${projectId}`);
   }
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+
+    if (hour >= 5 && hour < 12) {
+      return "Bom dia";
+    }
+
+    if (hour >= 12 && hour < 18) {
+      return "Boa tarde";
+    }
+
+    return "Boa noite";
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F7F5]">
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
@@ -234,7 +248,7 @@ export default function AdminDashboard({
           {/* Header */}
           <div className="border-b border-gray-200 pb-6">
             <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-              Olá, {currentUser?.first_name || "Administrador"}
+              {getGreeting()}, { currentUser?.first_name || "Administrador"}
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
@@ -257,11 +271,10 @@ export default function AdminDashboard({
 
                   router.push(action.href);
                 }}
-                className={`group flex min-h-[82px] cursor-pointer flex-col items-start justify-between gap-3 rounded-lg px-4 py-3.5 text-left text-md font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 sm:min-h-[96px] sm:px-5 sm:py-4 ${
-                  action.variant === "primary"
+                className={`group flex min-h-[82px] cursor-pointer flex-col items-start justify-between gap-3 rounded-lg px-4 py-3.5 text-left text-md font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 sm:min-h-[96px] sm:px-5 sm:py-4 ${action.variant === "primary"
                     ? "bg-[#BD9655] text-[#002950] hover:bg-[#C8A66E] active:bg-gray-950"
                     : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 active:bg-gray-100"
-                }`}
+                  }`}
               >
                 <action.icon className="h-4 w-4 shrink-0" />
 
@@ -654,8 +667,8 @@ function RecentActivitiesSection({
             {activities.slice(0, 8).map((activity) => {
               const initials = activity.user_id
                 ? activity.user_id
-                    .substring(0, 2)
-                    .toUpperCase()
+                  .substring(0, 2)
+                  .toUpperCase()
                 : "?";
 
               return (
@@ -681,17 +694,17 @@ function RecentActivitiesSection({
                     <p className="mt-1 text-xs text-gray-400">
                       {activity.created_at
                         ? new Date(
-                            activity.created_at,
-                          ).toLocaleDateString(
-                            "pt-PT",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )
+                          activity.created_at,
+                        ).toLocaleDateString(
+                          "pt-PT",
+                          {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )
                         : ""}
                     </p>
                   </div>
@@ -867,15 +880,15 @@ function RecentDocumentsSection({
                   <p className="mt-1 text-xs text-gray-400">
                     {doc.created_at
                       ? new Date(
-                          doc.created_at,
-                        ).toLocaleDateString(
-                          "pt-PT",
-                          {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          },
-                        )
+                        doc.created_at,
+                      ).toLocaleDateString(
+                        "pt-PT",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        },
+                      )
                       : ""}
                   </p>
                 </div>

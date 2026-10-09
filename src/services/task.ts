@@ -1,31 +1,46 @@
-import { cookies } from 'next/headers';
+import { cookies } from "next/headers";
 
-import { createClient } from '@/app/lib/supabase/server';
+import { createClient } from "@/app/lib/supabase/server";
 
 import type {
   KanbanBoardData,
   KanbanColumn,
   Task,
   TaskScope,
-} from '@/app/components/kanban_board/types';
+} from "@/app/components/kanban_board/types";
 
 const DEFAULT_GENERAL_COLUMNS = [
   {
-    name: 'To do',
+    name: "Por Fazer",
     position: 0,
     is_completed: false,
   },
   {
-    name: 'Doing',
+    name: "Em Curso",
     position: 1,
     is_completed: false,
   },
   {
-    name: 'Done',
+    name: "Concluído",
     position: 2,
     is_completed: true,
   },
 ];
+
+/* -------------------------------------------------------------------------- */
+/* Selects                                                                    */
+/* -------------------------------------------------------------------------- */
+
+const COLUMN_SELECT = `
+  column_id,
+  project_id,
+  profile_id,
+  name,
+  position,
+  is_completed,
+  created_at,
+  updated_at
+`;
 
 /* -------------------------------------------------------------------------- */
 /* Task mapper                                                                */
@@ -37,42 +52,131 @@ function mapTask(row: any): Task {
     : [];
 
   return {
-  taskId: row.task_id,
-  projectId: row.project_id,
-  columnId: row.column_id,
+    taskId: row.task_id,
+    projectId: row.project_id,
+    columnId: row.column_id,
 
-  title: row.title,
-  description: row.description,
+    title: row.title,
+    description: row.description,
 
-  priority: row.priority,
+    priority: row.priority,
 
-  startDate: row.start_date,
-  dueDate: row.due_date,
+    startDate: row.start_date,
+    dueDate: row.due_date,
 
-  estimatedHours: row.estimated_hours,
-  actualHours: row.actual_hours,
+    estimatedHours: row.estimated_hours,
+    actualHours: row.actual_hours,
 
-  position: row.position,
+    position: row.position,
 
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
 
-  completed: row.completed,
+    completed: row.completed,
 
-  members: members.map((member: any) => {
-    const profile = Array.isArray(member.profiles)
-      ? member.profiles[0]
-      : member.profiles;
+    members: members.map((member: any) => {
+      const profile = Array.isArray(member.profiles)
+        ? member.profiles[0]
+        : member.profiles;
 
-    return {
-      profileId: member.profile_id,
-      firstName: profile?.first_name ?? '',
-      lastName: profile?.last_name ?? '',
-      picture: profile?.profile_picture ?? null,
-    };
-  }),
-  createdBy: ""
-};
+      return {
+        profileId: member.profile_id,
+        firstName: profile?.first_name ?? "",
+        lastName: profile?.last_name ?? "",
+        picture: profile?.profile_picture ?? null,
+      };
+    }),
+
+    createdBy: row.created_by ?? "",
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* General columns                                                            */
+/* -------------------------------------------------------------------------- */
+
+async function getGeneralColumns(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  profileId: string,
+) {
+  // Always restrict general columns to the authenticated user's profile.
+  const {
+    data: existingColumns,
+    error: fetchError,
+  } = await supabase
+    .from("task_columns")
+    .select(COLUMN_SELECT)
+    .is("project_id", null)
+    .eq("profile_id", profileId)
+    .order("position", { ascending: true });
+
+  if (fetchError) {
+    throw new Error(
+      `Não foi possível carregar as colunas pessoais: ${fetchError.message}`,
+    );
+  }
+
+  if (existingColumns && existingColumns.length > 0) {
+    return existingColumns;
+  }
+
+  // No personal columns exist: create this user's defaults.
+  const {
+    data: createdColumns,
+    error: createError,
+  } = await supabase
+    .from("task_columns")
+    .insert(
+      DEFAULT_GENERAL_COLUMNS.map((column) => ({
+        project_id: null,
+        profile_id: profileId,
+        name: column.name,
+        position: column.position,
+        is_completed: column.is_completed,
+      })),
+    )
+    .select(COLUMN_SELECT)
+    .order("position", { ascending: true });
+
+  if (!createError && createdColumns?.length) {
+    // Defensive check: never return rows belonging to another profile.
+    return createdColumns.filter(
+      (column) =>
+        column.profile_id === profileId &&
+        column.project_id === null,
+    );
+  }
+
+  /*
+   * Another request may have created the columns concurrently.
+   * Re-fetch only this user's columns instead of returning other
+   * users' columns or assuming that creation succeeded.
+   */
+  const {
+    data: retryColumns,
+    error: retryError,
+  } = await supabase
+    .from("task_columns")
+    .select(COLUMN_SELECT)
+    .is("project_id", null)
+    .eq("profile_id", profileId)
+    .order("position", { ascending: true });
+
+  if (retryError) {
+    throw new Error(
+      `Não foi possível recuperar as colunas pessoais: ${retryError.message}`,
+    );
+  }
+
+  if (retryColumns && retryColumns.length > 0) {
+    return retryColumns;
+  }
+
+  throw new Error(
+    `Não foi possível criar as colunas padrão. ${
+      createError?.message ?? "Nenhuma coluna foi devolvida."
+    }`,
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -84,9 +188,7 @@ export async function getTaskBoard(
 ): Promise<KanbanBoardData> {
   const supabase = await createClient(await cookies());
 
-  /* ---------------------------------------------------------------------- */
-  /* Auth user                                                              */
-  /* ---------------------------------------------------------------------- */
+  /* Authentication */
 
   const {
     data: { user },
@@ -97,9 +199,7 @@ export async function getTaskBoard(
     throw new Error("Utilizador não autenticado.");
   }
 
-  /* ---------------------------------------------------------------------- */
-  /* User profile                                                           */
-  /* ---------------------------------------------------------------------- */
+  /* Profile */
 
   const {
     data: profile,
@@ -112,141 +212,51 @@ export async function getTaskBoard(
 
   if (profileError || !profile) {
     console.error(
-      "Failed to find user profile:",
+      "[getTaskBoard] Profile lookup failed:",
       profileError,
     );
 
-    throw new Error(
-      "Perfil do utilizador não encontrado.",
-    );
+    throw new Error("Perfil do utilizador não encontrado.");
   }
 
   const profileId = profile.profile_id;
 
-  /* ---------------------------------------------------------------------- */
-  /* Columns                                                                */
-  /* ---------------------------------------------------------------------- */
+  /* Columns */
 
-  let columnsQuery = supabase
-    .from("task_columns")
-    .select(`
-      column_id,
-      project_id,
-      profile_id,
-      name,
-      position,
-      is_completed,
-      created_at,
-      updated_at
-    `)
-    .order("position", { ascending: true });
+  let columns: any[] = [];
 
   if (scope.type === "general") {
-    /*
-     * General columns are PERSONAL.
-     *
-     * Only return columns belonging to the current profile.
-     */
-    columnsQuery = columnsQuery
-      .is("project_id", null)
-      .eq("profile_id", profileId);
+    // Personal columns: project_id IS NULL AND profile_id = current user.
+    columns = await getGeneralColumns(supabase, profileId);
   } else {
-    /*
-     * Project columns are SHARED.
-     *
-     * Project membership should be validated before reaching this point.
-     */
-    columnsQuery = columnsQuery.eq(
-      "project_id",
-      scope.projectId,
-    );
-  }
+    // Project columns are shared, but project access must be authorized
+    // independently before this query is allowed to return project data.
+    if (!scope.projectId) {
+      throw new Error("ID do projecto inválido.");
+    }
 
-  let {
-    data: columns,
-    error: columnsError,
-  } = await columnsQuery;
-
-  if (columnsError) {
-    console.error(
-      "Failed to fetch task columns:",
-      columnsError,
-    );
-
-    throw new Error(columnsError.message);
-  }
-
-  /* ---------------------------------------------------------------------- */
-  /* Default general columns                                                */
-  /* ---------------------------------------------------------------------- */
-
-  if (
-    scope.type === "general" &&
-    (!columns || columns.length === 0)
-  ) {
     const {
-      data: createdColumns,
-      error: createColumnsError,
+      data: projectColumns,
+      error: columnsError,
     } = await supabase
       .from("task_columns")
-      .insert(
-        DEFAULT_GENERAL_COLUMNS.map((column) => ({
-          project_id: null,
-          profile_id: profileId,
-          name: column.name,
-          position: column.position,
-          is_completed: column.is_completed,
-        })),
-      )
-      .select(`
-        column_id,
-        project_id,
-        profile_id,
-        name,
-        position,
-        is_completed,
-        created_at,
-        updated_at
-      `)
+      .select(COLUMN_SELECT)
+      .eq("project_id", scope.projectId)
       .order("position", { ascending: true });
 
-    if (createColumnsError) {
-      /*
-       * Another request may have created the columns at the
-       * same time. Fetch only this user's general columns.
-       */
-      const {
-        data: existingColumns,
-        error: retryError,
-      } = await supabase
-        .from("task_columns")
-        .select(`
-          column_id,
-          project_id,
-          profile_id,
-          name,
-          position,
-          is_completed,
-          created_at,
-          updated_at
-        `)
-        .is("project_id", null)
-        .eq("profile_id", profileId)
-        .order("position", { ascending: true });
+    if (columnsError) {
+      console.error(
+        "[getTaskBoard] Project columns lookup failed:",
+        columnsError,
+      );
 
-      if (retryError) {
-        throw new Error(retryError.message);
-      }
-
-      columns = existingColumns ?? [];
-    } else {
-      columns = createdColumns ?? [];
+      throw new Error(columnsError.message);
     }
+
+    columns = projectColumns ?? [];
   }
 
-  /* ---------------------------------------------------------------------- */
-  /* Tasks                                                                  */
-  /* ---------------------------------------------------------------------- */
+  /* Tasks */
 
   let tasksQuery = supabase
     .from("tasks")
@@ -265,7 +275,8 @@ export async function getTaskBoard(
       created_at,
       updated_at,
       completed,
-      task_members!inner (
+      created_by,
+      task_members (
         task_member_id,
         task_id,
         profile_id,
@@ -277,29 +288,19 @@ export async function getTaskBoard(
         )
       )
     `)
-    .eq(
-      "task_members.profile_id",
-      profileId,
-    )
     .order("position", { ascending: true })
     .order("created_at", { ascending: false });
 
-  /* ---------------------------------------------------------------------- */
-  /* Scope                                                                  */
-  /* ---------------------------------------------------------------------- */
-
   if (scope.type === "general") {
     /*
-     * General tasks are personal/assigned tasks.
+     * General tasks are filtered to tasks in the personal board.
+     * Ownership/assignment should follow the actual general-task
+     * ownership model used by your database and task creation action.
      */
-    tasksQuery = tasksQuery.is(
-      "project_id",
-      null,
-    );
+    tasksQuery = tasksQuery
+      .is("project_id", null)
+      .eq("created_by", user.id);
   } else {
-    /*
-     * Project tasks are shared within the project.
-     */
     tasksQuery = tasksQuery.eq(
       "project_id",
       scope.projectId,
@@ -313,54 +314,40 @@ export async function getTaskBoard(
 
   if (tasksError) {
     console.error(
-      "Failed to fetch tasks:",
+      "[getTaskBoard] Tasks lookup failed:",
       tasksError,
     );
 
     throw new Error(tasksError.message);
   }
 
-  /* ---------------------------------------------------------------------- */
-  /* Normalize tasks                                                        */
-  /* ---------------------------------------------------------------------- */
+  /* Normalize */
 
-  const normalizedTasks: Task[] = (
-    taskRows ?? []
-  ).map(mapTask);
-
-  /* ---------------------------------------------------------------------- */
-  /* Normalize columns                                                      */
-  /* ---------------------------------------------------------------------- */
-
-  const normalizedColumns: KanbanColumn[] = (
-    columns ?? []
-  ).map((column) => ({
-    columnId: column.column_id,
-    projectId: column.project_id,
-    name: column.name,
-    position: column.position,
-    isCompleted: column.is_completed,
-    createdAt: column.created_at,
-    updatedAt: column.updated_at,
-  }));
-
-  /* ---------------------------------------------------------------------- */
-  /* Debug                                                                  */
-  /* ---------------------------------------------------------------------- */
-
-  console.log(
-    "[getTaskBoard]",
-    {
-      userId: user.id,
-      profileId,
-      scope,
-      columns: normalizedColumns.length,
-      tasks: normalizedTasks.length,
-      taskIds: normalizedTasks.map(
-        (task) => task.taskId,
-      ),
-    },
+  const normalizedColumns: KanbanColumn[] = columns.map(
+    (column) => ({
+      columnId: column.column_id,
+      projectId: column.project_id,
+      name: column.name,
+      position: column.position,
+      isCompleted: column.is_completed,
+      createdAt: column.created_at,
+      updatedAt: column.updated_at,
+    }),
   );
+
+  const normalizedTasks: Task[] = (taskRows ?? []).map(mapTask);
+
+  console.log("[getTaskBoard]", {
+    userId: user.id,
+    profileId,
+    scope,
+    columnCount: normalizedColumns.length,
+    taskCount: normalizedTasks.length,
+    columnOwners:
+      scope.type === "general"
+        ? [...new Set(columns.map((column) => column.profile_id))]
+        : undefined,
+  });
 
   return {
     scope,

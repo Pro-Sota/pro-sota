@@ -28,7 +28,7 @@ type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
 
 interface DashboardData {
   currentUser: Profile | null;
-  projects: Project[];
+  projects: Project[]; 
   documents: Document[];
   tasks: Task[];
   deadlines: Task[];

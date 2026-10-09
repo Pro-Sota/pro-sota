@@ -500,11 +500,10 @@ export default function ProjectsPageInner({
                       type="button"
                       aria-pressed={isActive}
                       onClick={() => changeFilter(item.value)}
-                      className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
-                        isActive
+                      className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${isActive
                           ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
                           : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-100"
-                      }`}
+                        }`}
                     >
                       {item.label}
                     </button>
@@ -551,11 +550,10 @@ export default function ProjectsPageInner({
                           aria-pressed={isActive}
                           title={label}
                           onClick={() => changeView(value)}
-                          className={`cursor-pointer rounded p-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
-                            isActive
+                          className={`cursor-pointer rounded p-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${isActive
                               ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
                               : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                          }`}
+                            }`}
                         >
                           <Icon className="h-4 w-4" />
                         </button>
@@ -593,7 +591,9 @@ export default function ProjectsPageInner({
             )}
 
             {viewMode === "map" && (
-              <ProjectMapView projects={filteredProjects} />
+              <div className="h-[400px] w-full">
+                <ProjectMapView projects={projects} />
+              </div>
             )}
           </div>
         )}

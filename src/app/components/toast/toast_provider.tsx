@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -11,10 +12,17 @@ import {
 } from "react";
 
 import { ToastContainer } from "./toast_container";
+
 import type {
   Toast,
   ToastOptions,
 } from "./types";
+import ConfirmDialog, { ConfirmDialogOptions } from "../ui/confirm_dialog";
+
+type PendingConfirmation = {
+  options: ConfirmDialogOptions;
+  resolve: (confirmed: boolean) => void;
+};
 
 type ToastContextValue = {
   toast: (options: ToastOptions) => string;
@@ -23,6 +31,7 @@ type ToastContextValue = {
   info: (message: string, duration?: number) => string;
   dismiss: (id: string) => void;
   dismissAll: () => void;
+  confirm: (options: ConfirmDialogOptions) => Promise<boolean>;
 };
 
 export const ToastContext =
@@ -38,6 +47,14 @@ export function ToastProvider({
   children,
 }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [confirmation, setConfirmation] =
+    useState<PendingConfirmation | null>(null);
+
+  const confirmationRef =
+    useRef<PendingConfirmation | null>(null);
+
+  const confirmationQueue =
+    useRef<PendingConfirmation[]>([]);
 
   const timers = useRef<
     Map<string, ReturnType<typeof setTimeout>>
@@ -45,7 +62,7 @@ export function ToastProvider({
 
   const dismiss = useCallback((id: string) => {
     setToasts((current) =>
-      current.filter((toast) => toast.id !== id)
+      current.filter((item) => item.id !== id)
     );
 
     const timer = timers.current.get(id);
@@ -87,55 +104,80 @@ export function ToastProvider({
   );
 
   const success = useCallback(
-    (message: string, duration = DEFAULT_DURATION) => {
-      return toast({
-        type: "success",
-        message,
-        duration,
-      });
-    },
+    (message: string, duration = DEFAULT_DURATION) =>
+      toast({ type: "success", message, duration }),
     [toast]
   );
 
   const error = useCallback(
-    (message: string, duration = DEFAULT_DURATION) => {
-      return toast({
-        type: "error",
-        message,
-        duration,
-      });
-    },
+    (message: string, duration = DEFAULT_DURATION) =>
+      toast({ type: "error", message, duration }),
     [toast]
   );
 
   const info = useCallback(
-    (message: string, duration = DEFAULT_DURATION) => {
-      return toast({
-        type: "info",
-        message,
-        duration,
-      });
-    },
+    (message: string, duration = DEFAULT_DURATION) =>
+      toast({ type: "info", message, duration }),
     [toast]
   );
 
   const dismissAll = useCallback(() => {
-    timers.current.forEach((timer) => {
-      clearTimeout(timer);
-    });
-
+    timers.current.forEach((timer) => clearTimeout(timer));
     timers.current.clear();
-
     setToasts([]);
   }, []);
 
+  const confirm = useCallback(
+    (options: ConfirmDialogOptions): Promise<boolean> => {
+      return new Promise<boolean>((resolve) => {
+        const request: PendingConfirmation = {
+          options,
+          resolve,
+        };
+
+        if (!confirmationRef.current) {
+          confirmationRef.current = request;
+          setConfirmation(request);
+        } else {
+          confirmationQueue.current.push(request);
+        }
+      });
+    },
+    []
+  );
+
+  const resolveConfirmation = useCallback(
+    (confirmed: boolean) => {
+      const current = confirmationRef.current;
+
+      if (!current) return;
+
+      confirmationRef.current = null;
+      setConfirmation(null);
+      current.resolve(confirmed);
+
+      const next = confirmationQueue.current.shift();
+
+      if (next) {
+        confirmationRef.current = next;
+        setConfirmation(next);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     return () => {
-      timers.current.forEach((timer) => {
-        clearTimeout(timer);
-      });
-
+      timers.current.forEach((timer) => clearTimeout(timer));
       timers.current.clear();
+
+      confirmationRef.current?.resolve(false);
+      confirmationRef.current = null;
+
+      confirmationQueue.current.forEach((item) => {
+        item.resolve(false);
+      });
+      confirmationQueue.current = [];
     };
   }, []);
 
@@ -147,6 +189,7 @@ export function ToastProvider({
       info,
       dismiss,
       dismissAll,
+      confirm,
     }),
     [
       toast,
@@ -155,6 +198,7 @@ export function ToastProvider({
       info,
       dismiss,
       dismissAll,
+      confirm,
     ]
   );
 
@@ -165,6 +209,18 @@ export function ToastProvider({
       <ToastContainer
         toasts={toasts}
         onDismissAction={dismiss}
+      />
+
+      <ConfirmDialog
+        open={confirmation !== null}
+        options={
+          confirmation?.options ?? {
+            title: "",
+            message: "",
+          }
+        }
+        onConfirm={() => resolveConfirmation(true)}
+        onCancel={() => resolveConfirmation(false)}
       />
     </ToastContext.Provider>
   );
