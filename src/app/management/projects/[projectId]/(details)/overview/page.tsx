@@ -1,8 +1,26 @@
-import OverviewClientPage from "./overview_client_view"
+// src/app/management/projects/[projectId]/overview/page.tsx
 
+import { notFound } from "next/navigation";
 
-export default function OverviewPage() {
+import { getOverviewData } from "@/services/project_overview";
+import OverviewClientPage from "./overview_client_view";
 
+interface PageProps {
+  params: Promise<{
+    projectId: string;
+  }>;
+} 
 
-    return <OverviewClientPage />
+export default async function ProjectOverviewPage({
+  params,
+}: PageProps) {
+  const { projectId } = await params;
+
+  const overview = await getOverviewData(projectId);
+
+  if (!overview) {
+    notFound();
+  }
+
+  return <OverviewClientPage data={overview} />;
 }

@@ -1,415 +1,555 @@
+
 "use client";
 
-import { FormEvent, useState } from "react";
-import { X, UserPlus, Loader2 } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Loader2, UserPlus, X } from "lucide-react";
 
 import { createLead } from "@/services/leads";
 
 type CreateLeadModalProps = {
-    open: boolean;
-    onClose: () => void;
-    onCreated?: () => void;
+  open: boolean;
+  onClose: () => void;
+  onCreated?: () => void;
 };
 
-const projectTypes = [
-    "Residencial",
-    "Comercial",
-    "Industrial",
-    "Institucional",
-    "Uso misto",
-    "Renovação",
-    "Design de interiores",
-    "Paisagismo",
-    "Outro",
+type LeadForm = {
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  projectName: string;
+  projectType: string;
+  budget: string;
+  location: string;
+};
+
+const INITIAL_FORM: LeadForm = {
+  name: "",
+  company: "",
+  email: "",
+  phone: "",
+  projectName: "",
+  projectType: "",
+  budget: "",
+  location: "",
+};
+
+const PROJECT_TYPES = [
+  "Residencial",
+  "Comercial",
+  "Industrial",
+  "Institucional",
+  "Uso misto",
+  "Renovação",
+  "Design de interiores",
+  "Paisagismo",
+  "Outro",
 ];
 
+/**
+ * Supports values such as:
+ * 15000000
+ * 15.000.000
+ * 15,000,000
+ * 15000000,50
+ * 15.000.000,50
+ * 15,000,000.50
+ *
+ * Returns null when no budget was entered.
+ */
+function parseBudget(value: string): number | null {
+  const input = value.trim().replace(/\s/g, "").replace(/[Kk][Zz]|AOA/gi, "");
+
+  if (!input) return null;
+
+  if (!/^[\d.,]+$/.test(input)) {
+    throw new Error("Introduza um orçamento válido.");
+  }
+
+  const lastDot = input.lastIndexOf(".");
+  const lastComma = input.lastIndexOf(",");
+  const lastSeparator = Math.max(lastDot, lastComma);
+
+  let normalized: string;
+
+  if (lastSeparator === -1) {
+    normalized = input;
+  } else {
+    const separator = input[lastSeparator];
+    const integerPart = input.slice(0, lastSeparator);
+    const decimalPart = input.slice(lastSeparator + 1);
+
+    const hasBothSeparators = input.includes(".") && input.includes(",");
+
+    if (hasBothSeparators) {
+      // The last separator is treated as the decimal separator.
+      if (!/^\d{1,2}$/.test(decimalPart)) {
+        throw new Error(
+          "Introduza um orçamento válido, com no máximo duas casas decimais.",
+        );
+      }
+
+      normalized =
+        integerPart.replace(/[.,]/g, "") + "." + decimalPart;
+    } else {
+      const separatorCount = (input.match(/[.,]/g) ?? []).length;
+
+      if (separatorCount > 1) {
+        // Repeated separators are accepted only as thousands grouping.
+        const groupedPattern =
+          separator === "."
+            ? /^\d{1,3}(?:\.\d{3})+$/
+            : /^\d{1,3}(?:,\d{3})+$/;
+
+        if (!groupedPattern.test(input)) {
+          throw new Error("Verifique os separadores do orçamento.");
+        }
+
+        normalized = input.replace(/[.,]/g, "");
+      } else if (decimalPart.length === 3) {
+        // A single separator followed by three digits is treated
+        // as a thousands separator, e.g. 15.000 or 15,000.
+        normalized = integerPart + decimalPart;
+      } else if (/^\d{1,2}$/.test(decimalPart)) {
+        normalized = integerPart + "." + decimalPart;
+      } else {
+        throw new Error(
+          "Introduza um orçamento válido, com no máximo duas casas decimais.",
+        );
+      }
+    }
+  }
+
+  const parsed = Number(normalized);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error("Introduza um orçamento válido.");
+  }
+
+  return parsed;
+}
+
 export default function CreateLeadModal({
-    open,
-    onClose,
-    onCreated,
+  open,
+  onClose,
+  onCreated,
 }: CreateLeadModalProps) {
-    const [name, setName] = useState("");
-    const [company, setCompany] = useState("");
-    const [email, setEmail] = useState("");
-    const [phone, setPhone] = useState("");
+  const [form, setForm] = useState<LeadForm>(INITIAL_FORM);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const [projectName, setProjectName] = useState("");
-    const [projectType, setProjectType] = useState("");
-    const [budget, setBudget] = useState("");
-    const [location, setLocation] = useState("");
+  if (!open) return null;
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState("");
+  function updateField<K extends keyof LeadForm>(
+    field: K,
+    value: LeadForm[K],
+  ) {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
 
-    if (!open) {
-        return null;
+    if (error) setError(null);
+  }
+
+  function resetForm() {
+    setForm({ ...INITIAL_FORM });
+    setError(null);
+  }
+
+  function handleClose() {
+    if (isSubmitting) return;
+
+    resetForm();
+    onClose();
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSubmitting) return;
+
+    const name = form.name.trim();
+    const projectName = form.projectName.trim();
+    const projectType = form.projectType.trim();
+
+    if (!name) {
+      setError("Introduza o nome do contacto.");
+      return;
     }
 
-    function resetForm() {
-        setName("");
-        setCompany("");
-        setEmail("");
-        setPhone("");
-        setProjectName("");
-        setProjectType("");
-        setBudget("");
-        setLocation("");
-        setError("");
+    if (!projectName) {
+      setError("Introduza o nome do projecto.");
+      return;
     }
 
-    function handleClose() {
-        if (isSubmitting) return;
+    if (!projectType) {
+      setError("Seleccione o tipo de projecto.");
+      return;
+    }
 
-        resetForm();
+    if (
+      form.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+    ) {
+      setError("Introduza um endereço de email válido.");
+      return;
+    }
+
+    let budget: number | null;
+
+    try {
+      budget = parseBudget(form.budget);
+    } catch (parseError) {
+      setError(
+        parseError instanceof Error
+          ? parseError.message
+          : "Introduza um orçamento válido.",
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await createLead({
+        name,
+        company: form.company.trim() || null,
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
+        project_name: projectName,
+        project_type: projectType,
+        budget,
+        location: form.location.trim() || null,
+      });
+
+      resetForm();
+
+      // Notify the parent once. The parent should refresh its data
+      // and close the modal in its onCreated handler.
+      if (onCreated) {
+        onCreated();
+      } else {
         onClose();
+      }
+    } catch (submitError) {
+      console.error("Erro ao criar lead:", submitError);
+
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Não foi possível criar o lead. Tente novamente.",
+      );
+    } finally {
+      setIsSubmitting(false);
     }
+  }
 
-    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-        event.preventDefault();
+  const inputClassName =
+    "mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/15 disabled:cursor-not-allowed disabled:bg-gray-100";
 
-        setError("");
+  const labelClassName = "text-sm font-medium text-gray-700";
 
-        if (!name.trim()) {
-            setError("O nome do contacto é obrigatório.");
-            return;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          handleClose();
         }
-
-        if (!projectName.trim()) {
-            setError("O nome do projecto é obrigatório.");
-            return;
-        }
-
-        if (!projectType) {
-            setError("Seleccione o tipo de projecto.");
-            return;
-        }
-
-        const parsedBudget = budget.trim()
-            ? Number(budget.replace(/[^\d.,]/g, "").replace(",", "."))
-            : null;
-
-        if (
-            parsedBudget !== null &&
-            (!Number.isFinite(parsedBudget) || parsedBudget < 0)
-        ) {
-            setError("Introduza um orçamento válido.");
-            return;
-        }
-
-        try {
-            setIsSubmitting(true);
-
-            await createLead({
-                name,
-                company: company || null,
-                email: email || null,
-                phone: phone || null,
-                project_name: projectName,
-                project_type: projectType,
-                budget: parsedBudget,
-                location: location || null,
-            });
-
-            resetForm();
-            onCreated?.();
-            onClose();
-        } catch (err) {
-            console.error(err);
-
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Não foi possível criar o lead.",
-            );
-        } finally {
-            setIsSubmitting(false);
-        }
-    }
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div
-                className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
-                onClick={handleClose}
-            />
-
-            <div className="relative z-10 flex max-h-[90vh] w-full max-w-[620px] flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl">
-                {/* Header */}
-                <div className="flex shrink-0 items-center justify-between border-b border-neutral-200 px-5 py-4">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#BD9655]/15 text-[#002950]">
-                            <UserPlus className="h-4 w-4" />
-                        </div>
-
-                        <div>
-                            <h2 className="text-base font-semibold text-neutral-950">
-                                Novo lead
-                            </h2>
-
-                            <p className="text-xs text-neutral-400">
-                                Adicione uma nova oportunidade.
-                            </p>
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={handleClose}
-                        disabled={isSubmitting}
-                        className="rounded-lg p-2 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label="Fechar"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
-
-                {/* Form */}
-                <form
-                    onSubmit={handleSubmit}
-                    className="min-h-0 overflow-y-auto"
-                >
-                    <div className="space-y-6 p-5">
-                        {/* Contact */}
-                        <section>
-                            <div className="mb-3">
-                                <h3 className="text-sm font-semibold text-neutral-900">
-                                    Contacto
-                                </h3>
-
-                                <p className="mt-0.5 text-xs text-neutral-400">
-                                    Informação da pessoa ou empresa interessada.
-                                </p>
-                            </div>
-
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="sm:col-span-2">
-                                    <label
-                                        htmlFor="lead-name"
-                                        className="mb-1.5 block text-xs font-medium text-neutral-700"
-                                    >
-                                        Nome *
-                                    </label>
-
-                                    <input
-                                        id="lead-name"
-                                        type="text"
-                                        value={name}
-                                        onChange={(event) =>
-                                            setName(event.target.value)
-                                        }
-                                        placeholder="Nome do contacto"
-                                        required
-                                        className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/10"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label
-                                        htmlFor="lead-company"
-                                        className="mb-1.5 block text-xs font-medium text-neutral-700"
-                                    >
-                                        Empresa
-                                    </label>
-
-                                    <input
-                                        id="lead-company"
-                                        type="text"
-                                        value={company}
-                                        onChange={(event) =>
-                                            setCompany(event.target.value)
-                                        }
-                                        placeholder="Nome da empresa"
-                                        className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/10"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label
-                                        htmlFor="lead-phone"
-                                        className="mb-1.5 block text-xs font-medium text-neutral-700"
-                                    >
-                                        Telefone
-                                    </label>
-
-                                    <input
-                                        id="lead-phone"
-                                        type="tel"
-                                        value={phone}
-                                        onChange={(event) =>
-                                            setPhone(event.target.value)
-                                        }
-                                        placeholder="+244 9XX XXX XXX"
-                                        className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/10"
-                                    />
-                                </div>
-
-                                <div className="sm:col-span-2">
-                                    <label
-                                        htmlFor="lead-email"
-                                        className="mb-1.5 block text-xs font-medium text-neutral-700"
-                                    >
-                                        Email
-                                    </label>
-
-                                    <input
-                                        id="lead-email"
-                                        type="email"
-                                        value={email}
-                                        onChange={(event) =>
-                                            setEmail(event.target.value)
-                                        }
-                                        placeholder="email@exemplo.com"
-                                        className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/10"
-                                    />
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Opportunity */}
-                        <section>
-                            <div className="mb-3">
-                                <h3 className="text-sm font-semibold text-neutral-900">
-                                    Oportunidade
-                                </h3>
-
-                                <p className="mt-0.5 text-xs text-neutral-400">
-                                    Informação sobre o projecto pretendido.
-                                </p>
-                            </div>
-
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="sm:col-span-2">
-                                    <label
-                                        htmlFor="lead-project-name"
-                                        className="mb-1.5 block text-xs font-medium text-neutral-700"
-                                    >
-                                        Nome do projecto *
-                                    </label>
-
-                                    <input
-                                        id="lead-project-name"
-                                        type="text"
-                                        value={projectName}
-                                        onChange={(event) =>
-                                            setProjectName(event.target.value)
-                                        }
-                                        placeholder="Ex.: Moradia em Talatona"
-                                        required
-                                        className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/10"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label
-                                        htmlFor="lead-project-type"
-                                        className="mb-1.5 block text-xs font-medium text-neutral-700"
-                                    >
-                                        Tipo de projecto *
-                                    </label>
-
-                                    <select
-                                        id="lead-project-type"
-                                        value={projectType}
-                                        onChange={(event) =>
-                                            setProjectType(event.target.value)
-                                        }
-                                        required
-                                        className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/10"
-                                    >
-                                        <option value="">
-                                            Seleccionar tipo
-                                        </option>
-
-                                        {projectTypes.map((type) => (
-                                            <option key={type} value={type}>
-                                                {type}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label
-                                        htmlFor="lead-budget"
-                                        className="mb-1.5 block text-xs font-medium text-neutral-700"
-                                    >
-                                        Orçamento
-                                    </label>
-
-                                    <div className="relative">
-                                        <input
-                                            id="lead-budget"
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={budget}
-                                            onChange={(event) =>
-                                                setBudget(event.target.value)
-                                            }
-                                            placeholder="Ex.: 15000000"
-                                            className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 pr-12 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/10"
-                                        />
-
-                                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-neutral-400">
-                                            Kz
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="sm:col-span-2">
-                                    <label
-                                        htmlFor="lead-location"
-                                        className="mb-1.5 block text-xs font-medium text-neutral-700"
-                                    >
-                                        Localização
-                                    </label>
-
-                                    <input
-                                        id="lead-location"
-                                        type="text"
-                                        value={location}
-                                        onChange={(event) =>
-                                            setLocation(event.target.value)
-                                        }
-                                        placeholder="Ex.: Talatona, Luanda"
-                                        className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/10"
-                                    />
-                                </div>
-                            </div>
-                        </section>
-
-                        {error && (
-                            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
-                                <p className="text-xs font-medium text-red-700">
-                                    {error}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Footer */}
-                    <div className="flex shrink-0 items-center justify-end gap-2 border-t border-neutral-200 bg-neutral-50/70 px-5 py-4">
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            disabled={isSubmitting}
-                            className="h-10 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            Cancelar
-                        </button>
-
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-5 text-sm font-semibold text-[#002950] transition hover:bg-[#BD9655]/90 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {isSubmitting && (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            )}
-                            {isSubmitting ? "A criar..." : "Criar lead"}
-                        </button>
-                    </div>
-                </form>
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-lead-title"
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+      >
+        <header className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#002950]/5 text-[#002950]">
+              <UserPlus size={21} aria-hidden="true" />
             </div>
-        </div>
-    );
+
+            <div>
+              <h2
+                id="create-lead-title"
+                className="text-lg font-semibold text-[#002950]"
+              >
+                Novo lead
+              </h2>
+              <p className="mt-0.5 text-sm text-gray-500">
+                Registe um novo contacto e o respectivo projecto.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSubmitting}
+            aria-label="Fechar modal"
+            className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
+        </header>
+
+        <form
+          onSubmit={handleSubmit}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="overflow-y-auto px-6 py-5">
+            <div className="space-y-6">
+              <section>
+                <h3 className="mb-4 text-sm font-semibold text-[#002950]">
+                  Dados do contacto
+                </h3>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor="lead-name"
+                      className={labelClassName}
+                    >
+                      Nome do contacto <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="lead-name"
+                      name="name"
+                      autoComplete="name"
+                      required
+                      maxLength={150}
+                      value={form.name}
+                      onChange={(event) =>
+                        updateField("name", event.target.value)
+                      }
+                      placeholder="Nome completo"
+                      className={inputClassName}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="lead-company"
+                      className={labelClassName}
+                    >
+                      Empresa
+                    </label>
+                    <input
+                      id="lead-company"
+                      name="company"
+                      autoComplete="organization"
+                      maxLength={150}
+                      value={form.company}
+                      onChange={(event) =>
+                        updateField("company", event.target.value)
+                      }
+                      placeholder="Nome da empresa"
+                      className={inputClassName}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="lead-phone"
+                      className={labelClassName}
+                    >
+                      Telefone
+                    </label>
+                    <input
+                      id="lead-phone"
+                      name="phone"
+                      type="tel"
+                      autoComplete="tel"
+                      maxLength={40}
+                      value={form.phone}
+                      onChange={(event) =>
+                        updateField("phone", event.target.value)
+                      }
+                      placeholder="+244 ..."
+                      className={inputClassName}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor="lead-email"
+                      className={labelClassName}
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="lead-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      maxLength={254}
+                      value={form.email}
+                      onChange={(event) =>
+                        updateField("email", event.target.value)
+                      }
+                      placeholder="email@empresa.com"
+                      className={inputClassName}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <div className="border-t border-gray-100" />
+
+              <section>
+                <h3 className="mb-4 text-sm font-semibold text-[#002950]">
+                  Dados do projecto
+                </h3>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor="lead-project-name"
+                      className={labelClassName}
+                    >
+                      Nome do projecto{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="lead-project-name"
+                      name="projectName"
+                      required
+                      maxLength={200}
+                      value={form.projectName}
+                      onChange={(event) =>
+                        updateField("projectName", event.target.value)
+                      }
+                      placeholder="Ex.: Moradia em Talatona"
+                      className={inputClassName}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="lead-project-type"
+                      className={labelClassName}
+                    >
+                      Tipo de projecto{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="lead-project-type"
+                      name="projectType"
+                      required
+                      value={form.projectType}
+                      onChange={(event) =>
+                        updateField("projectType", event.target.value)
+                      }
+                      className={inputClassName}
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccione uma opção</option>
+                      {PROJECT_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="lead-budget"
+                      className={labelClassName}
+                    >
+                      Orçamento estimado (Kz)
+                    </label>
+                    <input
+                      id="lead-budget"
+                      name="budget"
+                      type="text"
+                      inputMode="decimal"
+                      value={form.budget}
+                      onChange={(event) =>
+                        updateField("budget", event.target.value)
+                      }
+                      placeholder="Ex.: 15000000"
+                      className={inputClassName}
+                      disabled={isSubmitting}
+                    />
+                    <p className="mt-1 text-xs text-gray-400">
+                      Pode introduzir o valor sem separadores de milhares.
+                    </p>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor="lead-location"
+                      className={labelClassName}
+                    >
+                      Localização
+                    </label>
+                    <input
+                      id="lead-location"
+                      name="location"
+                      autoComplete="address-level2"
+                      maxLength={200}
+                      value={form.location}
+                      onChange={(event) =>
+                        updateField("location", event.target.value)
+                      }
+                      placeholder="Ex.: Luanda, Talatona"
+                      className={inputClassName}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                  {error}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <footer className="flex flex-col-reverse gap-3 border-t border-gray-100 bg-gray-50/70 px-6 py-4 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#002950] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#003866] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                  A criar...
+                </>
+              ) : (
+                <>
+                  <UserPlus size={16} aria-hidden="true" />
+                  Criar lead
+                </>
+              )}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  );
 }

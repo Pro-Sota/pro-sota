@@ -67,31 +67,90 @@ async function getCurrentProfileId() {
 /**
  * Verifies that the current user is a member of a project.
  */
-async function assertProjectMember(projectId: string) {
-  const supabase = await getSupabase();
-  const userId = await getCurrentUserId();
 
-  const { data, error } = await supabase
+
+async function isCurrentUserAdmin(): Promise<boolean> {
+  const supabase = await getSupabase();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error("Utilizador não autenticado.");
+  }
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("role_id")
+    .eq("profile_id", user.id)
+    .single();
+
+  if (error || !profile) {
+    throw new Error("Perfil do utilizador não encontrado.");
+  }
+
+  return profile.role_id === 1;
+}
+
+
+async function assertProjectMember(
+  projectId: string,
+): Promise<void> {
+  const supabase = await getSupabase();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error("Utilizador não autenticado.");
+  }
+
+  // Resolve the current user's profile and role.
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("profile_id, role_id")
+    .eq("profile_id", user.id)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error("Perfil do utilizador não encontrado.");
+  }
+
+  // Admins can bypass project membership checks.
+  if (profile.role_id === 1) {
+    return;
+  }
+
+  // All other users must belong to the project.
+  const { data: member, error: memberError } = await supabase
     .from("project_members")
     .select("project_id")
     .eq("project_id", projectId)
-    .eq("profile_id", userId)
+    .eq("profile_id", profile.profile_id)
+    .limit(1)
     .maybeSingle();
 
-  if (error) {
+  if (memberError) {
+    console.error(
+      "[assertProjectMember] Membership lookup failed:",
+      memberError,
+    );
+
     throw new Error(
-      `Failed to verify project membership: ${error.message}`,
+      "Não foi possível verificar o acesso ao projecto.",
     );
   }
 
-  if (!data) {
-    throw new Error(
-      "Não tem permissão para aceder às listas deste projecto.",
-    );
+  if (!member) {
+    throw new Error("Não tem acesso a este projecto.");
   }
-
-  return userId;
 }
+
+
 
 /**
  * Returns task columns visible to the current user.
@@ -292,18 +351,18 @@ export async function updateTaskColumn(
   /*
    * General/personal column.
    */
+if (existingColumn.project_id === null) {
+  const isAdmin = await isCurrentUserAdmin();
+
   if (
-    existingColumn.project_id === null
+    !isAdmin &&
+    existingColumn.profile_id !== currentProfileId
   ) {
-    if (
-      existingColumn.profile_id !==
-      currentProfileId
-    ) {
-      throw new Error(
-        "Não tem permissão para alterar esta lista.",
-      );
-    }
+    throw new Error(
+      "Não tem permissão para alterar esta lista.",
+    );
   }
+}
 
   /*
    * Project column.
@@ -373,16 +432,18 @@ export async function deleteTaskColumn(
    * General/personal column:
    * only its owner can delete it.
    */
-  if (column.project_id === null) {
-    if (
-      column.profile_id !==
-      currentProfileId
-    ) {
-      throw new Error(
-        "Não tem permissão para eliminar esta lista.",
-      );
-    }
+ if (column.project_id === null) {
+  const isAdmin = await isCurrentUserAdmin();
+
+  if (
+    !isAdmin &&
+    column.profile_id !== currentProfileId
+  ) {
+    throw new Error(
+      "Não tem permissão para eliminar esta lista.",
+    );
   }
+}
 
   /*
    * Project column:
@@ -446,21 +507,27 @@ export async function deleteTaskColumn(
  *   Only columns from a project where the current user
  *   is a member can be reordered.
  */
+
 export async function reorderTaskColumns(
   scope: TaskScope,
   orderedColumnIds: string[],
 ) {
   const supabase = await getSupabase();
 
+  const isAdmin = await isCurrentUserAdmin();
+
   let profileId: string | null = null;
 
   if (scope.type === "general") {
-    profileId =
-      await getCurrentProfileId();
+    if (!isAdmin) {
+      profileId = await getCurrentProfileId();
+    }
   } else {
-    await assertProjectMember(
-      scope.projectId,
-    );
+    if (!scope.projectId) {
+      throw new Error("ID do projecto inválido.");
+    }
+
+    await assertProjectMember(scope.projectId);
   }
 
   for (
@@ -473,31 +540,33 @@ export async function reorderTaskColumns(
       .update({
         position: index,
       })
-      .eq(
-        "column_id",
-        orderedColumnIds[index],
-      );
+      .eq("column_id", orderedColumnIds[index]);
 
     if (scope.type === "general") {
-      query = query
-        .is("project_id", null)
-        .eq(
-          "profile_id",
-          profileId,
-        );
+      query = query.is("project_id", null);
+
+      // Non-admin users can reorder only their own columns.
+      if (!isAdmin) {
+        query = query.eq("profile_id", profileId);
+      }
     } else {
-      query = query.eq(
-        "project_id",
-        scope.projectId,
-      );
+      // Project columns can only be reordered within this project.
+      query = query.eq("project_id", scope.projectId);
     }
 
-    const { error } =
-      await query;
+    const { error } = await query;
 
     if (error) {
+      console.error(
+        "[reorderTaskColumns] Failed:",
+        {
+          columnId: orderedColumnIds[index],
+          error,
+        },
+      );
+
       throw new Error(
-        `Failed to reorder task columns: ${error.message}`,
+        `Não foi possível reordenar as listas: ${error.message}`,
       );
     }
   }

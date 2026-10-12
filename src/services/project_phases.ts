@@ -548,58 +548,57 @@ export async function getProjectActivity(projectId: string) {
 }
 
 export async function getProjectPhaseBoard(projectId: string) {
-    const supabase = await getSupabase();
+  const supabase = await getSupabase();
 
-    const { data: phases, error: phasesError } = await supabase
-        .from("project_phases")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("sort_order", { ascending: true });
+  const { data: phases, error: phasesError } = await supabase
+    .from("project_phases")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("sort_order", { ascending: true });
 
-    if (phasesError) {
-        throw phasesError;
-    }
+  if (phasesError) throw phasesError;
 
-    const phaseIds = (phases ?? []).map(
-        (phase) => phase.phase_id
-    );
+  const phaseIds = (phases ?? []).map((phase) => phase.phase_id);
 
-    let steps = [];
-    let deliverables = [];
+  let steps: Database["public"]["Tables"]["phase_steps"]["Row"][] = [];
+  let deliverables: Database["public"]["Tables"]["deliverables"]["Row"][] = [];
+  let milestones: Database["public"]["Tables"]["milestones"]["Row"][] = [];
 
-    if (phaseIds.length > 0) {
-        const [
-            stepsResult,
-            deliverablesResult,
-        ] = await Promise.all([
-            supabase
-                .from("phase_steps")
-                .select("*")
-                .in("phase_id", phaseIds)
-                .order("sort_order", { ascending: true }),
+  if (phaseIds.length > 0) {
+    const [stepsResult, deliverablesResult, milestonesResult] =
+      await Promise.all([
+        supabase
+          .from("phase_steps")
+          .select("*")
+          .in("phase_id", phaseIds)
+          .order("sort_order", { ascending: true }),
 
-            supabase
-                .from("deliverables")
-                .select("*")
-                .in("phase_id", phaseIds)
-                .order("sort_order", { ascending: true }),
-        ]);
+        supabase
+          .from("deliverables")
+          .select("*")
+          .in("phase_id", phaseIds)
+          .order("sort_order", { ascending: true }),
 
-        if (stepsResult.error) {
-            throw stepsResult.error;
-        }
+        supabase
+          .from("milestones")
+          .select("*")
+          .eq("project_id", projectId)
+          .order("date", { ascending: true }),
+      ]);
 
-        if (deliverablesResult.error) {
-            throw deliverablesResult.error;
-        }
+    if (stepsResult.error) throw stepsResult.error;
+    if (deliverablesResult.error) throw deliverablesResult.error;
+    if (milestonesResult.error) throw milestonesResult.error;
 
-        steps = stepsResult.data ?? [];
-        deliverables = deliverablesResult.data ?? [];
-    }
+    steps = stepsResult.data ?? [];
+    deliverables = deliverablesResult.data ?? [];
+    milestones = milestonesResult.data ?? [];
+  }
 
-    return {
-        phases: phases ?? [],
-        steps,
-        deliverables,
-    };
+  return {
+    phases: phases ?? [],
+    steps,
+    deliverables,
+    milestones,
+  };
 }

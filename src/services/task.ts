@@ -183,30 +183,27 @@ async function getGeneralColumns(
 /* Main                                                                       */
 /* -------------------------------------------------------------------------- */
 
+
+
 export async function getTaskBoard(
   scope: TaskScope,
 ): Promise<KanbanBoardData> {
   const supabase = await createClient(await cookies());
 
-  /* Authentication */
-
+  // 1. Authenticate the current user.
   const {
     data: { user },
-    error: userError,
+    error: authError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
+  if (authError || !user) {
     throw new Error("Utilizador não autenticado.");
   }
 
-  /* Profile */
-
-  const {
-    data: profile,
-    error: profileError,
-  } = await supabase
+  // 2. Resolve the profile and role.
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("profile_id")
+    .select("profile_id, role_id")
     .eq("profile_id", user.id)
     .single();
 
@@ -215,34 +212,58 @@ export async function getTaskBoard(
       "[getTaskBoard] Profile lookup failed:",
       profileError,
     );
-
     throw new Error("Perfil do utilizador não encontrado.");
   }
 
   const profileId = profile.profile_id;
+  const isAdmin = profile.role_id === 1;
 
-  /* Columns */
-
+  // 3. Load the appropriate board columns.
   let columns: any[] = [];
 
   if (scope.type === "general") {
-    // Personal columns: project_id IS NULL AND profile_id = current user.
+    // Personal columns remain restricted to their owner.
     columns = await getGeneralColumns(supabase, profileId);
   } else {
-    // Project columns are shared, but project access must be authorized
-    // independently before this query is allowed to return project data.
     if (!scope.projectId) {
       throw new Error("ID do projecto inválido.");
     }
 
-    const {
-      data: projectColumns,
-      error: columnsError,
-    } = await supabase
-      .from("task_columns")
-      .select(COLUMN_SELECT)
-      .eq("project_id", scope.projectId)
-      .order("position", { ascending: true });
+    // Admins can access any project board.
+    // Other users must be members of the requested project.
+    if (!isAdmin) {
+      const { data: membership, error: membershipError } =
+        await supabase
+          .from("project_members")
+          .select("project_id")
+          .eq("project_id", scope.projectId)
+          .eq("profile_id", profileId)
+          .limit(1)
+          .maybeSingle();
+
+      if (membershipError) {
+        console.error(
+          "[getTaskBoard] Membership lookup failed:",
+          membershipError,
+        );
+
+        throw new Error(
+          "Não foi possível verificar o acesso ao projecto.",
+        );
+      }
+
+      if (!membership) {
+        throw new Error("Não tem acesso a este projecto.");
+      }
+    }
+
+    // Project columns are shared across the project.
+    const { data: projectColumns, error: columnsError } =
+      await supabase
+        .from("task_columns")
+        .select(COLUMN_SELECT)
+        .eq("project_id", scope.projectId)
+        .order("position", { ascending: true });
 
     if (columnsError) {
       console.error(
@@ -250,14 +271,15 @@ export async function getTaskBoard(
         columnsError,
       );
 
-      throw new Error(columnsError.message);
+      throw new Error(
+        `Não foi possível carregar as colunas: ${columnsError.message}`,
+      );
     }
 
     columns = projectColumns ?? [];
   }
 
-  /* Tasks */
-
+  // 4. Query tasks according to board scope.
   let tasksQuery = supabase
     .from("tasks")
     .select(`
@@ -292,25 +314,18 @@ export async function getTaskBoard(
     .order("created_at", { ascending: false });
 
   if (scope.type === "general") {
-    /*
-     * General tasks are filtered to tasks in the personal board.
-     * Ownership/assignment should follow the actual general-task
-     * ownership model used by your database and task creation action.
-     */
+    // Personal tasks: only tasks created by the current user.
     tasksQuery = tasksQuery
       .is("project_id", null)
       .eq("created_by", user.id);
   } else {
-    tasksQuery = tasksQuery.eq(
-      "project_id",
-      scope.projectId,
-    );
+    // All tasks for this project, not just tasks assigned
+    // to the current user or created by the current user.
+    tasksQuery = tasksQuery.eq("project_id", scope.projectId);
   }
 
-  const {
-    data: taskRows,
-    error: tasksError,
-  } = await tasksQuery;
+  const { data: taskRows, error: tasksError } =
+    await tasksQuery;
 
   if (tasksError) {
     console.error(
@@ -318,11 +333,12 @@ export async function getTaskBoard(
       tasksError,
     );
 
-    throw new Error(tasksError.message);
+    throw new Error(
+      `Não foi possível carregar as tarefas: ${tasksError.message}`,
+    );
   }
 
-  /* Normalize */
-
+  // 5. Normalize columns for the Kanban UI.
   const normalizedColumns: KanbanColumn[] = columns.map(
     (column) => ({
       columnId: column.column_id,
@@ -335,19 +351,8 @@ export async function getTaskBoard(
     }),
   );
 
+  // 6. Normalize tasks.
   const normalizedTasks: Task[] = (taskRows ?? []).map(mapTask);
-
-  console.log("[getTaskBoard]", {
-    userId: user.id,
-    profileId,
-    scope,
-    columnCount: normalizedColumns.length,
-    taskCount: normalizedTasks.length,
-    columnOwners:
-      scope.type === "general"
-        ? [...new Set(columns.map((column) => column.profile_id))]
-        : undefined,
-  });
 
   return {
     scope,

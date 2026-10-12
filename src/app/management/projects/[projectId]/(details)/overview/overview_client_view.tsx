@@ -1,75 +1,61 @@
+
 "use client";
-import KpiCard from "./components/kpi_card";
-import GanttChart from "@/app/components/gantt";
+
+import Link from "next/link";
+import type { ReactNode, ComponentType } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
   CalendarDays,
   CircleAlert,
-  Clock3Icon,
+  Clock3,
   Inbox,
   ListChecks,
-  LucideIcon,
   TrendingUp,
-  BarChart3,
-  AlertCircle,
-  ArrowRight,
 } from "lucide-react";
 
-import {
-  risks,
-  upcomingMilestones,
-  recentActivity,
-  rfis,
-  tasks,
-  approvals,
-  submittals,
-  budgetByPhase,
-} from "./data";
+import GanttChart from "@/app/components/gant_chart/gantt";
+import KpiCard from "./components/kpi_card";
 import { StatusPill } from "./components/status_pill";
-import Link from "next/link";
 
-interface Risk {
-  text: string;
-  severity: "high" | "medium" | "low";
+import {
+  OverviewData,
+} from "@/services/project_overview";
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
+
+interface OverviewClientPageProps {
+  data: OverviewData;
 }
 
-interface KpiConfig {
-  icon: LucideIcon;
+interface SectionCardProps {
   title: string;
-  value: string;
+  subtitle?: string;
+  action?: {
+    label: string;
+    href: string;
+  };
+  children: ReactNode;
 }
 
-interface Milestone {
-  name: string;
-  date: string;
-}
+type EmptyStateProps = {
+  icon: ComponentType<{
+    size?: number;
+    className?: string;
+    "aria-hidden"?: boolean | "true" | "false";
+  }>;
+  title: string;
+  message?: string;
+};
 
-interface Activity {
-  who: string;
-  time: string;
-  text: string;
-}
+type BudgetItem = OverviewData["budgetByPhase"][number];
 
-interface ApprovalItem {
-  item: string;
-  date: string;
-  requestedFrom: string;
-}
-
-interface TrackerItem {
-  id: string;
-  subject: string;
-  status: string;
-  due: string;
-}
-
-interface BudgetPhase {
-  phase: string;
-  used: number;
-  total: number;
-}
-
-const CURRENCY = "AOA";
-const CURRENCY_LOCALE = "pt-AO";
+/* -------------------------------------------------------------------------- */
+/* Constants                                                                   */
+/* -------------------------------------------------------------------------- */
 
 const LABELS = {
   progress: "Progresso",
@@ -77,456 +63,595 @@ const LABELS = {
   openQuestions: "Questões abertas",
   completedTasks: "Tarefas concluídas",
   pendingApprovals: "Aprovações pendentes",
-  schedule: "Cronograma",
+  schedule: "Cronograma do projecto",
   projectRisks: "Riscos do projecto",
   upcomingMilestones: "Próximas etapas",
   recentActivities: "Actividades recentes",
-  rfis: "Solicitação de informação",
+  rfis: "Solicitações de informação",
   submissions: "Submissões",
   budgetByPhase: "Orçamento por fase",
-  openCount: "em aberto",
-  overdue: "atrasado",
   noData: "Sem dados",
-  dataWillAppear: "Os dados aparecerão aqui assim que estiverem disponíveis.",
-  connectData: "Conecte seus dados de projeto para ver KPIs em tempo real",
-  noKpis: "Nenhum KPI disponível",
-  kpiDescription: "As métricas do dashboard aparecerão aqui assim que os dados do projeto forem carregados.",
-  waiting: "À aguardar",
+  dataWillAppear:
+    "Esta secção será preenchida quando existirem registos disponíveis.",
 } as const;
 
-function formatCompactCurrency(value: number): string {
+const CURRENCY_LOCALE = "pt-AO";
+
+const TASKS_HREF = "tasks";
+const PHASES_HREF = "phases";
+
+/* -------------------------------------------------------------------------- */
+/* Formatting                                                                  */
+/* -------------------------------------------------------------------------- */
+
+function formatCurrency(value: number): string {
   return new Intl.NumberFormat(CURRENCY_LOCALE, {
     style: "currency",
-    currency: CURRENCY,
+    currency: "AOA",
     notation: "compact",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 1,
   }).format(value);
 }
 
-function isOverdue(dateStr: string): boolean {
-  if (!dateStr) return false;
-  const parsed = new Date(dateStr);
-  if (isNaN(parsed.getTime())) return false;
-  return parsed.getTime() < Date.now();
+function formatPercentage(value: number): string {
+  return `${new Intl.NumberFormat("pt-AO", {
+    maximumFractionDigits: 1,
+  }).format(value)}%`;
 }
 
-function countOpen(items: { status: string }[]): number {
-  return items.filter((i) => i.status !== "Respondido").length;
-}
 
-function calculateKpis(): KpiConfig[] {
-  const progress = [];
-  const remainingDays = [];
-  const openQuestions = [];
-  const completedTasks = [];
-  const pendingApprovals = [];
-  const maxTasks = 0;
+function formatMilestoneDate(value: string): string {
+  if (!value) return "—";
 
-  return [
-    {
-      icon: TrendingUp,
-      title: LABELS.progress,
-      value: `${progress.length}`,
-    },
-    {
-      icon: CalendarDays,
-      title: LABELS.remainingDays,
-      value: `${remainingDays.length}`,
-    },
-    {
-      icon: CircleAlert,
-      title: LABELS.openQuestions,
-      value: `${openQuestions.length}`,
-    },
-    {
-      icon: ListChecks,
-      title: LABELS.completedTasks,
-      value: `${completedTasks.length} / ${maxTasks}`,
-    },
-    {
-      icon: Clock3Icon,
-      title: LABELS.pendingApprovals,
-      value: `${pendingApprovals.length}`,
-    },
-  ];
-}
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
 
-function KpiGrid() {
-  const kpis = calculateKpis();
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 w-full">
-      {kpis.length ? (
-        kpis.map((kpi) => {
-          const IconComponent = kpi.icon;
-          return (
-            <KpiCard
-              key={kpi.title}
-              icon={<IconComponent size={20} />}
-              title={kpi.title}
-              value={kpi.value}
-            />
-          );
-        })
-      ) : (
-        <KpiEmptyState />
-      )}
-    </div>
+  const date = new Date(
+    isDateOnly ? `${value}T12:00:00` : value,
   );
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("pt-AO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "Africa/Luanda",
+  }).format(date);
 }
 
-function KpiEmptyState() {
+
+/* -------------------------------------------------------------------------- */
+/* Shared components                                                           */
+/* -------------------------------------------------------------------------- */
+
+function SectionCard({
+  title,
+  subtitle,
+  action,
+  children,
+}: SectionCardProps) {
   return (
-    <div className="col-span-full rounded-lg border border-gray-200 bg-gray-50 p-8 sm:p-12">
-      <div className="flex flex-col items-center justify-center text-center space-y-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-200">
-          <BarChart3 className="h-6 w-6 text-gray-500" />
-        </div>
-
-        <div className="space-y-2">
-          <h3 className="text-base font-semibold text-gray-900">
-            {LABELS.noKpis}
-          </h3>
-          <p className="text-sm text-gray-600 max-w-sm">
-            {LABELS.kpiDescription}
-          </p>
-        </div>
-
-        <div className="flex items-start gap-2 mt-4 px-3 py-2.5 bg-blue-50 rounded-lg border border-blue-200 text-left">
-          <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-700">{LABELS.connectData}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface SectionCardProps {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-  action?: { label: string; href: string };
-}
-
-function SectionCard({ title, subtitle, children, action }: SectionCardProps) {
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-      <div className="border-b border-gray-200 px-6 py-4 sm:py-5 flex items-center justify-between">
-        <div>
+    <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <header className="flex flex-col gap-2 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
+        <div className="min-w-0">
           <h2 className="font-semibold text-gray-900">{title}</h2>
+
           {subtitle && (
-            <span className="text-xs text-gray-500 mt-0.5 block">{subtitle}</span>
+            <p className="mt-1 text-xs text-gray-500">{subtitle}</p>
           )}
         </div>
+
         {action && (
-          
-            <Link href={action.href}
-            className="text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1 whitespace-nowrap ml-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 rounded px-2 py-1"
+          <Link
+            href={action.href}
+            className="inline-flex w-fit shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
           >
             {action.label}
-            <ArrowRight className="h-3 w-3" />
+            <ArrowRight size={14} aria-hidden="true" />
           </Link>
         )}
-      </div>
-      <div className="px-6 py-5">{children}</div>
-    </div>
+      </header>
+
+      <div className="px-5 py-5 sm:px-6">{children}</div>
+    </section>
   );
 }
 
 function EmptyState({
   icon: Icon,
   title,
-  message,
-}: {
-  icon: LucideIcon;
-  title: string;
-  message?: string;
-}) {
+  message = LABELS.dataWillAppear,
+}: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-10 sm:py-14 text-center">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 mb-3">
-        <Icon className="h-5 w-5 text-gray-400" />
+    <div className="flex flex-col items-center justify-center py-8 text-center sm:py-10">
+      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+        <Icon
+          size={20}
+          className="text-gray-400"
+          aria-hidden="true"
+        />
       </div>
+
       <h3 className="text-sm font-medium text-gray-900">
-        {LABELS.noData} {title.toLowerCase()}
+        {LABELS.noData}: {title.toLowerCase()}
       </h3>
-      <p className="mt-1 text-sm text-gray-500 max-w-xs">
-        {message || LABELS.dataWillAppear}
-      </p>
+
+      <p className="mt-1 max-w-sm text-sm text-gray-500">{message}</p>
     </div>
   );
 }
 
-function ProgressBar({ percent, overBudget = false }: { percent: number; overBudget?: boolean }) {
-  const clamped = Math.min(100, Math.max(0, percent));
+/* -------------------------------------------------------------------------- */
+/* Schedule section                                                            */
+/* -------------------------------------------------------------------------- */
+
+
+/* -------------------------------------------------------------------------- */
+/* Schedule section                                                            */
+/* -------------------------------------------------------------------------- */
+
+function ScheduleSection({ data }: { data: OverviewData }) {
+  const { project, phases, tasks, milestones } = data;
+  const projectBase = `/management/projects/${project.id}`;
+
+  const chartPhases = phases.map((phase) => ({
+    id: phase.id,
+    name: phase.name,
+    sortOrder: phase.sortOrder,
+    progress: phase.progress ?? 0,
+  }));
+
+  const chartSteps = tasks.map((task) => ({
+    id: task.step_id,
+    name: task.name,
+    phaseId: task.phase_id,
+    startDate: task.planned_start ?? null,
+    endDate: task.planned_end ?? null,
+    progress:
+      task.status === "completed"
+        ? 100
+        : Math.max(0, Math.min(100, task.progress ?? 0)),
+  }));
 
   return (
-    <div
-      className="h-2 bg-gray-100 rounded-full overflow-hidden"
-      role="progressbar"
-      aria-label={`Progresso: ${clamped}%`}
-      aria-valuenow={clamped}
-      aria-valuemin={0}
-      aria-valuemax={100}
+    <SectionCard
+      title={LABELS.schedule}
+      action={{
+        label: "Ver tarefas",
+        href: `${projectBase}/${TASKS_HREF}`,
+      }}
     >
+      {chartPhases.length > 0 ? (
+        <GanttChart
+          phases={chartPhases}
+          steps={chartSteps}
+          deliverables={[]}
+        />
+      ) : (
+        <EmptyState
+          icon={CalendarDays}
+          title={LABELS.schedule}
+          message="Ainda não existem fases neste projecto. Adicione fases para visualizar o cronograma."
+        />
+      )}
+    </SectionCard>
+  );
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* Risks section                                                               */
+/* -------------------------------------------------------------------------- */
+
+function RisksSection({ data }: { data: OverviewData }) {
+  return (
+    <SectionCard title={LABELS.projectRisks}>
+      {data.risks.length > 0 ? (
+        <ul className="space-y-2">
+          {data.risks.map((risk) => (
+            <li
+              key={risk.id}
+              className="flex items-start gap-3 rounded-md border border-gray-200 px-3 py-3"
+            >
+              <span
+                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${risk.severity === "high"
+                    ? "bg-red-500"
+                    : risk.severity === "medium"
+                      ? "bg-amber-500"
+                      : "bg-green-500"
+                  }`}
+                aria-hidden="true"
+              />
+
+              <p className="text-sm text-gray-700">{risk.text}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          icon={CircleAlert}
+          title={LABELS.projectRisks}
+        />
+      )}
+    </SectionCard>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Milestones section                                                         */
+/* -------------------------------------------------------------------------- */
+
+function MilestonesSection({ data }: { data: OverviewData }) {
+  const projectBase = `/management/projects/${data.project.id}`;
+
+  return (
+    <SectionCard
+      title={LABELS.upcomingMilestones}
+      action={{
+        label: "Ver fases",
+        href: `${projectBase}/${PHASES_HREF}`,
+      }}
+    >
+      {data.milestones.length > 0 ? (
+        <ul className="divide-y divide-gray-100">
+          {data.milestones.map((milestone) => (
+            <li
+              key={milestone.id}
+              className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0"
+            >
+              <p className="min-w-0 text-sm text-gray-700">
+                {milestone.name}
+              </p>
+
+              <time className="shrink-0 text-xs text-gray-500">
+                {formatMilestoneDate(milestone.date)}
+              </time>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          icon={CalendarDays}
+          title={LABELS.upcomingMilestones}
+          message="As etapas e os marcos serão apresentados quando existirem registos associados ao projecto."
+        />
+      )}
+    </SectionCard>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Activities section                                                         */
+/* -------------------------------------------------------------------------- */
+
+function ActivitiesSection({ data }: { data: OverviewData }) {
+  return (
+    <SectionCard title={LABELS.recentActivities}>
+      {data.activities.length > 0 ? (
+        <ul className="divide-y divide-gray-100">
+          {data.activities.map((activity) => (
+            <li key={activity.id} className="py-3 first:pt-0 last:pb-0">
+              <p className="text-sm text-gray-700">{activity.text}</p>
+
+              <p className="mt-1 text-xs text-gray-500">
+                {activity.who} · {activity.time}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          icon={Inbox}
+          title={LABELS.recentActivities}
+        />
+      )}
+    </SectionCard>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* RFI and submissions sections                                               */
+/* -------------------------------------------------------------------------- */
+
+function RequestsSection({ data }: { data: OverviewData }) {
+  const sections = [
+    {
+      title: LABELS.rfis,
+      items: data.rfis,
+    },
+    {
+      title: LABELS.submissions,
+      items: data.submittals,
+    },
+  ];
+
+  return (
+    <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
+      {sections.map(({ title, items }) => (
+        <SectionCard
+          key={title}
+          title={title}
+          subtitle={`${items.length} em aberto`}
+        >
+          {items.length > 0 ? (
+            <ul className="divide-y divide-gray-100">
+              {items.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-gray-800">
+                      {item.subject}
+                    </p>
+
+                    <p className="mt-1 text-xs text-gray-500">
+                      Prazo: {item.due}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0">
+                    <StatusPill status={item.status} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState icon={ListChecks} title={title} />
+          )}
+        </SectionCard>
+      ))}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Approvals section                                                          */
+/* -------------------------------------------------------------------------- */
+
+function ApprovalsSection({ data }: { data: OverviewData }) {
+  return (
+    <SectionCard title={LABELS.pendingApprovals}>
+      {data.approvals.length > 0 ? (
+        <ul className="divide-y divide-gray-100">
+          {data.approvals.map((approval) => (
+            <li
+              key={approval.id}
+              className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm text-gray-800">
+                  {approval.item}
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  À aguardar {approval.requestedFrom}
+                </p>
+              </div>
+
+              <span className="shrink-0 text-xs text-gray-500">
+                {approval.date}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          icon={Clock3}
+          title={LABELS.pendingApprovals}
+        />
+      )}
+    </SectionCard>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Budget section                                                             */
+/* -------------------------------------------------------------------------- */
+
+function BudgetProgress({
+  budget,
+}: {
+  budget: BudgetItem;
+}) {
+  const actualPercentage =
+    budget.total > 0 ? (budget.used / budget.total) * 100 : 0;
+
+  const visualPercentage = Math.max(
+    0,
+    Math.min(100, actualPercentage),
+  );
+
+  const isOverBudget = budget.total > 0 && budget.used > budget.total;
+
+  const barColor = isOverBudget
+    ? "bg-red-500"
+    : actualPercentage >= 90
+      ? "bg-amber-500"
+      : "bg-[#002950]";
+
+  const label = `Execução do orçamento — ${budget.phase}`;
+
+  return (
+    <div>
+      <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+        <span className="text-sm text-gray-700">
+          {budget.phase}
+        </span>
+
+        <span className="text-xs text-gray-500">
+          {formatCurrency(budget.used)} / {formatCurrency(budget.total)}
+        </span>
+      </div>
+
       <div
-        className={`h-full rounded-full transition-all ${
-          overBudget ? "bg-red-500" : "bg-blue-600"
-        }`}
-        style={{ width: `${clamped}%` }}
-      />
-    </div>
-  );
-}
-
-function TrackerList({ items }: { items: TrackerItem[] }) {
-  return (
-    <div className="divide-y divide-gray-100">
-      {items.map((item, idx) => (
+        role="progressbar"
+        aria-label={label}
+        aria-valuenow={visualPercentage}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className="h-2 overflow-hidden rounded-full bg-gray-100"
+      >
         <div
-          key={item.id}
-          className={`flex justify-between items-center gap-4 py-3 ${
-            idx === 0 ? "" : ""
-          }`}
-        >
-          <div className="min-w-0">
-            <p className="text-sm text-gray-900">
-              <span className="text-gray-400 text-xs mr-2">{item.id}</span>
-              <span className="truncate inline-block max-w-xs">{item.subject}</span>
-            </p>
-            <p className="text-xs text-gray-500 mt-1">Prazo {item.due}</p>
-          </div>
-          <div className="flex-shrink-0">
-            <StatusPill status={item.status} />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+          className={`h-full rounded-full transition-[width] ${barColor}`}
+          style={{ width: `${visualPercentage}%` }}
+        />
+      </div>
 
-function RisksBanner({ risks }: { risks: Risk[] }) {
-  return (
-    <div className="space-y-2">
-      {risks.map((risk, i) => (
-        <div
-          key={i}
-          className="flex items-center gap-3 rounded-md bg-red-50 border border-red-200 px-3 py-2.5 text-red-700"
-        >
-          <div
-            className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              risk.severity === "high" ? "bg-red-600" : "bg-amber-500"
+      <div className="mt-1.5 flex items-center justify-between gap-3">
+        <span
+          className={`text-xs ${isOverBudget
+              ? "font-medium text-red-600"
+              : actualPercentage >= 90
+                ? "text-amber-700"
+                : "text-gray-500"
             }`}
-          />
-          <span className="text-sm">{risk.text}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export default function OverviewClientPage() {
-  return (
-    <div className="min-h-screen">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
-        <div className="space-y-6 sm:space-y-8 w-full">
-          {/* Header */}
-          <div className="border-b border-gray-200 pb-6">
-            <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
-              Visão Geral do Projecto
-            </h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Acompanhe o progresso, riscos e tarefas do seu projecto de arquitetura.
-            </p>
-          </div>
-
-          {/* KPI Grid */}
-          <KpiGrid />
-
-          {/* Schedule Section */}
-          <SectionCard title={LABELS.schedule}>
-            <div className="w-full overflow-hidden">
-                <EmptyState icon={CircleAlert} title={LABELS.schedule} />
-           
-            </div>
-          </SectionCard>
-
-          {/* Risks Section */}
-          <SectionCard title={LABELS.projectRisks}>
-            {risks.length ? (
-              <RisksBanner risks={risks} />
-            ) : (
-              <EmptyState icon={CircleAlert} title={LABELS.projectRisks} />
-            )}
-          </SectionCard>
-
-          {/* Milestones & Activities Grid */}
-          <div className="grid lg:grid-cols-2 gap-6 w-full">
-            {/* Upcoming Milestones */}
-            <SectionCard title={LABELS.upcomingMilestones}>
-              {upcomingMilestones.length > 0 ? (
-                <div className="divide-y divide-gray-100 -mx-6 px-6">
-                  {upcomingMilestones.map((m: Milestone, idx) => {
-                    const overdue = isOverdue(m.date);
-
-                    return (
-                      <div
-                        key={m.name}
-                        className={`flex justify-between items-center gap-4 py-3 ${
-                          idx === 0 ? "" : ""
-                        }`}
-                      >
-                        <span className="text-sm text-gray-700">{m.name}</span>
-                        <span
-                          className={`text-sm font-mono whitespace-nowrap text-right ${
-                            overdue
-                              ? "text-red-600 font-medium"
-                              : "text-gray-500"
-                          }`}
-                        >
-                          {m.date}
-                          {overdue ? ` · ${LABELS.overdue}` : ""}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <EmptyState
-                  icon={CalendarDays}
-                  title={LABELS.upcomingMilestones}
-                />
-              )}
-            </SectionCard>
-
-            {/* Recent Activities */}
-            <SectionCard title={LABELS.recentActivities}>
-              {recentActivity.length > 0 ? (
-                <div className="divide-y divide-gray-100 -mx-6 px-6">
-                  {recentActivity.map((a: Activity, idx) => (
-                    <div
-                      key={`${a.who}-${a.time}`}
-                      className={`py-3 ${idx === 0 ? "" : ""}`}
-                    >
-                      <p className="text-sm text-gray-700">{a.text}</p>
-                      <p className="text-xs text-gray-500 mt-1.5">
-                        {a.who} · {a.time}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState icon={Inbox} title={LABELS.recentActivities} />
-              )}
-            </SectionCard>
-          </div>
-
-          {/* RFIs & Submissions Grid */}
-          <div className="grid lg:grid-cols-2 gap-6 w-full">
-            <SectionCard
-              title={LABELS.rfis}
-              subtitle={`${countOpen(rfis)} ${LABELS.openCount}`}
-            >
-              {rfis.length > 0 ? (
-                <TrackerList items={rfis} />
-              ) : (
-                <EmptyState icon={CircleAlert} title={LABELS.rfis} />
-              )}
-            </SectionCard>
-
-            <SectionCard
-              title={LABELS.submissions}
-              subtitle={`${countOpen(submittals)} ${LABELS.openCount}`}
-            >
-              {submittals.length > 0 ? (
-                <TrackerList items={submittals} />
-              ) : (
-                <EmptyState icon={ListChecks} title={LABELS.submissions} />
-              )}
-            </SectionCard>
-          </div>
-
-          {/* Approvals & Budget Grid */}
-          <div className="grid lg:grid-cols-2 gap-6 w-full">
-            {/* Pending Approvals */}
-            <SectionCard title={LABELS.pendingApprovals}>
-              {approvals.length > 0 ? (
-                <div className="divide-y divide-gray-100 -mx-6 px-6">
-                  {approvals.map((a: ApprovalItem, idx) => {
-                    const overdue = isOverdue(a.date);
-
-                    return (
-                      <div
-                        key={a.item}
-                        className={`flex justify-between items-center gap-4 py-3 ${
-                          idx === 0 ? "" : ""
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm text-gray-700 truncate">
-                            {a.item}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {LABELS.waiting} {a.requestedFrom}
-                          </p>
-                        </div>
-                        <span
-                          className={`text-sm font-mono shrink-0 whitespace-nowrap ${
-                            overdue
-                              ? "text-red-600 font-medium"
-                              : "text-gray-500"
-                          }`}
-                        >
-                          {a.date}
-                          {overdue ? ` · ${LABELS.overdue}` : ""}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <EmptyState
-                  icon={Clock3Icon}
-                  title={LABELS.pendingApprovals}
-                />
-              )}
-            </SectionCard>
-
-            {/* Budget by Phase */}
-            <SectionCard title={LABELS.budgetByPhase}>
-              {budgetByPhase.length > 0 ? (
-                <div className="space-y-4 -mx-6 px-6">
-                  {budgetByPhase.map((b: BudgetPhase) => {
-                    const pct =
-                      b.total > 0 ? Math.round((b.used / b.total) * 100) : 0;
-
-                    return (
-                      <div key={b.phase}>
-                        <div className="flex justify-between items-baseline text-sm mb-2">
-                          <span className="text-gray-700">{b.phase}</span>
-                          <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                            {formatCompactCurrency(b.used)} /{" "}
-                            {formatCompactCurrency(b.total)}
-                          </span>
-                        </div>
-                        <ProgressBar
-                          percent={pct}
-                          overBudget={pct >= 100}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <EmptyState
-                  icon={BarChart3}
-                  title={LABELS.budgetByPhase}
-                />
-              )}
-            </SectionCard>
-          </div>
-        </div>
+        >
+          {isOverBudget
+            ? `Excedido em ${formatCurrency(budget.used - budget.total)}`
+            : `${formatPercentage(actualPercentage)} executado`}
+        </span>
       </div>
     </div>
+  );
+}
+
+function BudgetSection({ data }: { data: OverviewData }) {
+  return (
+    <SectionCard title={LABELS.budgetByPhase}>
+      {data.budgetByPhase.length > 0 ? (
+        <div className="space-y-5">
+          {data.budgetByPhase.map((budget) => (
+            <BudgetProgress key={budget.phase} budget={budget} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={BarChart3}
+          title={LABELS.budgetByPhase}
+        />
+      )}
+    </SectionCard>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Main page                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export default function OverviewClientPage({
+  data,
+}: OverviewClientPageProps) {
+  const { project, kpis } = data;
+
+  const projectBase = `/management/projects/${project.id}`;
+
+  const kpiItems = [
+    {
+      icon: TrendingUp,
+      title: LABELS.progress,
+      value: `${kpis.progress}%`,
+    },
+    {
+      icon: CalendarDays,
+      title: LABELS.remainingDays,
+      value:
+        kpis.remainingDays === null
+          ? "—"
+          : String(kpis.remainingDays),
+    },
+    {
+      icon: CircleAlert,
+      title: LABELS.openQuestions,
+      value: String(kpis.openQuestions),
+    },
+    {
+      icon: ListChecks,
+      title: LABELS.completedTasks,
+      value: `${kpis.completedTasks} / ${kpis.totalTasks}`,
+    },
+    {
+      icon: Clock3,
+      title: LABELS.pendingApprovals,
+      value: String(kpis.pendingApprovals),
+    },
+  ];
+
+  return (
+    <main className="min-h-screen bg-[#F7F7F5]">
+      <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        {/* Project header */}
+        <header className="border-b border-gray-200 pb-5">
+          <Link
+            href={projectBase}
+            className="mb-4 inline-flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            Voltar ao projecto
+          </Link>
+
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+                {project.code ?? "Pro-Sota"}
+              </p>
+
+              <h1 className="mt-1 text-2xl font-semibold text-gray-900 sm:text-3xl">
+                Visão Geral do Projecto
+              </h1>
+
+              <p className="mt-2 text-sm text-gray-600">
+                {project.name}
+              </p>
+            </div>
+
+            <span className="inline-flex w-fit items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700">
+              {project.status}
+            </span>
+          </div>
+        </header>
+
+        {/* Project KPIs */}
+        <section
+          aria-label="Indicadores do projecto"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5"
+        >
+          {kpiItems.map(({ icon: Icon, title, value }) => (
+            <KpiCard
+              key={title}
+              icon={<Icon size={20} aria-hidden="true" />}
+              title={title}
+              value={value}
+            />
+          ))}
+        </section>
+
+        {/* Schedule */}
+        <ScheduleSection data={data} />
+
+        {/* Risks and milestones */}
+        <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
+          <RisksSection data={data} />
+          <MilestonesSection data={data} />
+        </div>
+
+        {/* Recent activity */}
+        <ActivitiesSection data={data} />
+
+        {/* RFIs and submissions */}
+        <RequestsSection data={data} />
+
+        {/* Approvals and budget */}
+        <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
+          <ApprovalsSection data={data} />
+          <BudgetSection data={data} />
+        </div>
+
+        {/* Footer */}
+        <footer className="border-t border-gray-200 pt-4 text-xs text-gray-500">
+          Pro-Sota · Dados do projecto carregados no servidor
+        </footer>
+      </div>
+    </main>
   );
 }
