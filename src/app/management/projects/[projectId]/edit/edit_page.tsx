@@ -1,13 +1,25 @@
 "use client";
 
+/* ==========================================================================
+   PART 1 — Imports, types and constants
+   ========================================================================== */
+
 import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type {
+    ChangeEvent,
+    FormEvent,
+    ReactNode,
+    SelectHTMLAttributes,
+} from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
     Banknote,
     Building2,
     ChevronDown,
+    ChevronRight,
+    CircleDot,
     ImagePlus,
     Loader2,
     MapPin,
@@ -24,26 +36,35 @@ import {
     type ProjectPayload,
 } from "@/app/management/projects/types";
 
-/* -------------------------------------------------------------------------- */
-/* Types & constants                                                          */
-/* -------------------------------------------------------------------------- */
+type Values = {
+    [K in keyof ProjectPayload]: string;
+};
 
-type Values = { [K in keyof ProjectPayload]: string };
-type Errors = Partial<Record<keyof ProjectPayload | "cover_image", string>>;
+type Errors = Partial<
+    Record<keyof ProjectPayload | "cover_image", string>
+>;
 
 export interface EditProjectFormProps {
     projectId: string;
     projectCode?: string;
     initialValues: Partial<ProjectPayload>;
     clients: { id: string; name: string }[];
-    /** Server action, already bound to the project id. */
+
+    /** Server action already bound to the project ID. */
     onSave: (payload: ProjectPayload) => Promise<ActionResult>;
-    /** Optional: uploads the cover (wrap a FormData server action) and returns its public URL. */
+
+    /** Optional image upload action returning the public URL. */
     onUploadImage?: (
         file: File,
-    ) => Promise<{ success: true; url: string } | { success: false; error: string }>;
+    ) => Promise<
+        | { success: true; url: string }
+        | { success: false; error: string }
+    >;
+
     backHref: string;
 }
+
+const FORM_ID = "edit-project-form";
 
 const URGENCY_LABELS: Record<string, string> = {
     Low: "Baixa",
@@ -52,92 +73,179 @@ const URGENCY_LABELS: Record<string, string> = {
     Critical: "Crítica",
 };
 
+const URGENCY_DOT: Record<string, string> = {
+    Low: "bg-emerald-400",
+    Medium: "bg-amber-400",
+    High: "bg-orange-500",
+    Critical: "bg-red-500",
+};
+
 const PROVINCES = [
-    "Bengo", "Benguela", "Bié", "Cabinda", "Cuando", "Cuanza Norte",
-    "Cuanza Sul", "Cubango", "Cunene", "Huambo", "Huíla", "Icolo e Bengo",
-    "Luanda", "Lunda Norte", "Lunda Sul", "Malanje", "Moxico",
-    "Moxico Leste", "Namibe", "Uíge", "Zaire",
+    "Bengo",
+    "Benguela",
+    "Bié",
+    "Cabinda",
+    "Cuando",
+    "Cuanza Norte",
+    "Cuanza Sul",
+    "Cubango",
+    "Cunene",
+    "Huambo",
+    "Huíla",
+    "Icolo e Bengo",
+    "Luanda",
+    "Lunda Norte",
+    "Lunda Sul",
+    "Malanje",
+    "Moxico",
+    "Moxico Leste",
+    "Namibe",
+    "Uíge",
+    "Zaire",
 ];
 
 const EMPTY: Values = {
-    project_code: "", title: "", description: "", type: "",
-    status: "Em observação", urgency: "Medium", client_id: "",
-    province: "", municipality: "", city: "",
-    address_line_1: "", address_line_2: "", location: "",
-    latitude: "", longitude: "", budget: "", estimated_cost: "",
-    start_date: "", end_date: "", image: "",
+    project_code: "",
+    title: "",
+    description: "",
+    type: "",
+    status: "Em observação",
+    urgency: "Medium",
+    client_id: "",
+    province: "",
+    municipality: "",
+    city: "",
+    address_line_1: "",
+    address_line_2: "",
+    location: "",
+    latitude: "",
+    longitude: "",
+    budget: "",
+    estimated_cost: "",
+    start_date: "",
+    end_date: "",
+    image: "",
 };
 
 const inputClass =
-    "w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-[#002950] outline-none transition placeholder:text-gray-400 hover:border-gray-300 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/15";
+    "w-full rounded-xl border bg-[#FBFBFA] px-3.5 py-2.5 text-sm text-[#002950] outline-none transition placeholder:text-gray-400 hover:border-gray-300 hover:bg-white focus:border-[#BD9655] focus:bg-white focus:ring-4 focus:ring-[#BD9655]/15 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 read-only:cursor-default read-only:bg-gray-50 read-only:text-gray-500";
 
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
+const focusRing =
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] focus-visible:ring-offset-2";
+
+
+/* ==========================================================================
+   PART 2 — Value conversion, validation and payload helpers
+   ========================================================================== */
 
 function toValues(initial: Partial<ProjectPayload>): Values {
-    const out = { ...EMPTY };
-    (Object.keys(EMPTY) as (keyof ProjectPayload)[]).forEach((k) => {
-        const v = initial[k];
-        if (v !== null && v !== undefined) out[k] = String(v);
-    });
-    return out;
-}
+    const output = { ...EMPTY };
 
-const orNull = (v: string) => (v.trim() === "" ? null : v.trim());
-const numOrNull = (v: string) => (v.trim() === "" ? null : Number(v));
+    (Object.keys(EMPTY) as (keyof ProjectPayload)[]).forEach((key) => {
+        const value = initial[key];
 
-function validate(v: Values): Errors {
-    const e: Errors = {};
-    if (!v.project_code.trim()) e.project_code = "Indique o código do projecto.";
-    if (!v.title.trim()) e.title = "O nome do projecto é obrigatório.";
-    if (!v.municipality.trim()) e.municipality = "Indique o município.";
-
-    (["budget", "estimated_cost"] as const).forEach((k) => {
-        if (v[k].trim() !== "" && !(Number(v[k]) >= 0)) {
-            e[k] = "Introduza um valor igual ou superior a zero.";
+        if (value !== null && value !== undefined) {
+            output[key] = String(value);
         }
     });
-    if (v.latitude.trim() !== "" && !(Math.abs(Number(v.latitude)) <= 90)) {
-        e.latitude = "Entre -90 e 90.";
-    }
-    if (v.longitude.trim() !== "" && !(Math.abs(Number(v.longitude)) <= 180)) {
-        e.longitude = "Entre -180 e 180.";
-    }
-    if (v.start_date && v.end_date && v.end_date < v.start_date) {
-        e.end_date = "A data de fim não pode ser anterior à de início.";
-    }
-    return e;
+
+    return output;
 }
 
-function toPayload(v: Values, image: string | null): ProjectPayload {
+const orNull = (value: string) =>
+    value.trim() === "" ? null : value.trim();
+
+const numOrNull = (value: string) => {
+    if (value.trim() === "") return null;
+
+    const number = Number(value);
+
+    return Number.isFinite(number) ? number : null;
+};
+
+function validate(values: Values): Errors {
+    const errors: Errors = {};
+
+    if (!values.project_code.trim()) {
+        errors.project_code = "Indique o código do projecto.";
+    }
+
+    if (!values.title.trim()) {
+        errors.title = "O nome do projecto é obrigatório.";
+    }
+
+    if (!values.municipality.trim()) {
+        errors.municipality = "Indique o município.";
+    }
+
+    (["budget", "estimated_cost"] as const).forEach((key) => {
+        const value = values[key].trim();
+
+        if (value !== "" && (!Number.isFinite(Number(value)) || Number(value) < 0)) {
+            errors[key] = "Introduza um valor igual ou superior a zero.";
+        }
+    });
+
+    if (values.latitude.trim() !== "") {
+        const latitude = Number(values.latitude);
+
+        if (!Number.isFinite(latitude) || Math.abs(latitude) > 90) {
+            errors.latitude = "Introduza uma latitude entre -90 e 90.";
+        }
+    }
+
+    if (values.longitude.trim() !== "") {
+        const longitude = Number(values.longitude);
+
+        if (!Number.isFinite(longitude) || Math.abs(longitude) > 180) {
+            errors.longitude = "Introduza uma longitude entre -180 e 180.";
+        }
+    }
+
+    if (
+        values.start_date &&
+        values.end_date &&
+        values.end_date < values.start_date
+    ) {
+        errors.end_date =
+            "A data de fim não pode ser anterior à data de início.";
+    }
+
+    return errors;
+}
+
+function toPayload(
+    values: Values,
+    image: string | null,
+): ProjectPayload {
     return {
-        project_code: v.project_code.trim(),
-        title: v.title.trim(),
-        description: orNull(v.description),
-        type: orNull(v.type),
-        status: v.status as ProjectPayload["status"],
-        urgency: v.urgency as ProjectPayload["urgency"],
-        client_id: orNull(v.client_id),
-        province: orNull(v.province),
-        municipality: v.municipality.trim(),
-        city: orNull(v.city),
-        address_line_1: orNull(v.address_line_1),
-        address_line_2: orNull(v.address_line_2),
-        location: orNull(v.location),
-        latitude: numOrNull(v.latitude),
-        longitude: numOrNull(v.longitude),
-        budget: numOrNull(v.budget),
-        estimated_cost: numOrNull(v.estimated_cost),
-        start_date: orNull(v.start_date),
-        end_date: orNull(v.end_date),
+        project_code: values.project_code.trim(),
+        title: values.title.trim(),
+        description: orNull(values.description),
+        type: orNull(values.type),
+        status: values.status as ProjectPayload["status"],
+        urgency: values.urgency as ProjectPayload["urgency"],
+        client_id: orNull(values.client_id),
+        province: orNull(values.province),
+        municipality: values.municipality.trim(),
+        city: orNull(values.city),
+        address_line_1: orNull(values.address_line_1),
+        address_line_2: orNull(values.address_line_2),
+        location: orNull(values.location),
+        latitude: numOrNull(values.latitude),
+        longitude: numOrNull(values.longitude),
+        budget: numOrNull(values.budget),
+        estimated_cost: numOrNull(values.estimated_cost),
+        start_date: orNull(values.start_date),
+        end_date: orNull(values.end_date),
         image,
     };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Building blocks                                                            */
-/* -------------------------------------------------------------------------- */
+
+/* ==========================================================================
+   PART 3 — Reusable card, field and select components
+   ========================================================================== */
 
 function Card({
     icon,
@@ -151,17 +259,25 @@ function Card({
     children: ReactNode;
 }) {
     return (
-        <section className="overflow-hidden rounded-xl border border-[#E8E8E5] bg-white">
-            <div className="flex items-start gap-3 border-b border-[#EEEEEB] px-5 py-5 sm:px-6">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#002950]/[0.06]">
+        <section className="overflow-hidden rounded-2xl border border-[#E8E8E5] bg-white shadow-[0_1px_2px_rgba(0,41,80,0.04)]">
+            <div className="flex items-center gap-4 border-b border-[#F0F0ED] px-5 py-4 sm:px-7 sm:py-5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#BD9655]/12 text-[#8E6B2F] ring-1 ring-inset ring-[#BD9655]/25">
                     {icon}
                 </div>
-                <div>
-                    <h2 className="text-base font-semibold">{title}</h2>
-                    <p className="mt-1 text-sm text-gray-500">{description}</p>
+
+                <div className="min-w-0">
+                    <h2 className="text-base font-semibold tracking-tight">
+                        {title}
+                    </h2>
+                    <p className="mt-0.5 text-sm text-gray-500">
+                        {description}
+                    </p>
                 </div>
             </div>
-            <div className="grid gap-5 px-5 py-6 sm:grid-cols-2 sm:px-6">{children}</div>
+
+            <div className="grid grid-cols-1 gap-x-5 gap-y-5 px-5 py-6 sm:grid-cols-2 sm:px-7">
+                {children}
+            </div>
         </section>
     );
 }
@@ -183,19 +299,33 @@ function Field({
     wide?: boolean;
     children: ReactNode;
 }) {
+    const message = error ?? hint;
+
     return (
-        <div className={`min-w-0 space-y-2 ${wide ? "sm:col-span-2" : ""}`}>
-            <label htmlFor={id} className="block text-sm font-medium text-[#002950]">
+        <div className={`min-w-0 space-y-1.5 ${wide ? "sm:col-span-2" : ""}`}>
+            <label
+                htmlFor={id}
+                className="block text-[13px] font-medium text-[#002950]/90"
+            >
                 {label}
-                {required && <span className="ml-1 text-red-500" aria-hidden="true">*</span>}
+
+                {required && (
+                    <span className="ml-0.5 text-red-500" aria-hidden="true">
+                        *
+                    </span>
+                )}
             </label>
+
             {children}
-            {(error || hint) && (
+
+            {message && (
                 <p
                     id={`${id}-msg`}
-                    className={`text-xs ${error ? "text-red-600" : "text-gray-500"}`}
+                    className={`text-xs leading-5 ${
+                        error ? "text-red-600" : "text-gray-500"
+                    }`}
                 >
-                    {error ?? hint}
+                    {message}
                 </p>
             )}
         </div>
@@ -206,12 +336,16 @@ function SelectBox({
     children,
     className = "",
     ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+}: SelectHTMLAttributes<HTMLSelectElement>) {
     return (
         <div className="relative">
-            <select {...props} className={`${className} appearance-none pr-10`}>
+            <select
+                {...props}
+                className={`${className} cursor-pointer appearance-none pr-10`}
+            >
                 {children}
             </select>
+
             <ChevronDown
                 size={16}
                 aria-hidden="true"
@@ -221,11 +355,34 @@ function SelectBox({
     );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Main component                                                             */
-/* -------------------------------------------------------------------------- */
+function Chip({
+    children,
+    dotClass,
+}: {
+    children: ReactNode;
+    dotClass?: string;
+}) {
+    return (
+        <span className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/90 ring-1 ring-inset ring-white/15">
+            {dotClass && (
+                <span
+                    aria-hidden="true"
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`}
+                />
+            )}
+            <span className="truncate">{children}</span>
+        </span>
+    );
+}
+
+
+/* ==========================================================================
+   PART 4 — Form state, input bindings and image handling
+   ========================================================================== */
 
 export default function EditProjectForm({
+    projectId,
+    projectCode,
     initialValues,
     clients,
     onSave,
@@ -235,105 +392,179 @@ export default function EditProjectForm({
     const router = useRouter();
     const fileRef = useRef<HTMLInputElement>(null);
 
-    const [values, setValues] = useState<Values>(() => toValues(initialValues));
-    const [country, setCountry] = useState("Angola");
+    const [values, setValues] = useState<Values>(
+        () => toValues(initialValues),
+    );
+
+    // Snapshot used to detect unsaved changes.
+    const initialSnapshot = useRef<string>(
+        JSON.stringify(toValues(initialValues)),
+    );
+    const initialImage = useRef<string | null>(initialValues.image ?? null);
+
     const [errors, setErrors] = useState<Errors>({});
+
     const [coverPreview, setCoverPreview] = useState<string | null>(
         initialValues.image ?? null,
     );
+
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
 
+    const dirty =
+        JSON.stringify(values) !== initialSnapshot.current ||
+        coverPreview !== initialImage.current;
+
+    // Avoid leaking temporary object URLs when the preview changes or unmounts.
     useEffect(() => {
         return () => {
-            if (coverPreview?.startsWith("blob:")) URL.revokeObjectURL(coverPreview);
+            if (coverPreview?.startsWith("blob:")) {
+                URL.revokeObjectURL(coverPreview);
+            }
         };
     }, [coverPreview]);
 
     function clearError(key: keyof Errors) {
-        setErrors((cur) => (cur[key] ? { ...cur, [key]: undefined } : cur));
+        setErrors((current) => {
+            if (!current[key]) return current;
+
+            const next = { ...current };
+            delete next[key];
+
+            return next;
+        });
     }
 
-    /** Props shared by every input/select/textarea. */
     function bind(key: keyof ProjectPayload) {
+        const hasError = Boolean(errors[key]);
+
         return {
             id: key,
+            name: key,
             value: values[key],
+
             onChange: (
-                e: React.ChangeEvent<
+                event: ChangeEvent<
                     HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
                 >,
             ) => {
-                setValues((cur) => ({ ...cur, [key]: e.target.value }));
+                const value = event.target.value;
+
+                setValues((current) => ({
+                    ...current,
+                    [key]: value,
+                }));
+
                 clearError(key);
             },
-            "aria-invalid": errors[key] ? true : undefined,
-            "aria-describedby": errors[key] ? `${key}-msg` : undefined,
-            className: `${inputClass} ${errors[key] ? "border-red-400" : "border-[#E4E5E3]"}`,
+
+            "aria-invalid": hasError || undefined,
+            "aria-describedby": hasError ? `${key}-msg` : undefined,
+
+            className: `${inputClass} ${
+                hasError ? "border-red-400" : "border-[#E4E5E3]"
+            }`,
         };
     }
 
-    /* ----------------------------- image handling ---------------------------- */
+    function pickImage(event: ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
 
-    function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
         if (!file) return;
 
         const fail = (message: string) => {
-            setErrors((cur) => ({ ...cur, cover_image: message }));
-            e.target.value = "";
+            setErrors((current) => ({
+                ...current,
+                cover_image: message,
+            }));
+
+            event.target.value = "";
         };
 
-        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-            return fail("Utilize uma imagem JPG, PNG ou WebP.");
+        const allowedTypes = [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+        ];
+
+        if (!allowedTypes.includes(file.type)) {
+            fail("Utilize uma imagem JPG, PNG ou WebP.");
+            return;
         }
-        if (file.size > 5 * 1024 * 1024) return fail("A imagem não pode exceder 5 MB.");
+
+        if (file.size > 5 * 1024 * 1024) {
+            fail("A imagem não pode exceder 5 MB.");
+            return;
+        }
 
         clearError("cover_image");
-        setCoverPreview(URL.createObjectURL(file));
+
         setImageFile(file);
+        setCoverPreview(URL.createObjectURL(file));
     }
 
     function removeImage() {
         setCoverPreview(null);
         setImageFile(null);
-        if (fileRef.current) fileRef.current.value = "";
+
+        if (fileRef.current) {
+            fileRef.current.value = "";
+        }
+
+        clearError("cover_image");
     }
 
-    /* -------------------------------- submit -------------------------------- */
 
-    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-        e.preventDefault();
+    /* ==========================================================================
+       PART 5 — Form submission and save handling
+       ========================================================================== */
+
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        if (saving) return;
+
         setSubmitError(null);
 
-        const found = validate(values);
-        setErrors(found);
-        const firstKey = Object.keys(found)[0];
-        if (firstKey) {
-            document.getElementById(firstKey)?.focus();
+        const foundErrors = validate(values);
+
+        setErrors(foundErrors);
+
+        const firstError = Object.keys(foundErrors)[0];
+
+        if (firstError) {
+            document.getElementById(firstError)?.focus();
             return;
         }
 
         setSaving(true);
+
         try {
-            // Keeps the existing remote image, or clears it if the user removed it.
-            let image = coverPreview && !imageFile ? coverPreview : null;
+            // Preserve the existing URL unless the user removed the image.
+            let image =
+                coverPreview && !imageFile ? coverPreview : null;
 
             if (imageFile) {
                 if (!onUploadImage) {
-                    setSubmitError("O carregamento de imagens ainda não está configurado.");
+                    setSubmitError(
+                        "O carregamento de imagens ainda não está configurado.",
+                    );
                     return;
                 }
+
                 const upload = await onUploadImage(imageFile);
+
                 if (!upload.success) {
                     setSubmitError(upload.error);
                     return;
                 }
+
                 image = upload.url;
             }
 
             const result = await onSave(toPayload(values, image));
+
             if (!result.success) {
                 setSubmitError(result.error);
                 return;
@@ -342,83 +573,246 @@ export default function EditProjectForm({
             router.push(backHref);
             router.refresh();
         } catch {
-            setSubmitError("Não foi possível guardar as alterações. Tente novamente.");
+            setSubmitError(
+                "Não foi possível guardar as alterações. Tente novamente.",
+            );
         } finally {
             setSaving(false);
         }
     }
 
-    /* -------------------------------- render -------------------------------- */
+
+    /* ==========================================================================
+       PART 6 — Page header, identification, location and budget cards
+       ========================================================================== */
+
+    const displayCode = projectCode || values.project_code || projectId;
+    const displayTitle = values.title.trim() || "Projecto sem nome";
+    const place = [values.municipality.trim(), values.province]
+        .filter(Boolean)
+        .join(", ");
+
+    const saveLabel = saving ? "A guardar…" : "Guardar alterações";
+    const saveIcon = saving ? (
+        <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+    ) : (
+        <Save size={16} aria-hidden="true" />
+    );
 
     return (
-        <div className="min-h-screen bg-[#F7F7F5] text-[#002950]">
-            <header className="border-b border-[#E8E8E5] bg-white">
-                <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
-                    <button
-                        type="button"
-                        onClick={() => router.back()}
-                        aria-label="Voltar"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#E4E5E3] transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655]"
-                    >
-                        <ArrowLeft size={18} aria-hidden="true" />
-                    </button>
+        <div className="min-h-screen bg-[#F5F5F2] text-[#002950]">
+            <header className="relative isolate overflow-hidden bg-[#002950] text-white">
+                {/* Soft gold glow, top-right */}
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -right-24 -top-32 -z-10 h-80 w-80 rounded-full bg-[#BD9655]/25 blur-3xl"
+                />
+                {/* Gold hairline along the bottom edge */}
+                <div
+                    aria-hidden="true"
+                    className="absolute inset-x-0 bottom-0 -z-10 h-px bg-gradient-to-r from-transparent via-[#BD9655] to-transparent"
+                />
 
-                    <div className="min-w-0">
-                        <p className="truncate text-xs text-gray-500">
-                            Projectos / {values.project_code} / Editar
-                        </p>
-                        <h1 className="mt-1 truncate text-xl font-semibold tracking-tight sm:text-2xl">
-                            Editar projecto
-                        </h1>
+                <div className="mx-auto max-w-6xl px-4 pb-8 pt-5 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between gap-4">
+                        <nav
+                            aria-label="Navegação"
+                            className="flex min-w-0 items-center gap-1.5 text-xs text-white/60"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => router.back()}
+                                aria-label="Voltar"
+                                className={`mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 ${focusRing} focus-visible:ring-offset-[#002950]`}
+                            >
+                                <ArrowLeft size={16} aria-hidden="true" />
+                            </button>
+
+                            <Link
+                                href={backHref}
+                                className="shrink-0 transition hover:text-white"
+                            >
+                                Projectos
+                            </Link>
+
+                            <ChevronRight
+                                size={14}
+                                aria-hidden="true"
+                                className="shrink-0 text-white/30"
+                            />
+
+                            <span className="truncate">{displayCode}</span>
+
+                            <ChevronRight
+                                size={14}
+                                aria-hidden="true"
+                                className="shrink-0 text-white/30"
+                            />
+
+                            <span className="shrink-0 text-white">Editar</span>
+                        </nav>
+
+                        {/* Desktop actions */}
+                        <div className="hidden items-center gap-2 md:flex">
+                            <button
+                                type="button"
+                                onClick={() => router.push(backHref)}
+                                disabled={saving}
+                                className={`rounded-xl px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white disabled:opacity-60 ${focusRing} focus-visible:ring-offset-[#002950]`}
+                            >
+                                Cancelar
+                            </button>
+
+                            <button
+                                type="submit"
+                                form={FORM_ID}
+                                disabled={saving}
+                                className={`inline-flex items-center gap-2 rounded-xl bg-[#BD9655] px-4 py-2 text-sm font-semibold text-[#002950] shadow-sm transition hover:bg-[#CCA766] disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} focus-visible:ring-offset-[#002950]`}
+                            >
+                                {saveIcon}
+                                {saveLabel}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="mt-7 flex items-center gap-4 sm:gap-5">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/10 ring-1 ring-inset ring-white/20 sm:h-20 sm:w-20">
+                            {coverPreview ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={coverPreview}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <Building2
+                                    size={28}
+                                    aria-hidden="true"
+                                    className="text-[#BD9655]"
+                                />
+                            )}
+                        </div>
+
+                        <div className="min-w-0">
+                            <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+                                {displayTitle}
+                            </h1>
+
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                {values.project_code && (
+                                    <Chip>{values.project_code}</Chip>
+                                )}
+
+                                {values.status && (
+                                    <Chip dotClass="bg-[#BD9655]">
+                                        {values.status}
+                                    </Chip>
+                                )}
+
+                                <Chip
+                                    dotClass={
+                                        URGENCY_DOT[values.urgency] ??
+                                        "bg-gray-400"
+                                    }
+                                >
+                                    Urgência{" "}
+                                    {(
+                                        URGENCY_LABELS[values.urgency] ??
+                                        values.urgency
+                                    ).toLowerCase()}
+                                </Chip>
+
+                                {place && (
+                                    <Chip>
+                                        <span className="inline-flex items-center gap-1">
+                                            <MapPin
+                                                size={12}
+                                                aria-hidden="true"
+                                            />
+                                            {place}
+                                        </span>
+                                    </Chip>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>
 
             <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
                 <p className="mb-6 text-sm text-gray-500">
-                    Os campos assinalados com <span className="text-red-500">*</span> são obrigatórios.
+                    Os campos assinalados com{" "}
+                    <span className="text-red-500">*</span> são obrigatórios.
                 </p>
 
                 {submitError && (
                     <div
                         role="alert"
-                        className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                        className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
                     >
                         {submitError}
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} noValidate>
+                <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
                     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-                        {/* ------------------------------ Main column ------------------------------ */}
-                        <div className="space-y-6">
+                        {/* Main column */}
+                        <div className="min-w-0 space-y-6">
                             <Card
-                                icon={<Building2 size={19} aria-hidden="true" />}
+                                icon={<Building2 size={20} aria-hidden="true" />}
                                 title="Identificação"
                                 description="Nome, código e descrição do projecto."
                             >
-                                <Field id="title" label="Nome do projecto" required error={errors.title} wide>
-                                    <input {...bind("title")} placeholder="Ex.: Residencial Talatona" />
+                                <Field
+                                    id="title"
+                                    label="Nome do projecto"
+                                    required
+                                    error={errors.title}
+                                    wide
+                                >
+                                    <input
+                                        {...bind("title")}
+                                        placeholder="Ex.: Residencial Talatona"
+                                    />
                                 </Field>
 
-                                <Field id="project_code" label="Código" required error={errors.project_code}>
-                                    <input {...bind("project_code")} placeholder="Ex.: PS-2026-001" />
+                                <Field
+                                    id="project_code"
+                                    label="Código"
+                                    required
+                                    error={errors.project_code}
+                                >
+                                    <input
+                                        {...bind("project_code")}
+                                        placeholder="Ex.: PS-2026-001"
+                                    />
                                 </Field>
 
                                 <Field id="type" label="Tipo de projecto">
                                     <SelectBox {...bind("type")}>
                                         <option value="">Seleccionar tipo</option>
-                                        {PROJECT_TYPES.map((t) => (
-                                            <option key={t} value={t}>{t}</option>
+
+                                        {PROJECT_TYPES.map((type) => (
+                                            <option key={type} value={type}>
+                                                {type}
+                                            </option>
                                         ))}
                                     </SelectBox>
                                 </Field>
 
                                 <Field id="client_id" label="Cliente" wide>
                                     <SelectBox {...bind("client_id")}>
-                                        <option value="">Sem cliente associado</option>
-                                        {clients.map((c) => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        <option value="">
+                                            Sem cliente associado
+                                        </option>
+
+                                        {clients.map((client) => (
+                                            <option
+                                                key={client.id}
+                                                value={client.id}
+                                            >
+                                                {client.name}
+                                            </option>
                                         ))}
                                     </SelectBox>
                                 </Field>
@@ -434,108 +828,220 @@ export default function EditProjectForm({
                             </Card>
 
                             <Card
-                                icon={<MapPin size={19} aria-hidden="true" />}
+                                icon={<MapPin size={20} aria-hidden="true" />}
                                 title="Localização"
                                 description="Onde o projecto será executado."
                             >
                                 <Field id="country" label="País">
                                     <input
                                         id="country"
-                                        value={country}
-                                        onChange={(e) => setCountry(e.target.value)}
-                                        className={inputClass}
+                                        value="Angola"
+                                        readOnly
+                                        aria-readonly="true"
+                                        className={`${inputClass} border-[#E4E5E3]`}
                                     />
                                 </Field>
 
                                 <Field id="province" label="Província">
                                     <SelectBox {...bind("province")}>
-                                        <option value="">Seleccionar província</option>
-                                        {PROVINCES.map((p) => (
-                                            <option key={p} value={p}>{p}</option>
+                                        <option value="">
+                                            Seleccionar província
+                                        </option>
+
+                                        {PROVINCES.map((province) => (
+                                            <option
+                                                key={province}
+                                                value={province}
+                                            >
+                                                {province}
+                                            </option>
                                         ))}
                                     </SelectBox>
                                 </Field>
 
-                                <Field id="municipality" label="Município" required error={errors.municipality}>
-                                    <input {...bind("municipality")} placeholder="Ex.: Talatona" />
+                                <Field
+                                    id="municipality"
+                                    label="Município"
+                                    required
+                                    error={errors.municipality}
+                                >
+                                    <input
+                                        {...bind("municipality")}
+                                        placeholder="Ex.: Talatona"
+                                    />
                                 </Field>
 
                                 <Field id="city" label="Cidade">
                                     <input {...bind("city")} />
                                 </Field>
 
-                                <Field id="address_line_1" label="Morada" wide>
-                                    <input {...bind("address_line_1")} autoComplete="address-line1" />
+                                <Field
+                                    id="address_line_1"
+                                    label="Morada"
+                                    wide
+                                >
+                                    <input
+                                        {...bind("address_line_1")}
+                                        autoComplete="address-line1"
+                                    />
                                 </Field>
 
-                                <Field id="address_line_2" label="Complemento" wide>
-                                    <input {...bind("address_line_2")} autoComplete="address-line2" />
+                                <Field
+                                    id="address_line_2"
+                                    label="Complemento"
+                                    wide
+                                >
+                                    <input
+                                        {...bind("address_line_2")}
+                                        autoComplete="address-line2"
+                                    />
                                 </Field>
 
-                                <Field id="location" label="Ponto de referência" wide>
-                                    <input {...bind("location")} placeholder="Ex.: junto à Via Expressa" />
+                                <Field
+                                    id="reference_point"
+                                    label="Ponto de referência"
+                                    wide
+                                >
+                                    <input
+                                        {...bind("location")}
+                                        placeholder="Ex.: junto à Via Expressa"
+                                    />
                                 </Field>
 
-                                <Field id="latitude" label="Latitude" error={errors.latitude}>
-                                    <input {...bind("latitude")} type="number" step="any" inputMode="decimal" placeholder="-8.9167" />
+                                <Field
+                                    id="latitude"
+                                    label="Latitude"
+                                    error={errors.latitude}
+                                >
+                                    <input
+                                        {...bind("latitude")}
+                                        type="number"
+                                        step="any"
+                                        inputMode="decimal"
+                                        placeholder="-8.9167"
+                                    />
                                 </Field>
 
-                                <Field id="longitude" label="Longitude" error={errors.longitude}>
-                                    <input {...bind("longitude")} type="number" step="any" inputMode="decimal" placeholder="13.1833" />
+                                <Field
+                                    id="longitude"
+                                    label="Longitude"
+                                    error={errors.longitude}
+                                >
+                                    <input
+                                        {...bind("longitude")}
+                                        type="number"
+                                        step="any"
+                                        inputMode="decimal"
+                                        placeholder="13.1833"
+                                    />
                                 </Field>
                             </Card>
 
                             <Card
-                                icon={<Banknote size={19} aria-hidden="true" />}
+                                icon={<Banknote size={20} aria-hidden="true" />}
                                 title="Orçamento e prazos"
                                 description="Valores em kwanzas (AOA)."
                             >
-                                <Field id="budget" label="Orçamento" error={errors.budget}>
-                                    <input {...bind("budget")} type="number" min="0" step="0.01" inputMode="decimal" />
+                                <Field
+                                    id="budget"
+                                    label="Orçamento"
+                                    error={errors.budget}
+                                >
+                                    <input
+                                        {...bind("budget")}
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        inputMode="decimal"
+                                    />
                                 </Field>
 
-                                <Field id="estimated_cost" label="Custo estimado" error={errors.estimated_cost}>
-                                    <input {...bind("estimated_cost")} type="number" min="0" step="0.01" inputMode="decimal" />
+                                <Field
+                                    id="estimated_cost"
+                                    label="Custo estimado"
+                                    error={errors.estimated_cost}
+                                >
+                                    <input
+                                        {...bind("estimated_cost")}
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        inputMode="decimal"
+                                    />
                                 </Field>
 
                                 <Field id="start_date" label="Data de início">
-                                    <input {...bind("start_date")} type="date" />
+                                    <input
+                                        {...bind("start_date")}
+                                        type="date"
+                                    />
                                 </Field>
 
-                                <Field id="end_date" label="Data de fim" error={errors.end_date}>
-                                    <input {...bind("end_date")} type="date" min={values.start_date || undefined} />
+                                <Field
+                                    id="end_date"
+                                    label="Data de fim"
+                                    error={errors.end_date}
+                                >
+                                    <input
+                                        {...bind("end_date")}
+                                        type="date"
+                                        min={values.start_date || undefined}
+                                    />
                                 </Field>
                             </Card>
                         </div>
 
-                        {/* -------------------------------- Sidebar -------------------------------- */}
-                        <aside className="space-y-6 lg:sticky lg:top-6">
-                            <section className="rounded-xl border border-[#E8E8E5] bg-white p-5">
-                                <h2 className="text-sm font-semibold">Estado e prioridade</h2>
+
+                        {/* ==========================================================================
+                           PART 7 — Sidebar, cover image and sticky action bar
+                           ========================================================================== */}
+
+                        <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
+                            {/* Status and urgency */}
+                            <section className="rounded-2xl border border-[#E8E8E5] bg-white p-5 shadow-[0_1px_2px_rgba(0,41,80,0.04)]">
+                                <h2 className="text-sm font-semibold">
+                                    Estado e prioridade
+                                </h2>
 
                                 <div className="mt-4 space-y-4">
                                     <Field id="status" label="Estado">
                                         <SelectBox {...bind("status")}>
-                                            {PROJECT_STATUSES.map((s) => (
-                                                <option key={s} value={s}>{s}</option>
+                                            {PROJECT_STATUSES.map((status) => (
+                                                <option
+                                                    key={status}
+                                                    value={status}
+                                                >
+                                                    {status}
+                                                </option>
                                             ))}
                                         </SelectBox>
                                     </Field>
 
                                     <Field id="urgency" label="Urgência">
                                         <SelectBox {...bind("urgency")}>
-                                            {PROJECT_URGENCIES.map((u) => (
-                                                <option key={u} value={u}>{URGENCY_LABELS[u] ?? u}</option>
+                                            {PROJECT_URGENCIES.map((urgency) => (
+                                                <option
+                                                    key={urgency}
+                                                    value={urgency}
+                                                >
+                                                    {URGENCY_LABELS[urgency] ?? urgency}
+                                                </option>
                                             ))}
                                         </SelectBox>
                                     </Field>
                                 </div>
                             </section>
 
-                            <section className="overflow-hidden rounded-xl border border-[#E8E8E5] bg-white">
-                                <div className="border-b border-[#EEEEEB] px-5 py-4">
-                                    <h2 className="text-sm font-semibold">Imagem de capa</h2>
-                                    <p className="mt-1 text-xs text-gray-500">JPG, PNG ou WebP · Máx. 5 MB</p>
+                            {/* Cover image */}
+                            <section className="overflow-hidden rounded-2xl border border-[#E8E8E5] bg-white shadow-[0_1px_2px_rgba(0,41,80,0.04)]">
+                                <div className="border-b border-[#F0F0ED] px-5 py-4">
+                                    <h2 className="text-sm font-semibold">
+                                        Imagem de capa
+                                    </h2>
+
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        JPG, PNG ou WebP, até 5 MB
+                                    </p>
                                 </div>
 
                                 <div className="p-5">
@@ -550,81 +1056,134 @@ export default function EditProjectForm({
 
                                     {coverPreview ? (
                                         <div className="space-y-3">
-                                            <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-[#E8E8E5] bg-[#F7F7F5]">
+                                            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-[#E8E8E5] bg-[#F5F5F2]">
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
                                                     src={coverPreview}
                                                     alt="Pré-visualização da imagem do projecto"
                                                     className="h-full w-full object-cover"
                                                 />
+
                                                 <button
                                                     type="button"
                                                     onClick={removeImage}
                                                     aria-label="Remover imagem"
-                                                    className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-gray-700 shadow-sm transition hover:bg-gray-100"
+                                                    className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow transition hover:bg-white hover:text-red-600 ${focusRing}`}
                                                 >
-                                                    <X size={16} aria-hidden="true" />
+                                                    <X
+                                                        size={16}
+                                                        aria-hidden="true"
+                                                    />
                                                 </button>
                                             </div>
 
                                             <button
                                                 type="button"
-                                                onClick={() => fileRef.current?.click()}
-                                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#E4E5E3] px-3 py-2.5 text-sm font-medium transition hover:bg-gray-50"
+                                                onClick={() =>
+                                                    fileRef.current?.click()
+                                                }
+                                                className={`flex w-full items-center justify-center gap-2 rounded-xl border border-[#E4E5E3] px-3 py-2.5 text-sm font-medium transition hover:bg-gray-50 ${focusRing}`}
                                             >
-                                                <Upload size={15} aria-hidden="true" />
+                                                <Upload
+                                                    size={15}
+                                                    aria-hidden="true"
+                                                />
                                                 Substituir imagem
                                             </button>
                                         </div>
                                     ) : (
                                         <button
                                             type="button"
-                                            onClick={() => fileRef.current?.click()}
-                                            className={`flex aspect-[4/3] w-full flex-col items-center justify-center rounded-lg border border-dashed bg-[#FAFAF8] px-4 text-center transition hover:border-[#BD9655] hover:bg-[#BD9655]/[0.04] ${errors.cover_image ? "border-red-400" : "border-[#D9DAD6]"
-                                                }`}
+                                            onClick={() =>
+                                                fileRef.current?.click()
+                                            }
+                                            aria-describedby={
+                                                errors.cover_image
+                                                    ? "cover_image-msg"
+                                                    : undefined
+                                            }
+                                            aria-invalid={
+                                                errors.cover_image
+                                                    ? true
+                                                    : undefined
+                                            }
+                                            className={`flex aspect-[4/3] w-full flex-col items-center justify-center rounded-xl border-2 border-dashed bg-[#FBFBFA] px-4 text-center transition hover:border-[#BD9655] hover:bg-[#BD9655]/[0.05] ${focusRing} ${
+                                                errors.cover_image
+                                                    ? "border-red-400"
+                                                    : "border-[#D9DAD6]"
+                                            }`}
                                         >
-                                            <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-[#E8E8E5] bg-white">
-                                                <ImagePlus size={20} aria-hidden="true" />
+                                            <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#BD9655]/12 text-[#8E6B2F]">
+                                                <ImagePlus
+                                                    size={22}
+                                                    aria-hidden="true"
+                                                />
                                             </span>
-                                            <span className="text-sm font-medium">Carregar imagem</span>
+
+                                            <span className="text-sm font-medium">
+                                                Carregar imagem
+                                            </span>
+
+                                            <span className="mt-1 text-xs text-gray-500">
+                                                Seleccione um ficheiro
+                                            </span>
                                         </button>
                                     )}
 
                                     {errors.cover_image && (
-                                        <p className="mt-2 text-xs text-red-600">{errors.cover_image}</p>
+                                        <p
+                                            id="cover_image-msg"
+                                            role="alert"
+                                            className="mt-2 text-xs text-red-600"
+                                        >
+                                            {errors.cover_image}
+                                        </p>
                                     )}
                                 </div>
                             </section>
                         </aside>
                     </div>
 
-                    {/* ------------------------------ Actions ------------------------------ */}
-                    <div className="sticky bottom-0 -mx-4 mt-8 flex flex-col-reverse gap-3 border-t border-[#E4E5E3] bg-[#F7F7F5]/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:-mx-8 lg:px-8">
-                        <p className="text-xs text-gray-500">
-                            As alterações só são aplicadas depois de guardar.
-                        </p>
-
-                        <div className="flex flex-col-reverse gap-3 sm:flex-row">
-                            <button
-                                type="button"
-                                onClick={() => router.back()}
-                                className="inline-flex items-center justify-center rounded-lg border border-[#E0E1DE] bg-white px-5 py-2.5 text-sm font-medium transition hover:bg-gray-50"
+                    {/* Sticky actions */}
+                    <div className="sticky bottom-3 z-20 mt-8 pb-[env(safe-area-inset-bottom)]">
+                        <div className="flex flex-col-reverse gap-3 rounded-2xl border border-[#E4E5E3] bg-white/90 p-3 shadow-[0_8px_30px_rgba(0,41,80,0.10)] backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:pl-5">
+                            <p
+                                className="flex items-center gap-2 text-xs leading-5 text-gray-500"
+                                aria-live="polite"
                             >
-                                Cancelar
-                            </button>
-
-                            <button
-                                type="submit"
-                                disabled={saving}
-                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#002950] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#003B70] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {saving ? (
-                                    <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                                {dirty ? (
+                                    <>
+                                        <CircleDot
+                                            size={14}
+                                            aria-hidden="true"
+                                            className="text-[#BD9655]"
+                                        />
+                                        Tem alterações por guardar.
+                                    </>
                                 ) : (
-                                    <Save size={16} aria-hidden="true" />
+                                    "As alterações só são aplicadas depois de guardar."
                                 )}
-                                {saving ? "A guardar…" : "Guardar alterações"}
-                            </button>
+                            </p>
+
+                            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                                <button
+                                    type="button"
+                                    onClick={() => router.push(backHref)}
+                                    disabled={saving}
+                                    className={`inline-flex items-center justify-center rounded-xl border border-[#E0E1DE] bg-white px-5 py-2.5 text-sm font-medium transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 ${focusRing}`}
+                                >
+                                    Cancelar
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#002950] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#003B70] disabled:cursor-not-allowed disabled:opacity-60 ${focusRing}`}
+                                >
+                                    {saveIcon}
+                                    {saveLabel}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </form>

@@ -66,36 +66,34 @@ export default function ProjectPermissions({
     });
   }
 
-  async function handleSave() {
-    if (!dirty || saving) {
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      await updateProjectPermissions(
-        projectId,
-        member.profileId,
-        Array.from(selected),
-      );
-
-      toast.info(
-        "Permissões actualizadas com sucesso.",
-      );
-    } catch (error) {
-      console.error(error);
-
-      toast.info(
-
-        error instanceof Error
-          ? error.message
-          : "Não foi possível guardar as permissões.",
-      );
-    } finally {
-      setSaving(false);
-    }
+  
+async function handleSave() {
+  if (!dirty || saving) {
+    return;
   }
+
+  setSaving(true);
+
+  try {
+    await updateProjectPermissions(
+      projectId,
+      member.profileId,
+      Array.from(selected),
+    );
+
+    toast.success("Permissões actualizadas com sucesso.");
+  } catch (error) {
+    console.error("Error updating project permissions:", error);
+
+    toast.error(
+      error instanceof Error
+        ? error.message
+        : "Não foi possível guardar as permissões.",
+    );
+  } finally {
+    setSaving(false);
+  }
+}
 
   return (
     <section className="w-full">
