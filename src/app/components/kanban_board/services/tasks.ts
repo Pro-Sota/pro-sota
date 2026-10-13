@@ -51,19 +51,19 @@ type TaskMemberRow = {
   profile_id: string;
 
   profiles:
-    | {
-        profile_id: string;
-        first_name: string | null;
-        last_name: string | null;
-        profile_picture: string | null;
-      }
-    | {
-        profile_id: string;
-        first_name: string | null;
-        last_name: string | null;
-        profile_picture: string | null;
-      }[]
-    | null;
+  | {
+    profile_id: string;
+    first_name: string | null;
+    last_name: string | null;
+    profile_picture: string | null;
+  }
+  | {
+    profile_id: string;
+    first_name: string | null;
+    last_name: string | null;
+    profile_picture: string | null;
+  }[]
+  | null;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -304,6 +304,24 @@ async function getCurrentProfileId(
   return profile.profile_id;
 }
 
+async function isCurrentUserAdmin(
+  supabase: Awaited<ReturnType<typeof getSupabase>>,
+): Promise<boolean> {
+  const userId = await getCurrentUserId(supabase);
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("role_id")
+    .eq("profile_id", userId)
+    .single();
+
+  if (error || !profile) {
+    throw new Error("Perfil do utilizador não encontrado.");
+  }
+
+  return profile.role_id === 1;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Project membership                                                        */
 /* -------------------------------------------------------------------------- */
@@ -318,56 +336,41 @@ async function getCurrentProfileId(
  *     profile_id = authenticated user
  */
 async function assertProjectMember(
-  supabase: Awaited<
-    ReturnType<typeof getSupabase>
-  >,
   projectId: string,
 ): Promise<string> {
   if (!projectId) {
-    throw new Error(
-      "Project ID is required.",
-    );
+    throw new Error("ID do projecto inválido.");
   }
 
-  const userId =
-    await getCurrentUserId(
-      supabase,
-    );
 
-  const {
-    data: member,
-    error,
-  } =
-    await supabase
-      .from("project_members")
-      .select(
-        "project_id",
-      )
-      .eq(
-        "project_id",
-        projectId,
-      )
-      .eq(
-        "profile_id",
-        userId,
-      )
-      .maybeSingle();
+  const supabase = createClient(await cookies());
+  const userId = await getCurrentUserId(supabase);
+  const isAdmin = await isCurrentUserAdmin(supabase);
+
+  if (isAdmin) {
+    return userId;
+  }
+
+  const { data: member, error } = await supabase
+    .from("project_members")
+    .select("project_id")
+    .eq("project_id", projectId)
+    .eq("profile_id", userId)
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     throw new Error(
-      `Failed to verify project membership: ${error.message}`,
+      `Não foi possível verificar o acesso ao projecto: ${error.message}`,
     );
   }
 
   if (!member) {
-    throw new Error(
-      "Não tem acesso a este projecto.",
-    );
+    throw new Error("Não tem acesso a este projecto.");
   }
 
   return userId;
 }
-
 /* -------------------------------------------------------------------------- */
 /* Validate project task members                                              */
 /* -------------------------------------------------------------------------- */
@@ -537,7 +540,6 @@ export async function getTasks(
      * Project tasks are shared only with project members.
      */
     await assertProjectMember(
-      supabase,
       scope.projectId,
     );
 
@@ -606,9 +608,8 @@ export async function getTask(
     !data
   ) {
     throw new Error(
-      `Failed to load task: ${
-        error?.message ??
-        "Tarefa não encontrada."
+      `Failed to load task: ${error?.message ??
+      "Tarefa não encontrada."
       }`,
     );
   }
@@ -645,7 +646,6 @@ export async function getTask(
      * by project members.
      */
     await assertProjectMember(
-      supabase,
       data.project_id,
     );
   }
@@ -658,57 +658,32 @@ export async function getTask(
 /* -------------------------------------------------------------------------- */
 
 async function validateTaskColumn(
-  supabase: Awaited<
-    ReturnType<typeof getSupabase>
-  >,
   scope: TaskScope,
   columnId: string,
   currentProfileId: string,
 ) {
-  const {
-    data: column,
-    error,
-  } =
-    await supabase
-      .from("task_columns")
-      .select(
-        "column_id, project_id, profile_id",
-      )
-      .eq(
-        "column_id",
-        columnId,
-      )
-      .single();
 
-  if (
-    error ||
-    !column
-  ) {
-    throw new Error(
-      "A coluna selecionada não existe.",
-    );
+  const supabase = createClient(await cookies());
+  const isAdmin = await isCurrentUserAdmin(supabase);
+
+  const { data: column, error } = await supabase
+    .from("task_columns")
+    .select("column_id, project_id, profile_id")
+    .eq("column_id", columnId)
+    .single();
+
+  if (error || !column) {
+    throw new Error("A coluna seleccionada não existe.");
   }
 
-  /* ---------------------------------------------------------------------- */
-  /* General column                                                         */
-  /* ---------------------------------------------------------------------- */
+  if (scope.type === "general") {
+    if (column.project_id !== null) {
+      throw new Error(
+        "A coluna não pertence ao quadro pessoal.",
+      );
+    }
 
-  if (
-    scope.type ===
-    "general"
-  ) {
-    /*
-     * Personal column must:
-     *
-     * project_id = NULL
-     * profile_id = current user
-     */
-    if (
-      column.project_id !==
-        null ||
-      column.profile_id !==
-        currentProfileId
-    ) {
+    if (!isAdmin && column.profile_id !== currentProfileId) {
       throw new Error(
         "A coluna não pertence ao seu quadro pessoal.",
       );
@@ -717,29 +692,13 @@ async function validateTaskColumn(
     return column;
   }
 
-  /* ---------------------------------------------------------------------- */
-  /* Project column                                                         */
-  /* ---------------------------------------------------------------------- */
-
-  /*
-   * Column must belong to this project.
-   */
-  if (
-    column.project_id !==
-    scope.projectId
-  ) {
+  if (column.project_id !== scope.projectId) {
     throw new Error(
       "A coluna não pertence a este projecto.",
     );
   }
 
-  /*
-   * User must be a member of this project.
-   */
-  await assertProjectMember(
-    supabase,
-    scope.projectId,
-  );
+  await assertProjectMember(scope.projectId);
 
   return column;
 }
@@ -781,7 +740,6 @@ export async function createTask(
      * before creating a task there.
      */
     await assertProjectMember(
-      supabase,
       scope.projectId,
     );
 
@@ -818,7 +776,6 @@ export async function createTask(
 
   if (columnId) {
     await validateTaskColumn(
-      supabase,
       scope,
       columnId,
       currentProfileId,
@@ -906,9 +863,9 @@ export async function createTask(
 
   const {
     data:
-      positionRows,
+    positionRows,
     error:
-      positionError,
+    positionError,
   } =
     await positionQuery;
 
@@ -992,7 +949,7 @@ export async function createTask(
   ) {
     const {
       error:
-        memberError,
+      memberError,
     } =
       await supabase
         .from(
@@ -1069,7 +1026,7 @@ export async function updateTask(
   const {
     data: existingTask,
     error:
-      existingTaskError,
+    existingTaskError,
   } =
     await supabase
       .from("tasks")
@@ -1117,7 +1074,6 @@ export async function updateTask(
      * user must be a project member.
      */
     await assertProjectMember(
-      supabase,
       existingTask.project_id,
     );
   }
@@ -1173,24 +1129,23 @@ export async function updateTask(
     if (columnId) {
       const taskScope: TaskScope =
         existingTask.project_id ===
-        null
+          null
           ? {
-              type: "general",
-              projectId: null,
-            }
+            type: "general",
+            projectId: null,
+          }
           : {
-              type: "project",
-              projectId:
-                existingTask.project_id,
-            };
+            type: "project",
+            projectId:
+              existingTask.project_id,
+          };
 
       await validateTaskColumn(
-        supabase,
         taskScope,
         columnId,
         currentProfileId,
       );
-    }
+    } 
 
     payload.column_id =
       columnId;
@@ -1330,7 +1285,7 @@ export async function updateTask(
      */
     const {
       error:
-        deleteMemberError,
+      deleteMemberError,
     } =
       await supabase
         .from(
@@ -1358,7 +1313,7 @@ export async function updateTask(
     ) {
       const {
         error:
-          memberError,
+        memberError,
       } =
         await supabase
           .from(
@@ -1462,7 +1417,6 @@ export async function deleteTask(
      * any project member can delete it.
      */
     await assertProjectMember(
-      supabase,
       task.project_id,
     );
   }
@@ -1533,7 +1487,6 @@ export async function reorderTasks(
     "project"
   ) {
     await assertProjectMember(
-      supabase,
       scope.projectId,
     );
   }
@@ -1543,7 +1496,6 @@ export async function reorderTasks(
   /* ---------------------------------------------------------------------- */
 
   await validateTaskColumn(
-    supabase,
     scope,
     columnId,
     currentProfileId,

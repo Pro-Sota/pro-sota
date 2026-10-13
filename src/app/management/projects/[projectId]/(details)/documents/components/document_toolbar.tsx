@@ -11,7 +11,6 @@ import CreateFolderDialog from "./create_folder_dialog";
 import UploadDocument from "./upload_document";
 
 import type { Database } from "@/app/lib/supabase/models";
-import { useState, useEffect } from "react";
 
 type Folder = Database["public"]["Tables"]["folders"]["Row"];
 
@@ -38,53 +37,53 @@ export default function DocumentToolbar({
   const searchParams = useSearchParams();
 
   function setView(newView: "grid" | "list") {
+    if (newView === view) return;
+
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", newView);
 
-    router.replace(`${pathname}?${params.toString()}`, {
+    const query = params.toString();
+
+    router.replace(query ? `${pathname}?${query}` : pathname, {
       scroll: false,
     });
   }
 
-const [uploadOpen, setUploadOpen] = useState(false);
+  function handleFolderCreated() {
+    if (onChanged) {
+      onChanged();
+      return;
+    }
 
-useEffect(() => {
-  function handleOpenUpload() {
-    setUploadOpen(true);
+    router.refresh();
   }
 
-  window.addEventListener(
-    "pro-sota:open-document-upload",
-    handleOpenUpload,
-  );
-
-  return () => {
-    window.removeEventListener(
-      "pro-sota:open-document-upload",
-      handleOpenUpload,
-    );
-  };
-}, []);
-
+  const buttonClass = [
+    "inline-flex h-9 shrink-0 items-center justify-center gap-2",
+    "rounded-md border px-3",
+    "text-sm font-medium",
+    "transition-colors duration-150",
+    "focus-visible:outline-none focus-visible:ring-2",
+    "focus-visible:ring-[#002950] focus-visible:ring-offset-2",
+    "disabled:pointer-events-none disabled:opacity-50",
+  ].join(" ");
 
   return (
-    <div className="flex min-h-[60px] items-center justify-between gap-2 bg-white px-2 sm:px-4">
-      <div className="flex items-center gap-2">
+    <div className="flex min-h-[60px] items-center justify-between gap-3 bg-white px-3 sm:px-4">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <CreateFolderDialog
           folders={folders}
           parentFolderId={null}
-          onCreated={() => {
-            onChanged?.();
-            router.refresh();
-          }}
+          onCreated={handleFolderCreated}
         />
 
         <UploadDocument projectId={projectId} />
       </div>
 
       <div
+        role="group"
         aria-label="Modo de visualização"
-        className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1"
+        className="flex h-10 shrink-0 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1"
       >
         {viewOptions.map(({ value, label, icon: Icon }) => {
           const active = view === value;
@@ -96,16 +95,25 @@ useEffect(() => {
               onClick={() => setView(value)}
               aria-label={`Mudar para vista de ${label.toLowerCase()}`}
               aria-pressed={active}
+              title={`Vista de ${label.toLowerCase()}`}
               className={[
-                "flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5",
-                "text-sm font-medium transition-colors",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-1",
+                "inline-flex h-8 shrink-0 items-center justify-center gap-2",
+                "rounded-md px-2.5 sm:px-3",
+                "text-sm font-medium",
+                "transition-all duration-150",
+                "focus-visible:outline-none focus-visible:ring-2",
+                "focus-visible:ring-[#002950] focus-visible:ring-inset",
                 active
                   ? "bg-[#BD9655] text-[#002950] shadow-sm"
-                  : "text-[#002950] hover:bg-[#BD9655]/20",
+                  : "text-gray-600 hover:bg-gray-200/70 hover:text-[#002950]",
               ].join(" ")}
             >
-              <Icon className="h-4 w-4" />
+              <Icon
+                aria-hidden="true"
+                className="h-4 w-4 shrink-0"
+                strokeWidth={2}
+              />
+
               <span className="hidden sm:inline">{label}</span>
             </button>
           );

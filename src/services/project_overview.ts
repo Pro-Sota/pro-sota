@@ -4,7 +4,6 @@ import { createClient } from "@/app/lib/supabase/server";
 import type {
   GanttMilestone,
   GanttPhase,
-  GanttTask,
 } from "@/app/components/gant_chart/gantt";
 import { cookies } from "next/headers";
 
@@ -32,8 +31,10 @@ export interface OverviewActivity {
   time: string;
 }
 
+
 export interface OverviewData {
   project: OverviewProject;
+
   kpis: {
     progress: number;
     remainingDays: number | null;
@@ -42,33 +43,49 @@ export interface OverviewData {
     totalTasks: number;
     pendingApprovals: number;
   };
+
   phases: GanttPhase[];
-  tasks: GanttTask[];
+
+  tasks: {
+    id: string;
+    name: string;
+    phaseId: string;
+    startDate: string | null;
+    endDate: string | null;
+    progress: number;
+  }[];
+
   milestones: GanttMilestone[];
+
   risks: {
     id: string;
     text: string;
     severity: "high" | "medium" | "low";
   }[];
+
   activities: OverviewActivity[];
+
   rfis: {
     id: string;
     subject: string;
     status: string;
     due: string;
   }[];
+
   submittals: {
     id: string;
     subject: string;
     status: string;
     due: string;
   }[];
+
   approvals: {
     id: string;
     item: string;
     date: string;
     requestedFrom: string;
   }[];
+
   budgetByPhase: {
     phase: string;
     used: number;
@@ -245,7 +262,14 @@ function mapPhases(rows: Row[]): GanttPhase[] {
  * A task is associated with a phase only when its row contains a valid
  * phase_id or a related phase object.
  */
-function mapProjectTasks(rows: Row[]): GanttTask[] {
+function mapProjectTasks(rows: Row[]): {
+  id: string;
+  name: string;
+  phaseId: string;
+  startDate: string | null;
+  endDate: string | null;
+  progress: number;
+}[] {
   return rows
     .map((row) => {
       const phase = asRow(row.phase);
@@ -286,7 +310,14 @@ function mapProjectTasks(rows: Row[]): GanttTask[] {
  * phase_steps uses step_id, phase_id, planned_start and planned_end.
  * Those fields are mapped explicitly from the schema supplied.
  */
-function mapPhaseSteps(rows: Row[]): GanttTask[] {
+function mapPhaseSteps(rows: Row[]): {
+  id: string;
+  name: string;
+  phaseId: string;
+  startDate: string | null;
+  endDate: string | null;
+  progress: number;
+}[] {
   return rows
     .map((row) => {
       const status = normalizedStatus(row.status);

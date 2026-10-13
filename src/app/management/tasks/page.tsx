@@ -1,20 +1,24 @@
-import KanbanBoard from '@/app/components/kanban_board/kanban_board';
-import { TaskMember } from '@/app/components/kanban_board/types';
-import { requireUser } from '@/app/lib/supabase/auth';
-import { getTaskMembers } from '@/services/profiles';
-import { getTaskBoard } from '@/services/task';
+import KanbanBoard from "@/app/components/kanban_board/kanban_board";
+import { requireUser } from "@/app/lib/supabase/auth";
+import type { TaskScope, TaskMember } from "@/app/components/kanban_board/types";
+import { getTaskMembers } from "@/services/profiles";
+import { getTaskBoard } from "@/services/task";
 
 export default async function TasksPage() {
   await requireUser();
 
-  const scope = {
-    type: 'general' as const,
+  const scope: TaskScope = {
     projectId: null,
+    type: "general",
   };
 
-  const [initialBoard, availableMembers] = await Promise.all([getTaskBoard(scope), getTaskMembers()]);
-
-  console.log("Profiles: ", availableMembers)
+  const [initialBoard, availableMembers]: [
+    Awaited<ReturnType<typeof getTaskBoard>>,
+    TaskMember[],
+  ] = await Promise.all([
+    getTaskBoard(scope),
+    getTaskMembers(),
+  ]);
 
   return (
     <KanbanBoard

@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type { ReactNode, ComponentType } from "react";
 import {
   ArrowLeft,
@@ -12,6 +13,7 @@ import {
   Clock3,
   Inbox,
   ListChecks,
+  Pencil,
   TrendingUp,
 } from "lucide-react";
 
@@ -19,9 +21,8 @@ import GanttChart from "@/app/components/gant_chart/gantt";
 import KpiCard from "./components/kpi_card";
 import { StatusPill } from "./components/status_pill";
 
-import {
-  OverviewData,
-} from "@/services/project_overview";
+import type { OverviewData } from "@/services/project_overview";
+import { useRouter } from "next/navigation";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -54,7 +55,7 @@ type EmptyStateProps = {
 type BudgetItem = OverviewData["budgetByPhase"][number];
 
 /* -------------------------------------------------------------------------- */
-/* Constants                                                                   */
+/* Constants                                                                  */
 /* -------------------------------------------------------------------------- */
 
 const LABELS = {
@@ -76,52 +77,53 @@ const LABELS = {
 } as const;
 
 const CURRENCY_LOCALE = "pt-AO";
-
+const PROJECT_TIME_ZONE = "Africa/Luanda";
 const TASKS_HREF = "tasks";
 const PHASES_HREF = "phases";
 
 /* -------------------------------------------------------------------------- */
-/* Formatting                                                                  */
+/* Formatting                                                                 */
 /* -------------------------------------------------------------------------- */
 
+const currencyFormatter = new Intl.NumberFormat(CURRENCY_LOCALE, {
+  style: "currency",
+  currency: "AOA",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+const percentageFormatter = new Intl.NumberFormat(CURRENCY_LOCALE, {
+  maximumFractionDigits: 1,
+});
+
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat(CURRENCY_LOCALE, {
-    style: "currency",
-    currency: "AOA",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
+  if (!Number.isFinite(value)) return "—";
+  return currencyFormatter.format(value);
 }
 
 function formatPercentage(value: number): string {
-  return `${new Intl.NumberFormat("pt-AO", {
-    maximumFractionDigits: 1,
-  }).format(value)}%`;
+  if (!Number.isFinite(value)) return "—";
+  return `${percentageFormatter.format(value)}%`;
 }
-
 
 function formatMilestoneDate(value: string): string {
   if (!value) return "—";
 
   const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
-
-  const date = new Date(
-    isDateOnly ? `${value}T12:00:00` : value,
-  );
+  const date = new Date(isDateOnly ? `${value}T12:00:00` : value);
 
   if (Number.isNaN(date.getTime())) return value;
 
-  return new Intl.DateTimeFormat("pt-AO", {
+  return new Intl.DateTimeFormat(CURRENCY_LOCALE, {
     day: "2-digit",
     month: "short",
     year: "numeric",
-    timeZone: "Africa/Luanda",
+    timeZone: PROJECT_TIME_ZONE,
   }).format(date);
 }
 
-
 /* -------------------------------------------------------------------------- */
-/* Shared components                                                           */
+/* Shared components                                                          */
 /* -------------------------------------------------------------------------- */
 
 function SectionCard({
@@ -181,36 +183,28 @@ function EmptyState({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Schedule section                                                            */
-/* -------------------------------------------------------------------------- */
-
 
 /* -------------------------------------------------------------------------- */
-/* Schedule section                                                            */
+/* Schedule section                                                           */
 /* -------------------------------------------------------------------------- */
 
 function ScheduleSection({ data }: { data: OverviewData }) {
-  const { project, phases, tasks, milestones } = data;
-  const projectBase = `/management/projects/${project.id}`;
+  const projectBase = `/management/projects/${data.project.id}`;
 
-  const chartPhases = phases.map((phase) => ({
+  const chartPhases = data.phases.map((phase) => ({
     id: phase.id,
     name: phase.name,
-    sortOrder: phase.sortOrder,
-    progress: phase.progress ?? 0,
+    sortOrder: phase.sortOrder ?? 0,
+    progress: Math.max(0, Math.min(100, phase.progress ?? 0)),
   }));
 
-  const chartSteps = tasks.map((task) => ({
-    id: task.step_id,
+  const chartSteps = data.tasks.map((task) => ({
+    id: task.id,
     name: task.name,
-    phaseId: task.phase_id,
-    startDate: task.planned_start ?? null,
-    endDate: task.planned_end ?? null,
-    progress:
-      task.status === "completed"
-        ? 100
-        : Math.max(0, Math.min(100, task.progress ?? 0)),
+    phaseId: task.phaseId,
+    startDate: task.startDate,
+    endDate: task.endDate,
+    progress: Math.max(0, Math.min(100, task.progress)),
   }));
 
   return (
@@ -240,7 +234,7 @@ function ScheduleSection({ data }: { data: OverviewData }) {
 
 
 /* -------------------------------------------------------------------------- */
-/* Risks section                                                               */
+/* Risks section                                                              */
 /* -------------------------------------------------------------------------- */
 
 function RisksSection({ data }: { data: OverviewData }) {
@@ -254,12 +248,13 @@ function RisksSection({ data }: { data: OverviewData }) {
               className="flex items-start gap-3 rounded-md border border-gray-200 px-3 py-3"
             >
               <span
-                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${risk.severity === "high"
+                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                  risk.severity === "high"
                     ? "bg-red-500"
                     : risk.severity === "medium"
                       ? "bg-amber-500"
                       : "bg-green-500"
-                  }`}
+                }`}
                 aria-hidden="true"
               />
 
@@ -303,7 +298,10 @@ function MilestonesSection({ data }: { data: OverviewData }) {
                 {milestone.name}
               </p>
 
-              <time className="shrink-0 text-xs text-gray-500">
+              <time
+                dateTime={milestone.date}
+                className="shrink-0 text-xs text-gray-500"
+              >
                 {formatMilestoneDate(milestone.date)}
               </time>
             </li>
@@ -449,20 +447,19 @@ function ApprovalsSection({ data }: { data: OverviewData }) {
 /* Budget section                                                             */
 /* -------------------------------------------------------------------------- */
 
-function BudgetProgress({
-  budget,
-}: {
-  budget: BudgetItem;
-}) {
-  const actualPercentage =
-    budget.total > 0 ? (budget.used / budget.total) * 100 : 0;
+function BudgetProgress({ budget }: { budget: BudgetItem }) {
+  const total = Number.isFinite(budget.total)
+    ? Math.max(0, budget.total)
+    : 0;
 
-  const visualPercentage = Math.max(
-    0,
-    Math.min(100, actualPercentage),
-  );
+  const used = Number.isFinite(budget.used)
+    ? Math.max(0, budget.used)
+    : 0;
 
-  const isOverBudget = budget.total > 0 && budget.used > budget.total;
+  const actualPercentage = total > 0 ? (used / total) * 100 : 0;
+  const visualPercentage = Math.min(100, actualPercentage);
+  const isOverBudget = total > 0 && used > total;
+  const remaining = total - used;
 
   const barColor = isOverBudget
     ? "bg-red-500"
@@ -470,47 +467,59 @@ function BudgetProgress({
       ? "bg-amber-500"
       : "bg-[#002950]";
 
-  const label = `Execução do orçamento — ${budget.phase}`;
-
   return (
-    <div>
-      <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-        <span className="text-sm text-gray-700">
+    <div className="space-y-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+        <span className="text-sm font-medium text-gray-800">
           {budget.phase}
         </span>
 
         <span className="text-xs text-gray-500">
-          {formatCurrency(budget.used)} / {formatCurrency(budget.total)}
+          {formatCurrency(used)} / {formatCurrency(total)}
         </span>
       </div>
 
       <div
         role="progressbar"
-        aria-label={label}
+        aria-label={`Execução do orçamento — ${budget.phase}`}
         aria-valuenow={visualPercentage}
         aria-valuemin={0}
         aria-valuemax={100}
+        aria-valuetext={
+          total > 0
+            ? `${formatPercentage(actualPercentage)} executado`
+            : "Orçamento não definido"
+        }
         className="h-2 overflow-hidden rounded-full bg-gray-100"
       >
         <div
-          className={`h-full rounded-full transition-[width] ${barColor}`}
+          className={`h-full rounded-full transition-[width] duration-300 ${barColor}`}
           style={{ width: `${visualPercentage}%` }}
         />
       </div>
 
-      <div className="mt-1.5 flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span
-          className={`text-xs ${isOverBudget
+          className={`text-xs ${
+            isOverBudget
               ? "font-medium text-red-600"
               : actualPercentage >= 90
                 ? "text-amber-700"
                 : "text-gray-500"
-            }`}
+          }`}
         >
           {isOverBudget
-            ? `Excedido em ${formatCurrency(budget.used - budget.total)}`
-            : `${formatPercentage(actualPercentage)} executado`}
+            ? `Excedido em ${formatCurrency(Math.abs(remaining))}`
+            : total > 0
+              ? `${formatPercentage(actualPercentage)} executado`
+              : "Orçamento não definido"}
         </span>
+
+        {total > 0 && !isOverBudget && (
+          <span className="text-xs text-gray-500">
+            Saldo: {formatCurrency(remaining)}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -536,15 +545,30 @@ function BudgetSection({ data }: { data: OverviewData }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Main page                                                                   */
+/* Edit project dialog data                                                   */
+/* -------------------------------------------------------------------------- */
+
+function getOptionalString(
+  project: OverviewData["project"],
+  key: string,
+  fallback = "",
+): string {
+  const value: unknown = project[key as keyof typeof project];
+
+  return typeof value === "string" ? value : fallback;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Main page                                                                  */
 /* -------------------------------------------------------------------------- */
 
 export default function OverviewClientPage({
   data,
 }: OverviewClientPageProps) {
   const { project, kpis } = data;
-
   const projectBase = `/management/projects/${project.id}`;
+
+  const router = useRouter();
 
   const kpiItems = [
     {
@@ -605,9 +629,20 @@ export default function OverviewClientPage({
               </p>
             </div>
 
-            <span className="inline-flex w-fit items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700">
-              {project.status}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex w-fit items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700">
+                {project.status}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => router.push(projectBase+"/edit")}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
+              >
+                <Pencil size={15} aria-hidden="true" />
+                Editar projecto
+              </button>
+            </div>
           </div>
         </header>
 
@@ -626,28 +661,22 @@ export default function OverviewClientPage({
           ))}
         </section>
 
-        {/* Schedule */}
         <ScheduleSection data={data} />
 
-        {/* Risks and milestones */}
         <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
           <RisksSection data={data} />
           <MilestonesSection data={data} />
         </div>
 
-        {/* Recent activity */}
         <ActivitiesSection data={data} />
 
-        {/* RFIs and submissions */}
         <RequestsSection data={data} />
 
-        {/* Approvals and budget */}
         <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
           <ApprovalsSection data={data} />
           <BudgetSection data={data} />
         </div>
 
-        {/* Footer */}
         <footer className="border-t border-gray-200 pt-4 text-xs text-gray-500">
           Pro-Sota · Dados do projecto carregados no servidor
         </footer>

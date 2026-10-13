@@ -668,3 +668,59 @@ export async function getProjectActivity(
 }
 
 
+/**
+ * Get a single project by ID.
+ */
+export async function getProjectById(projectId: string) {
+  const supabase = await getSupabase();
+
+  const { data, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("getProject:", error);
+    throw new Error("Não foi possível carregar o projecto.");
+  }
+
+  return data;
+}
+
+export async function getProjectClient(projectId:string): Promise<
+  { id: string; name: string }[]
+> {
+  const supabase = createClient(await cookies());
+
+  const project = await getProjectById(projectId);
+
+  const { data, error } = await supabase
+    .from("clients")
+    .select(`
+      client_id,
+      name,
+      first_name,
+      last_name,
+      organization_name
+    `).eq("client_id", project.client_id)
+    .is("deleted_at", null)
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("getProjectClients:", error);
+    throw new Error("Não foi possível carregar os clientes.");
+  }
+
+  return (data ?? []).map((client) => ({
+    id: client.client_id,
+    name:
+      client.name?.trim() ||
+      client.organization_name?.trim() ||
+      [client.first_name, client.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      "Cliente sem nome",
+  }));
+}
