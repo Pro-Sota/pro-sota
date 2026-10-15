@@ -218,7 +218,7 @@ function ScheduleSection({ data }: { data: OverviewData }) {
       {chartPhases.length > 0 ? (
         <GanttChart
           phases={chartPhases}
-          Stages={chartStages}
+          steps={chartStages}
           deliverables={[]}
         />
       ) : (
