@@ -2,7 +2,7 @@
 
 Use this when the user reports that the skill gave incorrect guidance, is missing information, or could be improved. This is about the skill (agent instructions), not about Supabase the product.
 
-## Steps
+## Stages
 
 1. **Ask permission** — Ask the user if they'd like to submit feedback to the skill maintainers. If they decline, move on.
 

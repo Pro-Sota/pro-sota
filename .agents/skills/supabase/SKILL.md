@@ -96,7 +96,7 @@ supabase <group> <command> --help  # Flags for a specific command
 
 For setup instructions, server URL, and configuration, see the [MCP setup guide](https://supabase.com/docs/guides/getting-started/mcp).
 
-**Troubleshooting connection issues** — follow these steps in order:
+**Troubleshooting connection issues** — follow these Stages in order:
 
 1. **Check if the server is reachable:**
    `curl -so /dev/null -w "%{http_code}" https://mcp.supabase.com/mcp`

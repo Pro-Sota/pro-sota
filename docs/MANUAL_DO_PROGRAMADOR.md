@@ -194,7 +194,7 @@ A tabela seguinte lista entidades referenciadas no código, não um inventário 
 | Identidade e acesso | `profiles`, `roles`, `permissions`, `role_permissions` |
 | Projectos | `projects`, `project_members`, `clients` |
 | Tarefas | `tasks`, `task_columns` |
-| Fases e entregas | `phases`, `steps`, `deliverables`, `milestones`; os tipos também contêm `phase_steps` e `step_deliverables` |
+| Fases e entregas | `phases`, `Stages`, `deliverables`, `milestones`; os tipos também contêm `phase_stages` e `Stage_deliverables` |
 | Comunicação | `conversations`, `conversation_participants`, `messages` |
 | Documentação | `folders`, `documents`, `document_versions` |
 | Aprovações | `submissions`, `submission_files` nos tipos |
@@ -218,7 +218,7 @@ Procedimento de manutenção:
 4. Actualizar deliberadamente o ficheiro usado pela aplicação; definir uma única fonte de tipos e alinhar o script numa alteração própria.
 5. Executar análise TypeScript e build.
 
-Não substituir uma cópia pela outra sem comparar: já existem diferenças e os serviços referenciam entidades ausentes dos tipos gerados. Exemplos: os serviços de fases usam `steps` e `deliverables`, enquanto os tipos registam `phase_steps` e `step_deliverables`.
+Não substituir uma cópia pela outra sem comparar: já existem diferenças e os serviços referenciam entidades ausentes dos tipos gerados. Exemplos: os serviços de fases usam `Stages` e `deliverables`, enquanto os tipos registam `phase_stages` e `Stage_deliverables`.
 
 Os tipos TypeScript não criam tabelas nem substituem migrações, constraints ou políticas RLS.
 

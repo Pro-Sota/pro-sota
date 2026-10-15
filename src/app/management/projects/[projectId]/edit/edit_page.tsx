@@ -916,7 +916,6 @@ export default function EditProjectForm({
                                     <input
                                         {...bind("latitude")}
                                         type="number"
-                                        step="any"
                                         inputMode="decimal"
                                         placeholder="-8.9167"
                                     />
@@ -930,7 +929,6 @@ export default function EditProjectForm({
                                     <input
                                         {...bind("longitude")}
                                         type="number"
-                                        step="any"
                                         inputMode="decimal"
                                         placeholder="13.1833"
                                     />
@@ -951,7 +949,6 @@ export default function EditProjectForm({
                                         {...bind("budget")}
                                         type="number"
                                         min="0"
-                                        step="0.01"
                                         inputMode="decimal"
                                     />
                                 </Field>
@@ -965,7 +962,6 @@ export default function EditProjectForm({
                                         {...bind("estimated_cost")}
                                         type="number"
                                         min="0"
-                                        step="0.01"
                                         inputMode="decimal"
                                     />
                                 </Field>

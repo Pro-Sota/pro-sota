@@ -229,7 +229,7 @@ export default function ProjectGridCard({ project }: { project: ProjectListItem 
   const clientName = project.client_name?.trim() || null;
 
   const location =
-    project.location?.trim() ||
+    project.address_line_1?.trim() ||
     project.municipality?.trim() ||
     project.province?.trim() ||
     null;

@@ -430,7 +430,6 @@ export function PhaseForm({
                 id="sort-order"
                 type="number"
                 min={0}
-                step={1}
                 value={sortOrder}
                 onChange={(event) =>
                   setSortOrder(event.target.value)

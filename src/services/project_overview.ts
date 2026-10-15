@@ -13,7 +13,7 @@ import { cookies } from "next/headers";
 
 type Row = Record<string, unknown>;
 
-type PhaseStepStatus = "not_started" | "in_progress" | "completed";
+type PhaseStageStatus = "not_started" | "in_progress" | "completed";
 
 export interface OverviewProject {
   id: string;
@@ -220,7 +220,7 @@ function taskProgress(row: Row): number {
   );
 }
 
-function stepProgress(row: Row): number {
+function StageProgress(row: Row): number {
   const status = normalizedStatus(row.status);
 
   if (isCompleted(status)) return 100;
@@ -258,7 +258,7 @@ function mapPhases(rows: Row[]): GanttPhase[] {
 }
 
 /**
- * Project tasks remain separate from phase_steps.
+ * Project tasks remain separate from phase_stages.
  * A task is associated with a phase only when its row contains a valid
  * phase_id or a related phase object.
  */
@@ -307,10 +307,10 @@ function mapProjectTasks(rows: Row[]): {
 }
 
 /**
- * phase_steps uses step_id, phase_id, planned_start and planned_end.
+ * phase_stages uses stage_id, phase_id, planned_start and planned_end.
  * Those fields are mapped explicitly from the schema supplied.
  */
-function mapPhaseSteps(rows: Row[]): {
+function mapPhaseStages(rows: Row[]): {
   id: string;
   name: string;
   phaseId: string;
@@ -323,7 +323,7 @@ function mapPhaseSteps(rows: Row[]): {
       const status = normalizedStatus(row.status);
 
       return {
-        id: stringValue(row.step_id),
+        id: stringValue(row.stage_id),
         name: stringValue(row.name) || "Etapa sem nome",
         phaseId: stringValue(row.phase_id),
         startDate: nullableDate(row.planned_start),
@@ -334,7 +334,7 @@ function mapPhaseSteps(rows: Row[]): {
             : clampPercent(numericValue(row.progress)),
       };
     })
-    .filter((step) => step.id.length > 0 && step.phaseId.length > 0);
+    .filter((Stage) => Stage.id.length > 0 && Stage.phaseId.length > 0);
 }
 
 /**
@@ -354,11 +354,11 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
 
 /**
  * Calculate overall progress from task rows when available.
- * When no project tasks exist, calculate progress from phase steps.
+ * When no project tasks exist, calculate progress from phase Stages.
  */
 function calculateProgress(
   projectTasks: Row[],
-  phaseSteps: Row[],
+  phaseStages: Row[],
 ): number {
   if (projectTasks.length > 0) {
     return clampPercent(
@@ -367,10 +367,10 @@ function calculateProgress(
     );
   }
 
-  if (phaseSteps.length > 0) {
+  if (phaseStages.length > 0) {
     return clampPercent(
-      phaseSteps.reduce((sum, step) => sum + stepProgress(step), 0) /
-        phaseSteps.length,
+      phaseStages.reduce((sum, Stage) => sum + StageProgress(Stage), 0) /
+        phaseStages.length,
     );
   }
 
@@ -432,27 +432,27 @@ export async function getOverviewData(
   const phaseIds = phases.map((phase) => phase.id);
 
   /* ------------------------------------------------------------------------ */
-  /* Phase steps                                                              */
+  /* Phase Stages                                                              */
   /* ------------------------------------------------------------------------ */
 
-  let stepRows: Row[] = [];
+  let StageRows: Row[] = [];
 
   if (phaseIds.length > 0) {
-    const { data: stepData, error: stepError } = await supabase
-      .from("phase_steps")
+    const { data: StageData, error: StageError } = await supabase
+      .from("phase_stages")
       .select(
-        "step_id, phase_id, name, status, progress, planned_start, planned_end, sort_order",
+        "stage_id, phase_id, name, status, progress, planned_start, planned_end, sort_order",
       )
       .in("phase_id", phaseIds)
       .order("sort_order", { ascending: true });
 
-    if (stepError) {
+    if (StageError) {
       throw new Error(
-        `Não foi possível carregar as etapas das fases: ${stepError.message}`,
+        `Não foi possível carregar as etapas das fases: ${StageError.message}`,
       );
     }
 
-    stepRows = (stepData ?? []).map(asRow);
+    StageRows = (StageData ?? []).map(asRow);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -505,7 +505,7 @@ export async function getOverviewData(
     isCompleted(stringValue(row.status, row.state)),
   ).length;
 
-  const progress = calculateProgress(taskRows, stepRows);
+  const progress = calculateProgress(taskRows, StageRows);
 
   const remainingDays = project.endDate
     ? dayDifference(new Date(), new Date(project.endDate))
@@ -516,9 +516,9 @@ export async function getOverviewData(
   /* ------------------------------------------------------------------------ */
 
   /*
-   * This implementation combines actual project tasks and phase steps.
-   * Their IDs are prefixed to prevent a task_id and step_id from colliding.
-   * If you want the Gantt to show only phase steps, use mapPhaseSteps(stepRows)
+   * This implementation combines actual project tasks and phase Stages.
+   * Their IDs are prefixed to prevent a task_id and stage_id from colliding.
+   * If you want the Gantt to show only phase Stages, use mapPhaseStages(StageRows)
    * instead of combining the two arrays.
    */
   const ganttTasks = uniqueById([
@@ -526,9 +526,9 @@ export async function getOverviewData(
       ...task,
       id: `task:${task.id}`,
     })),
-    ...mapPhaseSteps(stepRows).map((step) => ({
-      ...step,
-      id: `step:${step.id}`,
+    ...mapPhaseStages(StageRows).map((Stage) => ({
+      ...Stage,
+      id: `Stage:${Stage.id}`,
     })),
   ]);
 

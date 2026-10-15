@@ -884,7 +884,6 @@ export default function ResourceForm({
                     name="current_quantity"
                     type="number"
                     min="0"
-                    step="0.001"
                     value={stock.current_quantity}
                     onChange={handleStockChange}
                     placeholder="0"
@@ -905,7 +904,6 @@ export default function ResourceForm({
                     name="minimum_quantity"
                     type="number"
                     min="0"
-                    step="0.001"
                     value={stock.minimum_quantity}
                     onChange={handleStockChange}
                     placeholder="0"
@@ -927,7 +925,6 @@ export default function ResourceForm({
                       name="average_unit_cost"
                       type="number"
                       min="0"
-                      step="0.01"
                       value={stock.average_unit_cost}
                       onChange={handleStockChange}
                       placeholder="0.00"
@@ -1071,7 +1068,6 @@ export default function ResourceForm({
                   name="acquisition_value"
                   type="number"
                   min="0"
-                  step="0.01"
                   value={form.acquisition_value}
                   onChange={handleChange}
                   placeholder="0.00"
@@ -1098,7 +1094,6 @@ export default function ResourceForm({
                   name="replacement_value"
                   type="number"
                   min="0"
-                  step="0.01"
                   value={form.replacement_value}
                   onChange={handleChange}
                   placeholder="0.00"

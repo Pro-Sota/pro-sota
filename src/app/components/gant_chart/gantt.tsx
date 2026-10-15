@@ -27,7 +27,7 @@ export type GanttPhase = {
   progress?: number | null;
 };
 
-export type GanttStep = {
+export type GanttStage = {
   id: string;
   name: string;
   phaseId: string;
@@ -59,13 +59,13 @@ export type GanttMilestone = {
 
 type GanttChartProps = {
   phases?: GanttPhase[] | null;
-  steps?: GanttStep[] | null;
+  Stages?: GanttStage[] | null;
   deliverables?: GanttDeliverable[] | null;
   milestones?: GanttMilestone[] | null;
   startDate?: string | null;
 };
 
-type TimelineItemType = "step" | "deliverable";
+type TimelineItemType = "Stage" | "deliverable";
 
 type TimelineItem = {
   id: string;
@@ -221,7 +221,7 @@ function reportDuplicateIds(
 
 export default function GanttChart({
   phases: phasesProp,
-  steps: stepsProp,
+  Stages: StagesProp,
   deliverables: deliverablesProp,
   milestones: milestonesProp,
   startDate,
@@ -231,9 +231,9 @@ export default function GanttChart({
     [phasesProp],
   );
 
-  const steps = useMemo(
-    () => uniqueById(stepsProp ?? []),
-    [stepsProp],
+  const Stages = useMemo(
+    () => uniqueById(StagesProp ?? []),
+    [StagesProp],
   );
 
   const deliverables = useMemo(
@@ -265,10 +265,10 @@ export default function GanttChart({
     if (process.env.NODE_ENV !== "development") return;
 
     reportDuplicateIds("fases recebidas", phasesProp ?? []);
-    reportDuplicateIds("passos recebidos", stepsProp ?? []);
+    reportDuplicateIds("passos recebidos", StagesProp ?? []);
     reportDuplicateIds("entregáveis recebidos", deliverablesProp ?? []);
     reportDuplicateIds("marcos recebidos", milestonesProp ?? []);
-  }, [phasesProp, stepsProp, deliverablesProp, milestonesProp]);
+  }, [phasesProp, StagesProp, deliverablesProp, milestonesProp]);
 
   /* ------------------------------------------------------------------------ */
   /* Normalize timeline items                                                 */
@@ -276,16 +276,16 @@ export default function GanttChart({
 
   const timelineItems = useMemo<TimelineItem[]>(
     () => [
-      ...steps.map((step) => ({
-        ...step,
-        kind: "step" as const,
+      ...Stages.map((Stage) => ({
+        ...Stage,
+        kind: "Stage" as const,
       })),
       ...deliverables.map((deliverable) => ({
         ...deliverable,
         kind: "deliverable" as const,
       })),
     ],
-    [steps, deliverables],
+    [Stages, deliverables],
   );
 
   /* ------------------------------------------------------------------------ */
@@ -865,7 +865,7 @@ export default function GanttChart({
                       </div>
                     </div>
 
-                    {/* Step and deliverable rows */}
+                    {/* Stage and deliverable rows */}
                     {!collapsed &&
                       group.items.map((item) => {
                         const progress = clampProgress(item.progress);

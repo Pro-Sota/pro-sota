@@ -262,7 +262,7 @@ export default function ProjectTableCard({ project }: ProjectTableCardProps) {
   const priorityChip = priorityChips[project.urgency ?? ""];
 
   const location =
-    project.location ?? project.municipality ?? project.province ?? null;
+    project.address_line_1 ?? project.municipality ?? project.province ?? null;
 
   return (
     <article

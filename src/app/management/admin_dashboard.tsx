@@ -385,8 +385,8 @@ export default function AdminDashboard({
 
                                 <p className="mt-0.5 truncate text-xs text-gray-500">
                                   {project.project_code}
-                                  {project.location &&
-                                    ` · ${project.location}`}
+                                  {project.address_line_1 &&
+                                    ` · ${project.address_line_1}`}
                                 </p>
                               </div>
 
@@ -494,8 +494,8 @@ export default function AdminDashboard({
 
                                         <p className="mt-0.5 truncate text-xs text-gray-500">
                                           {project.project_code}
-                                          {project.location &&
-                                            ` · ${project.location}`}
+                                          {project.address_line_1 &&
+                                            ` · ${project.address_line_1}`}
                                         </p>
                                       </div>
                                     </div>

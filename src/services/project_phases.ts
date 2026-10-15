@@ -58,7 +58,7 @@ export async function getPhase(phaseId: string) {
 // - Milestones
 // - Deliverables
 //
-// Tasks, documents and steps are intentionally not loaded here.
+// Tasks, documents and Stages are intentionally not loaded here.
 export async function getPhaseDetail(
   projectId: string,
   phaseId: string,
@@ -164,15 +164,15 @@ export async function getDeliverable(deliverableId: string) {
   return data;
 }
 
-// Get deliverables with their steps
-export async function getDeliverablesWithSteps(phaseId: string) {
+// Get deliverables with their Stages
+export async function getDeliverablesWithStages(phaseId: string) {
   const supabase = await getSupabase();
 
   const { data, error } = await supabase
     .from("deliverables")
     .select(`
       *,
-      steps (*)
+      Stages (*)
     `)
     .eq("phase_id", phaseId)
     .order("sort_order", { ascending: true });
@@ -183,15 +183,15 @@ export async function getDeliverablesWithSteps(phaseId: string) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Steps                                                                      */
+/* Stages                                                                      */
 /* -------------------------------------------------------------------------- */
 
-// Get steps for a deliverable
-export async function getDeliverableSteps(deliverableId: string) {
+// Get Stages for a deliverable
+export async function getDeliverableStages(deliverableId: string) {
   const supabase = await getSupabase();
 
   const { data, error } = await supabase
-    .from("steps")
+    .from("Stages")
     .select("*")
     .eq("deliverable_id", deliverableId)
     .order("position", { ascending: true });
@@ -201,14 +201,14 @@ export async function getDeliverableSteps(deliverableId: string) {
   return data;
 }
 
-// Get a single step
-export async function getStep(stepId: string) {
+// Get a single Stage
+export async function getStage(StageId: string) {
   const supabase = await getSupabase();
 
   const { data, error } = await supabase
-    .from("steps")
+    .from("Stages")
     .select("*")
-    .eq("id", stepId)
+    .eq("id", StageId)
     .single();
 
   if (error) throw error;
@@ -216,12 +216,12 @@ export async function getStep(stepId: string) {
   return data;
 }
 
-// Get all steps belonging to a phase
-export async function getPhaseSteps(phaseId: string) {
+// Get all Stages belonging to a phase
+export async function getPhaseStages(phaseId: string) {
   const supabase = await getSupabase();
 
   const { data, error } = await supabase
-    .from("steps")
+    .from("Stages")
     .select(`
       *,
       deliverables!inner (
@@ -237,12 +237,12 @@ export async function getPhaseSteps(phaseId: string) {
   return data;
 }
 
-// Get all project steps
-export async function getProjectSteps(projectId: string) {
+// Get all project Stages
+export async function getProjectStages(projectId: string) {
   const supabase = await getSupabase();
 
   const { data, error } = await supabase
-    .from("steps")
+    .from("Stages")
     .select(`
       *,
       deliverables!inner (
@@ -262,12 +262,12 @@ export async function getProjectSteps(projectId: string) {
   return data;
 }
 
-// Get incomplete steps for a project
-export async function getIncompleteProjectSteps(projectId: string) {
+// Get incomplete Stages for a project
+export async function getIncompleteProjectStages(projectId: string) {
   const supabase = await getSupabase();
 
   const { data, error } = await supabase
-    .from("steps")
+    .from("Stages")
     .select(`
       *,
       deliverables!inner (
@@ -429,7 +429,7 @@ export async function getProjectPhaseTree(projectId: string) {
       *,
       deliverables (
         *,
-        steps (*)
+        Stages (*)
       ),
       milestones (*)
     `)
@@ -461,7 +461,7 @@ export async function getProjectProgress(projectId: string) {
         title,
         status,
         progress,
-        steps (
+        Stages (
           id,
           status
         )
@@ -491,7 +491,7 @@ export async function getPhaseProgress(phaseId: string) {
         title,
         status,
         progress,
-        steps (
+        Stages (
           id,
           status
         )
@@ -516,7 +516,7 @@ export async function getPhaseStats(phaseId: string) {
       title,
       status,
       progress,
-      steps (
+      Stages (
         id,
         status
       )
@@ -560,15 +560,15 @@ export async function getProjectPhaseBoard(projectId: string) {
 
   const phaseIds = (phases ?? []).map((phase) => phase.phase_id);
 
-  let steps: Database["public"]["Tables"]["phase_steps"]["Row"][] = [];
+  let Stages: Database["public"]["Tables"]["phase_stages"]["Row"][] = [];
   let deliverables: Database["public"]["Tables"]["deliverables"]["Row"][] = [];
   let milestones: Database["public"]["Tables"]["milestones"]["Row"][] = [];
 
   if (phaseIds.length > 0) {
-    const [stepsResult, deliverablesResult, milestonesResult] =
+    const [StagesResult, deliverablesResult, milestonesResult] =
       await Promise.all([
         supabase
-          .from("phase_steps")
+          .from("phase_stages")
           .select("*")
           .in("phase_id", phaseIds)
           .order("sort_order", { ascending: true }),
@@ -586,18 +586,18 @@ export async function getProjectPhaseBoard(projectId: string) {
           .order("date", { ascending: true }),
       ]);
 
-    if (stepsResult.error) throw stepsResult.error;
+    if (StagesResult.error) throw StagesResult.error;
     if (deliverablesResult.error) throw deliverablesResult.error;
     if (milestonesResult.error) throw milestonesResult.error;
 
-    steps = stepsResult.data ?? [];
+    Stages = StagesResult.data ?? [];
     deliverables = deliverablesResult.data ?? [];
     milestones = milestonesResult.data ?? [];
   }
 
   return {
     phases: phases ?? [],
-    steps,
+    Stages,
     deliverables,
     milestones,
   };

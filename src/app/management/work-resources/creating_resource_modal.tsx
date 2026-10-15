@@ -597,7 +597,6 @@ export default function CreateResourceModal({
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
                     className={INPUT_CLASS}
                     value={newResource.acquisition_value}
                     onChange={(event) =>
@@ -614,7 +613,6 @@ export default function CreateResourceModal({
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
                     className={INPUT_CLASS}
                     value={newResource.replacement_value}
                     onChange={(event) =>

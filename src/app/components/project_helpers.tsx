@@ -89,7 +89,7 @@ export function matchesSearch(project: ProjectListItem, term: string) {
     [
       project.title,
       project.project_code,
-      project.location,
+      project.address_line_1,
       project.municipality,
       project.province,
       project.client_name,

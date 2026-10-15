@@ -9,8 +9,8 @@ type ProjectPhase =
 type Deliverable =
     Database["public"]["Tables"]["deliverables"]["Row"];
 
-type Step =
-    Database["public"]["Tables"]["phase_steps"]["Row"];
+type Stage =
+    Database["public"]["Tables"]["phase_stages"]["Row"];
 
 type Milestone =
     Database["public"]["Tables"]["milestones"]["Row"];
@@ -141,9 +141,9 @@ export async function getDeliverable(deliverableId: string) {
 }
 
 /**
- * Get deliverables with their steps.
+ * Get deliverables with their Stages.
  */
-export async function getDeliverablesWithSteps(
+export async function getDeliverablesWithStages(
     phaseId: string
 ) {
     const supabase = await getSupabase();
@@ -152,13 +152,13 @@ export async function getDeliverablesWithSteps(
         .from("deliverables")
         .select(`
             *,
-            steps (*)
+            Stages (*)
         `)
         .eq("phase_id", phaseId)
         .order("due_date", { ascending: true });
 
     if (error) {
-        console.error("getDeliverablesWithSteps:", error);
+        console.error("getDeliverablesWithStages:", error);
         throw new Error(error.message);
     }
 
@@ -166,25 +166,25 @@ export async function getDeliverablesWithSteps(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Steps                                                                      */
+/* Stages                                                                      */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Get steps for a deliverable.
+ * Get Stages for a deliverable.
  */
-export async function getDeliverableSteps(
+export async function getDeliverableStages(
     deliverableId: string
 ) {
     const supabase = await getSupabase();
 
     const { data, error } = await supabase
-        .from("steps")
+        .from("Stages")
         .select("*")
         .eq("deliverable_id", deliverableId)
         .order("position", { ascending: true });
 
     if (error) {
-        console.error("getDeliverableSteps:", error);
+        console.error("getDeliverableStages:", error);
         throw new Error(error.message);
     }
 
@@ -192,19 +192,19 @@ export async function getDeliverableSteps(
 }
 
 /**
- * Get a single step.
+ * Get a single Stage.
  */
-export async function getStep(stepId: string) {
+export async function getStage(StageId: string) {
     const supabase = await getSupabase();
 
     const { data, error } = await supabase
-        .from("steps")
+        .from("Stages")
         .select("*")
-        .eq("id", stepId)
+        .eq("id", StageId)
         .single();
 
     if (error) {
-        console.error("getStep:", error);
+        console.error("getStage:", error);
         throw new Error(error.message);
     }
 
@@ -212,13 +212,13 @@ export async function getStep(stepId: string) {
 }
 
 /**
- * Get all steps belonging to a phase.
+ * Get all Stages belonging to a phase.
  */
-export async function getPhaseSteps(phaseId: string) {
+export async function getPhaseStages(phaseId: string) {
     const supabase = await getSupabase();
 
     const { data, error } = await supabase
-        .from("steps")
+        .from("Stages")
         .select(`
             *,
             deliverables!inner (
@@ -230,7 +230,7 @@ export async function getPhaseSteps(phaseId: string) {
         .order("position", { ascending: true });
 
     if (error) {
-        console.error("getPhaseSteps:", error);
+        console.error("getPhaseStages:", error);
         throw new Error(error.message);
     }
 
@@ -238,13 +238,13 @@ export async function getPhaseSteps(phaseId: string) {
 }
 
 /**
- * Get all steps belonging to a project.
+ * Get all Stages belonging to a project.
  */
-export async function getProjectSteps(projectId: string) {
+export async function getProjectStages(projectId: string) {
     const supabase = await getSupabase();
 
     const { data, error } = await supabase
-        .from("steps")
+        .from("Stages")
         .select(`
             *,
             deliverables!inner (
@@ -263,7 +263,7 @@ export async function getProjectSteps(projectId: string) {
         .order("position", { ascending: true });
 
     if (error) {
-        console.error("getProjectSteps:", error);
+        console.error("getProjectStages:", error);
         throw new Error(error.message);
     }
 
@@ -271,15 +271,15 @@ export async function getProjectSteps(projectId: string) {
 }
 
 /**
- * Get incomplete steps for a project.
+ * Get incomplete Stages for a project.
  */
-export async function getIncompleteProjectSteps(
+export async function getIncompleteProjectStages(
     projectId: string
 ) {
     const supabase = await getSupabase();
 
     const { data, error } = await supabase
-        .from("steps")
+        .from("Stages")
         .select(`
             *,
             deliverables!inner (
@@ -302,7 +302,7 @@ export async function getIncompleteProjectSteps(
 
     if (error) {
         console.error(
-            "getIncompleteProjectSteps:",
+            "getIncompleteProjectStages:",
             error
         );
         throw new Error(error.message);
@@ -504,7 +504,7 @@ export async function getCompletedProjectPhases(
  * Project
  *   └── Phases
  *       ├── Deliverables
- *       │   └── Steps
+ *       │   └── Stages
  *       └── Milestones
  */
 export async function getProjectPhaseTree(
@@ -518,7 +518,7 @@ export async function getProjectPhaseTree(
             *,
             deliverables (
                 *,
-                steps (*)
+                Stages (*)
             ),
             milestones (*)
         `)
@@ -559,7 +559,7 @@ export async function getProjectProgress(
                 id,
                 status,
                 progress,
-                steps (
+                Stages (
                     id,
                     status
                 )
@@ -595,7 +595,7 @@ export async function getPhaseProgress(
                 id,
                 status,
                 progress,
-                steps (
+                Stages (
                     id,
                     status
                 )
@@ -626,7 +626,7 @@ export async function getPhaseStats(
             id,
             status,
             progress,
-            steps (
+            Stages (
                 id,
                 status
             )

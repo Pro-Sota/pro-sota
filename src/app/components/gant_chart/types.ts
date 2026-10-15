@@ -17,7 +17,7 @@ export type GanttPhase = {
   id: string;
   name: string;
   status: WorkStatus;
-  /** 0-100. When null, the chart derives it from the phase's steps and deliverables. */
+  /** 0-100. When null, the chart derives it from the phase's Stages and deliverables. */
   progress: number | null;
   plannedStart: string | null;
   plannedEnd: string | null;
@@ -26,7 +26,7 @@ export type GanttPhase = {
   sortOrder: number | null;
 };
 
-export type GanttStep = {
+export type GanttStage = {
   id: string;
   phaseId: string;
   name: string;
@@ -53,6 +53,6 @@ export type GanttDeliverable = {
 
 export type GanttData = {
   phases: GanttPhase[];
-  steps: GanttStep[];
+  Stages: GanttStage[];
   deliverables: GanttDeliverable[];
 };

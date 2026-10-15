@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { WorkStatus, GanttStep, GanttDeliverable, GanttData, GanttPhase } from "@/app/components/gant_chart/types";
+import { WorkStatus, GanttStage, GanttDeliverable, GanttData, GanttPhase } from "@/app/components/gant_chart/types";
 import { createClient } from "@/app/lib/supabase/server";
 import { cookies } from "next/headers";
 
@@ -10,8 +10,8 @@ import { cookies } from "next/headers";
 
 type NumericValue = number | string | null;
 
-type StepRow = {
-    step_id: string;
+type StageRow = {
+    stage_id: string;
     name: string;
     status: string | null;
     progress: NumericValue;
@@ -42,13 +42,13 @@ type PhaseRow = {
     actual_start: string | null;
     actual_end: string | null;
     sort_order: NumericValue;
-    phase_steps: StepRow[] | null;
+    phase_stages: StageRow[] | null;
     deliverables: DeliverableRow[] | null;
 };
 
 /**
- * One request: phases with their steps and deliverables embedded through the
- * foreign keys (phase_steps.phase_id and deliverables.phase_id).
+ * One request: phases with their Stages and deliverables embedded through the
+ * foreign keys (phase_stages.phase_id and deliverables.phase_id).
  */
 const PHASES_WITH_ITEMS_SELECT = `
   phase_id,
@@ -60,8 +60,8 @@ const PHASES_WITH_ITEMS_SELECT = `
   actual_start,
   actual_end,
   sort_order,
-  phase_steps (
-    step_id,
+  phase_Stages (
+    stage_id,
     name,
     status,
     progress,
@@ -151,9 +151,9 @@ function mapPhase(row: PhaseRow): GanttPhase {
     };
 }
 
-function mapStep(row: StepRow, phaseId: string): GanttStep {
+function mapStage(row: StageRow, phaseId: string): GanttStage {
     return {
-        id: row.step_id,
+        id: row.stage_id,
         phaseId,
         name: row.name,
         status: toWorkStatus(row.status),
@@ -210,14 +210,14 @@ export async function getProjectGanttData(
     const rows = (data ?? []) as unknown as PhaseRow[];
 
     const phases: GanttPhase[] = [];
-    const steps: GanttStep[] = [];
+    const Stages: GanttStage[] = [];
     const deliverables: GanttDeliverable[] = [];
 
     for (const row of rows) {
         phases.push(mapPhase(row));
 
-        for (const step of row.phase_steps ?? []) {
-            steps.push(mapStep(step, row.phase_id));
+        for (const Stage of row.phase_stages ?? []) {
+            Stages.push(mapStage(Stage, row.phase_id));
         }
 
         for (const deliverable of row.deliverables ?? []) {
@@ -225,5 +225,5 @@ export async function getProjectGanttData(
         }
     }
 
-    return { phases, steps, deliverables };
+    return { phases, Stages, deliverables };
 }

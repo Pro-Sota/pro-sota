@@ -25,7 +25,6 @@ export const INITIAL_PROJECT: ProjectFormState = {
   description: "",
   end_date: null,
   estimated_cost: null,
-  location: null,
   project_code: "",
   start_date: null,
   title: "",

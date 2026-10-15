@@ -465,7 +465,6 @@ export default function ResourceMovementModal({
                   id="movement-quantity"
                   type="number"
                   min="0"
-                  step="0.001"
                   value={quantity}
                   onChange={(event) =>
                     setQuantity(

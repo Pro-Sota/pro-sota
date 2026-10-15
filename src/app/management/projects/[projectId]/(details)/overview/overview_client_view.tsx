@@ -198,7 +198,7 @@ function ScheduleSection({ data }: { data: OverviewData }) {
     progress: Math.max(0, Math.min(100, phase.progress ?? 0)),
   }));
 
-  const chartSteps = data.tasks.map((task) => ({
+  const chartStages = data.tasks.map((task) => ({
     id: task.id,
     name: task.name,
     phaseId: task.phaseId,
@@ -218,7 +218,7 @@ function ScheduleSection({ data }: { data: OverviewData }) {
       {chartPhases.length > 0 ? (
         <GanttChart
           phases={chartPhases}
-          steps={chartSteps}
+          Stages={chartStages}
           deliverables={[]}
         />
       ) : (

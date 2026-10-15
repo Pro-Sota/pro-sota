@@ -21,7 +21,7 @@ export type ProvisioningResult = {
     conversation_id: string;
     task_columns_created: number;
     phases_created: number;
-    phase_steps_created: number;
+    phase_stages_created: number;
     tasks_created: number;
     deliverables_created: number;
     milestones_created: number;

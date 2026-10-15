@@ -11,13 +11,13 @@ export default async function PhasesPage({
 }) {
   const { projectId } = await params;
 
-  const { phases, steps, deliverables } =
+  const { phases, Stages, deliverables } =
     await getProjectPhaseBoard(projectId);
 
   return (
     <PhasesPageInner
       phases={phases}
-      steps={steps}
+      Stages={Stages}
       deliverables={deliverables}
       ganttMilestones={[]}
     />

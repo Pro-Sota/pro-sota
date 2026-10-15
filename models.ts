@@ -475,6 +475,7 @@ export type Database = {
           phase_id: string
           progress: number
           sort_order: number
+          stage_id: string | null
           start_date: string | null
           status: string
           title: string
@@ -489,6 +490,7 @@ export type Database = {
           phase_id: string
           progress?: number
           sort_order?: number
+          stage_id?: string | null
           start_date?: string | null
           status?: string
           title: string
@@ -503,6 +505,7 @@ export type Database = {
           phase_id?: string
           progress?: number
           sort_order?: number
+          stage_id?: string | null
           start_date?: string | null
           status?: string
           title?: string
@@ -515,6 +518,55 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "project_phases"
             referencedColumns: ["phase_id"]
+          },
+          {
+            foreignKeyName: "deliverables_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "phase_stages"
+            referencedColumns: ["stage_id"]
+          },
+        ]
+      }
+      document_versions: {
+        Row: {
+          created_at: string
+          document_id: string
+          file_path: string
+          uploaded_by: string | null
+          version_id: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          file_path: string
+          uploaded_by?: string | null
+          version_id?: string
+          version_number: number
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          file_path?: string
+          uploaded_by?: string | null
+          version_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["document_id"]
+          },
+          {
+            foreignKeyName: "document_versions_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -876,7 +928,7 @@ export type Database = {
         }
         Relationships: []
       }
-      phase_steps: {
+      phase_stages: {
         Row: {
           actual_end: string | null
           actual_start: string | null
@@ -887,9 +939,9 @@ export type Database = {
           planned_end: string | null
           planned_start: string | null
           progress: number | null
-          sort_order: number | null
+          sort_order: number
+          stage_id: string
           status: string
-          step_id: string
           updated_at: string
         }
         Insert: {
@@ -902,9 +954,9 @@ export type Database = {
           planned_end?: string | null
           planned_start?: string | null
           progress?: number | null
-          sort_order?: number | null
+          sort_order?: number
+          stage_id?: string
           status?: string
-          step_id?: string
           updated_at?: string
         }
         Update: {
@@ -917,14 +969,14 @@ export type Database = {
           planned_end?: string | null
           planned_start?: string | null
           progress?: number | null
-          sort_order?: number | null
+          sort_order?: number
+          stage_id?: string
           status?: string
-          step_id?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "steps_phase_id_fkey"
+            foreignKeyName: "phase_stages_phase_id_fkey"
             columns: ["phase_id"]
             isOneToOne: false
             referencedRelation: "project_phases"
@@ -1237,12 +1289,12 @@ export type Database = {
           estimated_cost: number | null
           image: string | null
           latitude: number | null
-          location: string | null
           longitude: number | null
           municipality: string
           project_code: string
           project_id: string
           province: string | null
+          reference_point: string | null
           start_date: string | null
           state_province: string | null
           status: string | null
@@ -1265,12 +1317,12 @@ export type Database = {
           estimated_cost?: number | null
           image?: string | null
           latitude?: number | null
-          location?: string | null
           longitude?: number | null
           municipality: string
           project_code: string
           project_id?: string
           province?: string | null
+          reference_point?: string | null
           start_date?: string | null
           state_province?: string | null
           status?: string | null
@@ -1293,12 +1345,12 @@ export type Database = {
           estimated_cost?: number | null
           image?: string | null
           latitude?: number | null
-          location?: string | null
           longitude?: number | null
           municipality?: string
           project_code?: string
           project_id?: string
           province?: string | null
+          reference_point?: string | null
           start_date?: string | null
           state_province?: string | null
           status?: string | null
@@ -1968,62 +2020,6 @@ export type Database = {
           role_id?: number
         }
         Relationships: []
-      }
-      step_deliverables: {
-        Row: {
-          actual_end: string | null
-          actual_start: string | null
-          created_at: string
-          deliverable_id: string
-          description: string | null
-          name: string
-          planned_end: string | null
-          planned_start: string | null
-          progress: number | null
-          sort_order: number | null
-          status: string
-          step_id: string
-          updated_at: string
-        }
-        Insert: {
-          actual_end?: string | null
-          actual_start?: string | null
-          created_at?: string
-          deliverable_id?: string
-          description?: string | null
-          name: string
-          planned_end?: string | null
-          planned_start?: string | null
-          progress?: number | null
-          sort_order?: number | null
-          status?: string
-          step_id: string
-          updated_at?: string
-        }
-        Update: {
-          actual_end?: string | null
-          actual_start?: string | null
-          created_at?: string
-          deliverable_id?: string
-          description?: string | null
-          name?: string
-          planned_end?: string | null
-          planned_start?: string | null
-          progress?: number | null
-          sort_order?: number | null
-          status?: string
-          step_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "deliverables_step_id_fkey"
-            columns: ["step_id"]
-            isOneToOne: false
-            referencedRelation: "phase_steps"
-            referencedColumns: ["step_id"]
-          },
-        ]
       }
       submission_files: {
         Row: {

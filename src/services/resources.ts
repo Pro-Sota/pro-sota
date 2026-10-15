@@ -1089,47 +1089,57 @@ export async function getResourceLocations(): Promise<ResourceLocation[]> {
 export async function getRecentResourceMovements(
   limit = 10,
 ): Promise<ResourceMovement[]> {
-  const supabase =
-    await getSupabase();
+  const supabase = await getSupabase();
+
+  const safeLimit = Math.max(
+    1,
+    Math.min(100, Math.floor(limit)),
+  );
 
   const {
     data,
     error,
   } = await supabase
     .from("resource_movements")
-    .select(
-      `
-        movement_id,
-        resource_id,
-        movement_type,
-        quantity,
-        unit,
-        origin_location_id,
-        destination_location_id,
-        project_id,
-        profile_id,
-        movement_date,
-        notes,
-        created_by
-      `,
-    )
+    .select(`
+      movement_id,
+      resource_id,
+      movement_type,
+      quantity,
+      unit,
+      origin_location_id,
+      destination_location_id,
+      project_id,
+      profile_id,
+      movement_date,
+      notes,
+      created_by
+    `)
     .order("movement_date", {
       ascending: false,
     })
-    .limit(limit);
+    .limit(safeLimit);
 
   if (error) {
     console.error(
-      "getRecentResourceMovements error:",
-      {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      },
+      "[Resources] Failed to query resource_movements",
+      error,
     );
 
-    throw new Error(error.message);
+    console.error(
+      "[Resources] Error details",
+      JSON.stringify(
+        error,
+        Object.getOwnPropertyNames(error),
+        2,
+      ),
+    );
+
+    throw new Error(
+      `Não foi possível carregar as movimentações: ${
+        error.message || "Erro desconhecido do Supabase."
+      }`,
+    );
   }
 
   return enrichMovements(
