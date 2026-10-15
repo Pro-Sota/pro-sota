@@ -25,9 +25,15 @@ type DeliverableStatus =
   | "on_hold"
   | "cancelled";
 
+type StageOption = {
+  stage_id: string;
+  name: string;
+};
+
 type Props = {
   projectId: string;
   phaseId: string;
+  stages: StageOption[];
   deliverable?: Deliverable | null;
   onClose: () => void;
   onSaved?: () => void;
@@ -36,6 +42,7 @@ type Props = {
 type DeliverableFormState = {
   title: string;
   description: string;
+  stageId: string;
   status: DeliverableStatus;
   progress: string;
   startDate: string;
@@ -125,6 +132,7 @@ function getInitialFormState(
   return {
     title: deliverable?.title ?? "",
     description: deliverable?.description ?? "",
+    stageId: deliverable?.stage_id ?? "",
     status: normalizeStatus(deliverable?.status),
     progress: String(deliverable?.progress ?? 0),
     startDate: getDateInputValue(deliverable?.start_date),
@@ -148,6 +156,7 @@ function getErrorMessage(error: unknown): string {
 export function DeliverableModal({
   projectId,
   phaseId,
+  stages,
   deliverable = null,
   onClose,
   onSaved,
@@ -267,6 +276,7 @@ export function DeliverableModal({
         id: deliverable?.id,
         projectId,
         phaseId,
+        stageId: form.stageId || null,
         title,
         description: description || null,
         status: form.status,
@@ -405,6 +415,33 @@ export function DeliverableModal({
                 disabled={saving}
                 className={INPUT_CLASS}
               />
+            </div>
+
+            {/* Associated stage */}
+            <div>
+              <label htmlFor="deliverable-stage" className={LABEL_CLASS}>
+                Etapa associada
+              </label>
+              <select
+                id="deliverable-stage"
+                name="stage_id"
+                value={form.stageId}
+                onChange={(event) => updateField("stageId", event.target.value)}
+                disabled={saving || stages.length === 0}
+                className={`${INPUT_CLASS} bg-white`}
+              >
+                <option value="">Sem etapa associada</option>
+                {stages.map((stage) => (
+                  <option key={stage.stage_id} value={stage.stage_id}>
+                    {stage.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-gray-500">
+                {stages.length > 0
+                  ? "Seleccione a etapa desta fase a que o entregável pertence."
+                  : "Adicione uma etapa à fase para poder associar este entregável."}
+              </p>
             </div>
 
             {/* Description */}

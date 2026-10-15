@@ -20,6 +20,7 @@ export type SaveDeliverableInput = {
   id?: string;
   projectId: string;
   phaseId: string;
+  stageId:string | null;
   title: string;
   description: string | null;
   status:

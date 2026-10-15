@@ -19,7 +19,6 @@ export default async function PhasesPage({
       phases={phases}
       Stages={Stages}
       deliverables={deliverables}
-      ganttMilestones={[]}
     />
   );
 }

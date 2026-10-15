@@ -1,8 +1,15 @@
-
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+} from "lucide-react";
 import {
   MS_PER_DAY,
   addDays,
@@ -27,7 +34,7 @@ export type GanttPhase = {
   progress?: number | null;
 };
 
-export type GanttStage = {
+export type GanttStep = {
   id: string;
   name: string;
   phaseId: string;
@@ -47,25 +54,14 @@ export type GanttDeliverable = {
   sortOrder?: number | null;
 };
 
-export type GanttMilestoneType = "review" | "submission" | "deadline";
-
-export type GanttMilestone = {
-  id: string;
-  name: string;
-  date: string;
-  type: GanttMilestoneType;
-  phaseId?: string | null;
-};
-
 type GanttChartProps = {
   phases?: GanttPhase[] | null;
-  Stages?: GanttStage[] | null;
+  steps?: GanttStep[] | null;
   deliverables?: GanttDeliverable[] | null;
-  milestones?: GanttMilestone[] | null;
   startDate?: string | null;
 };
 
-type TimelineItemType = "Stage" | "deliverable";
+type TimelineItemType = "step" | "deliverable";
 
 type TimelineItem = {
   id: string;
@@ -79,8 +75,8 @@ type TimelineItem = {
 };
 
 type ScheduledTimelineItem = TimelineItem & {
-  start: Date;
-  end: Date;
+  start: Date | null;
+  end: Date | null;
   reversed: boolean;
 };
 
@@ -88,15 +84,11 @@ type ScheduledTimelineItem = TimelineItem & {
 /* Layout constants                                                            */
 /* -------------------------------------------------------------------------- */
 
-const ROW_HEIGHT = 56;
+const ROW_HEIGHT = 52;
 const MONTH_ROW_HEIGHT = 24;
 const DAY_ROW_HEIGHT = 20;
 const HEADER_HEIGHT = MONTH_ROW_HEIGHT + DAY_ROW_HEIGHT;
-const LABEL_WIDTH = 260;
-const MILESTONE_LABEL_ROW_HEIGHT = 18;
-const MILESTONE_LABEL_MAX_WIDTH = 140;
-const MILESTONE_LABEL_CHAR_WIDTH = 6;
-const MILESTONE_LABEL_PADDING = 16;
+const LABEL_WIDTH = 280;
 const MIN_TIMELINE_DAYS = 60;
 const START_BUFFER_DAYS = 3;
 const END_BUFFER_DAYS = 15;
@@ -105,6 +97,7 @@ const BAR_LABEL_MIN_WIDTH = 60;
 const AUTO_SCROLL_LEAD_PX = 120;
 
 const ZOOM_LEVELS = {
+  overview: { dayWidth: 8, label: "Visão geral" },
   compact: { dayWidth: 16, label: "Compacto" },
   comfortable: { dayWidth: 26, label: "Confortável" },
 } as const;
@@ -114,62 +107,41 @@ type ZoomLevel = keyof typeof ZOOM_LEVELS;
 const PHASE_PALETTE = [
   {
     bar: "bg-blue-500",
-    track: "bg-blue-200",
+    track: "bg-blue-100",
     border: "border-blue-600",
     dot: "bg-blue-500",
   },
   {
     bar: "bg-emerald-500",
-    track: "bg-emerald-200",
+    track: "bg-emerald-100",
     border: "border-emerald-600",
     dot: "bg-emerald-500",
   },
   {
     bar: "bg-purple-500",
-    track: "bg-purple-200",
+    track: "bg-purple-100",
     border: "border-purple-600",
     dot: "bg-purple-500",
   },
   {
     bar: "bg-amber-500",
-    track: "bg-amber-200",
+    track: "bg-amber-100",
     border: "border-amber-600",
     dot: "bg-amber-500",
   },
   {
     bar: "bg-cyan-500",
-    track: "bg-cyan-200",
+    track: "bg-cyan-100",
     border: "border-cyan-600",
     dot: "bg-cyan-500",
   },
   {
     bar: "bg-rose-500",
-    track: "bg-rose-200",
+    track: "bg-rose-100",
     border: "border-rose-600",
     dot: "bg-rose-500",
   },
 ] as const;
-
-const MILESTONE_COLORS: Record<
-  GanttMilestoneType,
-  { line: string; swatch: string; label: string }
-> = {
-  review: {
-    line: "bg-blue-400",
-    swatch: "bg-blue-400",
-    label: "Revisão",
-  },
-  submission: {
-    line: "bg-purple-400",
-    swatch: "bg-purple-400",
-    label: "Submissão",
-  },
-  deadline: {
-    line: "bg-red-400",
-    swatch: "bg-red-400",
-    label: "Prazo",
-  },
-};
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
@@ -180,18 +152,13 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
 
   return items.filter((item) => {
     const id = item.id?.trim();
-
     if (!id || seen.has(id)) return false;
-
     seen.add(id);
     return true;
   });
 }
 
-function reportDuplicateIds(
-  label: string,
-  items: { id: string }[],
-) {
+function reportDuplicateIds(label: string, items: { id: string }[]) {
   const seen = new Set<string>();
   const duplicates = new Set<string>();
 
@@ -208,11 +175,20 @@ function reportDuplicateIds(
   }
 
   if (duplicates.size > 0) {
-    console.warn(
-      `[GanttChart] IDs duplicados em ${label}:`,
-      [...duplicates],
-    );
+    console.warn(`[GanttChart] IDs duplicados em ${label}:`, [...duplicates]);
   }
+}
+
+function getStablePhaseColor(phaseId: string) {
+  let hash = 0;
+  for (let i = 0; i < phaseId.length; i++) {
+    hash = (hash * 31 + phaseId.charCodeAt(i)) | 0;
+  }
+  return PHASE_PALETTE[Math.abs(hash) % PHASE_PALETTE.length];
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -221,144 +197,138 @@ function reportDuplicateIds(
 
 export default function GanttChart({
   phases: phasesProp,
-  Stages: StagesProp,
+  steps: stepsProp,
   deliverables: deliverablesProp,
-  milestones: milestonesProp,
   startDate,
 }: GanttChartProps) {
-  const phases = useMemo(
-    () => uniqueById(phasesProp ?? []),
-    [phasesProp],
-  );
-
-  const Stages = useMemo(
-    () => uniqueById(StagesProp ?? []),
-    [StagesProp],
-  );
-
+  const phases = useMemo(() => uniqueById(phasesProp ?? []), [phasesProp]);
+  const steps = useMemo(() => uniqueById(stepsProp ?? []), [stepsProp]);
   const deliverables = useMemo(
     () => uniqueById(deliverablesProp ?? []),
     [deliverablesProp],
   );
 
-  const milestones = useMemo(
-    () => uniqueById(milestonesProp ?? []),
-    [milestonesProp],
-  );
-
-  const [zoom, setZoom] = useState<ZoomLevel>("comfortable");
-  const [collapsedPhases, setCollapsedPhases] = useState<
-    Record<string, boolean>
-  >({});
+  const [zoom, setZoom] = useState<ZoomLevel>("compact");
+  const [collapsedPhases, setCollapsedPhases] = useState<Record<string, boolean>>({});
+  const [today, setToday] = useState<Date>(() => startOfDay(new Date()));
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const didAutoScroll = useRef(false);
+  const previousZoom = useRef<ZoomLevel>(zoom);
 
   const dayWidth = ZOOM_LEVELS[zoom].dayWidth;
-  const today = useMemo(() => startOfDay(new Date()), []);
-
-  /* ------------------------------------------------------------------------ */
-  /* Diagnostics                                                              */
-  /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
-
     reportDuplicateIds("fases recebidas", phasesProp ?? []);
-    reportDuplicateIds("passos recebidos", StagesProp ?? []);
+    reportDuplicateIds("passos recebidos", stepsProp ?? []);
     reportDuplicateIds("entregáveis recebidos", deliverablesProp ?? []);
-    reportDuplicateIds("marcos recebidos", milestonesProp ?? []);
-  }, [phasesProp, StagesProp, deliverablesProp, milestonesProp]);
+  }, [phasesProp, stepsProp, deliverablesProp]);
 
-  /* ------------------------------------------------------------------------ */
-  /* Normalize timeline items                                                 */
-  /* ------------------------------------------------------------------------ */
+  // Refresh "today" at local midnight, including when a tab is left open overnight.
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const scheduleMidnightRefresh = () => {
+      if (timeout) clearTimeout(timeout);
+      const now = new Date();
+      const nextMidnight = new Date(now);
+      nextMidnight.setHours(24, 0, 1, 0);
+
+      timeout = setTimeout(() => {
+        setToday(startOfDay(new Date()));
+        scheduleMidnightRefresh();
+      }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+    };
+
+    scheduleMidnightRefresh();
+    const refreshOnFocus = () => setToday(startOfDay(new Date()));
+    window.addEventListener("focus", refreshOnFocus);
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, []);
 
   const timelineItems = useMemo<TimelineItem[]>(
     () => [
-      ...Stages.map((Stage) => ({
-        ...Stage,
-        kind: "Stage" as const,
-      })),
+      ...steps.map((step) => ({ ...step, kind: "step" as const })),
       ...deliverables.map((deliverable) => ({
         ...deliverable,
         kind: "deliverable" as const,
       })),
     ],
-    [Stages, deliverables],
+    [steps, deliverables],
   );
-
-  /* ------------------------------------------------------------------------ */
-  /* Phases, scheduled items, and data-quality counters                       */
-  /* ------------------------------------------------------------------------ */
 
   const { phaseGroups, unscheduledCount, orphanCount } = useMemo(() => {
     const sortedPhases = [...phases].sort(
       (a, b) =>
         (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
-        a.name.localeCompare(b.name, "pt"),
+        a.name.localeCompare(b.name, "pt") ||
+        a.id.localeCompare(b.id),
     );
 
     const phaseIds = new Set(sortedPhases.map((phase) => phase.id));
     const byPhase = new Map<string, ScheduledTimelineItem[]>();
-
     let unscheduled = 0;
     let orphans = 0;
 
     for (const item of timelineItems) {
-      if (!phaseIds.has(item.phaseId)) {
-        orphans += 1;
-        continue;
-      }
-
       const parsedStart = parseDate(item.startDate);
       const parsedEnd = parseDate(item.endDate);
+      const hasValidDates = Boolean(parsedStart && parsedEnd);
+      const reversed = hasValidDates && parsedStart!.getTime() > parsedEnd!.getTime();
 
-      if (!parsedStart || !parsedEnd) {
-        unscheduled += 1;
-        continue;
-      }
-
-      const reversed = parsedStart.getTime() > parsedEnd.getTime();
-
+      // Keep unscheduled records visible in their phase; only omit their bar.
       const scheduled: ScheduledTimelineItem = {
         ...item,
-        start: reversed ? parsedEnd : parsedStart,
-        end: reversed ? parsedStart : parsedEnd,
+        start: hasValidDates
+          ? (reversed ? parsedEnd : parsedStart)
+          : null,
+        end: hasValidDates
+          ? (reversed ? parsedStart : parsedEnd)
+          : null,
         reversed,
       };
 
-      const existing = byPhase.get(item.phaseId);
+      if (!hasValidDates) unscheduled++;
 
-      if (existing) {
-        existing.push(scheduled);
-      } else {
-        byPhase.set(item.phaseId, [scheduled]);
-      }
+      const targetPhaseId = phaseIds.has(item.phaseId)
+        ? item.phaseId
+        : "__gantt_unassigned__";
+
+      if (targetPhaseId === "__gantt_unassigned__") orphans++;
+
+      const existing = byPhase.get(targetPhaseId);
+      if (existing) existing.push(scheduled);
+      else byPhase.set(targetPhaseId, [scheduled]);
     }
 
-    const groups = sortedPhases.map((phase, index) => {
+    const groups = sortedPhases.map((phase) => {
       const items = (byPhase.get(phase.id) ?? []).sort(
         (a, b) =>
-          a.start.getTime() - b.start.getTime() ||
+          (a.start?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+            (b.start?.getTime() ?? Number.MAX_SAFE_INTEGER) ||
           (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
           a.name.localeCompare(b.name, "pt") ||
           a.id.localeCompare(b.id),
       );
 
-      let weightedProgress = 0;
-      let totalWeight = 0;
-
-      for (const item of items) {
-        const weight = Math.max(
-          1,
-          differenceInDays(item.start, item.end) + 1,
-        );
-
-        weightedProgress += clampProgress(item.progress) * weight;
-        totalWeight += weight;
-      }
-
+      const scheduledItems = items.filter(
+        (item): item is ScheduledTimelineItem & { start: Date; end: Date } =>
+          Boolean(item.start && item.end),
+      );
+      const weightedProgress = scheduledItems.reduce((total, item) => {
+        const weight = Math.max(1, differenceInDays(item.start, item.end) + 1);
+        return total + clampProgress(item.progress) * weight;
+      }, 0);
+      const totalWeight = scheduledItems.reduce(
+        (total, item) =>
+          total + Math.max(1, differenceInDays(item.start, item.end) + 1),
+        0,
+      );
       const calculatedProgress =
         totalWeight > 0
           ? Math.round(weightedProgress / totalWeight)
@@ -367,10 +337,34 @@ export default function GanttChart({
       return {
         ...phase,
         items,
-        avgProgress: calculatedProgress,
-        color: PHASE_PALETTE[index % PHASE_PALETTE.length],
+        avgProgress:
+          phase.progress != null
+            ? clampProgress(phase.progress)
+            : calculatedProgress,
+        color: getStablePhaseColor(phase.id),
       };
     });
+
+    const orphanItems = (byPhase.get("__gantt_unassigned__") ?? []).sort(
+      (a, b) =>
+        (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+        a.name.localeCompare(b.name, "pt") ||
+        a.id.localeCompare(b.id),
+    );
+
+    if (orphanItems.length > 0) {
+      groups.push({
+        id: "__gantt_unassigned__",
+        name: "Sem fase associada",
+        sortOrder: Number.MAX_SAFE_INTEGER,
+        startDate: null,
+        endDate: null,
+        progress: 0,
+        items: orphanItems,
+        avgProgress: 0,
+        color: getStablePhaseColor("__gantt_unassigned__"),
+      });
+    }
 
     return {
       phaseGroups: groups,
@@ -379,99 +373,53 @@ export default function GanttChart({
     };
   }, [phases, timelineItems]);
 
-  /* ------------------------------------------------------------------------ */
-  /* Milestones                                                               */
-  /* ------------------------------------------------------------------------ */
-
-  const validMilestones = useMemo(
-    () =>
-      milestones
-        .flatMap((milestone) => {
-          const date = parseDate(milestone.date);
-
-          if (!date) return [];
-
-          return [{ ...milestone, dateObj: date }];
-        })
-        .sort(
-          (a, b) =>
-            a.dateObj.getTime() - b.dateObj.getTime() ||
-            a.id.localeCompare(b.id),
-        ),
-    [milestones],
-  );
-
-  /* ------------------------------------------------------------------------ */
-  /* Timeline range                                                           */
-  /* ------------------------------------------------------------------------ */
-
   const { timelineStart, totalDays } = useMemo(() => {
     let min = Infinity;
     let max = -Infinity;
 
     const include = (date: Date | null) => {
-      if (!date) return;
-
+      if (!date || Number.isNaN(date.getTime())) return;
       const time = date.getTime();
-
       min = Math.min(min, time);
       max = Math.max(max, time);
     };
 
-    // Include phase dates even when the phase has no scheduled items.
     for (const phase of phaseGroups) {
       include(parseDate(phase.startDate));
       include(parseDate(phase.endDate));
-
       for (const item of phase.items) {
         include(item.start);
         include(item.end);
       }
     }
-
-    for (const milestone of validMilestones) {
-      include(milestone.dateObj);
-    }
-
     include(parseDate(startDate));
 
     const todayTime = today.getTime();
-
     if (min === Infinity) {
       min = todayTime;
       max = todayTime;
     } else {
       const padding = TODAY_RANGE_PADDING_DAYS * MS_PER_DAY;
-
-      if (
-        todayTime >= min - padding &&
-        todayTime <= max + padding
-      ) {
+      if (todayTime >= min - padding && todayTime <= max + padding) {
         min = Math.min(min, todayTime);
         max = Math.max(max, todayTime);
       }
     }
 
-    const earliest = addDays(new Date(min), -START_BUFFER_DAYS);
-    const span = differenceInDays(earliest, new Date(max));
+    const earliest = addDays(startOfDay(new Date(min)), -START_BUFFER_DAYS);
+    const latest = startOfDay(new Date(max));
+    const span = differenceInDays(earliest, latest);
 
     return {
       timelineStart: earliest,
-      totalDays: Math.max(
-        MIN_TIMELINE_DAYS,
-        span + END_BUFFER_DAYS + 1,
-      ),
+      totalDays: Math.max(MIN_TIMELINE_DAYS, span + END_BUFFER_DAYS + 1),
     };
-  }, [phaseGroups, validMilestones, startDate, today]);
+  }, [phaseGroups, startDate, today]);
 
   const timelineWidth = totalDays * dayWidth;
   const todayOffset = differenceInDays(timelineStart, today);
   const todayVisible = todayOffset >= 0 && todayOffset < totalDays;
   const todayPosition = todayOffset * dayWidth + dayWidth / 2;
-
-  /* ------------------------------------------------------------------------ */
-  /* Header: months, days, milestone labels                                   */
-  /* ------------------------------------------------------------------------ */
 
   const { monthSegments, dayCells } = useMemo(() => {
     const segments: { key: string; label: string; days: number }[] = [];
@@ -482,9 +430,8 @@ export default function GanttChart({
       const label = formatMonthLabel(date);
       const last = segments[segments.length - 1];
 
-      if (last && last.label === label) {
-        last.days += 1;
-      } else {
+      if (last && last.label === label) last.days++;
+      else {
         segments.push({
           key: `${date.getFullYear()}-${date.getMonth()}`,
           label,
@@ -502,41 +449,7 @@ export default function GanttChart({
     return { monthSegments: segments, dayCells: cells };
   }, [timelineStart, totalDays, todayOffset]);
 
-  const milestoneRows = useMemo(() => {
-    const rowEnds: number[] = [];
-
-    return validMilestones.map((milestone) => {
-      const day = differenceInDays(timelineStart, milestone.dateObj);
-      const left = day * dayWidth;
-
-      const width = Math.min(
-        MILESTONE_LABEL_MAX_WIDTH,
-        milestone.name.length * MILESTONE_LABEL_CHAR_WIDTH +
-          MILESTONE_LABEL_PADDING,
-      );
-
-      let row = 0;
-
-      while (rowEnds[row] !== undefined && left < rowEnds[row]) {
-        row++;
-      }
-
-      rowEnds[row] = left + width + 8;
-
-      return { ...milestone, row, left };
-    });
-  }, [validMilestones, timelineStart, dayWidth]);
-
-  const milestoneRowCount = milestoneRows.length
-    ? Math.max(...milestoneRows.map((milestone) => milestone.row)) + 1
-    : 1;
-
-  const fullHeaderHeight =
-    HEADER_HEIGHT + milestoneRowCount * MILESTONE_LABEL_ROW_HEIGHT;
-
-  /* ------------------------------------------------------------------------ */
-  /* Background grid                                                          */
-  /* ------------------------------------------------------------------------ */
+  const fullHeaderHeight = HEADER_HEIGHT;
 
   const gridStyle = useMemo(() => {
     const firstSaturday = (6 - timelineStart.getDay() + 7) % 7;
@@ -554,41 +467,69 @@ export default function GanttChart({
     };
   }, [timelineStart, dayWidth]);
 
-  /* ------------------------------------------------------------------------ */
-  /* Auto-scroll to today                                                     */
-  /* ------------------------------------------------------------------------ */
+  const hasPhases = phases.length > 0 || timelineItems.length > 0;
 
-  const hasPhases = phases.length > 0;
+  const scrollToToday = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element || !todayVisible) return;
+    element.scrollLeft = clampNumber(
+      todayPosition - AUTO_SCROLL_LEAD_PX,
+      0,
+      Math.max(0, element.scrollWidth - element.clientWidth),
+    );
+  }, [todayVisible, todayPosition]);
+
+  const fitTimeline = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+
+    const availableWidth = Math.max(1, element.clientWidth - LABEL_WIDTH);
+    const idealWidth = availableWidth / totalDays;
+    const nextLevel: ZoomLevel =
+      idealWidth >= ZOOM_LEVELS.comfortable.dayWidth
+        ? "comfortable"
+        : idealWidth >= ZOOM_LEVELS.compact.dayWidth
+          ? "compact"
+          : "overview";
+
+    setZoom(nextLevel);
+    element.scrollLeft = 0;
+  }, [totalDays]);
 
   useEffect(() => {
-    if (
-      didAutoScroll.current ||
-      !hasPhases ||
-      !scrollRef.current
-    ) {
-      return;
-    }
-
+    if (!hasPhases || !scrollRef.current || didAutoScroll.current) return;
     didAutoScroll.current = true;
+    requestAnimationFrame(scrollToToday);
+  }, [hasPhases, scrollToToday]);
 
-    if (todayVisible) {
-      scrollRef.current.scrollLeft = Math.max(
-        0,
-        todayPosition - AUTO_SCROLL_LEAD_PX,
-      );
+  // Keep the approximate date under the viewport stable when zooming.
+  useEffect(() => {
+    if (previousZoom.current === zoom) return;
+    const element = scrollRef.current;
+    if (element) {
+      const oldWidth = ZOOM_LEVELS[previousZoom.current].dayWidth;
+      const newWidth = ZOOM_LEVELS[zoom].dayWidth;
+      const timelineViewportX = Math.max(0, element.scrollLeft);
+      const dayAtViewport = timelineViewportX / oldWidth;
+      element.scrollLeft = dayAtViewport * newWidth;
     }
-  }, [hasPhases, todayVisible, todayPosition]);
+    previousZoom.current = zoom;
+  }, [zoom]);
 
-  function togglePhase(phaseId: string) {
+  const togglePhase = useCallback((phaseId: string) => {
     setCollapsedPhases((previous) => ({
       ...previous,
       [phaseId]: !previous[phaseId],
     }));
-  }
+  }, []);
 
-  /* ------------------------------------------------------------------------ */
-  /* Empty state                                                              */
-  /* ------------------------------------------------------------------------ */
+  const collapseAll = useCallback(() => {
+    setCollapsedPhases(
+      Object.fromEntries(phaseGroups.map((phase) => [phase.id, true])),
+    );
+  }, [phaseGroups]);
+
+  const expandAll = useCallback(() => setCollapsedPhases({}), []);
 
   if (!hasPhases) {
     return (
@@ -596,7 +537,6 @@ export default function GanttChart({
         <p className="text-sm font-medium text-slate-700">
           Ainda não existem fases para apresentar.
         </p>
-
         <p className="mt-1 text-sm text-slate-500">
           Adicione fases ao projecto para visualizar o cronograma.
         </p>
@@ -606,92 +546,103 @@ export default function GanttChart({
 
   const totalWidth = LABEL_WIDTH + timelineWidth;
   const hasNotices = unscheduledCount > 0 || orphanCount > 0;
+  const allCollapsed = phaseGroups.every((phase) => collapsedPhases[phase.id]);
 
   return (
     <div className="w-full space-y-3 py-4 text-gray-700">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-          {(Object.keys(MILESTONE_COLORS) as GanttMilestoneType[]).map(
-            (type) => (
-              <li key={type} className="flex items-center gap-1.5">
-                <span
-                  className={`h-3 w-[2px] ${MILESTONE_COLORS[type].swatch}`}
-                />
-                {MILESTONE_COLORS[type].label}
-              </li>
-            ),
-          )}
+        <div className="flex items-center gap-1.5 text-xs text-slate-600">
+          <span className="h-3 w-[2px] bg-red-500" aria-hidden="true" />
+          Hoje
+        </div>
 
-          <li className="flex items-center gap-1.5">
-            <span className="h-3 w-[2px] bg-red-500" />
-            Hoje
-          </li>
-        </ul>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-0.5 rounded-md border border-slate-200 p-0.5">
+            <button
+              type="button"
+              onClick={allCollapsed ? expandAll : collapseAll}
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+              title={allCollapsed ? "Expandir todas as fases" : "Recolher todas as fases"}
+            >
+              {allCollapsed ? (
+                <ChevronsUpDown className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <ChevronsDownUp className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              {allCollapsed ? "Expandir tudo" : "Recolher tudo"}
+            </button>
+            <button
+              type="button"
+              onClick={fitTimeline}
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+              title="Ajustar o cronograma à largura disponível"
+            >
+              <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+              Ajustar
+            </button>
+            <button
+              type="button"
+              onClick={scrollToToday}
+              className="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+            >
+              Hoje
+            </button>
+          </div>
 
-        <div
-          role="group"
-          aria-label="Zoom do cronograma"
-          className="flex items-center gap-0.5 rounded-md border border-slate-200 p-0.5"
-        >
-          {(Object.keys(ZOOM_LEVELS) as ZoomLevel[]).map((level) => {
-            const Icon = level === "compact" ? ZoomOut : ZoomIn;
-            const active = zoom === level;
-
-            return (
-              <button
-                key={level}
-                type="button"
-                onClick={() => setZoom(level)}
-                aria-pressed={active}
-                className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
-                  active
-                    ? "bg-slate-100 font-medium text-slate-900"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                {ZOOM_LEVELS[level].label}
-              </button>
-            );
-          })}
+          <div
+            role="group"
+            aria-label="Zoom do cronograma"
+            className="flex items-center gap-0.5 rounded-md border border-slate-200 p-0.5"
+          >
+            {(Object.keys(ZOOM_LEVELS) as ZoomLevel[]).map((level) => {
+              const Icon = level === "comfortable" ? ZoomIn : ZoomOut;
+              const active = zoom === level;
+              return (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setZoom(level)}
+                  aria-pressed={active}
+                  className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
+                    active
+                      ? "bg-slate-100 font-medium text-slate-900"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {ZOOM_LEVELS[level].label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Chart */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div
-          ref={scrollRef}
-          className="relative max-h-[520px] overflow-auto"
-        >
+        <div ref={scrollRef} className="relative max-h-[560px] overflow-auto">
           <div style={{ width: totalWidth }}>
             {/* Sticky header */}
             <div
               className="sticky top-0 z-30 flex border-b border-slate-200 bg-white"
-              style={{
-                height: fullHeaderHeight,
-                width: totalWidth,
-              }}
+              style={{ height: fullHeaderHeight, width: totalWidth }}
             >
               <div
                 className="sticky left-0 z-40 flex shrink-0 items-center border-r border-slate-200 bg-white px-3 shadow-[2px_0_4px_rgba(0,0,0,0.06)]"
                 style={{ width: LABEL_WIDTH }}
               >
-                <span className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                   Fases, passos e entregáveis
                 </span>
               </div>
 
               <div className="shrink-0" style={{ width: timelineWidth }}>
-                {/* Months */}
-                <div
-                  className="flex border-b border-slate-200"
-                  style={{ height: MONTH_ROW_HEIGHT }}
-                >
+                <div className="flex border-b border-slate-200" style={{ height: MONTH_ROW_HEIGHT }}>
                   {monthSegments.map((segment) => (
                     <div
                       key={segment.key}
-                      className="flex items-center justify-center overflow-hidden whitespace-nowrap border-r border-slate-100 text-xs"
+                      className="flex items-center justify-center overflow-hidden whitespace-nowrap border-r border-slate-100 text-xs text-slate-600"
                       style={{ width: segment.days * dayWidth }}
                     >
                       {segment.label}
@@ -699,11 +650,7 @@ export default function GanttChart({
                   ))}
                 </div>
 
-                {/* Days */}
-                <div
-                  className="flex border-b border-slate-200"
-                  style={{ height: DAY_ROW_HEIGHT }}
-                >
+                <div className="flex border-b border-slate-200" style={{ height: DAY_ROW_HEIGHT }}>
                   {dayCells.map((cell) => (
                     <div
                       key={cell.key}
@@ -720,56 +667,16 @@ export default function GanttChart({
                   ))}
                 </div>
 
-                {/* Milestone labels */}
-                <div
-                  className="relative"
-                  style={{
-                    height:
-                      milestoneRowCount * MILESTONE_LABEL_ROW_HEIGHT,
-                  }}
-                >
-                  {milestoneRows.map((milestone) => (
-                    <span
-                      key={milestone.id}
-                      className="absolute block truncate rounded border border-slate-200 bg-white px-1 text-[10px] leading-4 text-slate-600"
-                      style={{
-                        left: milestone.left + 2,
-                        top: milestone.row * MILESTONE_LABEL_ROW_HEIGHT,
-                        maxWidth: MILESTONE_LABEL_MAX_WIDTH,
-                      }}
-                      title={`${milestone.name} — ${formatDate(
-                        milestone.dateObj,
-                      )} (${MILESTONE_COLORS[milestone.type].label})`}
-                    >
-                      {milestone.name}
-                    </span>
-                  ))}
-                </div>
               </div>
             </div>
 
             {/* Body */}
             <div className="relative" style={{ width: totalWidth }}>
-              {/* Timeline background */}
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute bottom-0 top-0 z-0"
-                style={{
-                  left: LABEL_WIDTH,
-                  width: timelineWidth,
-                  ...gridStyle,
-                }}
+                style={{ left: LABEL_WIDTH, width: timelineWidth, ...gridStyle }}
               >
-                {milestoneRows.map((milestone) => (
-                  <div
-                    key={milestone.id}
-                    className={`absolute bottom-0 top-0 w-[2px] ${
-                      MILESTONE_COLORS[milestone.type].line
-                    }`}
-                    style={{ left: milestone.left }}
-                  />
-                ))}
-
                 {todayVisible && (
                   <div
                     className="absolute bottom-0 top-0 w-[2px] bg-red-500"
@@ -778,17 +685,12 @@ export default function GanttChart({
                 )}
               </div>
 
-              {/* Phase groups */}
               {phaseGroups.map((group) => {
                 const collapsed = !!collapsedPhases[group.id];
-
                 return (
                   <div key={group.id} className="relative z-10">
                     {/* Phase row */}
-                    <div
-                      className="flex"
-                      style={{ height: ROW_HEIGHT, width: totalWidth }}
-                    >
+                    <div className="flex" style={{ height: ROW_HEIGHT, width: totalWidth }}>
                       <button
                         type="button"
                         onClick={() => togglePhase(group.id)}
@@ -797,104 +699,77 @@ export default function GanttChart({
                         style={{ width: LABEL_WIDTH }}
                       >
                         {collapsed ? (
-                          <ChevronRight
-                            className="h-3.5 w-3.5 shrink-0 text-slate-400"
-                            aria-hidden="true"
-                          />
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
                         ) : (
-                          <ChevronDown
-                            className="h-3.5 w-3.5 shrink-0 text-slate-400"
-                            aria-hidden="true"
-                          />
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
                         )}
-
-                        <span
-                          className={`h-2 w-2 shrink-0 rounded-sm ${group.color.dot}`}
-                        />
-
-                        <span className="truncate text-sm font-medium text-slate-700">
-                          {group.name}
-                        </span>
-
-                        <span className="ml-auto shrink-0 text-xs text-slate-400">
-                          {group.avgProgress}%
-                        </span>
+                        <span className={`h-2 w-2 shrink-0 rounded-sm ${group.color.dot}`} />
+                        <span className="truncate text-sm font-semibold text-slate-700">{group.name}</span>
+                        <span className="ml-auto shrink-0 text-xs tabular-nums text-slate-500">{group.avgProgress}%</span>
                       </button>
 
-                      {/* Phase date range, when supplied */}
-                      <div
-                        className="relative shrink-0 border-b border-slate-200"
-                        style={{ width: timelineWidth }}
-                      >
+                      <div className="relative shrink-0 border-b border-slate-200" style={{ width: timelineWidth }}>
                         {(() => {
                           const phaseStart = parseDate(group.startDate);
                           const phaseEnd = parseDate(group.endDate);
-
                           if (!phaseStart || !phaseEnd) return null;
 
-                          const reversed =
-                            phaseStart.getTime() > phaseEnd.getTime();
-
-                          const start = reversed ? phaseEnd : phaseStart;
-                          const end = reversed ? phaseStart : phaseEnd;
-                          const duration = Math.max(
-                            1,
-                            differenceInDays(start, end) + 1,
+                          const start = startOfDay(
+                            phaseStart.getTime() > phaseEnd.getTime() ? phaseEnd : phaseStart,
                           );
-                          const left =
-                            differenceInDays(timelineStart, start) *
-                            dayWidth;
+                          const end = startOfDay(
+                            phaseStart.getTime() > phaseEnd.getTime() ? phaseStart : phaseEnd,
+                          );
+                          const startDay = differenceInDays(timelineStart, start);
+                          const endDay = differenceInDays(timelineStart, end);
+                          if (endDay < 0 || startDay >= totalDays) return null;
+
+                          const visibleStart = clampNumber(startDay, 0, totalDays - 1);
+                          const visibleEnd = clampNumber(endDay, 0, totalDays - 1);
+                          const left = visibleStart * dayWidth;
+                          const width = Math.max(dayWidth, (visibleEnd - visibleStart + 1) * dayWidth);
+                          const reversed = phaseStart.getTime() > phaseEnd.getTime();
 
                           return (
                             <div
-                              title={`${group.name}: ${formatDate(start)} – ${formatDate(end)}`}
-                              className={`absolute top-1/2 h-3 -translate-y-1/2 rounded-sm border ${
-                                group.color.track
-                              } ${
-                                reversed
-                                  ? "border-dashed border-red-500"
-                                  : group.color.border
+                              title={`${group.name}: ${formatDate(start)} – ${formatDate(end)}${reversed ? " (datas invertidas)" : ""}`}
+                              className={`absolute top-1/2 h-3 -translate-y-1/2 rounded-sm border ${group.color.track} ${
+                                reversed ? "border-dashed border-red-500" : group.color.border
                               }`}
-                              style={{
-                                left,
-                                width: Math.max(duration * dayWidth, 4),
-                              }}
+                              style={{ left, width }}
                             />
                           );
                         })()}
                       </div>
                     </div>
 
-                    {/* Stage and deliverable rows */}
+                    {/* Step and deliverable rows */}
                     {!collapsed &&
                       group.items.map((item) => {
                         const progress = clampProgress(item.progress);
+                        const isScheduled = Boolean(item.start && item.end);
+                        const startDay = isScheduled
+                          ? differenceInDays(timelineStart, item.start!)
+                          : 0;
+                        const endDay = isScheduled
+                          ? differenceInDays(timelineStart, item.end!)
+                          : 0;
+                        if (isScheduled && (endDay < 0 || startDay >= totalDays)) return null;
 
-                        const duration = Math.max(
-                          1,
-                          differenceInDays(item.start, item.end) + 1,
+                        const visibleStart = clampNumber(startDay, 0, totalDays - 1);
+                        const visibleEnd = clampNumber(endDay, 0, totalDays - 1);
+                        const barLeft = visibleStart * dayWidth;
+                        const barWidth = Math.max(dayWidth, (visibleEnd - visibleStart + 1) * dayWidth);
+                        const range = isScheduled
+                          ? `${formatDate(item.start!)} – ${formatDate(item.end!)}`
+                          : "Sem datas definidas";
+                        const isDeliverable = item.kind === "deliverable";
+                        const overdue = Boolean(
+                          item.end && item.end.getTime() < today.getTime() && progress < 100
                         );
 
-                        const barLeft =
-                          differenceInDays(timelineStart, item.start) *
-                          dayWidth;
-
-                        const barWidth = duration * dayWidth;
-
-                        const range = `${formatDate(item.start)} – ${formatDate(item.end)}`;
-
-                        const note = item.reversed
-                          ? "\nAtenção: as datas de início e fim estavam invertidas."
-                          : "";
-
-                        const isDeliverable = item.kind === "deliverable";
-
                         return (
-                          <div
-                            key={`${item.kind}-${item.id}`}
-                            className="group flex"
-                            style={{ height: ROW_HEIGHT, width: totalWidth }}
-                          >
+                          <div key={`${item.kind}-${item.id}`} className="group flex" style={{ height: ROW_HEIGHT, width: totalWidth }}>
                             <div
                               className="sticky left-0 z-20 flex shrink-0 items-center gap-2 border-b border-r border-slate-200 bg-white pl-7 pr-3 shadow-[2px_0_4px_rgba(0,0,0,0.06)] group-hover:bg-blue-50"
                               style={{ width: LABEL_WIDTH }}
@@ -902,57 +777,45 @@ export default function GanttChart({
                             >
                               <span
                                 className={`h-2 w-2 shrink-0 rounded-sm ${
-                                  isDeliverable
-                                    ? "bg-amber-400"
-                                    : "bg-slate-400"
+                                  isDeliverable ? "bg-amber-400" : "bg-slate-400"
                                 }`}
                                 aria-hidden="true"
                               />
-
-                              <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
-                                {item.name}
-                              </span>
-
+                              <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{item.name}</span>
+                              {overdue && (
+                                <span className="shrink-0 rounded bg-red-50 px-1 py-0.5 text-[9px] font-medium text-red-600">
+                                  Atrasado
+                                </span>
+                              )}
                               <span className="shrink-0 text-[10px] text-slate-400">
                                 {isDeliverable ? "Entrega" : "Passo"}
                               </span>
                             </div>
 
-                            <div
-                              className="relative shrink-0 border-b border-slate-100 group-hover:bg-blue-50/50"
-                              style={{ width: timelineWidth }}
-                            >
-                              <div
+                            <div className="relative shrink-0 border-b border-slate-100 group-hover:bg-blue-50/50" style={{ width: timelineWidth }}>
+                              {isScheduled ? <div
                                 role="img"
-                                aria-label={`${item.name}, ${isDeliverable ? "entregável" : "passo"}, ${progress}% concluído, ${range}`}
-                                title={`${item.name}\n${isDeliverable ? "Entregável" : "Passo"}\n${range}\n${progress}% concluído${note}`}
+                                aria-label={`${item.name}, ${isDeliverable ? "entregável" : "passo"}, ${progress}% concluído, ${range}${overdue ? ", atrasado" : ""}`}
+                                title={`${item.name}\n${isDeliverable ? "Entregável" : "Passo"}\n${range}\n${progress}% concluído${item.reversed ? "\nAtenção: as datas de início e fim estavam invertidas." : ""}${overdue ? "\nAtrasado" : ""}`}
                                 className={`absolute top-1/2 h-5 -translate-y-1/2 overflow-hidden rounded border ${
-                                  group.color.track
-                                } ${
-                                  item.reversed
-                                    ? "border-dashed border-red-500"
-                                    : group.color.border
-                                }`}
-                                style={{
-                                  left: barLeft,
-                                  width: Math.max(barWidth, 4),
-                                }}
+                                  isDeliverable ? "border-amber-600 bg-amber-100" : `${group.color.border} ${group.color.track}`
+                                } ${item.reversed ? "border-dashed border-red-500" : ""}`}
+                                style={{ left: barLeft, width: barWidth }}
                               >
                                 <div
-                                  className={`h-full ${
-                                    isDeliverable
-                                      ? "bg-amber-500"
-                                      : group.color.bar
-                                  }`}
+                                  className={`h-full ${isDeliverable ? "bg-amber-500" : group.color.bar}`}
                                   style={{ width: `${progress}%` }}
                                 />
-
                                 {barWidth > BAR_LABEL_MIN_WIDTH && (
                                   <span className="absolute inset-0 flex items-center justify-end pr-1.5 text-[10px] font-medium text-slate-900">
                                     {progress}%
                                   </span>
                                 )}
-                              </div>
+                              </div> : (
+                                <div className="absolute left-2 top-1/2 -translate-y-1/2 rounded bg-slate-100 px-2 py-1 text-[10px] text-slate-500">
+                                  Sem datas definidas
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -965,23 +828,6 @@ export default function GanttChart({
         </div>
       </div>
 
-      {/* Screen-reader milestone summary */}
-      {validMilestones.length > 0 && (
-        <div className="sr-only">
-          <p>Marcos do projecto</p>
-
-          <ul>
-            {validMilestones.map((milestone) => (
-              <li key={milestone.id}>
-                {milestone.name},{" "}
-                {MILESTONE_COLORS[milestone.type].label},{" "}
-                {formatDate(milestone.dateObj)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {/* Data-quality notices */}
       {hasNotices && (
         <div className="space-y-1 px-1 text-xs text-slate-500">
@@ -993,7 +839,6 @@ export default function GanttChart({
               no cronograma porque não têm datas de início e fim válidas.
             </p>
           )}
-
           {orphanCount > 0 && (
             <p>
               {orphanCount === 1

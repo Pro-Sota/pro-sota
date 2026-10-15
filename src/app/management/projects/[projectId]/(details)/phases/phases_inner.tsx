@@ -24,9 +24,8 @@ import {
 
 import type {
   GanttPhase,
-  GanttStage,
   GanttDeliverable,
-  GanttMilestone,
+  GanttStep,
 } from "@/app/components/gant_chart/gantt";
 
 import GanttChart from "@/app/components/gant_chart/gantt";
@@ -53,7 +52,6 @@ interface Props {
   phases: Phase[];
   Stages: Stage[];
   deliverables: Deliverable[];
-  ganttMilestones: GanttMilestone[];
 }
 
 const STATUS: Record<StatusValue, { label: string; color: string }> = {
@@ -143,7 +141,6 @@ export default function PhasesPageInner({
   phases,
   Stages,
   deliverables,
-  ganttMilestones,
 }: Props) {
   const router = useRouter();
   const params = useParams<{ projectId: string }>();
@@ -292,7 +289,7 @@ export default function PhasesPageInner({
     [sortedPhases, progressByPhase],
   );
 
-  const chartStages = useMemo<GanttStage[]>(
+  const chartStages = useMemo<GanttStep[]>(
     () =>
       Stages.map((stage) => ({
         id: stage.stage_id,
@@ -317,11 +314,6 @@ export default function PhasesPageInner({
         progress: clampProgress(item.progress),
       })),
     [deliverables],
-  );
-
-  const chartMilestones = useMemo<GanttMilestone[]>(
-    () => ganttMilestones ?? [],
-    [ganttMilestones],
   );
 
   const handleSelectPhase = useCallback((phaseId: string) => {
@@ -572,9 +564,8 @@ export default function PhasesPageInner({
             <div className="p-4 sm:p-6">
               <GanttChart
                 phases={chartPhases}
-                Stages={chartStages}
+                steps={chartStages}
                 deliverables={chartDeliverables}
-                milestones={chartMilestones}
               />
             </div>
           </section>
@@ -753,15 +744,12 @@ export default function PhasesPageInner({
       {isDeliverableModalOpen &&
         (editingDeliverable || selectedPhase) && (
           <DeliverableModal
-            projectId={projectId}
-            phaseId={
-              editingDeliverable?.phase_id ??
-              selectedPhase!.phase_id
-            }
-            deliverable={editingDeliverable}
-            onClose={handleCloseDeliverableModal}
-            onSaved={handleDeliverableSaved}
-          />
+          projectId={projectId}
+          phaseId={editingDeliverable?.phase_id ??
+            selectedPhase!.phase_id}
+          deliverable={editingDeliverable}
+          onClose={handleCloseDeliverableModal}
+          onSaved={handleDeliverableSaved} stages={[]}          />
         )}
     </div>
   );
