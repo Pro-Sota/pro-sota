@@ -248,13 +248,12 @@ function RisksSection({ data }: { data: OverviewData }) {
               className="flex items-start gap-3 rounded-md border border-gray-200 px-3 py-3"
             >
               <span
-                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                  risk.severity === "high"
+                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${risk.severity === "high"
                     ? "bg-red-500"
                     : risk.severity === "medium"
                       ? "bg-amber-500"
                       : "bg-green-500"
-                }`}
+                  }`}
                 aria-hidden="true"
               />
 
@@ -276,47 +275,6 @@ function RisksSection({ data }: { data: OverviewData }) {
 /* Milestones section                                                         */
 /* -------------------------------------------------------------------------- */
 
-function MilestonesSection({ data }: { data: OverviewData }) {
-  const projectBase = `/management/projects/${data.project.id}`;
-
-  return (
-    <SectionCard
-      title={LABELS.upcomingMilestones}
-      action={{
-        label: "Ver fases",
-        href: `${projectBase}/${PHASES_HREF}`,
-      }}
-    >
-      {data.milestones.length > 0 ? (
-        <ul className="divide-y divide-gray-100">
-          {data.milestones.map((milestone) => (
-            <li
-              key={milestone.id}
-              className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0"
-            >
-              <p className="min-w-0 text-sm text-gray-700">
-                {milestone.name}
-              </p>
-
-              <time
-                dateTime={milestone.date}
-                className="shrink-0 text-xs text-gray-500"
-              >
-                {formatMilestoneDate(milestone.date)}
-              </time>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <EmptyState
-          icon={CalendarDays}
-          title={LABELS.upcomingMilestones}
-          message="As etapas e os marcos serão apresentados quando existirem registos associados ao projecto."
-        />
-      )}
-    </SectionCard>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* Activities section                                                         */
@@ -500,13 +458,12 @@ function BudgetProgress({ budget }: { budget: BudgetItem }) {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span
-          className={`text-xs ${
-            isOverBudget
+          className={`text-xs ${isOverBudget
               ? "font-medium text-red-600"
               : actualPercentage >= 90
                 ? "text-amber-700"
                 : "text-gray-500"
-          }`}
+            }`}
         >
           {isOverBudget
             ? `Excedido em ${formatCurrency(Math.abs(remaining))}`
@@ -636,7 +593,7 @@ export default function OverviewClientPage({
 
               <button
                 type="button"
-                onClick={() => router.push(projectBase+"/edit")}
+                onClick={() => router.push(projectBase + "/edit")}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
               >
                 <Pencil size={15} aria-hidden="true" />
@@ -663,10 +620,7 @@ export default function OverviewClientPage({
 
         <ScheduleSection data={data} />
 
-        <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
-          <RisksSection data={data} />
-          <MilestonesSection data={data} />
-        </div>
+        <RisksSection data={data} />
 
         <ActivitiesSection data={data} />
 

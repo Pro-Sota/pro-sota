@@ -2,7 +2,6 @@ import "server-only";
 
 import { createClient } from "@/app/lib/supabase/server";
 import type {
-  GanttMilestone,
   GanttPhase,
 } from "@/app/components/gant_chart/gantt";
 import { cookies } from "next/headers";
@@ -54,8 +53,6 @@ export interface OverviewData {
     endDate: string | null;
     progress: number;
   }[];
-
-  milestones: GanttMilestone[];
 
   risks: {
     id: string;
@@ -544,7 +541,6 @@ export async function getOverviewData(
     },
     phases,
     tasks: ganttTasks,
-    milestones: [],
     risks: [],
     activities: [],
     rfis: [],
