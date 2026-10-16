@@ -341,7 +341,7 @@ export default function AdminDashboard({
                 </button>
               </div>
 
-              <div className="p-4 sm:p-6">
+              <div className="max-h-[900px] overflow-y-auto overscroll-contain p-4 sm:p-6 md:max-h-[560px]">
                 {projects.length === 0 ? (
                   <EmptyState
                     icon={Briefcase}
@@ -356,7 +356,7 @@ export default function AdminDashboard({
                   <>
                     {/* Mobile */}
                     <div className="space-y-2 md:hidden">
-                      {projects.slice(0, 6).map((project) => {
+                      {projects.map((project) => {
                         const progress = 0;
                         const config = getProjectStatus(
                           project.status,
@@ -465,7 +465,7 @@ export default function AdminDashboard({
                           </thead>
 
                           <tbody>
-                            {projects.slice(0, 6).map((project) => {
+                            {projects.map((project) => {
                               const progress = 0;
                               const config = getProjectStatus(
                                 project.status,
@@ -565,7 +565,7 @@ export default function AdminDashboard({
                 </h2>
               </div>
 
-              <div className="px-4 py-6 sm:px-6 sm:py-8">
+              <div className="max-h-[600px] overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
                 {deadlines.length === 0 ? (
                   <EmptyState
                     icon={CalendarDays}
@@ -573,7 +573,7 @@ export default function AdminDashboard({
                     description="Os prazos aparecerão aqui à medida que forem atribuídos."
                   />
                 ) : (
-                  <div className="space-y-2 sm:space-y-4">
+                  <div className="space-y-2 sm:space-y-3">
                     {deadlines.map((item) => (
                       <div
                         key={item.task_id}
@@ -655,7 +655,7 @@ function RecentActivitiesSection({
         </div>
       </div>
 
-      <div className="px-5 py-6 sm:px-6">
+      <div className="max-h-[600px] overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
         {activities.length === 0 ? (
           <EmptyState
             icon={Inbox}
@@ -664,7 +664,7 @@ function RecentActivitiesSection({
           />
         ) : (
           <div className="divide-y divide-gray-100">
-            {activities.slice(0, 8).map((activity) => {
+            {activities.map((activity) => {
               const initials = activity.user_id
                 ? activity.user_id
                   .substring(0, 2)
@@ -753,8 +753,8 @@ function TeamWorkloadSection({
             description="A distribuição de trabalho aparecerá aqui."
           />
         ) : (
-          <div className="space-y-5">
-            {teamWorkload.slice(0, 8).map((member) => (
+          <div className="max-h-[600px] space-y-4 overflow-y-auto overscroll-contain pr-1">
+            {teamWorkload.map((member) => (
               <div key={member.user_id} className="min-w-0">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -846,7 +846,7 @@ function RecentDocumentsSection({
         </div>
       </div>
 
-      <div className="px-5 py-6 sm:px-6 sm:py-8">
+      <div className="max-h-[600px] overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
         {documents.length === 0 ? (
           <EmptyState
             icon={Upload}
@@ -858,8 +858,8 @@ function RecentDocumentsSection({
             }}
           />
         ) : (
-          <div className="space-y-2 sm:space-y-4">
-            {documents.slice(0, 8).map((doc) => (
+          <div className="space-y-2 sm:space-y-3">
+            {documents.map((doc) => (
               <div
                 key={doc.document_id}
                 className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-md p-3 transition-colors hover:bg-gray-50"

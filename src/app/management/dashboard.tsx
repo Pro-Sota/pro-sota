@@ -331,7 +331,7 @@ export default function Dashboard({ data }: DashboardProps) {
 
                   <p className="mt-1 truncate text-xs text-gray-500">
                     {projects.length > 6
-                      ? `A mostrar 6 de ${projects.length} projectos`
+                      ? `${projects.length} projectos disponíveis`
                       : "Projectos em que participa actualmente"}
                   </p>
                 </div>
@@ -361,8 +361,8 @@ export default function Dashboard({ data }: DashboardProps) {
                 ) : (
                   <>
                     {/* Mobile project cards */}
-                    <div className="space-y-2 md:hidden">
-                      {projects.slice(0, 6).map((project) => {
+                    <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1 md:hidden">
+                      {projects.map((project) => {
                         const progress = 0;
                         const config = getProjectStatus(
                           project.status,
@@ -448,9 +448,9 @@ export default function Dashboard({ data }: DashboardProps) {
 
                     {/* Desktop / Tablet */}
                     <div className="hidden md:block">
-                      <div className="overflow-x-auto">
+                      <div className="max-h-[420px] overflow-auto">
                         <table className="w-full min-w-[620px] border-separate border-spacing-0 text-sm">
-                          <thead>
+                          <thead className="sticky top-0 z-10">
                             <tr className="bg-gray-50">
                               <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                                 Projecto
@@ -471,7 +471,7 @@ export default function Dashboard({ data }: DashboardProps) {
                           </thead>
 
                           <tbody>
-                            {projects.slice(0, 6).map((project) => {
+                            {projects.map((project) => {
                               const progress = 0;
                               const config = getProjectStatus(
                                 project.status,
@@ -597,8 +597,8 @@ export default function Dashboard({ data }: DashboardProps) {
                     description="Os prazos aparecerão aqui à medida que forem atribuídos."
                   />
                 ) : (
-                  <div className="space-y-1">
-                    {deadlines.slice(0, 6).map((item) => (
+                  <div className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
+                    {deadlines.map((item) => (
                       <button
                         type="button"
                         key={item.task_id}
@@ -717,8 +717,8 @@ function RecentActivitiesSection({
             description="A actividade da equipa aparecerá aqui."
           />
         ) : (
-          <div className="divide-y divide-gray-100">
-            {activities.slice(0, 6).map((activity) => {
+          <div className="max-h-[360px] divide-y divide-gray-100 overflow-y-auto pr-1">
+            {activities.map((activity) => {
               const initials = activity.user_id
                 ? activity.user_id
                     .substring(0, 2)
@@ -815,8 +815,8 @@ function RecentDocumentsSection({
             }}
           />
         ) : (
-          <div className="space-y-1">
-            {documents.slice(0, 6).map((doc) => (
+          <div className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
+            {documents.map((doc) => (
               <button
                 type="button"
                 key={doc.document_id}

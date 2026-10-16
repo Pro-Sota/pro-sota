@@ -18,6 +18,11 @@ export type SubmissionStatus =
     | "rejected"
     | "changes_requested";
 
+
+export type SubmissionResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string };
+
 export type Submission = {
     id: string;
     project_id: string;
@@ -44,6 +49,13 @@ export type Submission = {
     updated_at: string;
 };
 
+export type SubmissionReviewInput = {
+  submissionId: string;
+  projectId: string;
+  decision: SubmissionDecision;
+  notes?: string;
+};
+
 export type SubmissionFile = {
   submission_file_id: string;
   submission_id: string;
@@ -54,6 +66,13 @@ export type SubmissionFile = {
   file_size: number | null;
   created_at: string;
 };
+
+export type SubmissionDecision =
+  | "under_review"
+  | "approved"
+  | "rejected"
+  | "changes_requested";
+
 
 export type ProjectDocument = {
   document_id: string;
@@ -998,4 +1017,153 @@ export async function rejectSubmission(
   }
 
   return mapSubmission(data);
+}
+
+export async function canReviewProjectSubmissions(projectId: string) {
+  const supabase = await getSupabase();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) return false;
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("profile_id, role_id")
+    .eq("profile_id", user.id)
+    .maybeSingle();
+
+  if (profileError || !profile) return false;
+  if (Number(profile.role_id) === 1) return true;
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("project_members")
+    .select("project_id, role_id")
+    .eq("project_id", projectId)
+    .eq("profile_id", user.id)
+    .eq("role_id", 3)
+    .maybeSingle();
+
+  return !membershipError && Boolean(membership);
+}
+
+
+
+export async function getSubmissionById(
+  projectId: string,
+  submissionId: string,
+): Promise<Submission | null> {
+  const submissions = await getProjectSubmissions(projectId);
+  return submissions.find((item) => item.id === submissionId) ?? null;
+}
+
+export async function reviewSubmission(
+  input: SubmissionReviewInput,
+): Promise<SubmissionResult<Submission>> {
+  const { submissionId, projectId, decision } = input;
+  const notes = input.notes?.trim() ?? "";
+
+  if (!submissionId || !projectId) {
+    return { success: false, error: "Submissão ou projecto inválido." };
+  }
+
+  if (
+    (decision === "rejected" || decision === "changes_requested") &&
+    notes.length < 3
+  ) {
+    return {
+      success: false,
+      error: "Indique um comentário para justificar esta decisão.",
+    };
+  }
+
+  if (!(await canReviewProjectSubmissions(projectId))) {
+    return {
+      success: false,
+      error: "Não tem permissões para rever submissões deste projecto.",
+    };
+  }
+
+  const supabase = await getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "A sessão expirou. Inicie sessão novamente." };
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("submissions")
+    .select("submission_id, status")
+    .eq("submission_id", submissionId)
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (existingError || !existing) {
+    return { success: false, error: "A submissão não foi encontrada neste projecto." };
+  }
+
+  if (existing.status === "draft") {
+    return {
+      success: false,
+      error: "Uma submissão em rascunho não pode ser revista.",
+    };
+  }
+
+  const update: {
+    status: SubmissionDecision;
+    reviewed_by: string;
+    reviewed_at: string;
+    updated_at: string;
+    notes?: string | null;
+  } = {
+    status: decision,
+    reviewed_by: user.id,
+    reviewed_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  // Preserve prior notes when the reviewer doesn't provide a new comment.
+  if (input.notes !== undefined) update.notes = notes || null;
+
+  const { data, error } = await supabase
+    .from("submissions")
+    .update(update)
+    .eq("submission_id", submissionId)
+    .eq("project_id", projectId)
+    .select(
+      "submission_id, project_id, title, description, type, status, submitted_by, submitted_at, due_date, reviewed_by, reviewed_at, notes, revision_number, created_at, updated_at",
+    )
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error("[reviewSubmission]", error);
+    return {
+      success: false,
+      error: "Não foi possível guardar a decisão. Verifique as políticas RLS.",
+    };
+  }
+
+  const { data: files, error: filesError } = await supabase
+    .from("submission_files")
+    .select(
+      "submission_file_id, submission_id, document_id, file_name, file_url, file_type, file_size, created_at",
+    )
+    .eq("submission_id", submissionId)
+    .order("created_at", { ascending: true });
+
+  if (filesError) {
+    console.error("[reviewSubmission:files]", filesError);
+  }
+
+  return {
+    success: true,
+    data: {
+      ...(data as unknown as Omit<Submission, "id" | "files">),
+      id: data.submission_id,
+      files: (files ?? []) as SubmissionFile[],
+    } as Submission & { files: SubmissionFile[] },
+  };
 }
