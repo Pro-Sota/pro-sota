@@ -12,20 +12,25 @@ export default async function ProjectLayout({
   const { projectId } = await params;
 
   return (
-    <div className="h-screen overflow-x-hidden">
-      <nav className="flex  items-center justify-between border-b border-gray-200 bg-white py-2 px-4">
+    <div className="flex h-screen flex-col overflow-hidden">
+      {/* Top navigation */}
+      <nav className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
         <Link
           href="/management/projects"
           className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-black"
         >
-          <ChevronLeft className="h-4 w-4" />
-          <span className="text-sm font-medium">Projectos</span>
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          <span>Projectos</span>
         </Link>
       </nav>
 
-      <div className="flex flex-col h-screen">
-        <ProjectNavbar projectId={projectId} />
-        <main className="flex-1 h-max  bg-[#F7F7F5] min-w-0">
+      {/* Project navigation and page */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="shrink-0">
+          <ProjectNavbar projectId={projectId} />
+        </div>
+
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#F7F7F5]">
           {children}
         </main>
       </div>

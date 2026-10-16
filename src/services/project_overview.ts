@@ -1,18 +1,16 @@
+
 import "server-only";
 
-import { createClient } from "@/app/lib/supabase/server";
-import type {
-  GanttPhase,
-} from "@/app/components/gant_chart/gantt";
 import { cookies } from "next/headers";
+import { createClient } from "@/app/lib/supabase/server";
+import type { GanttPhase } from "@/app/components/gant_chart/gantt";
+import type { Deliverable } from "@/app/management/projects/[projectId]/(details)/phases/types";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 
 type Row = Record<string, unknown>;
-
-type PhaseStageStatus = "not_started" | "in_progress" | "completed";
 
 export interface OverviewProject {
   id: string;
@@ -24,12 +22,34 @@ export interface OverviewProject {
 }
 
 export interface OverviewActivity {
-  id: string;
-  text: string;
-  who: string;
-  time: string;
+  activity_id: string;
+  project_id: string | null;
+  user_id: string | null;
+  task_id: string | null;
+  activity_type: string;
+  description: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  user_name: string;
 }
 
+export interface OverviewSubmission {
+  submission_id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  type: string;
+  status: string;
+  submitted_by: string;
+  submitted_at: string;
+  due_date: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  notes: string | null;
+  revision_number: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface OverviewData {
   project: OverviewProject;
@@ -62,6 +82,8 @@ export interface OverviewData {
 
   activities: OverviewActivity[];
 
+  deliverables: Deliverable[];
+
   rfis: {
     id: string;
     subject: string;
@@ -69,19 +91,11 @@ export interface OverviewData {
     due: string;
   }[];
 
-  submittals: {
-    id: string;
-    subject: string;
-    status: string;
-    due: string;
-  }[];
+  /** All project submissions, including drafts and reviewed submissions. */
+  submittals: OverviewSubmission[];
 
-  approvals: {
-    id: string;
-    item: string;
-    date: string;
-    requestedFrom: string;
-  }[];
+  /** Submissions awaiting review, excluding drafts. */
+  approvals: OverviewSubmission[];
 
   budgetByPhase: {
     phase: string;
@@ -122,12 +136,14 @@ function nullableDate(...values: unknown[]): string | null {
       continue;
     }
 
-    // Date-only values should remain date-only to avoid timezone shifts.
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
-      return value.trim();
+    const normalized = value.trim();
+
+    // Preserve date-only values to avoid timezone shifts.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+      return normalized;
     }
 
-    const date = new Date(value);
+    const date = new Date(normalized);
 
     if (!Number.isNaN(date.getTime())) {
       return date.toISOString();
@@ -217,7 +233,7 @@ function taskProgress(row: Row): number {
   );
 }
 
-function StageProgress(row: Row): number {
+function stageProgress(row: Row): number {
   const status = normalizedStatus(row.status);
 
   if (isCompleted(status)) return 100;
@@ -248,7 +264,7 @@ function mapPhases(rows: Row[]): GanttPhase[] {
     .filter((phase) => phase.id.length > 0)
     .sort(
       (a, b) =>
-        (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+        a.sortOrder - b.sortOrder ||
         a.originalIndex - b.originalIndex,
     )
     .map(({ originalIndex: _originalIndex, ...phase }) => phase);
@@ -259,14 +275,9 @@ function mapPhases(rows: Row[]): GanttPhase[] {
  * A task is associated with a phase only when its row contains a valid
  * phase_id or a related phase object.
  */
-function mapProjectTasks(rows: Row[]): {
-  id: string;
-  name: string;
-  phaseId: string;
-  startDate: string | null;
-  endDate: string | null;
-  progress: number;
-}[] {
+function mapProjectTasks(
+  rows: Row[],
+): OverviewData["tasks"] {
   return rows
     .map((row) => {
       const phase = asRow(row.phase);
@@ -300,21 +311,15 @@ function mapProjectTasks(rows: Row[]): {
         progress: taskProgress(row),
       };
     })
-    .filter((task) => task.id && task.phaseId);
+    .filter((task) => task.id.length > 0 && task.phaseId.length > 0);
 }
 
 /**
  * phase_stages uses stage_id, phase_id, planned_start and planned_end.
- * Those fields are mapped explicitly from the schema supplied.
  */
-function mapPhaseStages(rows: Row[]): {
-  id: string;
-  name: string;
-  phaseId: string;
-  startDate: string | null;
-  endDate: string | null;
-  progress: number;
-}[] {
+function mapPhaseStages(
+  rows: Row[],
+): OverviewData["tasks"] {
   return rows
     .map((row) => {
       const status = normalizedStatus(row.status);
@@ -331,12 +336,11 @@ function mapPhaseStages(rows: Row[]): {
             : clampPercent(numericValue(row.progress)),
       };
     })
-    .filter((Stage) => Stage.id.length > 0 && Stage.phaseId.length > 0);
+    .filter((stage) => stage.id.length > 0 && stage.phaseId.length > 0);
 }
 
 /**
  * Prevent duplicate IDs from reaching the Gantt component.
- * The first occurrence wins, preserving the original query order.
  */
 function uniqueById<T extends { id: string }>(items: T[]): T[] {
   const seen = new Set<string>();
@@ -350,8 +354,8 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
 }
 
 /**
- * Calculate overall progress from task rows when available.
- * When no project tasks exist, calculate progress from phase Stages.
+ * Calculate overall progress from tasks when available.
+ * Fall back to phase stages when the project has no tasks.
  */
 function calculateProgress(
   projectTasks: Row[],
@@ -366,7 +370,7 @@ function calculateProgress(
 
   if (phaseStages.length > 0) {
     return clampPercent(
-      phaseStages.reduce((sum, Stage) => sum + StageProgress(Stage), 0) /
+      phaseStages.reduce((sum, stage) => sum + stageProgress(stage), 0) /
         phaseStages.length,
     );
   }
@@ -407,11 +411,6 @@ export async function getOverviewData(
   /* Project phases                                                           */
   /* ------------------------------------------------------------------------ */
 
-  /*
-   * This assumes project_phases contains project_id.
-   * If your actual foreign-key column has a different name, update this
-   * filter to match your database schema.
-   */
   const { data: phaseData, error: phaseError } = await supabase
     .from("project_phases")
     .select("*")
@@ -429,13 +428,13 @@ export async function getOverviewData(
   const phaseIds = phases.map((phase) => phase.id);
 
   /* ------------------------------------------------------------------------ */
-  /* Phase Stages                                                              */
+  /* Phase stages                                                             */
   /* ------------------------------------------------------------------------ */
 
-  let StageRows: Row[] = [];
+  let stageRows: Row[] = [];
 
   if (phaseIds.length > 0) {
-    const { data: StageData, error: StageError } = await supabase
+    const { data: stageData, error: stageError } = await supabase
       .from("phase_stages")
       .select(
         "stage_id, phase_id, name, status, progress, planned_start, planned_end, sort_order",
@@ -443,17 +442,40 @@ export async function getOverviewData(
       .in("phase_id", phaseIds)
       .order("sort_order", { ascending: true });
 
-    if (StageError) {
+    if (stageError) {
       throw new Error(
-        `Não foi possível carregar as etapas das fases: ${StageError.message}`,
+        `Não foi possível carregar as etapas das fases: ${stageError.message}`,
       );
     }
 
-    StageRows = (StageData ?? []).map(asRow);
+    stageRows = (stageData ?? []).map(asRow);
   }
 
   /* ------------------------------------------------------------------------ */
-  /* Project tasks                                                             */
+  /* Deliverables                                                             */
+  /* ------------------------------------------------------------------------ */
+
+  let deliverableRows: Row[] = [];
+
+  if (phaseIds.length > 0) {
+    const { data: deliverableData, error: deliverableError } =
+      await supabase
+        .from("deliverables")
+        .select("*")
+        .in("phase_id", phaseIds)
+        .order("sort_order", { ascending: true });
+
+    if (deliverableError) {
+      throw new Error(
+        `Não foi possível carregar os entregáveis: ${deliverableError.message}`,
+      );
+    }
+
+    deliverableRows = (deliverableData ?? []).map(asRow);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Project tasks                                                            */
   /* ------------------------------------------------------------------------ */
 
   const { data: taskData, error: taskError } = await supabase
@@ -470,7 +492,108 @@ export async function getOverviewData(
   const taskRows = (taskData ?? []).map(asRow);
 
   /* ------------------------------------------------------------------------ */
-  /* Project model                                                             */
+  /* Project activities                                                       */
+  /* ------------------------------------------------------------------------ */
+
+  const { data: activityData, error: activityError } = await supabase
+    .from("activities")
+    .select(`
+      activity_id,
+      project_id,
+      user_id,
+      task_id,
+      activity_type,
+      description,
+      metadata,
+      created_at
+    `)
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (activityError) {
+    throw new Error(
+      `Não foi possível carregar as actividades: ${activityError.message}`,
+    );
+  }
+
+  const activityRows = (activityData ?? []).map(asRow);
+
+  /* ------------------------------------------------------------------------ */
+  /* Activity authors                                                         */
+  /* ------------------------------------------------------------------------ */
+
+  const activityUserIds = [
+    ...new Set(
+      activityRows
+        .map((row) => stringValue(row.user_id))
+        .filter(Boolean),
+    ),
+  ];
+
+  const { data: profileData, error: profileError } =
+    activityUserIds.length > 0
+      ? await supabase
+          .from("profiles")
+          .select("profile_id, first_name, last_name")
+          .in("profile_id", activityUserIds)
+      : { data: [], error: null };
+
+  if (profileError) {
+    throw new Error(
+      `Não foi possível carregar os autores das actividades: ${profileError.message}`,
+    );
+  }
+
+  const profileNameById = new Map<string, string>(
+    (profileData ?? []).map((profile) => {
+      const firstName = stringValue(profile.first_name);
+      const lastName = stringValue(profile.last_name);
+      const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
+      return [
+        profile.profile_id,
+        fullName || "Utilizador desconhecido",
+      ];
+    }),
+  );
+
+  /* ------------------------------------------------------------------------ */
+  /* Project submissions                                                      */
+  /* ------------------------------------------------------------------------ */
+
+  const { data: submissionData, error: submissionError } = await supabase
+    .from("submissions")
+    .select(`
+      submission_id,
+      project_id,
+      title,
+      description,
+      type,
+      status,
+      submitted_by,
+      submitted_at,
+      due_date,
+      reviewed_by,
+      reviewed_at,
+      notes,
+      revision_number,
+      created_at,
+      updated_at
+    `)
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+
+  if (submissionError) {
+    throw new Error(
+      `Não foi possível carregar as submissões: ${submissionError.message}`,
+    );
+  }
+
+  const submissionRows = (submissionData ?? []).map(asRow);
+
+  /* ------------------------------------------------------------------------ */
+  /* Project model                                                            */
   /* ------------------------------------------------------------------------ */
 
   const project: OverviewProject = {
@@ -495,57 +618,137 @@ export async function getOverviewData(
   };
 
   /* ------------------------------------------------------------------------ */
-  /* KPIs                                                                      */
+  /* KPIs                                                                     */
   /* ------------------------------------------------------------------------ */
 
   const completedTasks = taskRows.filter((row) =>
     isCompleted(stringValue(row.status, row.state)),
   ).length;
 
-  const progress = calculateProgress(taskRows, StageRows);
+  const progress = calculateProgress(taskRows, stageRows);
 
   const remainingDays = project.endDate
     ? dayDifference(new Date(), new Date(project.endDate))
     : null;
 
   /* ------------------------------------------------------------------------ */
-  /* Gantt                                                                     */
+  /* Gantt                                                                    */
   /* ------------------------------------------------------------------------ */
 
-  /*
-   * This implementation combines actual project tasks and phase Stages.
-   * Their IDs are prefixed to prevent a task_id and stage_id from colliding.
-   * If you want the Gantt to show only phase Stages, use mapPhaseStages(StageRows)
-   * instead of combining the two arrays.
-   */
   const ganttTasks = uniqueById([
     ...mapProjectTasks(taskRows).map((task) => ({
       ...task,
       id: `task:${task.id}`,
     })),
-    ...mapPhaseStages(StageRows).map((Stage) => ({
-      ...Stage,
-      id: `Stage:${Stage.id}`,
+    ...mapPhaseStages(stageRows).map((stage) => ({
+      ...stage,
+      id: `stage:${stage.id}`,
     })),
   ]);
 
+  /* ------------------------------------------------------------------------ */
+  /* Deliverables model                                                       */
+  /* ------------------------------------------------------------------------ */
+
+  const deliverables: Deliverable[] = deliverableRows.map((row) => ({
+    ...row,
+    id: stringValue(row.id),
+    phase_id: stringValue(row.phase_id),
+    title: stringValue(row.title) || "Entregável sem título",
+    description: stringValue(row.description) || null,
+    status: (
+      stringValue(row.status) || "not_started"
+    ) as Deliverable["status"],
+    progress: numericValue(row.progress),
+    start_date: stringValue(row.start_date) || null,
+    due_date: stringValue(row.due_date) || null,
+    completed_at: stringValue(row.completed_at) || null,
+    sort_order: numericValue(row.sort_order),
+  }));
+
+  /* ------------------------------------------------------------------------ */
+  /* Activities model                                                         */
+  /* ------------------------------------------------------------------------ */
+
+  const activities: OverviewActivity[] = activityRows.map((row) => {
+    const userId = stringValue(row.user_id) || null;
+
+    return {
+      activity_id: stringValue(row.activity_id),
+      project_id: stringValue(row.project_id) || null,
+      user_id: userId,
+      task_id: stringValue(row.task_id) || null,
+      activity_type: stringValue(row.activity_type),
+      description: stringValue(row.description) || null,
+      metadata:
+        row.metadata &&
+        typeof row.metadata === "object" &&
+        !Array.isArray(row.metadata)
+          ? (row.metadata as Record<string, unknown>)
+          : null,
+      created_at: stringValue(row.created_at),
+      user_name: userId
+        ? profileNameById.get(userId) ?? "Utilizador desconhecido"
+        : "Utilizador desconhecido",
+    };
+  });
+
+  /* ------------------------------------------------------------------------ */
+  /* Submissions model                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  const submittals: OverviewSubmission[] = submissionRows.map((row) => ({
+    submission_id: stringValue(row.submission_id),
+    project_id: stringValue(row.project_id),
+    title: stringValue(row.title) || "Submissão sem título",
+    description: stringValue(row.description) || null,
+    type: stringValue(row.type) || "other",
+    status: stringValue(row.status) || "pending",
+    submitted_by: stringValue(row.submitted_by),
+    submitted_at: stringValue(row.submitted_at),
+    due_date: stringValue(row.due_date) || null,
+    reviewed_by: stringValue(row.reviewed_by) || null,
+    reviewed_at: stringValue(row.reviewed_at) || null,
+    notes: stringValue(row.notes) || null,
+    revision_number: numericValue(row.revision_number) || 1,
+    created_at: stringValue(row.created_at),
+    updated_at: stringValue(row.updated_at),
+  }));
+
+  /* ------------------------------------------------------------------------ */
+  /* Approvals: submissions awaiting review, excluding drafts                 */
+  /* ------------------------------------------------------------------------ */
+
+  const approvals = submittals.filter(
+    (submission) =>
+      submission.status.toLowerCase() !== "draft" &&
+      submission.reviewed_at === null,
+  );
+
+  /* ------------------------------------------------------------------------ */
+  /* Return                                                                   */
+  /* ------------------------------------------------------------------------ */
+
   return {
     project,
+
     kpis: {
       progress,
       remainingDays,
       openQuestions: 0,
       completedTasks,
       totalTasks: taskRows.length,
-      pendingApprovals: 0,
+      pendingApprovals: approvals.length,
     },
+
     phases,
     tasks: ganttTasks,
+    deliverables,
     risks: [],
-    activities: [],
+    activities,
     rfis: [],
-    submittals: [],
-    approvals: [],
+    submittals,
+    approvals,
     budgetByPhase: [],
   };
 }

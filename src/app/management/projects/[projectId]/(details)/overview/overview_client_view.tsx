@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ReactNode, ComponentType } from "react";
 import {
   ArrowLeft,
@@ -22,7 +22,6 @@ import KpiCard from "./components/kpi_card";
 import { StatusPill } from "./components/status_pill";
 
 import type { OverviewData } from "@/services/project_overview";
-import { useRouter } from "next/navigation";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -40,6 +39,7 @@ interface SectionCardProps {
     href: string;
   };
   children: ReactNode;
+  height?: string;
 }
 
 type EmptyStateProps = {
@@ -54,6 +54,13 @@ type EmptyStateProps = {
 
 type BudgetItem = OverviewData["budgetByPhase"][number];
 
+interface RequestListItem {
+  id: string;
+  subject: string;
+  status: string;
+  due: string;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -66,7 +73,6 @@ const LABELS = {
   pendingApprovals: "Aprovações pendentes",
   schedule: "Cronograma do projecto",
   projectRisks: "Riscos do projecto",
-  upcomingMilestones: "Próximas etapas",
   recentActivities: "Actividades recentes",
   rfis: "Solicitações de informação",
   submissions: "Submissões",
@@ -79,7 +85,6 @@ const LABELS = {
 const CURRENCY_LOCALE = "pt-AO";
 const PROJECT_TIME_ZONE = "Africa/Luanda";
 const TASKS_HREF = "tasks";
-const PHASES_HREF = "phases";
 
 /* -------------------------------------------------------------------------- */
 /* Formatting                                                                 */
@@ -106,18 +111,32 @@ function formatPercentage(value: number): string {
   return `${percentageFormatter.format(value)}%`;
 }
 
-function formatMilestoneDate(value: string): string {
-  if (!value) return "—";
+function formatMilestoneDate(value: string | null | undefined): string {
+  if (!value) return "Sem prazo";
 
   const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
   const date = new Date(isDateOnly ? `${value}T12:00:00` : value);
 
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return "Sem prazo";
 
-  return new Intl.DateTimeFormat(CURRENCY_LOCALE, {
+  return new Intl.DateTimeFormat("pt-PT", {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: PROJECT_TIME_ZONE,
+  }).format(date);
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "Data desconhecida";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Data desconhecida";
+
+  return new Intl.DateTimeFormat("pt-PT", {
+    dateStyle: "short",
+    timeStyle: "short",
     timeZone: PROJECT_TIME_ZONE,
   }).format(date);
 }
@@ -126,15 +145,32 @@ function formatMilestoneDate(value: string): string {
 /* Shared components                                                          */
 /* -------------------------------------------------------------------------- */
 
+interface SectionCardProps {
+  title: string;
+  subtitle?: string;
+  action?: {
+    label: string;
+    href: string;
+  };
+  children: ReactNode;
+  height?: string;
+  scrollable?: boolean;
+}
+
 function SectionCard({
   title,
   subtitle,
   action,
   children,
+  height = "360px",
+  scrollable = true,
 }: SectionCardProps) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
-      <header className="flex flex-col gap-2 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
+    <section
+      className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white"
+      style={{ height: height === "auto" ? undefined : height }}
+    >
+      <header className="flex shrink-0 flex-col gap-2 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
         <div className="min-w-0">
           <h2 className="font-semibold text-gray-900">{title}</h2>
 
@@ -154,7 +190,14 @@ function SectionCard({
         )}
       </header>
 
-      <div className="px-5 py-5 sm:px-6">{children}</div>
+      <div
+        className={`min-w-0 px-5 py-5 sm:px-6 ${scrollable
+            ? "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
+            : "overflow-visible"
+          }`}
+      >
+        {children}
+      </div>
     </section>
   );
 }
@@ -167,11 +210,7 @@ function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center sm:py-10">
       <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
-        <Icon
-          size={20}
-          className="text-gray-400"
-          aria-hidden="true"
-        />
+        <Icon size={20} className="text-gray-400" aria-hidden="true" />
       </div>
 
       <h3 className="text-sm font-medium text-gray-900">
@@ -182,7 +221,6 @@ function EmptyState({
     </div>
   );
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* Schedule section                                                           */
@@ -207,9 +245,21 @@ function ScheduleSection({ data }: { data: OverviewData }) {
     progress: Math.max(0, Math.min(100, task.progress)),
   }));
 
+  const chartDeliverables = data.deliverables.map((deliverable) => ({
+    id: deliverable.id,
+    name: deliverable.title,
+    phaseId: deliverable.phase_id,
+    startDate: deliverable.start_date,
+    endDate: deliverable.due_date,
+    progress: Math.max(0, Math.min(100, deliverable.progress)),
+    sortOrder: deliverable.sort_order,
+  }));
+
   return (
     <SectionCard
       title={LABELS.schedule}
+      height="auto"
+      scrollable={false}
       action={{
         label: "Ver tarefas",
         href: `${projectBase}/${TASKS_HREF}`,
@@ -219,7 +269,7 @@ function ScheduleSection({ data }: { data: OverviewData }) {
         <GanttChart
           phases={chartPhases}
           steps={chartStages}
-          deliverables={[]}
+          deliverables={chartDeliverables}
         />
       ) : (
         <EmptyState
@@ -232,14 +282,13 @@ function ScheduleSection({ data }: { data: OverviewData }) {
   );
 }
 
-
 /* -------------------------------------------------------------------------- */
 /* Risks section                                                              */
 /* -------------------------------------------------------------------------- */
 
 function RisksSection({ data }: { data: OverviewData }) {
   return (
-    <SectionCard title={LABELS.projectRisks}>
+    <SectionCard title={LABELS.projectRisks} height="320px">
       {data.risks.length > 0 ? (
         <ul className="space-y-2">
           {data.risks.map((risk) => (
@@ -262,19 +311,11 @@ function RisksSection({ data }: { data: OverviewData }) {
           ))}
         </ul>
       ) : (
-        <EmptyState
-          icon={CircleAlert}
-          title={LABELS.projectRisks}
-        />
+        <EmptyState icon={CircleAlert} title={LABELS.projectRisks} />
       )}
     </SectionCard>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* Milestones section                                                         */
-/* -------------------------------------------------------------------------- */
-
 
 /* -------------------------------------------------------------------------- */
 /* Activities section                                                         */
@@ -282,24 +323,27 @@ function RisksSection({ data }: { data: OverviewData }) {
 
 function ActivitiesSection({ data }: { data: OverviewData }) {
   return (
-    <SectionCard title={LABELS.recentActivities}>
+    <SectionCard title={LABELS.recentActivities} height="360px">
       {data.activities.length > 0 ? (
         <ul className="divide-y divide-gray-100">
           {data.activities.map((activity) => (
-            <li key={activity.id} className="py-3 first:pt-0 last:pb-0">
-              <p className="text-sm text-gray-700">{activity.text}</p>
+            <li
+              key={activity.activity_id}
+              className="py-3 first:pt-0 last:pb-0"
+            >
+              <p className="text-sm text-gray-700">
+                {activity.description || activity.activity_type}
+              </p>
 
               <p className="mt-1 text-xs text-gray-500">
-                {activity.who} · {activity.time}
+                {activity.user_name || "Utilizador desconhecido"} ·{" "}
+                {formatDateTime(activity.created_at)}
               </p>
             </li>
           ))}
         </ul>
       ) : (
-        <EmptyState
-          icon={Inbox}
-          title={LABELS.recentActivities}
-        />
+        <EmptyState icon={Inbox} title={LABELS.recentActivities} />
       )}
     </SectionCard>
   );
@@ -310,16 +354,35 @@ function ActivitiesSection({ data }: { data: OverviewData }) {
 /* -------------------------------------------------------------------------- */
 
 function RequestsSection({ data }: { data: OverviewData }) {
-  const sections = [
-    {
-      title: LABELS.rfis,
-      items: data.rfis,
-    },
-    {
-      title: LABELS.submissions,
-      items: data.submittals,
-    },
-  ];
+  const rfiItems: RequestListItem[] = data.rfis.map((rfi) => ({
+    id: rfi.id,
+    subject: rfi.subject,
+    status: rfi.status,
+    due: rfi.due,
+  }));
+
+  const submissionItems: RequestListItem[] = data.submittals.map(
+    (submission) => ({
+      id: submission.submission_id,
+      subject: submission.title,
+      status: submission.status,
+      due: formatMilestoneDate(submission.due_date),
+    }),
+  );
+
+  const sections: {
+    title: string;
+    items: RequestListItem[];
+  }[] = [
+      {
+        title: LABELS.rfis,
+        items: rfiItems,
+      },
+      {
+        title: LABELS.submissions,
+        items: submissionItems,
+      },
+    ];
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
@@ -327,7 +390,8 @@ function RequestsSection({ data }: { data: OverviewData }) {
         <SectionCard
           key={title}
           title={title}
-          subtitle={`${items.length} em aberto`}
+          subtitle={`${items.length} registos`}
+          height="320px"
         >
           {items.length > 0 ? (
             <ul className="divide-y divide-gray-100">
@@ -342,7 +406,7 @@ function RequestsSection({ data }: { data: OverviewData }) {
                     </p>
 
                     <p className="mt-1 text-xs text-gray-500">
-                      Prazo: {item.due}
+                      Prazo: {item.due || "Sem prazo"}
                     </p>
                   </div>
 
@@ -367,27 +431,32 @@ function RequestsSection({ data }: { data: OverviewData }) {
 
 function ApprovalsSection({ data }: { data: OverviewData }) {
   return (
-    <SectionCard title={LABELS.pendingApprovals}>
+    <SectionCard
+      title={LABELS.pendingApprovals}
+      subtitle={`${data.approvals.length} submissões por rever`}
+      height="360px"
+    >
       {data.approvals.length > 0 ? (
         <ul className="divide-y divide-gray-100">
           {data.approvals.map((approval) => (
             <li
-              key={approval.id}
+              key={approval.submission_id}
               className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm text-gray-800">
-                  {approval.item}
+                <p className="truncate text-sm font-medium text-gray-800">
+                  {approval.title}
                 </p>
 
                 <p className="mt-1 text-xs text-gray-500">
-                  À aguardar {approval.requestedFrom}
+                  {approval.type} · Submetido em{" "}
+                  {formatDateTime(approval.submitted_at)}
                 </p>
               </div>
 
-              <span className="shrink-0 text-xs text-gray-500">
-                {approval.date}
-              </span>
+              <div className="shrink-0">
+                <StatusPill status={approval.status} />
+              </div>
             </li>
           ))}
         </ul>
@@ -395,6 +464,7 @@ function ApprovalsSection({ data }: { data: OverviewData }) {
         <EmptyState
           icon={Clock3}
           title={LABELS.pendingApprovals}
+          message="Não existem submissões pendentes de revisão."
         />
       )}
     </SectionCard>
@@ -484,7 +554,7 @@ function BudgetProgress({ budget }: { budget: BudgetItem }) {
 
 function BudgetSection({ data }: { data: OverviewData }) {
   return (
-    <SectionCard title={LABELS.budgetByPhase}>
+    <SectionCard title={LABELS.budgetByPhase} height="360px">
       {data.budgetByPhase.length > 0 ? (
         <div className="space-y-5">
           {data.budgetByPhase.map((budget) => (
@@ -492,27 +562,10 @@ function BudgetSection({ data }: { data: OverviewData }) {
           ))}
         </div>
       ) : (
-        <EmptyState
-          icon={BarChart3}
-          title={LABELS.budgetByPhase}
-        />
+        <EmptyState icon={BarChart3} title={LABELS.budgetByPhase} />
       )}
     </SectionCard>
   );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Edit project dialog data                                                   */
-/* -------------------------------------------------------------------------- */
-
-function getOptionalString(
-  project: OverviewData["project"],
-  key: string,
-  fallback = "",
-): string {
-  const value: unknown = project[key as keyof typeof project];
-
-  return typeof value === "string" ? value : fallback;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -537,9 +590,7 @@ export default function OverviewClientPage({
       icon: CalendarDays,
       title: LABELS.remainingDays,
       value:
-        kpis.remainingDays === null
-          ? "—"
-          : String(kpis.remainingDays),
+        kpis.remainingDays === null ? "—" : String(kpis.remainingDays),
     },
     {
       icon: CircleAlert,
@@ -559,18 +610,10 @@ export default function OverviewClientPage({
   ];
 
   return (
-    <main className="min-h-screen bg-[#F7F7F5]">
+    <main className="min-h-0 bg-[#F7F7F5]">
       <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {/* Project header */}
         <header className="border-b border-gray-200 pb-5">
-          <Link
-            href={projectBase}
-            className="mb-4 inline-flex items-center gap-2 text-sm text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
-          >
-            <ArrowLeft size={16} aria-hidden="true" />
-            Voltar ao projecto
-          </Link>
-
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
             <div className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -581,9 +624,7 @@ export default function OverviewClientPage({
                 Visão Geral do Projecto
               </h1>
 
-              <p className="mt-2 text-sm text-gray-600">
-                {project.name}
-              </p>
+              <p className="mt-2 text-sm text-gray-600">{project.name}</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -593,7 +634,7 @@ export default function OverviewClientPage({
 
               <button
                 type="button"
-                onClick={() => router.push(projectBase + "/edit")}
+                onClick={() => router.push(`${projectBase}/edit`)}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
               >
                 <Pencil size={15} aria-hidden="true" />
