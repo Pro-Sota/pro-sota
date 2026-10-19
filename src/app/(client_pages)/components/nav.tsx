@@ -4,6 +4,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+import "../../admin.css";
+import "../../styles.css";
+
 type NavProps = {
   dark?: boolean;
 };
@@ -42,7 +45,7 @@ export default function Nav({ dark = false }: NavProps) {
         onClick={closeMenu}
         aria-label="PRO SOTA — Página inicial"
       >
-        <img src="/assets/logo/logo-brand.png" alt="PRO SOTA" />
+        <img src="/images/logo-brand.png" alt="PRO SOTA" />
       </Link>
 
       <nav

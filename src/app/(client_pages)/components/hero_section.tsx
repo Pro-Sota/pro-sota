@@ -1,6 +1,10 @@
-
 import Image from "next/image";
 import Link from "next/link";
+
+const FOUNDING_YEAR = 1997;
+
+const YEARS_OF_EXPERIENCE =
+  new Date().getFullYear() - FOUNDING_YEAR;
 
 const services = [
   "Arquitectura",
@@ -16,13 +20,14 @@ const services = [
 export default function Hero() {
   return (
     <section className="hero" id="top">
-      <div className="hero__grid" />
-      <div className="hero__scan" />
+      {/* Decorative background effects */}
+      <div className="hero__grid" aria-hidden="true" />
+      <div className="hero__scan" aria-hidden="true" />
 
-      {/* Planta decorativa, ignorada pelas tecnologias assistivas. */}
+      {/* Decorative architectural blueprint */}
       <Image
         className="hero__blueprint"
-        src="/assets/img/planta-arquitectonica.svg"
+        src="/images/planta-arquitectonica.svg"
         alt=""
         aria-hidden="true"
         width={800}
@@ -32,16 +37,20 @@ export default function Hero() {
 
       <div className="hero__inner">
         <div className="hero__eyebrow-row">
-          <span className="hero__pin" />
+          <span className="hero__pin" aria-hidden="true" />
 
           <span className="hero__eyebrow">
-            Angola · Desde 1997
+            Angola · Desde {FOUNDING_YEAR}
           </span>
         </div>
 
-        <h1>
-          <span className="hero__pro">PRO</span>
-          <span className="hero__sota">SOTA</span>
+        <h1 aria-label="PRO SOTA">
+          <span className="hero__pro" aria-hidden="true">
+            PRO
+          </span>
+          <span className="hero__sota" aria-hidden="true">
+            SOTA
+          </span>
         </h1>
 
         <div className="hero__sub">
@@ -51,30 +60,45 @@ export default function Hero() {
             realidade.
           </p>
 
-          <Link href="/#servicos" className="hero__cta">
-            Explorar serviços →
-          </Link>
+          <div className="hero__actions">
+            <Link href="/#servicos" className="hero__cta">
+              Explorar serviços
+              <span aria-hidden="true"> →</span>
+            </Link>
 
-          <div className="hero__meta">
+            <Link
+              href="/#contacto"
+              className="hero__cta hero__cta--secondary"
+            >
+              Fale connosco
+              <span aria-hidden="true"> →</span>
+            </Link>
+          </div>
+
+          <div
+            className="hero__meta"
+            aria-label="PRO SOTA em números"
+          >
             <div>
-              <strong>29</strong>
-              anos de experiência
+              <strong>{YEARS_OF_EXPERIENCE}</strong>
+              <span>anos de experiência</span>
             </div>
 
             <div>
               <strong>11+</strong>
-              grandes projectos
+              <span>grandes projectos</span>
             </div>
 
             <div>
               <strong>4</strong>
-              áreas de actuação
+              <span>áreas de actuação</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="hero__strip">
+      {/* Decorative ticker; duplicated labels are hidden from screen readers. */}
+      <div className="hero__strip" aria-hidden="true">
         <div className="hero__strip-track">
           {services.map((service, index) => (
             <span key={`${service}-${index}`}>

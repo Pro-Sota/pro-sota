@@ -1,6 +1,12 @@
-// src/scene3d/Scenes.tsx
+
+/*
+ * Composição das quatro cenas a partir das primitivas reutilizáveis.
+ * Medidas ilustrativas em píxeis; não representam desenhos técnicos à escala.
+ * SCENES associa as chaves usadas no catálogo e nos URLs dos serviços.
+ */
 
 import { C, solidFace, windowsBg } from "./materials";
+
 import {
   Cuboid,
   GroundPlane,
@@ -17,13 +23,34 @@ import {
   SvgOverlay,
 } from "./primitives";
 
-// Combina edifícios, vegetação e desenho sobreposto.
-// As medidas são ilustrativas e não representam desenhos técnicos à escala.
+type CoordinatePair = readonly [number, number];
+
+const ENGINEERING_COLUMNS: readonly CoordinatePair[] = [
+  [-60, -46],
+  [60, -46],
+  [-60, 46],
+  [60, 46],
+  [-60, 0],
+  [60, 0],
+];
+
+const CONSTRUCTION_CORNERS: readonly CoordinatePair[] = [
+  [-1, -1],
+  [1, -1],
+  [-1, 1],
+  [1, 1],
+];
+
+// -----------------------------------------------------------------------------
+// Arquitectura
+// -----------------------------------------------------------------------------
 
 export function ArquitecturaScene() {
   const GY = 92;
+
   const P = { x: -10, z: -6, w: 112, h: 104, d: 70 };
   const pTop = GY - P.h;
+
   const T = { x: 24, z: -24, w: 64, h: 118, d: 50 };
   const tTop = pTop - T.h;
 
@@ -40,8 +67,14 @@ export function ArquitecturaScene() {
         h={P.h}
         d={P.d}
         top={C.stoneLight}
-        frontStyle={windowsBg(C.navySoft, { gap: 20, kind: "front" })}
-        sideStyle={windowsBg(C.navyMid, { gap: 20, kind: "side" })}
+        frontStyle={windowsBg(C.navySoft, {
+          gap: 20,
+          kind: "front",
+        })}
+        sideStyle={windowsBg(C.navyMid, {
+          gap: 20,
+          kind: "side",
+        })}
       />
 
       <Cuboid
@@ -52,8 +85,14 @@ export function ArquitecturaScene() {
         h={T.h}
         d={T.d}
         top={C.stone}
-        frontStyle={windowsBg(C.navy, { gap: 16, kind: "front" })}
-        sideStyle={windowsBg("#062042", { gap: 16, kind: "side" })}
+        frontStyle={windowsBg(C.navy, {
+          gap: 16,
+          kind: "front",
+        })}
+        sideStyle={windowsBg("#062042", {
+          gap: 16,
+          kind: "side",
+        })}
       />
 
       <Cuboid
@@ -86,8 +125,21 @@ export function ArquitecturaScene() {
         z={P.z + P.d / 2 + 19}
       />
 
-      <Plinth x={P.x} y={GY - 4} z={P.z + P.d / 2} w={P.w} d={4} />
-      <Plinth x={P.x} y={GY - 4} z={P.z - P.d / 2} w={4} d={P.d} />
+      <Plinth
+        x={P.x}
+        y={GY - 4}
+        z={P.z + P.d / 2}
+        w={P.w}
+        d={4}
+      />
+
+      <Plinth
+        x={P.x}
+        y={GY - 4}
+        z={P.z - P.d / 2}
+        w={4}
+        d={P.d}
+      />
 
       <TrimBand
         x={P.x}
@@ -103,7 +155,11 @@ export function ArquitecturaScene() {
         w={T.w}
       />
 
-      <RoofPlant x={P.x - 34} y={pTop - 6} z={P.z - 14} />
+      <RoofPlant
+        x={P.x - 34}
+        y={pTop - 6}
+        z={P.z - 14}
+      />
 
       <BalconyRail
         x={P.x}
@@ -119,11 +175,33 @@ export function ArquitecturaScene() {
         w={P.w - 20}
       />
 
-      <Hedge x={P.x - 64} y={GY - 5} z={P.z + P.d / 2} w={52} />
-      <Hedge x={P.x + 46} y={GY - 5} z={P.z + P.d / 2} w={60} />
+      <Hedge
+        x={P.x - 64}
+        y={GY - 5}
+        z={P.z + P.d / 2}
+        w={52}
+      />
 
-      <Shrub x={P.x - 90} y={GY} z={P.z + P.d / 2 - 6} r={13} />
-      <Shrub x={P.x + 84} y={GY} z={P.z + P.d / 2 - 2} r={10} />
+      <Hedge
+        x={P.x + 46}
+        y={GY - 5}
+        z={P.z + P.d / 2}
+        w={60}
+      />
+
+      <Shrub
+        x={P.x - 90}
+        y={GY}
+        z={P.z + P.d / 2 - 6}
+        r={13}
+      />
+
+      <Shrub
+        x={P.x + 84}
+        y={GY}
+        z={P.z + P.d / 2 - 2}
+        r={10}
+      />
 
       <SvgOverlay w={200} h={200} x={26} y={tTop - 100} z={96}>
         <rect
@@ -135,6 +213,7 @@ export function ArquitecturaScene() {
           stroke="#e2c690"
           strokeOpacity="0.7"
         />
+
         <line
           x1="4"
           y1="100"
@@ -143,6 +222,7 @@ export function ArquitecturaScene() {
           stroke="#e2c690"
           strokeOpacity="0.4"
         />
+
         <line
           x1="100"
           y1="4"
@@ -151,6 +231,7 @@ export function ArquitecturaScene() {
           stroke="#e2c690"
           strokeOpacity="0.4"
         />
+
         <rect
           x="24"
           y="24"
@@ -160,6 +241,7 @@ export function ArquitecturaScene() {
           stroke="#bd9655"
           strokeOpacity="0.85"
         />
+
         <rect
           x="110"
           y="110"
@@ -174,7 +256,10 @@ export function ArquitecturaScene() {
   );
 }
 
-// Ilustra a estrutura técnica através de elementos repetidos.
+// -----------------------------------------------------------------------------
+// Engenharia
+// -----------------------------------------------------------------------------
+
 export function EngenhariaScene() {
   return (
     <>
@@ -193,23 +278,18 @@ export function EngenhariaScene() {
             w={150}
             h={8}
             d={112}
-            top={i === 2 ? C.goldLight : "rgba(226,198,144,.4)"}
+            top={
+              i === 2
+                ? C.goldLight
+                : "rgba(226,198,144,.4)"
+            }
             front="rgba(226,198,144,.22)"
             side="rgba(226,198,144,.14)"
           />
         );
       })}
 
-      {(
-        [
-          [-60, -46],
-          [60, -46],
-          [-60, 46],
-          [60, 46],
-          [-60, 0],
-          [60, 0],
-        ] as const
-      ).map(([cx, cz], i) => (
+      {ENGINEERING_COLUMNS.map(([cx, cz], i) => (
         <Cuboid
           key={i}
           x={cx}
@@ -283,9 +363,7 @@ export function EngenhariaScene() {
             stroke="#e2c690"
             strokeOpacity="0.6"
           />
-          <text x="5.5" y="13">
-            P1
-          </text>
+          <text x="5.5" y="13">P1</text>
         </g>
       </SvgOverlay>
 
@@ -304,22 +382,26 @@ export function EngenhariaScene() {
             stroke="#e2c690"
             strokeOpacity="0.6"
           />
-          <text x="4" y="13">
-            V2
-          </text>
+          <text x="4" y="13">V2</text>
         </g>
       </SvgOverlay>
     </>
   );
 }
 
-// Compõe a ilustração de obra com as primitivas partilhadas.
+// -----------------------------------------------------------------------------
+// Construção
+// -----------------------------------------------------------------------------
+
 export function ConstrucaoScene() {
   const GY = 96;
+
   const B = { x: -24, z: -6, w: 108, h: 92, d: 62 };
   const bTop = GY - B.h;
+
   const frameH = 34;
   const frameTop = bTop - frameH;
+
   const mastX = 96;
   const mastH = 190;
   const mastTopY = GY - mastH;
@@ -333,7 +415,12 @@ export function ConstrucaoScene() {
         color="rgba(140,100,60,.10)"
       />
 
-      <ShadowBlob y={GY - 1} w={210} d={150} x={-4} />
+      <ShadowBlob
+        y={GY - 1}
+        w={210}
+        d={150}
+        x={-4}
+      />
 
       <Cuboid
         x={B.x}
@@ -348,7 +435,10 @@ export function ConstrucaoScene() {
           lit: true,
           kind: "front",
         })}
-        sideStyle={windowsBg(C.navyMid, { gap: 18, kind: "side" })}
+        sideStyle={windowsBg(C.navyMid, {
+          gap: 18,
+          kind: "side",
+        })}
       />
 
       <TrimBand
@@ -358,16 +448,15 @@ export function ConstrucaoScene() {
         w={B.w}
       />
 
-      <Plinth x={B.x} y={GY - 4} z={B.z + B.d / 2} w={B.w} d={4} />
+      <Plinth
+        x={B.x}
+        y={GY - 4}
+        z={B.z + B.d / 2}
+        w={B.w}
+        d={4}
+      />
 
-      {(
-        [
-          [-1, -1],
-          [1, -1],
-          [-1, 1],
-          [1, 1],
-        ] as const
-      ).map(([c0, c1], i) => {
+      {CONSTRUCTION_CORNERS.map(([c0, c1], i) => {
         const cx = B.x + c0 * (B.w / 2 - 10);
         const cz = B.z + c1 * (B.d / 2 - 10);
 
@@ -385,7 +474,11 @@ export function ConstrucaoScene() {
               side={C.concrete}
             />
 
-            <WaitingBars x={cx} y={frameTop - 3} z={cz} />
+            <WaitingBars
+              x={cx}
+              y={frameTop - 3}
+              z={cz}
+            />
           </div>
         );
       })}
@@ -535,9 +628,13 @@ export function ConstrucaoScene() {
   );
 }
 
-// Compõe a ilustração de acompanhamento e fiscalização.
+// -----------------------------------------------------------------------------
+// Fiscalização
+// -----------------------------------------------------------------------------
+
 export function FiscalizacaoScene() {
   const GY = 92;
+
   const B = { w: 128, h: 114, d: 76 };
   const bTop = GY - B.h;
 
@@ -554,12 +651,29 @@ export function FiscalizacaoScene() {
         h={B.h}
         d={B.d}
         top={C.stoneLight}
-        frontStyle={windowsBg(C.navySoft, { gap: 19, kind: "front" })}
-        sideStyle={windowsBg(C.navyMid, { gap: 19, kind: "side" })}
+        frontStyle={windowsBg(C.navySoft, {
+          gap: 19,
+          kind: "front",
+        })}
+        sideStyle={windowsBg(C.navyMid, {
+          gap: 19,
+          kind: "side",
+        })}
       />
 
-      <DoorFace x={0} y={GY - 14} z={B.d / 2 + 1} />
-      <Plinth x={0} y={GY - 4} z={B.d / 2} w={B.w} d={4} />
+      <DoorFace
+        x={0}
+        y={GY - 14}
+        z={B.d / 2 + 1}
+      />
+
+      <Plinth
+        x={0}
+        y={GY - 4}
+        z={B.d / 2}
+        w={B.w}
+        d={4}
+      />
 
       <TrimBand
         x={0}
@@ -568,14 +682,30 @@ export function FiscalizacaoScene() {
         w={B.w}
       />
 
-      <RoofPlant x={-36} y={bTop - 6} z={-10} />
-      <Hedge x={-58} y={GY - 5} z={B.d / 2} w={44} />
-      <Shrub x={74} y={GY} z={B.d / 2 - 4} r={11} />
+      <RoofPlant
+        x={-36}
+        y={bTop - 6}
+        z={-10}
+      />
+
+      <Hedge
+        x={-58}
+        y={GY - 5}
+        z={B.d / 2}
+        w={44}
+      />
+
+      <Shrub
+        x={74}
+        y={GY}
+        z={B.d / 2 - 4}
+        r={11}
+      />
 
       <div
         className="mcube"
         style={{
-          transform: `translate3d(0px,${bTop}px,${B.d / 2 + 1}px)`,
+          transform: `translate3d(0px, ${bTop}px, ${B.d / 2 + 1}px)`,
         }}
       >
         <div
@@ -583,7 +713,7 @@ export function FiscalizacaoScene() {
           style={{
             width: B.w,
             height: 150,
-            transform: "translate(-50%,0%)",
+            transform: "translate(-50%, 0%)",
             boxShadow: "none",
             background:
               "linear-gradient(180deg, transparent, rgba(189,150,85,.4) 45%, transparent)",
@@ -608,6 +738,7 @@ export function FiscalizacaoScene() {
           fill="rgba(5,18,33,.55)"
           stroke="#e2c690"
         />
+
         <line
           x1="12"
           y1="16"
@@ -616,6 +747,7 @@ export function FiscalizacaoScene() {
           stroke="#bd9655"
           strokeWidth="2"
         />
+
         <line
           x1="12"
           y1="26"
@@ -624,6 +756,7 @@ export function FiscalizacaoScene() {
           stroke="#bd9655"
           strokeWidth="2"
         />
+
         <path
           d="M12 36 L18 42 L34 26"
           stroke="#e2c690"
@@ -631,6 +764,40 @@ export function FiscalizacaoScene() {
           fill="none"
         />
       </SvgOverlay>
+
+      <SvgOverlay w={20} h={110} x={-92} y={-2} z={50}>
+        <line
+          x1="10"
+          y1="0"
+          x2="10"
+          y2="110"
+          stroke="rgba(226,198,144,.5)"
+        />
+
+        {[0, 1, 2, 3, 4].map((i) => (
+          <line
+            key={i}
+            x1="4"
+            y1={i * 27}
+            x2="16"
+            y2={i * 27}
+            stroke="rgba(226,198,144,.6)"
+          />
+        ))}
+      </SvgOverlay>
     </>
   );
 }
+
+// -----------------------------------------------------------------------------
+// Catálogo de cenas
+// -----------------------------------------------------------------------------
+
+export const SCENES = {
+  arquitectura: ArquitecturaScene,
+  engenharia: EngenhariaScene,
+  construcao: ConstrucaoScene,
+  fiscalizacao: FiscalizacaoScene,
+} as const;
+
+export type SceneKey = keyof typeof SCENES;

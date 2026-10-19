@@ -1,11 +1,5 @@
 // src/app/lib/permissions/types.ts
 
-export type SystemRole =
-  | "Superadmin"
-  | "Admin"
-  | "Director"
-  | "Utilizador";
-
 export type Permission =
   // Dashboard
   | "dashboard.view"
@@ -91,11 +85,21 @@ export type Permission =
   | "profile.view"
   | "profile.edit";
 
-export type PermissionSet = ReadonlySet<Permission>;
+export type PermissionEffect = "allow" | "deny";
+
+export type PermissionOverride = {
+  permissionKey: Permission;
+  effect: PermissionEffect;
+  reason?: string | null;
+};
+
+export type SystemRole = "Admin" | "Utilizador";
 
 export type PermissionContextValue = {
-  permissions: PermissionSet;
+  permissions: ReadonlySet<Permission>;
   can: (permission: Permission) => boolean;
-  canAny: (permissions: Permission[]) => boolean;
-  canAll: (permissions: Permission[]) => boolean;
+  canAny: (permissions: readonly Permission[]) => boolean;
+  canAll: (permissions: readonly Permission[]) => boolean;
 };
+export type PermissionSet = ReadonlySet<Permission>;
+

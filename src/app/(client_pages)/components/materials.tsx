@@ -1,10 +1,10 @@
-// src/scene3d/materials.ts
-/*
- * Paleta e texturas CSS das cenas: gradientes simulam luz, vidro e caixilharia.
- * As funções devolvem objectos compatíveis com a propriedade style do React.
- */
 
 import type { CSSProperties } from "react";
+
+/*
+ * Paleta e texturas CSS das cenas.
+ * Os gradientes simulam luz, vidro e caixilharia.
+ */
 
 export const C = {
   navy: "#002950",
@@ -27,20 +27,23 @@ export const C = {
 
   leaf: "#4f6b4a",
   leafDark: "#3a5136",
+
   bark: "#5c4a36",
 } as const;
 
-export type ShadeKind = "top" | "front" | "side";
+export type FaceKind = "top" | "front" | "side";
 
-type WindowOptions = {
+export interface WindowBackgroundOptions {
   gap?: number;
   mullion?: number;
-  kind?: ShadeKind;
+  kind?: FaceKind;
   lit?: boolean;
-};
+}
 
-// Escolhe iluminação simulada conforme a orientação da face: top, front ou lateral.
-export function shade(kind: ShadeKind = "side"): string {
+/**
+ * Escolhe a iluminação simulada conforme a orientação da face.
+ */
+export function shade(kind: FaceKind): string {
   if (kind === "top") {
     return "linear-gradient(125deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,.08) 45%, rgba(0,0,0,.05) 100%)";
   }
@@ -52,10 +55,12 @@ export function shade(kind: ShadeKind = "side"): string {
   return "linear-gradient(180deg, rgba(0,0,0,.12) 0%, rgba(5,18,33,.05) 30%, rgba(5,18,33,.5) 100%)";
 }
 
-// Combina a cor base com o gradiente de iluminação de uma face.
+/**
+ * Combina uma cor base com o gradiente de iluminação de uma face.
+ */
 export function solidFace(
-  base: CSSProperties["backgroundColor"],
-  kind: ShadeKind = "side",
+  base: string,
+  kind: FaceKind,
 ): CSSProperties {
   return {
     background: base,
@@ -63,10 +68,14 @@ export function solidFace(
   };
 }
 
-// Sobrepõe luz e grelhas repetidas; gap controla o espaçamento e mullion a espessura dos caixilhos.
+/**
+ * Sobrepõe iluminação e grelhas repetidas para simular janelas.
+ * gap: espaçamento entre elementos.
+ * mullion: espessura dos caixilhos.
+ */
 export function windowsBg(
-  base: CSSProperties["backgroundColor"],
-  options: WindowOptions = {},
+  base: string,
+  options: WindowBackgroundOptions = {},
 ): CSSProperties {
   const {
     gap = 22,
@@ -91,8 +100,8 @@ export function windowsBg(
     backgroundImage: [
       shade(kind),
       glassSheen,
-      `repeating-linear-gradient(90deg,${tint} 0 ${mullion}px, ${sillTint} ${mullion}px ${gap}px)`,
-      `repeating-linear-gradient(0deg,${tint} 0 ${mullion}px, transparent ${mullion}px ${gap + 9}px)`,
+      `repeating-linear-gradient(90deg, ${tint} 0 ${mullion}px, ${sillTint} ${mullion}px ${gap}px)`,
+      `repeating-linear-gradient(0deg, ${tint} 0 ${mullion}px, transparent ${mullion}px ${gap + 9}px)`,
     ].join(","),
   };
 }

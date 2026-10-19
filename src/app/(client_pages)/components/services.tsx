@@ -1,9 +1,10 @@
-// src/components/Services.tsx
+import { services } from "./servicesData";
 
 import Link from "next/link";
+import "../../admin.css";
+import "../../styles.css";
 
 export default function Services() {
-  const services: any[] = [];
   return (
     <section
       className="services relative overflow-hidden bg-cream py-[clamp(80px,12vh,120px)]"
@@ -43,7 +44,7 @@ export default function Services() {
               </p>
 
               <ul className="services__subservices mt-4 space-y-1.5 border-t border-navy/15 text-[13px] leading-[1.5] text-navy">
-                {service.items.map(([title]: [string]) => (
+                {service.items.map(([title]) => (
                   <li key={title}>{title}</li>
                 ))}
               </ul>

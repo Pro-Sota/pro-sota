@@ -1,23 +1,6 @@
-// src/components/PortfolioGrid.tsx
 
-"use client";
+import type { KeyboardEvent } from "react";
 
-type PortfolioProject = {
-  id: string | number;
-  name: string;
-  category: string;
-  year: string | number;
-  images?: string[] | null;
-  summary?: string | null;
-};
-
-type PortfolioGridProps = {
-  projects: PortfolioProject[];
-  onOpen: (projectId: PortfolioProject["id"]) => void;
-  sized?: boolean;
-};
-
-// Sete peças formam o mosaico 2–3–2 usado na página completa do portefólio.
 const SIZE_PATTERN = [
   "is-w4",
   "is-w2",
@@ -28,53 +11,70 @@ const SIZE_PATTERN = [
   "is-w4",
 ];
 
+export type PortfolioGridProject = {
+  id: string;
+  name: string;
+  category: string;
+  year: string | number;
+  summary: string;
+  images?: string[];
+};
+
+type PortfolioGridProps = {
+  projects: PortfolioGridProject[];
+  onOpen: (id: string) => void;
+  sized?: boolean;
+};
+
 export default function PortfolioGrid({
   projects,
   onOpen,
   sized = true,
 }: PortfolioGridProps) {
+  function handleKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    id: string
+  ) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpen(id);
+    }
+  }
+
   return (
     <div className="portfolio__grid">
-      {projects.map((project, i) => {
+      {projects.map((project, index) => {
         const cover = project.images?.[0];
         const count = project.images?.length ?? 0;
 
         return (
-          <div
+          <button
             key={project.id}
-            className={
-              "p-item" +
-              (sized ? ` ${SIZE_PATTERN[i % SIZE_PATTERN.length]}` : "")
-            }
-            role="button"
-            tabIndex={0}
+            type="button"
+            className={`p-item${sized ? ` ${SIZE_PATTERN[index % SIZE_PATTERN.length]}` : ""}`}
             aria-label={`Ver projecto ${project.name}`}
             onClick={() => onOpen(project.id)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onOpen(project.id);
-              }
-            }}
+            onKeyDown={(event) => handleKeyDown(event, project.id)}
           >
             {cover ? (
               <img
                 src={cover}
                 alt={project.name}
                 loading="lazy"
-                draggable={false}
               />
             ) : (
               <div
                 className="p-item__placeholder"
-                aria-label="Sem imagem disponível"
+                aria-hidden="true"
               />
             )}
 
-            <div className="p-item__scrim" />
+            <div className="p-item__scrim" aria-hidden="true" />
 
             {count > 1 && (
-              <div className="p-item__count">{count} fotos</div>
+              <div className="p-item__count">
+                {count} fotos
+              </div>
             )}
 
             <div className="p-item__meta">
@@ -82,9 +82,9 @@ export default function PortfolioGrid({
                 {project.category} — {project.year}
               </em>
               <h3>{project.name}</h3>
-              {project.summary && <span>{project.summary}</span>}
+              <span>{project.summary}</span>
             </div>
-          </div>
+          </button>
         );
       })}
     </div>

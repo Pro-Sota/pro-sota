@@ -1,11 +1,10 @@
-// src/scene3d/Primitives.tsx
 
 import type { CSSProperties, ReactNode } from "react";
 import { C, solidFace } from "./materials";
 
 type FaceStyle = CSSProperties;
 
-type CuboidProps = {
+interface CuboidProps {
   x?: number;
   y?: number;
   z?: number;
@@ -18,7 +17,100 @@ type CuboidProps = {
   topStyle?: FaceStyle;
   frontStyle?: FaceStyle;
   sideStyle?: FaceStyle;
-};
+}
+
+interface GroundPlaneProps {
+  y?: number;
+  w?: number;
+  d?: number;
+  color?: string;
+  line?: string;
+}
+
+interface ShadowBlobProps {
+  x?: number;
+  y?: number;
+  z?: number;
+  w?: number;
+  d?: number;
+}
+
+interface ThinLineProps {
+  x: number;
+  y: number;
+  z: number;
+  len: number;
+  w?: number;
+  color?: string;
+  rot?: number;
+}
+
+interface ShrubProps {
+  x: number;
+  y: number;
+  z: number;
+  r?: number;
+}
+
+interface HedgeProps {
+  x: number;
+  y: number;
+  z: number;
+  w?: number;
+}
+
+interface BalconyRailProps {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
+interface DoorFaceProps {
+  x: number;
+  y: number;
+  z: number;
+  w?: number;
+  h?: number;
+}
+
+interface PlinthProps {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  d: number;
+  h?: number;
+}
+
+interface TrimBandProps {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  d?: number;
+}
+
+interface RoofPlantProps {
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface WaitingBarsProps {
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface SvgOverlayProps {
+  x?: number;
+  y?: number;
+  z?: number;
+  w: number;
+  h: number;
+  children?: ReactNode;
+}
 
 // Monta as três faces visíveis de um volume.
 export function Cuboid({
@@ -42,14 +134,16 @@ export function Cuboid({
   return (
     <div
       className="mcube"
-      style={{ transform: `translate3d(${x}px,${y}px,${z}px)` }}
+      style={{
+        transform: `translate3d(${x}px, ${y}px, ${z}px)`,
+      }}
     >
       <div
         className="mface mface--top"
         style={{
           width: w,
           height: d,
-          transform: `translate(-50%,-50%) rotateX(90deg) translateZ(${-h / 2}px)`,
+          transform: `translate(-50%, -50%) rotateX(90deg) translateZ(${-h / 2}px)`,
           ...topFace,
         }}
       />
@@ -59,7 +153,7 @@ export function Cuboid({
         style={{
           width: w,
           height: h,
-          transform: `translate(-50%,-50%) translateZ(${d / 2}px)`,
+          transform: `translate(-50%, -50%) translateZ(${d / 2}px)`,
           ...frontFace,
         }}
       />
@@ -69,7 +163,7 @@ export function Cuboid({
         style={{
           width: d,
           height: h,
-          transform: `translate(-50%,-50%) rotateY(90deg) translateZ(${w / 2}px)`,
+          transform: `translate(-50%, -50%) rotateY(90deg) translateZ(${w / 2}px)`,
           ...sideFace,
         }}
       />
@@ -77,15 +171,7 @@ export function Cuboid({
   );
 }
 
-type GroundPlaneProps = {
-  y?: number;
-  w?: number;
-  d?: number;
-  color?: string;
-  line?: string;
-};
-
-// Cria o plano horizontal de apoio da cena.
+// Plano horizontal de apoio da cena.
 export function GroundPlane({
   y = 92,
   w = 260,
@@ -96,14 +182,16 @@ export function GroundPlane({
   return (
     <div
       className="mcube"
-      style={{ transform: `translate3d(0px,${y}px,0px)` }}
+      style={{
+        transform: `translate3d(0px, ${y}px, 0px)`,
+      }}
     >
       <div
         className="mface mface--ground"
         style={{
           width: w,
           height: d,
-          transform: "translate(-50%,-50%) rotateX(90deg)",
+          transform: "translate(-50%, -50%) rotateX(90deg)",
           background: color || "rgba(226,198,144,.045)",
           backgroundImage:
             "radial-gradient(120% 90% at 30% 20%, rgba(255,255,255,.05), transparent 60%)",
@@ -114,15 +202,7 @@ export function GroundPlane({
   );
 }
 
-type ShadowBlobProps = {
-  x?: number;
-  y?: number;
-  z?: number;
-  w?: number;
-  d?: number;
-};
-
-// Simula sombra no chão com um gradiente radial.
+// Sombra simulada com gradiente radial.
 export function ShadowBlob({
   x = 0,
   y = 91,
@@ -133,14 +213,16 @@ export function ShadowBlob({
   return (
     <div
       className="mcube"
-      style={{ transform: `translate3d(${x}px,${y}px,${z}px)` }}
+      style={{
+        transform: `translate3d(${x}px, ${y}px, ${z}px)`,
+      }}
     >
       <div
         className="mface"
         style={{
           width: w,
           height: d,
-          transform: "translate(-50%,-50%) rotateX(90deg)",
+          transform: "translate(-50%, -50%) rotateX(90deg)",
           background:
             "radial-gradient(closest-side, rgba(0,0,0,.42), transparent 72%)",
           boxShadow: "none",
@@ -150,17 +232,7 @@ export function ShadowBlob({
   );
 }
 
-type ThinLineProps = {
-  x: number;
-  y: number;
-  z: number;
-  len: number;
-  w?: number;
-  color?: string;
-  rot?: number;
-};
-
-// Desenha uma linha plana; rot aplica uma rotação local em graus.
+// Linha plana com rotação opcional.
 export function ThinLine({
   x,
   y,
@@ -173,7 +245,9 @@ export function ThinLine({
   return (
     <div
       className="mcube"
-      style={{ transform: `translate3d(${x}px,${y}px,${z}px)` }}
+      style={{
+        transform: `translate3d(${x}px, ${y}px, ${z}px)`,
+      }}
     >
       <div
         className="mface"
@@ -182,24 +256,14 @@ export function ThinLine({
           height: len,
           background: color || "rgba(226,198,144,.55)",
           boxShadow: "none",
-          transform: `translate(-50%,-50%)${rot ? ` rotate(${rot}deg)` : ""}`,
+          transform: `translate(-50%, -50%)${rot ? ` rotate(${rot}deg)` : ""}`,
         }}
       />
     </div>
   );
 }
 
-type PositionProps = {
-  x: number;
-  y: number;
-  z: number;
-};
-
-type ShrubProps = PositionProps & {
-  r?: number;
-};
-
-// Compõe um arbusto com um volume baixo e topo arredondado.
+// Arbusto.
 export function Shrub({ x, y, z, r = 10 }: ShrubProps) {
   return (
     <Cuboid
@@ -220,11 +284,7 @@ export function Shrub({ x, y, z, r = 10 }: ShrubProps) {
   );
 }
 
-type HedgeProps = PositionProps & {
-  w?: number;
-};
-
-// Cria uma sebe rectangular reutilizável.
+// Sebe rectangular.
 export function Hedge({ x, y, z, w = 60 }: HedgeProps) {
   return (
     <Cuboid
@@ -241,23 +301,21 @@ export function Hedge({ x, y, z, w = 60 }: HedgeProps) {
   );
 }
 
-type BalconyRailProps = PositionProps & {
-  w: number;
-};
-
-// Simula barras horizontais e verticais da guarda com gradientes.
+// Guarda de varanda.
 export function BalconyRail({ x, y, z, w }: BalconyRailProps) {
   return (
     <div
       className="mcube"
-      style={{ transform: `translate3d(${x}px,${y}px,${z}px)` }}
+      style={{
+        transform: `translate3d(${x}px, ${y}px, ${z}px)`,
+      }}
     >
       <div
         className="mface"
         style={{
           width: w,
           height: 16,
-          transform: "translate(-50%,-100%)",
+          transform: "translate(-50%, -100%)",
           boxShadow: "none",
           background:
             "linear-gradient(180deg, rgba(226,198,144,.85), rgba(226,198,144,.85) 12%, transparent 12%, transparent 88%, rgba(226,198,144,.85) 88%)," +
@@ -268,12 +326,7 @@ export function BalconyRail({ x, y, z, w }: BalconyRailProps) {
   );
 }
 
-type DoorFaceProps = PositionProps & {
-  w?: number;
-  h?: number;
-};
-
-// Representa uma porta como volume de profundidade reduzida.
+// Porta.
 export function DoorFace({
   x,
   y,
@@ -296,13 +349,7 @@ export function DoorFace({
   );
 }
 
-type PlinthProps = PositionProps & {
-  w: number;
-  d: number;
-  h?: number;
-};
-
-// Acrescenta uma base ou rodapé ao edifício.
+// Base ou rodapé do edifício.
 export function Plinth({
   x,
   y,
@@ -326,19 +373,8 @@ export function Plinth({
   );
 }
 
-type TrimBandProps = PositionProps & {
-  w: number;
-  d?: number;
-};
-
-// Acrescenta uma faixa horizontal dourada à fachada.
-export function TrimBand({
-  x,
-  y,
-  z,
-  w,
-  d = 6,
-}: TrimBandProps) {
+// Faixa horizontal dourada.
+export function TrimBand({ x, y, z, w, d = 6 }: TrimBandProps) {
   return (
     <Cuboid
       x={x}
@@ -354,8 +390,8 @@ export function TrimBand({
   );
 }
 
-// Agrupa dois volumes que representam equipamento de cobertura.
-export function RoofPlant({ x, y, z }: PositionProps) {
+// Equipamento de cobertura.
+export function RoofPlant({ x, y, z }: RoofPlantProps) {
   return (
     <>
       <Cuboid
@@ -385,8 +421,8 @@ export function RoofPlant({ x, y, z }: PositionProps) {
   );
 }
 
-// Repete três linhas para representar varões de espera na estrutura.
-export function WaitingBars({ x, y, z }: PositionProps) {
+// Varões de espera da estrutura.
+export function WaitingBars({ x, y, z }: WaitingBarsProps) {
   return (
     <>
       {[-3, 0, 3].map((offset) => (
@@ -403,13 +439,7 @@ export function WaitingBars({ x, y, z }: PositionProps) {
   );
 }
 
-type SvgOverlayProps = PositionProps & {
-  w: number;
-  h: number;
-  children: ReactNode;
-};
-
-// Posiciona um desenho SVG no mesmo espaço transformado das peças HTML.
+// SVG posicionado no mesmo espaço transformado das peças HTML.
 export function SvgOverlay({
   x = 0,
   y = 0,
@@ -428,7 +458,7 @@ export function SvgOverlay({
         left: "50%",
         top: "50%",
         overflow: "visible",
-        transform: `translate(-50%,-50%) translate3d(${x}px,${y}px,${z}px)`,
+        transform: `translate(-50%, -50%) translate3d(${x}px, ${y}px, ${z}px)`,
       }}
     >
       {children}

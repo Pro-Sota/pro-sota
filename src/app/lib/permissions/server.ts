@@ -1,3 +1,6 @@
+
+import "server-only";
+
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
@@ -20,11 +23,10 @@ import type {
  * ============================================================
  */
 
-const getSupabase = async () => {
+async function getSupabase() {
   const cookiesStore = await cookies();
-
   return createClient(cookiesStore);
-};
+}
 
 /*
  * ============================================================
@@ -32,32 +34,14 @@ const getSupabase = async () => {
  * ============================================================
  */
 
-function normalizeRole(
-  role?: string | null,
-): SystemRole {
-  if (!role) {
-    return "Utilizador";
-  }
-
-  const normalized = role
-    .trim()
-    .toLowerCase();
+function normalizeRole(role?: string | null): SystemRole {
+  const normalized = role?.trim().toLowerCase();
 
   switch (normalized) {
-    case "superadmin":
-    case "super admin":
-    case "super_administrator":
-    case "super administrator":
-      return "Superadmin";
-
     case "admin":
     case "administrador":
     case "administrator":
       return "Admin";
-
-    case "director":
-    case "diretor":
-      return "Director";
 
     case "utilizador":
     case "user":
@@ -66,8 +50,40 @@ function normalizeRole(
       return "Utilizador";
 
     default:
+      // Unknown roles must not receive administrative privileges.
       return "Utilizador";
   }
+}
+
+/*
+ * ============================================================
+ * LOAD ALL PERMISSIONS
+ * ============================================================
+ *
+ * Admin has full access to the permission catalogue.
+ * New permissions are included automatically.
+ */
+
+async function getAllPermissions(): Promise<PermissionSet> {
+  const supabase = await getSupabase();
+
+  const { data, error } = await supabase
+    .from("permissions")
+    .select("key");
+
+  if (error) {
+    console.error("Error loading permission catalogue:", error);
+    throw new Error("Não foi possível carregar as permissões.");
+  }
+
+  const permissionKeys = (data ?? [])
+    .map((row) => row.key)
+    .filter(
+      (key): key is Permission =>
+        typeof key === "string",
+    );
+
+  return createPermissionSet(permissionKeys);
 }
 
 /*
@@ -81,9 +97,6 @@ async function getPermissionsForRole(
 ): Promise<PermissionSet> {
   const supabase = await getSupabase();
 
-  /*
-   * First get the permission IDs assigned to the role.
-   */
   const {
     data: rolePermissions,
     error: rolePermissionsError,
@@ -98,14 +111,12 @@ async function getPermissionsForRole(
       rolePermissionsError,
     );
 
-    return createPermissionSet([]);
+    throw new Error(
+      "Não foi possível carregar as permissões da função.",
+    );
   }
 
   if (!rolePermissions?.length) {
-    console.warn(
-      `No permissions assigned to role_id ${roleId}.`,
-    );
-
     return createPermissionSet([]);
   }
 
@@ -113,9 +124,6 @@ async function getPermissionsForRole(
     (item) => item.permission_id,
   );
 
-  /*
-   * Then load the actual permission keys.
-   */
   const {
     data: permissionRows,
     error: permissionsError,
@@ -130,7 +138,9 @@ async function getPermissionsForRole(
       permissionsError,
     );
 
-    return createPermissionSet([]);
+    throw new Error(
+      "Não foi possível carregar as permissões.",
+    );
   }
 
   const permissionKeys = (permissionRows ?? [])
@@ -140,12 +150,68 @@ async function getPermissionsForRole(
         typeof key === "string",
     );
 
-  console.log(
-    `Permissions for role ${roleId}:`,
-    permissionKeys,
+  return createPermissionSet(permissionKeys);
+}
+
+/*
+ * ============================================================
+ * APPLY USER-SPECIFIC OVERRIDES
+ * ============================================================
+ *
+ * Requires:
+ * public.user_permission_overrides
+ *
+ * effect = "allow" grants a permission.
+ * effect = "deny" removes a permission.
+ *
+ * Overrides are applied after role permissions.
+ */
+
+async function applyUserPermissionOverrides(
+  profileId: string,
+  basePermissions: PermissionSet,
+): Promise<PermissionSet> {
+  const supabase = await getSupabase();
+
+  const {
+    data: overrides,
+    error,
+  } = await supabase
+    .from("user_permission_overrides")
+    .select("effect, permissions!inner(key)")
+    .eq("profile_id", profileId);
+
+  if (error) {
+    console.error(
+      "Error loading user permission overrides:",
+      error,
+    );
+
+    // Do not continue with potentially incomplete authorization.
+    throw new Error(
+      "Não foi possível validar as permissões individuais.",
+    );
+  }
+
+  const effectivePermissions = new Set<Permission>(
+    Array.from(basePermissions),
   );
 
-  return createPermissionSet(permissionKeys);
+  for (const override of overrides ?? []) {
+    const permission = override.permissions as unknown as {
+      key: string;
+    };
+
+    const key = permission.key as Permission;
+
+    if (override.effect === "deny") {
+      effectivePermissions.delete(key);
+    } else if (override.effect === "allow") {
+      effectivePermissions.add(key);
+    }
+  }
+
+  return createPermissionSet([...effectivePermissions]);
 }
 
 /*
@@ -163,15 +229,11 @@ export async function getCurrentUserPermissions(): Promise<{
   const supabase = await getSupabase();
 
   /*
-   * ========================================================
    * AUTH USER
-   * ========================================================
    */
 
   const {
-    data: {
-      user,
-    },
+    data: { user },
     error: userError,
   } = await supabase.auth.getUser();
 
@@ -180,9 +242,7 @@ export async function getCurrentUserPermissions(): Promise<{
   }
 
   /*
-   * ========================================================
    * PROFILE
-   * ========================================================
    */
 
   const {
@@ -190,11 +250,9 @@ export async function getCurrentUserPermissions(): Promise<{
     error: profileError,
   } = await supabase
     .from("profiles")
-    .select(
-      "profile_id, role_id, department",
-    )
+    .select("profile_id, role_id, department")
     .eq("profile_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (profileError || !profile) {
     console.error(
@@ -206,9 +264,7 @@ export async function getCurrentUserPermissions(): Promise<{
   }
 
   /*
-   * ========================================================
    * ROLE
-   * ========================================================
    */
 
   const {
@@ -218,7 +274,7 @@ export async function getCurrentUserPermissions(): Promise<{
     .from("roles")
     .select("role_id, name")
     .eq("role_id", profile.role_id)
-    .single();
+    .maybeSingle();
 
   if (roleError || !roleRecord) {
     console.error(
@@ -226,43 +282,35 @@ export async function getCurrentUserPermissions(): Promise<{
       roleError,
     );
 
-    redirect("/login");
+    throw new Error(
+      "Não foi possível determinar a função do utilizador.",
+    );
   }
 
-  const role = normalizeRole(
-    roleRecord.name,
-  );
+  const role = normalizeRole(roleRecord.name);
 
   /*
-   * ========================================================
-   * PERMISSIONS
-   * ========================================================
+   * ROLE PERMISSIONS
    */
 
-  const permissions =
-    await getPermissionsForRole(
+  let permissions: PermissionSet;
+
+  if (role === "Admin") {
+    // Admin bypasses individual denies and has full system access.
+    permissions = await getAllPermissions();
+  } else {
+    permissions = await getPermissionsForRole(
       profile.role_id,
     );
 
-  /*
-   * ========================================================
-   * DEBUG
-   * ========================================================
-   */
-
-  console.log("CURRENT USER PERMISSION DATA:", {
-    userId: profile.profile_id,
-    roleId: profile.role_id,
-    roleName: roleRecord.name,
-    normalizedRole: role,
-    department: profile.department,
-    permissions: Array.from(permissions),
-  });
+    permissions = await applyUserPermissionOverrides(
+      profile.profile_id,
+      permissions,
+    );
+  }
 
   /*
-   * ========================================================
    * RESULT
-   * ========================================================
    */
 
   return {
@@ -277,6 +325,11 @@ export async function getCurrentUserPermissions(): Promise<{
  * ============================================================
  * REQUIRE PERMISSION
  * ============================================================
+ *
+ * Redirects to the management dashboard if the authenticated
+ * user lacks the requested permission.
+ *
+ * Use server-side resource and project membership checks too.
  */
 
 export async function requirePermission(
@@ -287,15 +340,11 @@ export async function requirePermission(
   permissions: PermissionSet;
   department: string | null;
 }> {
-  const auth =
-    await getCurrentUserPermissions();
+  const auth = await getCurrentUserPermissions();
 
   if (
-    auth.role !== "Superadmin" &&
-    !hasPermission(
-      auth.permissions,
-      permission,
-    )
+    auth.role !== "Admin" &&
+    !hasPermission(auth.permissions, permission)
   ) {
     redirect("/management");
   }
@@ -307,20 +356,19 @@ export async function requirePermission(
  * ============================================================
  * CHECK PERMISSION
  * ============================================================
+ *
+ * Returns a boolean for conditional rendering.
+ * Authentication is still required.
  */
 
 export async function checkPermission(
   permission: Permission,
 ): Promise<boolean> {
-  const auth =
-    await getCurrentUserPermissions();
+  const auth = await getCurrentUserPermissions();
 
-  if (auth.role === "Superadmin") {
+  if (auth.role === "Admin") {
     return true;
   }
 
-  return hasPermission(
-    auth.permissions,
-    permission,
-  );
+  return hasPermission(auth.permissions, permission);
 }
