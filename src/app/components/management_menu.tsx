@@ -435,7 +435,7 @@ export default function ManagementMenu({
         return;
       }
 
-      router.replace("/login");
+      router.replace("/");
       router.refresh();
     } catch (error) {
       console.error("Unexpected logout error:", error);
