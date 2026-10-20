@@ -21,6 +21,7 @@ import {
     CheckCircle2,
     Clock3,
     ShieldAlert,
+    ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -40,6 +41,7 @@ import { deactivateTeamMember } from "@/actions/team";
 
 type TeamPageProps = {
     team: TeamMember[];
+    isAdmin: boolean;
 };
 
 const getInitials = (
@@ -79,15 +81,15 @@ const getStatusLabel = (status?: string | null) => {
 const getStatusClasses = (status?: string | null) => {
     switch (status) {
         case "Active":
-            return "bg-emerald-50 text-emerald-700 border-emerald-100";
+            return "border-emerald-100 bg-emerald-50 text-emerald-700";
         case "Inactive":
-            return "bg-slate-100 text-slate-600 border-slate-200";
+            return "border-slate-200 bg-slate-100 text-slate-600";
         case "Pending":
-            return "bg-amber-50 text-amber-700 border-amber-100";
+            return "border-amber-100 bg-amber-50 text-amber-700";
         case "Suspended":
-            return "bg-red-50 text-red-700 border-red-100";
+            return "border-red-100 bg-red-50 text-red-700";
         default:
-            return "bg-slate-50 text-slate-500 border-slate-200";
+            return "border-slate-200 bg-slate-50 text-slate-500";
     }
 };
 
@@ -95,7 +97,10 @@ const getJobTitle = (employee: TeamMember) => {
     return employee.job_title || "Função não definida";
 };
 
-export default function TeamPage({ team }: TeamPageProps) {
+export default function TeamPage({
+    team,
+    isAdmin,
+}: TeamPageProps) {
     const router = useRouter();
     const toast = useToast();
 
@@ -187,11 +192,9 @@ export default function TeamPage({ team }: TeamPageProps) {
                 departmentFilter === "all" ||
                 normalizeDepartment(employee.department) === departmentFilter;
 
-            const employeeStatus = employee.status ?? null;
-
             const matchesStatus =
                 statusFilter === "all" ||
-                employeeStatus === statusFilter;
+                (employee.status ?? null) === statusFilter;
 
             return (
                 matchesSearch &&
@@ -203,6 +206,12 @@ export default function TeamPage({ team }: TeamPageProps) {
 
     const handleCreateMember = () => {
         router.push("/management/team/create-member");
+    };
+
+    const handleViewPermissions = () => {
+        if (!isAdmin) return;
+
+        router.push("/management/team/permissions");
     };
 
     const handleViewProfile = (profileId: string) => {
@@ -254,7 +263,10 @@ export default function TeamPage({ team }: TeamPageProps) {
 
                 router.refresh();
             } catch (error) {
-                console.error("Erro ao desactivar colaborador:", error);
+                console.error(
+                    "Erro ao desactivar colaborador:",
+                    error,
+                );
 
                 toast.error(
                     error instanceof Error
@@ -286,7 +298,7 @@ export default function TeamPage({ team }: TeamPageProps) {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
-                            Team
+                            Equipa Sota
                         </h1>
 
                         <p className="mt-1 text-slate-500">
@@ -295,14 +307,27 @@ export default function TeamPage({ team }: TeamPageProps) {
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={handleCreateMember}
-                        className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-5 py-2.5 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 active:scale-[0.98]"
-                    >
-                        <Plus size={16} />
-                        Adicionar colaborador
-                    </button>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                onClick={handleViewPermissions}
+                                className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-[#002950] transition hover:border-[#BD9655] hover:bg-[#BD9655]/5 focus:outline-none focus:ring-2 focus:ring-[#BD9655]/30"
+                            >
+                                <ShieldCheck size={16} />
+                                Gestão de permissões
+                            </button>
+                        )}
+
+                        <button
+                            type="button"
+                            onClick={handleCreateMember}
+                            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-5 py-2.5 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 active:scale-[0.98]"
+                        >
+                            <Plus size={16} />
+                            Adicionar colaborador
+                        </button>
+                    </div>
                 </div>
 
                 {/* Statistics */}
@@ -455,7 +480,7 @@ export default function TeamPage({ team }: TeamPageProps) {
                             <button
                                 type="button"
                                 onClick={handleCreateMember}
-                                className="mt-6 flex cursor-pointer items-center gap-2 rounded-lg bg-[#002950] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#002950]/90"
+                                className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#002950] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#002950]/90"
                             >
                                 <Plus size={16} />
                                 Adicionar colaborador
@@ -492,12 +517,36 @@ export default function TeamPage({ team }: TeamPageProps) {
                             const isMenuOpen =
                                 openMenu === employee.profile_id;
 
+                            const menuProps: MemberMenuProps = {
+                                employee,
+                                name,
+                                isOpen: isMenuOpen,
+                                onToggle: () =>
+                                    setOpenMenu((current) =>
+                                        current === employee.profile_id
+                                            ? null
+                                            : employee.profile_id,
+                                    ),
+                                onViewProfile: () =>
+                                    handleViewProfile(employee.profile_id),
+                                onEdit: () =>
+                                    handleEditMember(employee.profile_id),
+                                onProjects: () =>
+                                    handleViewProjects(employee.profile_id),
+                                onDeactivate: () =>
+                                    void handleDeactivateMember(
+                                        employee.profile_id,
+                                        name,
+                                    ),
+                                disabled: isPending,
+                            };
+
                             return view === "grid" ? (
                                 <div
                                     key={employee.profile_id}
                                     className="group relative rounded-xl border border-slate-200 bg-white p-5 transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
                                 >
-                                    {/* Header */}
+                                    {/* Member header */}
                                     <div className="flex items-start justify-between">
                                         <div className="flex min-w-0 items-center gap-3">
                                             {employee.profile_picture ? (
@@ -532,41 +581,7 @@ export default function TeamPage({ team }: TeamPageProps) {
                                             </div>
                                         </div>
 
-                                        <MemberMenu
-                                            employee={employee}
-                                            name={name}
-                                            isOpen={isMenuOpen}
-                                            onToggle={() =>
-                                                setOpenMenu((current) =>
-                                                    current ===
-                                                    employee.profile_id
-                                                        ? null
-                                                        : employee.profile_id,
-                                                )
-                                            }
-                                            onViewProfile={() =>
-                                                handleViewProfile(
-                                                    employee.profile_id,
-                                                )
-                                            }
-                                            onEdit={() =>
-                                                handleEditMember(
-                                                    employee.profile_id,
-                                                )
-                                            }
-                                            onProjects={() =>
-                                                handleViewProjects(
-                                                    employee.profile_id,
-                                                )
-                                            }
-                                            onDeactivate={() =>
-                                                void handleDeactivateMember(
-                                                    employee.profile_id,
-                                                    name,
-                                                )
-                                            }
-                                            disabled={isPending}
-                                        />
+                                        <MemberMenu {...menuProps} />
                                     </div>
 
                                     {/* Status */}
@@ -706,41 +721,7 @@ export default function TeamPage({ team }: TeamPageProps) {
                                                 : "projectos"}
                                         </div>
 
-                                        <MemberMenu
-                                            employee={employee}
-                                            name={name}
-                                            isOpen={isMenuOpen}
-                                            onToggle={() =>
-                                                setOpenMenu((current) =>
-                                                    current ===
-                                                    employee.profile_id
-                                                        ? null
-                                                        : employee.profile_id,
-                                                )
-                                            }
-                                            onViewProfile={() =>
-                                                handleViewProfile(
-                                                    employee.profile_id,
-                                                )
-                                            }
-                                            onEdit={() =>
-                                                handleEditMember(
-                                                    employee.profile_id,
-                                                )
-                                            }
-                                            onProjects={() =>
-                                                handleViewProjects(
-                                                    employee.profile_id,
-                                                )
-                                            }
-                                            onDeactivate={() =>
-                                                void handleDeactivateMember(
-                                                    employee.profile_id,
-                                                    name,
-                                                )
-                                            }
-                                            disabled={isPending}
-                                        />
+                                        <MemberMenu {...menuProps} />
                                     </div>
                                 </div>
                             );
@@ -781,12 +762,13 @@ function MemberMenu({
                 type="button"
                 aria-label={`Mais opções para ${name}`}
                 aria-expanded={isOpen}
+                aria-haspopup="menu"
                 onClick={(event) => {
                     event.stopPropagation();
                     onToggle();
                 }}
                 disabled={disabled}
-                className={`shrink-0 cursor-pointer rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10 ${
+                className={`shrink-0 cursor-pointer rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:opacity-50 ${
                     isOpen
                         ? "bg-slate-100 text-slate-600 opacity-100"
                         : "opacity-0 group-hover:opacity-100 focus:opacity-100"
@@ -797,35 +779,34 @@ function MemberMenu({
 
             {isOpen && (
                 <div
+                    role="menu"
+                    aria-label={`Opções de ${name}`}
                     onClick={(event) => event.stopPropagation()}
-                    className="absolute right-0 top-9 z-50 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl"
+                    className="absolute right-0 top-9 z-50 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl"
                 >
                     <button
                         type="button"
+                        role="menuitem"
                         onClick={onViewProfile}
                         className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
                     >
-                        <UserRound
-                            size={15}
-                            className="text-slate-400"
-                        />
+                        <UserRound size={15} className="text-slate-400" />
                         Ver perfil
                     </button>
 
                     <button
                         type="button"
+                        role="menuitem"
                         onClick={onEdit}
                         className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
                     >
-                        <Pencil
-                            size={15}
-                            className="text-slate-400"
-                        />
+                        <Pencil size={15} className="text-slate-400" />
                         Editar colaborador
                     </button>
 
                     <button
                         type="button"
+                        role="menuitem"
                         onClick={onProjects}
                         className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
                     >
@@ -842,6 +823,7 @@ function MemberMenu({
 
                             <button
                                 type="button"
+                                role="menuitem"
                                 onClick={onDeactivate}
                                 disabled={disabled}
                                 className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"

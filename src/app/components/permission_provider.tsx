@@ -2,8 +2,10 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useMemo,
+  type ReactNode,
 } from "react";
 
 import {
@@ -18,7 +20,7 @@ import type {
 } from "@/app/lib/permissions/types";
 
 type Props = {
-  children: React.ReactNode;
+  children: ReactNode;
   permissions: Permission[];
 };
 
@@ -34,32 +36,39 @@ export default function PermissionProvider({
     [permissions],
   );
 
-  const value = useMemo<PermissionContextValue>(
-    () => ({
-      permissions: permissionSet,
-
-      can: (permission: Permission) =>
-        permissionSet.has(permission),
-
-      canAny: (requiredPermissions: Permission[]) =>
-        hasAnyPermission(
-          permissionSet,
-          requiredPermissions,
-        ),
-
-      canAll: (requiredPermissions: Permission[]) =>
-        hasAllPermissions(
-          permissionSet,
-          requiredPermissions,
-        ),
-    }),
+  const can = useCallback(
+    (permission: Permission): boolean =>
+      permissionSet.has(permission),
     [permissionSet],
   );
 
-  console.log(
-  "CURRENT USER PERMISSIONS:",
-  permissions,
-);
+  const canAny = useCallback(
+    (requiredPermissions: readonly Permission[]): boolean =>
+      hasAnyPermission(
+        permissionSet,
+        [...requiredPermissions],
+      ),
+    [permissionSet],
+  );
+
+  const canAll = useCallback(
+    (requiredPermissions: readonly Permission[]): boolean =>
+      hasAllPermissions(
+        permissionSet,
+        [...requiredPermissions],
+      ),
+    [permissionSet],
+  );
+
+  const value = useMemo<PermissionContextValue>(
+    () => ({
+      permissions: permissionSet,
+      can,
+      canAny,
+      canAll,
+    }),
+    [permissionSet, can, canAny, canAll],
+  );
 
   return (
     <PermissionContext.Provider value={value}>
@@ -71,7 +80,7 @@ export default function PermissionProvider({
 export function usePermissions(): PermissionContextValue {
   const context = useContext(PermissionContext);
 
-  if (!context) {
+  if (context === null) {
     throw new Error(
       "usePermissions must be used inside PermissionProvider.",
     );

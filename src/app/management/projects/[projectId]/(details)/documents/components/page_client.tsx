@@ -259,7 +259,7 @@ function DocumentBreadcrumb({
             : isRecents
               ? "Recentes"
               : breadcrumbFolders[breadcrumbFolders.length - 1]?.name ??
-                "Documentos"}
+              "Documentos"}
         </span>
       </div>
     </nav>
@@ -408,7 +408,7 @@ export default function DocumentInit({
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">
-      <aside className="hidden h-full w-64 shrink-0 border-r border-gray-200 bg-white lg:block">
+      <aside className="hidden h-full min-h-0 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-white lg:flex">
         <DocumentSidebar
           projectId={projectId}
           view={view}

@@ -111,14 +111,9 @@ export const ACTION_LABELS: Record<PermissionAction, string> = {
 
 export const ROLE_OPTIONS = [
   {
-    id: 1,
-    name: "Superadmin",
-    description: "Acesso total ao sistema.",
-  },
-  {
     id: 2,
     name: "Admin",
-    description: "Gestão administrativa e operacional.",
+    description: "Acesso total ao sistema.",
   },
   {
     id: 3,

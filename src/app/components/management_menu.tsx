@@ -31,11 +31,29 @@ import { usePermissions } from "@/app/components/permission_provider";
 
 import type { Permission } from "@/app/lib/permissions/types";
 
+/*
+ * ============================================================
+ * TYPES
+ * ============================================================
+ */
+
+type Department =
+  | "architecture"
+  | "engineering"
+  | "commercial"
+  | "other";
+
+type SidebarAccess = {
+  departments?: Department[];
+  adminOnly?: boolean;
+};
+
 type SidebarItem = {
   name: string;
   href: string;
   icon: LucideIcon;
   permission?: Permission;
+  access?: SidebarAccess;
   action?: "logout";
 };
 
@@ -50,12 +68,19 @@ type SidebarItemProps = {
 type Props = {
   collapsed: boolean;
   setCollapsedAction: React.Dispatch<React.SetStateAction<boolean>>;
+  userRole?: string | number | null;
+  userDepartment?: string | null;
 };
 
 /*
  * ============================================================
  * MAIN NAVIGATION
  * ============================================================
+ *
+ * Admin and Superadmin can access every configured menu item.
+ *
+ * All other users must satisfy department restrictions,
+ * where configured, and have the required permission.
  */
 
 const menuItems: SidebarItem[] = [
@@ -70,6 +95,9 @@ const menuItems: SidebarItem[] = [
     href: "/management/leads",
     icon: UserPlus,
     permission: "leads.view",
+    access: {
+      departments: ["commercial"],
+    },
   },
   {
     name: "Projectos",
@@ -83,12 +111,17 @@ const menuItems: SidebarItem[] = [
     icon: ListTodo,
     permission: "tasks.view",
   },
+
+  // Uncomment when the documents route and permission are ready.
+  /*
   {
     name: "Documentos",
     href: "/management/documents",
     icon: FileText,
     permission: "documents.view",
   },
+  */
+
   {
     name: "Calendário",
     href: "/management/calendar",
@@ -106,30 +139,45 @@ const menuItems: SidebarItem[] = [
     href: "/management/clients",
     icon: Users,
     permission: "clients.view",
+    access: {
+      departments: ["commercial"],
+    },
   },
   {
     name: "Equipa",
     href: "/management/team",
     icon: UsersRound,
     permission: "team.view",
+    access: {
+      adminOnly: true,
+    },
   },
   {
     name: "Presença",
     href: "/management/attendance",
     icon: Clock3,
     permission: "attendance.view",
+    access: {
+      adminOnly: true,
+    },
   },
   {
     name: "Recursos de obra",
     href: "/management/work-resources",
     icon: WalletCards,
     permission: "work_resources.view",
+    access: {
+      departments: ["architecture", "engineering"],
+    },
   },
   {
     name: "Fornecedores",
     href: "/management/suppliers",
     icon: Handshake,
     permission: "suppliers.view",
+    access: {
+      departments: ["engineering"],
+    },
   },
 ];
 
@@ -162,6 +210,148 @@ const bottomItems: SidebarItem[] = [
 
 /*
  * ============================================================
+ * ROLE NORMALIZATION
+ * ============================================================
+ */
+
+function normalizeRole(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function isAdminRole(value: unknown): boolean {
+  const role = normalizeRole(value);
+
+  return [
+    "1",
+    "admin",
+    "administrator",
+    "administrador",
+    "superadmin",
+    "super admin",
+  ].includes(role);
+}
+
+/*
+ * ============================================================
+ * DEPARTMENT NORMALIZATION
+ * ============================================================
+ */
+
+function normalizeDepartment(value: unknown): Department {
+  if (typeof value !== "string") {
+    return "other";
+  }
+
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+
+  switch (normalized) {
+    case "arquitectura":
+    case "arquitetura":
+    case "architecture":
+      return "architecture";
+
+    case "engenharia":
+    case "engineering":
+      return "engineering";
+
+    case "comercial":
+    case "commercial":
+    case "dc":
+      return "commercial";
+
+    default:
+      return "other";
+  }
+}
+
+/*
+ * ============================================================
+ * ROLE-BASED ACCESS
+ * ============================================================
+ */
+
+function canSeeSidebarItem(
+  item: SidebarItem,
+  can: (permission: Permission) => boolean,
+  isAdmin: boolean,
+  department: Department,
+): boolean {
+  /*
+   * CRITICAL:
+   * Admin bypasses all permission, department and adminOnly
+   * restrictions. Return before evaluating any of them.
+   */
+  if (isAdmin) {
+    return true;
+  }
+
+  const access = item.access;
+
+  if (access?.adminOnly) {
+    return false;
+  }
+
+  if (
+    access?.departments &&
+    !access.departments.includes(department)
+  ) {
+    return false;
+  }
+
+  if (item.permission && !can(item.permission)) {
+    return false;
+  }
+
+  return true;
+}
+
+/*
+ * ============================================================
+ * SHARED NAVIGATION FILTER
+ * ============================================================
+ *
+ * Exported for other components that need the same menu rules.
+ */
+
+export function getVisibleNavigation(
+  userRole?: string | number | null,
+  userDepartment?: string | null,
+  can?: (permission: Permission) => boolean,
+) {
+  const isAdmin = isAdminRole(userRole);
+
+  // Admin does not need department normalization.
+  const department: Department = isAdmin
+    ? "other"
+    : normalizeDepartment(userDepartment);
+
+  const canPermission = can ?? (() => false);
+
+  return {
+    menuItems: menuItems.filter((item) =>
+      canSeeSidebarItem(item, canPermission, isAdmin, department),
+    ),
+    bottomItems: bottomItems.filter(
+      (item) =>
+        item.action === "logout" ||
+        canSeeSidebarItem(item, canPermission, isAdmin, department),
+    ),
+  };
+}
+
+/*
+ * ============================================================
  * MANAGEMENT MENU
  * ============================================================
  */
@@ -169,6 +359,8 @@ const bottomItems: SidebarItem[] = [
 export default function ManagementMenu({
   collapsed,
   setCollapsedAction,
+  userRole,
+  userDepartment,
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
@@ -178,30 +370,46 @@ export default function ManagementMenu({
   const { can } = usePermissions();
 
   /*
+   * Determine Admin status first.
+   * Do not inspect the department to determine Admin access.
+   */
+  const isAdmin = isAdminRole(userRole);
+
+  /*
+   * Admin skips department normalization completely.
+   * The fallback value is irrelevant because Admin bypasses
+   * canSeeSidebarItem before department checks are reached.
+   */
+  const normalizedDepartment: Department = isAdmin
+    ? "other"
+    : normalizeDepartment(userDepartment);
+
+  /*
    * ==========================================================
    * PERMISSION FILTERING
    * ==========================================================
-   *
-   * Each navigation item requires its corresponding permission.
-   * The permission provider must recognize "documents.view".
-   *
-   * Hiding a menu item is not server-side authorization.
    */
 
-  const visibleMenuItems = menuItems.filter((item) => {
-    if (!item.permission) {
-      return true;
-    }
-
-    return can(item.permission);
-  });
+  const visibleMenuItems = menuItems.filter((item) =>
+    canSeeSidebarItem(
+      item,
+      can,
+      isAdmin,
+      normalizedDepartment,
+    ),
+  );
 
   const visibleBottomItems = bottomItems.filter((item) => {
-    if (!item.permission) {
+    if (item.action === "logout") {
       return true;
     }
 
-    return can(item.permission);
+    return canSeeSidebarItem(
+      item,
+      can,
+      isAdmin,
+      normalizedDepartment,
+    );
   });
 
   /*

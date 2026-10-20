@@ -1,6 +1,9 @@
-// src/app/management/projects/[projectId]/documents/[[...folder]]/page.tsx
 
-import { getProjectDocuments, getProjectFolders } from "@/services/documents";
+import {
+  getProjectDocuments,
+  getProjectFolders,
+} from "@/services/documents";
+
 import DocumentInit from "../projects/[projectId]/(details)/documents/components/page_client";
 
 interface PageProps {
@@ -17,21 +20,25 @@ export default async function DocumentsPage({
   params,
   searchParams,
 }: PageProps) {
-  const { projectId, folder = [] } = await params;
-  const { view = "list" } = await searchParams;
+  const [{ projectId, folder = [] }, { view = "list" }] =
+    await Promise.all([params, searchParams]);
 
   const [folders, documents] = await Promise.all([
     getProjectFolders(projectId),
     getProjectDocuments(projectId),
   ]);
 
-  return (
-    <DocumentInit
-      projectId={projectId}
-      folder={folder}
-      view={view}
-      folders={folders}
-      documents={documents}
-    />
-  );
+ return (
+  <main className="flex h-full min-h-0 w-full flex-1 flex-col">
+    <div className="flex min-h-0 w-full flex-1 flex-col">
+      <DocumentInit
+        projectId={projectId}
+        folder={folder}
+        view={view}
+        folders={folders}
+        documents={documents}
+      />
+    </div>
+  </main>
+);
 }

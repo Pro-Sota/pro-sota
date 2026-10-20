@@ -24,9 +24,11 @@ export default function DashboardLayoutClient({
       <DashboardMenu
         collapsed={collapsed}
         setCollapsedAction={setCollapsed}
+        userRole={userRole!}
+        userDepartment={userDepartment!}
       />
 
-      <MobileNavbar />
+      <MobileNavbar userRole={userRole!} userDeparment= {userDepartment!} />
 
       <main
         className={[

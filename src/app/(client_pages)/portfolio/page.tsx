@@ -1,9 +1,18 @@
+import type { Metadata } from "next";
 
-import getProjects from "../services/portfolio";
+import { getPortfolioProjects } from "@/actions/portfolio";
+import PortfolioManager from "./portfolio_manager";
+import ProfileClient from "@/app/management/profile/profile_page";
 import PortfolioClient from "./client_page";
 
-export default async function PortfolioPage() {
-  const projects = await getProjects();
+export const metadata: Metadata = {
+  title: "Portefólio | PRO SOTA",
+  description: "Gerir os projectos apresentados no portefólio da PRO SOTA.",
+};
 
-  return <PortfolioClient projects={projects} />;
+export default async function PortfolioPage() {
+  const projects = await getPortfolioProjects();
+
+  // return <PortfolioManager initialProjects={projects} />;
+  return <PortfolioClient projects={projects}  projectId=""/>
 }

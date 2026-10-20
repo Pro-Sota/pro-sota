@@ -102,7 +102,7 @@ export async function createMemberAction(
         if (
             currentRoleError ||
             !currentRole ||
-            !["Admin", "Utilizador"].includes(currentRole.name)
+            !["Admin", "Utilizador"].includes(currentRole.name!)
         ) {
             return {
                 success: false,

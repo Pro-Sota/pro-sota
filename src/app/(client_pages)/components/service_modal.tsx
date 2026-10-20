@@ -4,8 +4,8 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { services } from "@/data/services";
-import { SCENES } from "@/scene3d/Scenes";
+import { services } from "./servicesData";
+import { SCENES } from "./scene";
 
 type ServiceId = (typeof services)[number]["key"];
 

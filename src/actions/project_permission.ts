@@ -22,7 +22,6 @@ export async function updateProjectPermissions(
   const auth = await getCurrentUserPermissions();
 
   if (
-    auth.role !== "Superadmin" &&
     auth.role !== "Admin"
   ) {
     throw new Error(

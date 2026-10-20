@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-import defaultProjects from "./components/portfolioData";
-import "./admin.css";
+import defaultProjects from "../components/portfolioData";
+import "../../admin.css";
 
 type PortfolioProject = {
   id: string;
@@ -61,9 +60,6 @@ function isPortfolioProject(value: unknown): value is PortfolioProject {
 }
 
 export default function Admin() {
-  const [unlocked, setUnlocked] = useState(false);
-  const [passInput, setPassInput] = useState("");
-  const [gateError, setGateError] = useState(false);
   const [saveError, setSaveError] = useState("");
 
   const [projects, setProjects] = useState<PortfolioProject[]>([]);
@@ -80,13 +76,6 @@ export default function Admin() {
 
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // sessionStorage só é lido no browser, nunca durante a renderização no servidor.
-  useEffect(() => {
-    setUnlocked(
-      Boolean(sessionStorage.getItem("prosota_admin_password"))
-    );
-  }, []);
-
   // Limpeza do temporizador quando a página é desmontada.
   useEffect(() => {
     return () => {
@@ -97,6 +86,7 @@ export default function Admin() {
   // Carrega e valida os dados publicados pela API.
   const loadProjects = useCallback(async (signal?: AbortSignal) => {
     setLoadState("loading");
+    setSaveError("");
 
     try {
       const response = await fetch("/api/projects", { signal });
@@ -116,7 +106,9 @@ export default function Admin() {
       setProjects(data);
       setLoadState("ready");
     } catch {
-      if (!signal?.aborted) setLoadState("error");
+      if (!signal?.aborted) {
+        setLoadState("error");
+      }
     }
   }, []);
 
@@ -128,7 +120,7 @@ export default function Admin() {
     return () => controller.abort();
   }, [loadProjects]);
 
-  // Publica a lista completa. A API valida a autorização no servidor.
+  // Publica a lista completa através da API.
   async function persist(next: PortfolioProject[]): Promise<boolean> {
     if (loadState !== "ready" || savingRef.current) return false;
 
@@ -138,26 +130,17 @@ export default function Admin() {
     setSaveError("");
 
     try {
-      const password = sessionStorage.getItem("prosota_admin_password");
-
-      if (!password) {
-        setSaveError("A sessão expirou. Entre novamente.");
-        setUnlocked(false);
-        return false;
-      }
-
       const response = await fetch("/api/projects", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${password}`,
         },
         body: JSON.stringify(next),
       });
 
       if (!response.ok) {
         setSaveError(
-          "Não foi possível publicar as alterações. Verifique a palavra-passe e o servidor."
+          "Não foi possível publicar as alterações. Verifique o servidor."
         );
         return false;
       }
@@ -165,7 +148,9 @@ export default function Admin() {
       setProjects(next);
       setSavedFlash(true);
 
-      if (flashTimer.current) clearTimeout(flashTimer.current);
+      if (flashTimer.current) {
+        clearTimeout(flashTimer.current);
+      }
 
       flashTimer.current = setTimeout(() => {
         setSavedFlash(false);
@@ -181,40 +166,6 @@ export default function Admin() {
       savingRef.current = false;
       setSaving(false);
     }
-  }
-
-  // Valida a palavra-passe na API antes de abrir o painel.
-  async function handleGateSubmit(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-    setGateError(false);
-
-    try {
-      const response = await fetch("/api/admin/check", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${passInput}`,
-        },
-      });
-
-      if (!response.ok) throw new Error("Acesso recusado.");
-
-      sessionStorage.setItem("prosota_admin_password", passInput);
-      setPassInput("");
-      setUnlocked(true);
-    } catch {
-      setGateError(true);
-      setPassInput("");
-    }
-  }
-
-  function logout() {
-    sessionStorage.removeItem("prosota_admin_password");
-    setUnlocked(false);
-    setPassInput("");
-    setGateError(false);
-    setSaveError("");
   }
 
   // null = novo projecto; undefined = editor fechado.
@@ -242,7 +193,9 @@ export default function Admin() {
   }
 
   function closeEditor() {
-    if (!savingRef.current) setEditingId(undefined);
+    if (!savingRef.current) {
+      setEditingId(undefined);
+    }
   }
 
   // Reordena os projectos e publica a nova ordem.
@@ -283,14 +236,18 @@ export default function Admin() {
     setImages((current) => [...current, value]);
   }
 
-  // Lê imagens como data URLs. Para produção, recomenda-se Supabase Storage.
+  // Lê imagens como data URLs.
+  // Para produção, recomenda-se utilizar armazenamento de imagens.
   function addImageFiles(fileList: FileList | null) {
     if (!fileList) return;
 
     const files = Array.from(fileList);
 
     for (const file of files) {
-      if (!file.type.startsWith("image/")) continue;
+      if (!file.type.startsWith("image/")) {
+        setSaveError(`O ficheiro ${file.name} não é uma imagem válida.`);
+        continue;
+      }
 
       const reader = new FileReader();
 
@@ -309,6 +266,8 @@ export default function Admin() {
   }
 
   async function saveProject() {
+    if (savingRef.current) return;
+
     if (!form.name.trim()) {
       window.alert("Dê um nome ao projecto.");
       return;
@@ -354,7 +313,7 @@ export default function Admin() {
   }
 
   async function deleteProject() {
-    if (!editingId) return;
+    if (!editingId || savingRef.current) return;
 
     if (!window.confirm("Eliminar este projecto do portefólio?")) return;
 
@@ -366,6 +325,8 @@ export default function Admin() {
   }
 
   function resetDefaults() {
+    if (savingRef.current) return;
+
     if (
       !window.confirm(
         "Repor os dados de fábrica? Isto substitui o portefólio publicado no site."
@@ -404,54 +365,6 @@ export default function Admin() {
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
-  const isEditorOpen = editingId !== undefined;
-
-  if (!unlocked) {
-    return (
-      <div className="gate">
-        <div className="gate__box">
-          <img
-            src="/assets/logo/logo-vertical.png"
-            alt="PRO SOTA"
-            className="gate__logo"
-          />
-
-          <h1>
-            Painel do <span>Portefólio</span>
-          </h1>
-
-          <p>
-            Acesso reservado à equipa PRO SOTA. Introduza a palavra-passe
-            para continuar.
-          </p>
-
-          <form onSubmit={handleGateSubmit}>
-            <input
-              type="password"
-              placeholder="Palavra-passe"
-              autoComplete="current-password"
-              required
-              value={passInput}
-              onChange={(event) => {
-                setPassInput(event.target.value);
-                setGateError(false);
-              }}
-            />
-
-            <button type="submit">Entrar</button>
-          </form>
-
-          <p
-            className={`gate__error${gateError ? " is-visible" : ""}`}
-            role={gateError ? "alert" : undefined}
-          >
-            Palavra-passe incorrecta. Tente novamente.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="admin-body">
       <div className="admin">
@@ -477,14 +390,6 @@ export default function Admin() {
             >
               Ver site ↗
             </Link>
-
-            <button
-              type="button"
-              className="admin__btn admin__btn--ghost"
-              onClick={logout}
-            >
-              Sair
-            </button>
           </div>
         </header>
 
@@ -612,7 +517,7 @@ export default function Admin() {
         </fieldset>
       </div>
 
-      {isEditorOpen && (
+      {editingId !== undefined && (
         <div className="editor is-open">
           <div
             className="editor__backdrop"

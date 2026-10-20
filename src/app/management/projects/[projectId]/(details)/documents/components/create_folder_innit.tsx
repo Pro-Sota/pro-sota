@@ -6,8 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import CreateFolderDialog, {
   type FolderRow,
-} from "./components/create_folder_dialog";
-import FolderTree from "./components/folder_tree";
+} from "./create_folder_dialog";
+import FolderTree from "./folder_tree";
 
 export function ProjectFolderPage() {
   const { projectId } = useParams<{

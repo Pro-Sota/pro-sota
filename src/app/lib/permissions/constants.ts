@@ -87,14 +87,6 @@ export const ALL_PERMISSIONS: Permission[] = [
  * in Supabase.
  */
 
-/*
- * Superadmin
- *
- * Full access.
- */
-export const SUPERADMIN_PERMISSIONS: Permission[] = [
-  ...ALL_PERMISSIONS,
-];
 
 /*
  * Admin
@@ -251,8 +243,6 @@ export const ROLE_PERMISSIONS: Record<
   SystemRole,
   Permission[]
 > = {
-  Superadmin: SUPERADMIN_PERMISSIONS,
   Admin: ADMIN_PERMISSIONS,
-  Director: DIRECTOR_PERMISSIONS,
   Utilizador: USER_PERMISSIONS,
 };
