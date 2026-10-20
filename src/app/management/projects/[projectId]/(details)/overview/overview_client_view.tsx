@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode, ComponentType } from "react";
 import {
-  ArrowLeft,
   ArrowRight,
   BarChart3,
   CalendarDays,
@@ -14,6 +13,7 @@ import {
   Inbox,
   ListChecks,
   Pencil,
+  Plus,
   TrendingUp,
 } from "lucide-react";
 
@@ -29,6 +29,7 @@ import type { OverviewData } from "@/services/project_overview";
 
 interface OverviewClientPageProps {
   data: OverviewData;
+  isAdmin: boolean;
 }
 
 interface SectionCardProps {
@@ -40,6 +41,7 @@ interface SectionCardProps {
   };
   children: ReactNode;
   height?: string;
+  scrollable?: boolean;
 }
 
 type EmptyStateProps = {
@@ -145,18 +147,6 @@ function formatDateTime(value: string | null | undefined): string {
 /* Shared components                                                          */
 /* -------------------------------------------------------------------------- */
 
-interface SectionCardProps {
-  title: string;
-  subtitle?: string;
-  action?: {
-    label: string;
-    href: string;
-  };
-  children: ReactNode;
-  height?: string;
-  scrollable?: boolean;
-}
-
 function SectionCard({
   title,
   subtitle,
@@ -191,10 +181,11 @@ function SectionCard({
       </header>
 
       <div
-        className={`min-w-0 px-5 py-5 sm:px-6 ${scrollable
+        className={`min-w-0 px-5 py-5 sm:px-6 ${
+          scrollable
             ? "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
             : "overflow-visible"
-          }`}
+        }`}
       >
         {children}
       </div>
@@ -297,12 +288,13 @@ function RisksSection({ data }: { data: OverviewData }) {
               className="flex items-start gap-3 rounded-md border border-gray-200 px-3 py-3"
             >
               <span
-                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${risk.severity === "high"
+                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                  risk.severity === "high"
                     ? "bg-red-500"
                     : risk.severity === "medium"
                       ? "bg-amber-500"
                       : "bg-green-500"
-                  }`}
+                }`}
                 aria-hidden="true"
               />
 
@@ -374,15 +366,15 @@ function RequestsSection({ data }: { data: OverviewData }) {
     title: string;
     items: RequestListItem[];
   }[] = [
-      {
-        title: LABELS.rfis,
-        items: rfiItems,
-      },
-      {
-        title: LABELS.submissions,
-        items: submissionItems,
-      },
-    ];
+    {
+      title: LABELS.rfis,
+      items: rfiItems,
+    },
+    {
+      title: LABELS.submissions,
+      items: submissionItems,
+    },
+  ];
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
@@ -528,12 +520,13 @@ function BudgetProgress({ budget }: { budget: BudgetItem }) {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span
-          className={`text-xs ${isOverBudget
+          className={`text-xs ${
+            isOverBudget
               ? "font-medium text-red-600"
               : actualPercentage >= 90
                 ? "text-amber-700"
                 : "text-gray-500"
-            }`}
+          }`}
         >
           {isOverBudget
             ? `Excedido em ${formatCurrency(Math.abs(remaining))}`
@@ -574,6 +567,7 @@ function BudgetSection({ data }: { data: OverviewData }) {
 
 export default function OverviewClientPage({
   data,
+  isAdmin,
 }: OverviewClientPageProps) {
   const { project, kpis } = data;
   const projectBase = `/management/projects/${project.id}`;
@@ -631,6 +625,16 @@ export default function OverviewClientPage({
               <span className="inline-flex w-fit items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700">
                 {project.status}
               </span>
+
+              {isAdmin && (
+                <Link
+                  href="/management/projects/create-project"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#002950] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#003b70] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655]"
+                >
+                  <Plus size={15} aria-hidden="true" />
+                  Adicionar projecto
+                </Link>
+              )}
 
               <button
                 type="button"
