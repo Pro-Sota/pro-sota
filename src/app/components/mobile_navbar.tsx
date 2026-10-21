@@ -382,7 +382,7 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
         return;
       }
 
-      window.location.href = "/login";
+      window.location.href = "/";
     } catch (error) {
       console.error("Unexpected logout error:", error);
       setLogoutLoading(false);
