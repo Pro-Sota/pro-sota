@@ -28,6 +28,7 @@ type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
 
 interface DashboardData {
   currentUser: Profile | null;
+  users: Profile[];
   projects: Project[]; 
   documents: Document[];
   tasks: Task[];
@@ -670,10 +671,7 @@ export default function Dashboard({ data }: DashboardProps) {
       {/* Meeting */}
       <CreateMeetingModal
         open={isMeetingModalOpen}
-        onClose={() =>
-          setIsMeetingModalOpen(false)
-        }
-      />
+        onClose={() => setIsMeetingModalOpen(false)} participants={data.users} clients={[]} suppliers={[]}      />
     </div>
   );
 }

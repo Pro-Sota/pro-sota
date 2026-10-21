@@ -984,6 +984,217 @@ export type Database = {
           },
         ]
       }
+      portfolio_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          name: string
+          portfolio_category_id: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          name: string
+          portfolio_category_id?: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          name?: string
+          portfolio_category_id?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      portfolio_images: {
+        Row: {
+          alt_text: string
+          caption: string | null
+          created_at: string
+          display_order: number
+          image_type: string
+          portfolio_image_id: string
+          portfolio_project_id: string
+          storage_path: string
+        }
+        Insert: {
+          alt_text: string
+          caption?: string | null
+          created_at?: string
+          display_order?: number
+          image_type?: string
+          portfolio_image_id?: string
+          portfolio_project_id: string
+          storage_path: string
+        }
+        Update: {
+          alt_text?: string
+          caption?: string | null
+          created_at?: string
+          display_order?: number
+          image_type?: string
+          portfolio_image_id?: string
+          portfolio_project_id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_images_portfolio_project_id_fkey"
+            columns: ["portfolio_project_id"]
+            isOneToOne: false
+            referencedRelation: "portfolio_projects"
+            referencedColumns: ["portfolio_project_id"]
+          },
+        ]
+      }
+      portfolio_project_categories: {
+        Row: {
+          portfolio_category_id: string
+          portfolio_project_id: string
+        }
+        Insert: {
+          portfolio_category_id: string
+          portfolio_project_id: string
+        }
+        Update: {
+          portfolio_category_id?: string
+          portfolio_project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_project_categories_portfolio_category_id_fkey"
+            columns: ["portfolio_category_id"]
+            isOneToOne: false
+            referencedRelation: "portfolio_categories"
+            referencedColumns: ["portfolio_category_id"]
+          },
+          {
+            foreignKeyName: "portfolio_project_categories_portfolio_project_id_fkey"
+            columns: ["portfolio_project_id"]
+            isOneToOne: false
+            referencedRelation: "portfolio_projects"
+            referencedColumns: ["portfolio_project_id"]
+          },
+        ]
+      }
+      portfolio_projects: {
+        Row: {
+          architectural_style: string | null
+          area_sqm: number | null
+          bathrooms: number | null
+          bedrooms: number | null
+          client_display_name: string | null
+          completion_date: string | null
+          country: string
+          cover_image_alt: string | null
+          cover_image_path: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          floors: number | null
+          is_featured: boolean
+          location_name: string | null
+          municipality: string | null
+          portfolio_project_id: string
+          project_code: string | null
+          project_id: string | null
+          project_type: string
+          published_at: string | null
+          seo_description: string | null
+          seo_title: string | null
+          services: string[]
+          slug: string
+          start_date: string | null
+          status: string
+          summary: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          architectural_style?: string | null
+          area_sqm?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          client_display_name?: string | null
+          completion_date?: string | null
+          country?: string
+          cover_image_alt?: string | null
+          cover_image_path?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          floors?: number | null
+          is_featured?: boolean
+          location_name?: string | null
+          municipality?: string | null
+          portfolio_project_id?: string
+          project_code?: string | null
+          project_id?: string | null
+          project_type?: string
+          published_at?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          services?: string[]
+          slug: string
+          start_date?: string | null
+          status?: string
+          summary: string
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          architectural_style?: string | null
+          area_sqm?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          client_display_name?: string | null
+          completion_date?: string | null
+          country?: string
+          cover_image_alt?: string | null
+          cover_image_path?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          floors?: number | null
+          is_featured?: boolean
+          location_name?: string | null
+          municipality?: string | null
+          portfolio_project_id?: string
+          project_code?: string | null
+          project_id?: string | null
+          project_type?: string
+          published_at?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
+          services?: string[]
+          slug?: string
+          start_date?: string | null
+          status?: string
+          summary?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           bio: string | null

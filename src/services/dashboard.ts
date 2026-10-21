@@ -14,6 +14,7 @@ async function getSupabase() {
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 type Client = Database["public"]["Tables"]["clients"]["Row"];
+type Supplier = Database["public"]["Tables"]["suppliers"]["Row"];
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
 type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
@@ -42,6 +43,12 @@ export interface DashboardData {
 }
 
 export interface AdminDashboardData extends DashboardData {
+  suppliers: Pick<Supplier, "supplier_id" | "supplier_name">[];
+  participants: {
+    profile_id: Profile["profile_id"];
+    first_name: string | null;
+    email: string | null;
+  }[];
   teamWorkload: TeamWorkload[];
 }
 
@@ -200,6 +207,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 /* Admin dashboard                                                            */
 /* -------------------------------------------------------------------------- */
 
+
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const supabase = await getSupabase();
 
@@ -217,25 +225,17 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     throw new Error("Utilizador não autenticado.");
   }
 
-  /*
-   * Get the authenticated profile first.
-   */
-  const currentUserResult = await supabase
+  // Authenticate and authorize the current user first.
+  const { data: currentUser, error: profileError } = await supabase
     .from("profiles")
     .select("*")
     .eq("profile_id", user.id)
     .maybeSingle();
 
-  if (currentUserResult.error) {
-    console.error(
-      "Failed to fetch current admin profile:",
-      currentUserResult.error,
-    );
-
+  if (profileError) {
+    console.error("Failed to fetch current admin profile:", profileError);
     throw new Error("Failed to fetch current user");
   }
-
-  const currentUser = currentUserResult.data;
 
   if (!currentUser) {
     throw new Error("Perfil do utilizador não encontrado.");
@@ -249,51 +249,51 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     usersResult,
     projectsResult,
     clientsResult,
+    suppliersResult,
     documentsResult,
     tasksResult,
     deadlinesResult,
     activitiesResult,
     workloadResult,
   ] = await Promise.all([
-    /* All users */
-    supabase
-      .from("profiles")
-      .select("*"),
+    // All users
+    supabase.from("profiles").select("*"),
 
-    /* All projects */
-    supabase
-      .from("projects")
-      .select("*"),
+    // All projects
+    supabase.from("projects").select("*"),
 
-    /* All clients */
+    // Clients available to the meeting modal
     supabase
       .from("clients")
-      .select("*"),
+      .select("*")
+      .order("name", { ascending: true }),
 
-    /* All documents */
+    // Suppliers available to the meeting modal
     supabase
-      .from("documents")
-      .select("*"),
+      .from("suppliers")
+      .select("supplier_id, supplier_name")
+      .order("supplier_name", { ascending: true }),
 
-    /* All tasks */
-    supabase
-      .from("tasks")
-      .select("*"),
+    // All documents
+    supabase.from("documents").select("*"),
 
-    /* All tasks with deadlines */
+    // All tasks
+    supabase.from("tasks").select("*"),
+
+    // Tasks with deadlines
     supabase
       .from("tasks")
       .select("*")
       .not("due_date", "is", null)
       .order("due_date", { ascending: true }),
 
-    /* Recent activities */
+    // Recent activities
     supabase
       .from("activities")
       .select("*")
       .order("created_at", { ascending: false }),
 
-    /* Workload based on task_members */
+    // Workload based on task_members
     getTeamWorkload(),
   ]);
 
@@ -301,6 +301,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     usersResult.error,
     projectsResult.error,
     clientsResult.error,
+    suppliersResult.error,
     documentsResult.error,
     tasksResult.error,
     deadlinesResult.error,
@@ -316,11 +317,22 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     throw new Error("Failed to fetch admin dashboard data");
   }
 
+  const users = usersResult.data ?? [];
+
+  // Adapt profile records to the exact shape expected by the modal.
+  const participants = users.map((profile) => ({
+    profile_id: profile.profile_id,
+    first_name: profile.first_name ?? null,
+    email: profile.email ?? null,
+  }));
+
   return {
     currentUser,
-    users: usersResult.data ?? [],
+    users,
+    participants,
     projects: projectsResult.data ?? [],
     clients: clientsResult.data ?? [],
+    suppliers: suppliersResult.data ?? [],
     documents: documentsResult.data ?? [],
     tasks: tasksResult.data ?? [],
     deadlines: deadlinesResult.data ?? [],
@@ -328,6 +340,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     teamWorkload: workloadResult,
   };
 }
+
 
 /* -------------------------------------------------------------------------- */
 /* Team workload                                                              */

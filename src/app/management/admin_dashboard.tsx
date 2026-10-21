@@ -23,6 +23,7 @@ import CreateMeetingModal from "../components/create_meeting_modal";
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 type Client = Database["public"]["Tables"]["clients"]["Row"];
+type Supplier = Database["public"]["Tables"]["suppliers"]["Row"];
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
 type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
@@ -45,6 +46,7 @@ export interface AdminDashboardData {
   projects: Project[];
   clients: Client[];
   documents: Document[];
+  suppliers:Supplier[];
   tasks: Task[];
   deadlines: Task[];
   activities: Activity[];
@@ -159,6 +161,7 @@ export default function AdminDashboard({
     projects,
     clients,
     documents,
+    suppliers,
     tasks,
     deadlines,
     activities,
@@ -248,7 +251,7 @@ export default function AdminDashboard({
           {/* Header */}
           <div className="border-b border-gray-200 pb-6">
             <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-              {getGreeting()}, { currentUser?.first_name || "Administrador"}
+              {getGreeting()}, {currentUser?.first_name || "Administrador"}
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
@@ -272,8 +275,8 @@ export default function AdminDashboard({
                   router.push(action.href);
                 }}
                 className={`group flex min-h-[82px] cursor-pointer flex-col items-start justify-between gap-3 rounded-lg px-4 py-3.5 text-left text-md font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 sm:min-h-[96px] sm:px-5 sm:py-4 ${action.variant === "primary"
-                    ? "bg-[#BD9655] text-[#002950] hover:bg-[#C8A66E] active:bg-gray-950"
-                    : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 active:bg-gray-100"
+                  ? "bg-[#BD9655] text-[#002950] hover:bg-[#C8A66E] active:bg-gray-950"
+                  : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 active:bg-gray-100"
                   }`}
               >
                 <action.icon className="h-4 w-4 shrink-0" />
@@ -622,8 +625,10 @@ export default function AdminDashboard({
 
       <CreateMeetingModal
         open={isMeetingModalOpen}
-        onClose={() => setIsMeetingModalOpen(false)}
-      />
+        onClose={() => setIsMeetingModalOpen(false)} participants={data.users} 
+        clients={data.clients.map((client) => ({ ...client, name: client.name ?? "" }))} 
+        suppliers={data.suppliers.map((supplier) => ({...supplier, id:supplier.supplier_id,name:supplier.supplier_name}))} 
+        />
     </div>
   );
 }
