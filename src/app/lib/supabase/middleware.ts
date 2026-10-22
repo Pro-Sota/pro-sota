@@ -1,4 +1,5 @@
-// lib/supabase/middleware.ts
+// src/app/lib/supabase/middleware.ts
+
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -17,22 +18,34 @@ export function createClient(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
 
+        setAll(cookiesToSet) {
+          // Update request cookies so subsequent server-side
+          // operations in this request see the refreshed session.
+          for (const { name, value } of cookiesToSet) {
+            request.cookies.set(name, value);
+          }
+
+          // Rebuild the response while preserving request headers.
           response = NextResponse.next({
-            request,
+            request: {
+              headers: request.headers,
+            },
           });
 
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+          // Forward refreshed cookies to the browser.
+          for (const { name, value, options } of cookiesToSet) {
+            response.cookies.set(name, value, options);
+          }
         },
       },
-    }
+    },
   );
 
-  return { supabase, get response() { return response; } };
+  return {
+    supabase,
+    get response() {
+      return response;
+    },
+  };
 }

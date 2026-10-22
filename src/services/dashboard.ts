@@ -4,7 +4,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { createClient } from "@/app/lib/supabase/server";
-import { Database } from "@/app/lib/supabase/models";
+import type { Database } from "@/app/lib/supabase/models";
 
 async function getSupabase() {
   const cookieStore = await cookies();
@@ -32,7 +32,7 @@ export type TeamWorkload = {
 };
 
 export interface DashboardData {
-  currentUser: Profile | null;
+  currentUser: Profile;
   users: Profile[];
   projects: Project[];
   clients: Client[];
@@ -43,7 +43,9 @@ export interface DashboardData {
 }
 
 export interface AdminDashboardData extends DashboardData {
-  suppliers: Pick<Supplier, "supplier_id" | "supplier_name">[];
+  // Full records are returned because the admin dashboard may display
+  // supplier contact, address, category, and identification information.
+  suppliers: Supplier[];
   participants: {
     profile_id: Profile["profile_id"];
     first_name: string | null;
@@ -52,20 +54,49 @@ export interface AdminDashboardData extends DashboardData {
   teamWorkload: TeamWorkload[];
 }
 
-/* -------------------------------------------------------------------------- */
-/* User dashboard                                                             */
-/* -------------------------------------------------------------------------- */
+type QueryError = {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+} | null;
 
-export async function getDashboardData(): Promise<DashboardData> {
+/**
+ * Log query errors without exposing access tokens, refresh tokens, or cookies.
+ */
+function logQueryErrors(
+  scope: string,
+  queries: Array<{ name: string; error: QueryError }>,
+): string[] {
+  const failures = queries.filter((query) => query.error !== null);
+
+  for (const { name, error } of failures) {
+    if (!error) continue;
+
+    console.error(`[${scope}] Query failed: ${name}`, {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+  }
+
+  return failures.map(({ name }) => name);
+}
+
+async function getAuthenticatedUser() {
   const supabase = await getSupabase();
-
   const {
     data: { user },
-    error: userError,
+    error,
   } = await supabase.auth.getUser();
 
-  if (userError) {
-    console.error("Failed to get authenticated user:", userError);
+  if (error) {
+    console.error("Failed to get authenticated user:", {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+    });
     throw new Error("Failed to get authenticated user");
   }
 
@@ -73,131 +104,111 @@ export async function getDashboardData(): Promise<DashboardData> {
     throw new Error("Utilizador não autenticado.");
   }
 
+  return { supabase, user };
+}
+
+/* -------------------------------------------------------------------------- */
+/* User dashboard                                                             */
+/* -------------------------------------------------------------------------- */
+
+export async function getDashboardData(): Promise<DashboardData> {
+  const { supabase, user } = await getAuthenticatedUser();
+
   const [
     currentUserResult,
     projectsResult,
     clientsResult,
     documentsResult,
     taskMembersResult,
-    deadlinesResult,
     activitiesResult,
   ] = await Promise.all([
-    /* Current profile */
     supabase
       .from("profiles")
       .select("*")
       .eq("profile_id", user.id)
       .maybeSingle(),
 
-    /* Projects where the current user is a member */
+    // Only projects where the authenticated user is a project member.
     supabase
       .from("projects")
       .select("*, project_members!inner(*)")
       .eq("project_members.profile_id", user.id),
 
-    /* Clients */
-    supabase
-      .from("clients")
-      .select("*"),
+    // RLS remains the authority for which client records are visible.
+    supabase.from("clients").select("*"),
 
-    /* Documents uploaded by the current user */
+    // Documents uploaded by the authenticated user.
     supabase
       .from("documents")
       .select("*")
       .eq("uploaded_by", user.id),
 
-    /*
-     * Tasks assigned to the current user.
-     *
-     * IMPORTANT:
-     * tasks.assigned_to no longer exists.
-     * Assignment is now represented by task_members.
-     */
+    // Assignments are represented by task_members, not tasks.assigned_to.
     supabase
       .from("task_members")
-      .select(`
-        task_id,
-        tasks (*)
-      `)
+      .select("task_id, tasks(*)")
       .eq("profile_id", user.id),
 
-    /* Tasks with deadlines assigned to the current user */
+    // Recent activity records. RLS must restrict rows to those this user
+    // is permitted to see.
     supabase
-      .from("task_members")
-      .select(`
-        task_id,
-        tasks (*)
-      `)
-      .eq("profile_id", user.id),
-
-    /* Recent activities */
-    supabase
-      .from("activities")
+      .from("activity_logs")
       .select("*")
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
-  const errors = [
-    currentUserResult.error,
-    projectsResult.error,
-    clientsResult.error,
-    documentsResult.error,
-    taskMembersResult.error,
-    deadlinesResult.error,
-    activitiesResult.error,
-  ].filter(Boolean);
+  const failedQueries = logQueryErrors("Dashboard", [
+    { name: "currentUser", error: currentUserResult.error },
+    { name: "projects", error: projectsResult.error },
+    { name: "clients", error: clientsResult.error },
+    { name: "documents", error: documentsResult.error },
+    { name: "taskMembers", error: taskMembersResult.error },
+    { name: "activities", error: activitiesResult.error },
+  ]);
 
-  if (errors.length > 0) {
-    console.error(
-      "Failed to fetch dashboard data:",
-      JSON.stringify(errors, null, 2),
-    );
-
-    throw new Error("Failed to fetch dashboard data");
+  if (failedQueries.length > 0) {
+    throw new Error(`Failed dashboard queries: ${failedQueries.join(", ")}`);
   }
 
-  /*
-   * task_members is the assignment table.
-   * Extract the actual tasks from the relationship.
-   */
-  const tasks: Task[] = (taskMembersResult.data ?? []).flatMap((member) => {
-    const relatedTasks = member.tasks;
+  const currentUser = currentUserResult.data;
 
-    if (!relatedTasks) {
-      return [];
+  if (!currentUser) {
+    throw new Error("Perfil do utilizador não encontrado.");
+  }
+
+  const taskMap = new Map<string, Task>();
+
+  for (const member of taskMembersResult.data ?? []) {
+    const relation = member.tasks;
+    const relatedTasks = Array.isArray(relation)
+      ? relation
+      : relation
+        ? [relation]
+        : [];
+
+    for (const task of relatedTasks) {
+      if (task) taskMap.set(task.task_id, task as Task);
     }
+  }
 
-    return Array.isArray(relatedTasks) ? relatedTasks : [relatedTasks];
-  });
+  const tasks = Array.from(taskMap.values());
 
-  /*
-   * Remove duplicates because a task should normally have one membership
-   * for the current user, but this also protects the dashboard from
-   * accidental duplicate task_members rows.
-   */
-  const uniqueTasks = Array.from(
-    new Map(tasks.map((task) => [task.task_id, task])).values(),
-  );
-
-  /*
-   * Only return tasks that actually have a deadline.
-   */
-  const deadlines: Task[] = uniqueTasks
+  const deadlines = tasks
     .filter((task) => task.due_date !== null)
     .sort((a, b) => {
-      const dateA = new Date(a.due_date!).getTime();
-      const dateB = new Date(b.due_date!).getTime();
-
-      return dateA - dateB;
+      const aDate = new Date(a.due_date as string).getTime();
+      const bDate = new Date(b.due_date as string).getTime();
+      return aDate - bDate;
     });
 
   return {
-    currentUser: currentUserResult.data ?? null,
+    currentUser,
     users: [],
-    projects: projectsResult.data ?? [],
+    projects: (projectsResult.data ?? []).map(({ project_members: _members, ...project }) => project as Project),
     clients: clientsResult.data ?? [],
     documents: documentsResult.data ?? [],
-    tasks: uniqueTasks,
+    tasks,
     deadlines,
     activities: activitiesResult.data ?? [],
   };
@@ -207,25 +218,10 @@ export async function getDashboardData(): Promise<DashboardData> {
 /* Admin dashboard                                                            */
 /* -------------------------------------------------------------------------- */
 
-
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
-  const supabase = await getSupabase();
+  const { supabase, user } = await getAuthenticatedUser();
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    console.error("Failed to get authenticated user:", userError);
-    throw new Error("Failed to get authenticated user");
-  }
-
-  if (!user) {
-    throw new Error("Utilizador não autenticado.");
-  }
-
-  // Authenticate and authorize the current user first.
+  // Verify the authenticated user's profile and role before loading admin data.
   const { data: currentUser, error: profileError } = await supabase
     .from("profiles")
     .select("*")
@@ -233,7 +229,9 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     .maybeSingle();
 
   if (profileError) {
-    console.error("Failed to fetch current admin profile:", profileError);
+    logQueryErrors("Admin dashboard", [
+      { name: "currentUser", error: profileError },
+    ]);
     throw new Error("Failed to fetch current user");
   }
 
@@ -254,72 +252,52 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     tasksResult,
     deadlinesResult,
     activitiesResult,
-    workloadResult,
+    teamWorkload,
   ] = await Promise.all([
-    // All users
     supabase.from("profiles").select("*"),
-
-    // All projects
     supabase.from("projects").select("*"),
+    supabase.from("clients").select("*"),
 
-    // Clients available to the meeting modal
-    supabase
-      .from("clients")
-      .select("*")
-      .order("name", { ascending: true }),
-
-    // Suppliers available to the meeting modal
+    // Full supplier rows keep this return type compatible with the admin UI.
     supabase
       .from("suppliers")
-      .select("supplier_id, supplier_name")
+      .select("*")
       .order("supplier_name", { ascending: true }),
 
-    // All documents
     supabase.from("documents").select("*"),
-
-    // All tasks
     supabase.from("tasks").select("*"),
 
-    // Tasks with deadlines
     supabase
       .from("tasks")
       .select("*")
       .not("due_date", "is", null)
       .order("due_date", { ascending: true }),
 
-    // Recent activities
     supabase
-      .from("activities")
+      .from("activity_logs")
       .select("*")
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(20),
 
-    // Workload based on task_members
     getTeamWorkload(),
   ]);
 
-  const errors = [
-    usersResult.error,
-    projectsResult.error,
-    clientsResult.error,
-    suppliersResult.error,
-    documentsResult.error,
-    tasksResult.error,
-    deadlinesResult.error,
-    activitiesResult.error,
-  ].filter(Boolean);
+  const failedQueries = logQueryErrors("Admin dashboard", [
+    { name: "users", error: usersResult.error },
+    { name: "projects", error: projectsResult.error },
+    { name: "clients", error: clientsResult.error },
+    { name: "suppliers", error: suppliersResult.error },
+    { name: "documents", error: documentsResult.error },
+    { name: "tasks", error: tasksResult.error },
+    { name: "deadlines", error: deadlinesResult.error },
+    { name: "activities", error: activitiesResult.error },
+  ]);
 
-  if (errors.length > 0) {
-    console.error(
-      "Failed to fetch admin dashboard data:",
-      JSON.stringify(errors, null, 2),
-    );
-
-    throw new Error("Failed to fetch admin dashboard data");
+  if (failedQueries.length > 0) {
+    throw new Error(`Failed admin dashboard queries: ${failedQueries.join(", ")}`);
   }
 
   const users = usersResult.data ?? [];
-
-  // Adapt profile records to the exact shape expected by the modal.
   const participants = users.map((profile) => ({
     profile_id: profile.profile_id,
     first_name: profile.first_name ?? null,
@@ -337,30 +315,17 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     tasks: tasksResult.data ?? [],
     deadlines: deadlinesResult.data ?? [],
     activities: activitiesResult.data ?? [],
-    teamWorkload: workloadResult,
+    teamWorkload,
   };
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* Team workload                                                              */
 /* -------------------------------------------------------------------------- */
 
 export async function getTeamWorkload(): Promise<TeamWorkload[]> {
-  const supabase = await getSupabase();
+  const { supabase } = await getAuthenticatedUser();
 
-  /*
-   * IMPORTANT:
-   *
-   * tasks.assigned_to no longer exists.
-   *
-   * Assignment is:
-   *
-   * task_members.profile_id
-   * task_members.task_id
-   *
-   * Therefore workload must be calculated from task_members.
-   */
   const { data: taskMembers, error } = await supabase
     .from("task_members")
     .select(`
@@ -380,60 +345,55 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     `);
 
   if (error) {
-    console.error("Error fetching team workload:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
-
-    return [];
+    logQueryErrors("Team workload", [{ name: "taskMembers", error }]);
+    throw new Error("Failed to fetch team workload");
   }
 
-  if (!taskMembers || taskMembers.length === 0) {
-    return [];
-  }
+  if (!taskMembers?.length) return [];
 
   const members = new Map<string, TeamWorkload>();
+  const seenAssignments = new Set<string>();
 
   for (const member of taskMembers) {
-    const task = Array.isArray(member.tasks)
-      ? member.tasks[0]
-      : member.tasks;
+    if (!member.profile_id) continue;
 
-    if (!member.profile_id || !task) {
-      continue;
-    }
+    const taskRelation = member.tasks;
+    const task = Array.isArray(taskRelation)
+      ? taskRelation[0]
+      : taskRelation;
 
-    const profile = Array.isArray(member.profiles)
-      ? member.profiles[0]
-      : member.profiles;
+    if (!task) continue;
 
-    const firstName = profile?.first_name ?? "";
-    const lastName = profile?.last_name ?? "";
+    // Prevent duplicate join rows from inflating workload totals.
+    const assignmentKey = `${member.profile_id}:${task.task_id}`;
+    if (seenAssignments.has(assignmentKey)) continue;
+    seenAssignments.add(assignmentKey);
+
+    const profileRelation = member.profiles;
+    const profile = Array.isArray(profileRelation)
+      ? profileRelation[0]
+      : profileRelation;
 
     const name =
-      `${firstName} ${lastName}`.trim() || "Utilizador";
+      `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() ||
+      "Utilizador";
 
-    const estimatedHours = Number(task.estimated_hours ?? 0);
-    const actualHours = Number(task.actual_hours ?? 0);
+    const estimatedHours = Math.max(0, Number(task.estimated_hours ?? 0) || 0);
+    const actualHours = Math.max(0, Number(task.actual_hours ?? 0) || 0);
+    const isCompleted = task.completed === true;
 
-    /*
-     * tasks.completed is a boolean in the current schema.
-     */
-    const isCompleted = Boolean(task.completed);
+    const workload = members.get(member.profile_id);
 
-    const existing = members.get(member.profile_id);
-
-    if (existing) {
-      existing.total_tasks += 1;
-      existing.estimated_hours += estimatedHours;
-      existing.actual_hours += actualHours;
+    if (workload) {
+      workload.total_tasks += 1;
+      workload.estimated_hours += estimatedHours;
+      workload.actual_hours += actualHours;
 
       if (isCompleted) {
-        existing.completed_tasks += 1;
+        workload.completed_tasks += 1;
       } else {
-        existing.pending_tasks += 1;
+        workload.pending_tasks += 1;
+        workload.hours_remaining += Math.max(0, estimatedHours - actualHours);
       }
     } else {
       members.set(member.profile_id, {
@@ -453,49 +413,18 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
   }
 
   const workload = Array.from(members.values());
-
-  /*
-   * Calculate remaining hours.
-   */
-  for (const member of workload) {
-    member.hours_remaining =
-      member.pending_tasks > 0
-        ? Math.max(
-            0,
-            member.estimated_hours -
-              member.actual_hours,
-          )
-        : 0;
-  }
-
-  /*
-   * Calculate percentage of total remaining workload.
-   */
   const totalRemainingHours = workload.reduce(
-    (total, member) =>
-      total + member.hours_remaining,
+    (total, member) => total + member.hours_remaining,
     0,
   );
 
   for (const member of workload) {
     member.workload_percentage =
       totalRemainingHours > 0
-        ? Math.round(
-            (member.hours_remaining /
-              totalRemainingHours) *
-              100,
-          )
+        ? Math.round((member.hours_remaining / totalRemainingHours) * 100)
         : 0;
   }
 
-  /*
-   * Highest workload first.
-   */
-  workload.sort(
-    (a, b) =>
-      b.workload_percentage -
-      a.workload_percentage,
-  );
-
+  workload.sort((a, b) => b.workload_percentage - a.workload_percentage);
   return workload;
 }

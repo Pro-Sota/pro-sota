@@ -45,6 +45,7 @@ type Department =
 
 type SidebarAccess = {
   departments?: Department[];
+  grantedDepartments?: Department[];
   adminOnly?: boolean;
 };
 
@@ -97,6 +98,7 @@ const menuItems: SidebarItem[] = [
     permission: "leads.view",
     access: {
       departments: ["commercial"],
+      grantedDepartments: ["commercial"],
     },
   },
   {
@@ -287,11 +289,6 @@ function canSeeSidebarItem(
   isAdmin: boolean,
   department: Department,
 ): boolean {
-  /*
-   * CRITICAL:
-   * Admin bypasses all permission, department and adminOnly
-   * restrictions. Return before evaluating any of them.
-   */
   if (isAdmin) {
     return true;
   }
@@ -307,6 +304,11 @@ function canSeeSidebarItem(
     !access.departments.includes(department)
   ) {
     return false;
+  }
+
+  // Department membership alone is enough, no permission needed.
+  if (access?.grantedDepartments?.includes(department)) {
+    return true;
   }
 
   if (item.permission && !can(item.permission)) {
@@ -706,15 +708,15 @@ function SidebarItem({
         itemClasses,
         active
           ? [
-              "border-l-[3px] border-[#BD9655]",
-              "bg-[#BD9655] text-[#002950]",
-              collapsed ? "pl-0" : "pl-[9px]",
-            ].join(" ")
+            "border-l-[3px] border-[#BD9655]",
+            "bg-[#BD9655] text-[#002950]",
+            collapsed ? "pl-0" : "pl-[9px]",
+          ].join(" ")
           : [
-              "text-gray-600 hover:bg-gray-100",
-              "hover:text-[#BD9655]",
-              collapsed ? "border-l-[3px] border-transparent" : "",
-            ].join(" "),
+            "text-gray-600 hover:bg-gray-100",
+            "hover:text-[#BD9655]",
+            collapsed ? "border-l-[3px] border-transparent" : "",
+          ].join(" "),
       ].join(" ")}
     >
       <SidebarIcon>
