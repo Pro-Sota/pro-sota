@@ -289,16 +289,19 @@ function canSeeSidebarItem(
   isAdmin: boolean,
   department: Department,
 ): boolean {
+  // Admin can see every configured item.
   if (isAdmin) {
     return true;
   }
 
   const access = item.access;
 
+  // Admin-only items are hidden from non-admin users.
   if (access?.adminOnly) {
     return false;
   }
 
+  // Restrict the item to the configured departments.
   if (
     access?.departments &&
     !access.departments.includes(department)
@@ -306,11 +309,12 @@ function canSeeSidebarItem(
     return false;
   }
 
-  // Department membership alone is enough, no permission needed.
+  // Explicit department grants bypass the permission check.
   if (access?.grantedDepartments?.includes(department)) {
     return true;
   }
 
+  // All other items require their configured permission.
   if (item.permission && !can(item.permission)) {
     return false;
   }
