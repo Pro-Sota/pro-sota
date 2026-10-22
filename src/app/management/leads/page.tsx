@@ -7,7 +7,6 @@ import LeadsInit from "./leads";
 import { requirePermission } from "@/app/lib/permissions/server";
 
 export default async function Page() {
-    await requirePermission("leads.view");
 
     const { session } = await getSession();
 
