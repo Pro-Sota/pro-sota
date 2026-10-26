@@ -8,7 +8,7 @@ import {
 } from "react";
 
 import Nav from "../components/nav";
-import Contact from "../components/contact";
+import Contact from "../components/contact_page";
 import Footer from "../components/footer";
 
 import { SCENES } from "../components/scene";

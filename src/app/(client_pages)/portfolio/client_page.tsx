@@ -7,7 +7,7 @@ import Nav from "../components/nav";
 import Footer from "../components/footer";
 import PortfolioGrid from "../components/portfolio_grid";
 import Lightbox from "../components/light_box";
-import Contact from "../components/contact";
+import Contact from "../components/contact_page";
 
 type PortfolioProject = {
   id: string;
@@ -413,8 +413,6 @@ export default function PortfolioClient({
           </button>
         </div>
       </section>
-
-      <Contact />
 
       <Footer />
 

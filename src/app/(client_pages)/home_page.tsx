@@ -12,7 +12,7 @@ import WhyUs from "./components/why_us";
 import Services from "./components/services";
 import PortfolioFan from "./components/portfolio_fan";
 import Lightbox from "./components/light_box";
-import Contact from "./components/contact";
+import Contact from "./components/contact_page";
 
 import '../admin.css'
 import '../styles.css'

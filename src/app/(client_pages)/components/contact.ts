@@ -1,6 +1,4 @@
 
-import "server-only";
-
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 
@@ -211,7 +209,7 @@ async function uploadImage(
   return { path };
 }
 
-export async function submitContact(
+export default async function Contact(
   formData: FormData,
 ): Promise<ContactResult> {
   const validation = validateForm(formData);

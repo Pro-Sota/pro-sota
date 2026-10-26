@@ -554,3 +554,77 @@ export async function updatePortfolioOrder(
 
   return { success: true };
 }
+
+
+export async function savePortfolioProjects(
+  projects: PortfolioProject[],
+): Promise<void> {
+  if (!Array.isArray(projects)) {
+    throw new Error("A lista de projectos é inválida.");
+  }
+
+  const existingProjects = await getPortfolioProjects();
+  const existingIds = new Set(existingProjects.map((project) => project.id));
+  const submittedExistingIds = new Set(
+    projects
+      .map((project) => project.id)
+      .filter((id) => existingIds.has(id)),
+  );
+
+  const savedIds: string[] = [];
+
+  // Create new projects and update existing ones.
+  for (const project of projects) {
+    const input: PortfolioInput = {
+      name: project.name,
+      slug: project.slug,
+      category: project.category,
+      location: project.location ?? "",
+      year: project.year,
+      description: project.description ?? "",
+      cover_image: project.cover_image ?? "",
+      gallery: project.gallery ?? [],
+      status: project.status,
+      featured: project.featured,
+    };
+
+    const result = existingIds.has(project.id)
+      ? await updatePortfolioProject(project.id, input)
+      : await createPortfolioProject(input);
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    if (!result.project) {
+      throw new Error(
+        `Não foi possível confirmar a gravação de "${project.name}".`,
+      );
+    }
+
+    savedIds.push(result.project.id);
+  }
+
+  // Delete projects removed from the submitted list.
+  for (const project of existingProjects) {
+    if (!submittedExistingIds.has(project.id)) {
+      const result = await deletePortfolioProject(project.id);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+    }
+  }
+
+  // Persist the displayed order.
+  if (savedIds.length > 0) {
+    const result = await updatePortfolioOrder(savedIds);
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+  }
+
+  revalidatePath(PORTFOLIO_PATH);
+  revalidatePath("/");
+}
