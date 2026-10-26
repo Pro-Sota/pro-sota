@@ -26,18 +26,18 @@ import { MapSkeleton } from "@/app/components/project_skeletons";
 import {
   DEFAULT_SORT,
   SORT_OPTIONS,
-  SortValue,
   matchesSearch,
   normalizeStatus,
   sortProjects,
 } from "@/app/components/project_helpers";
-import { ProjectListItem } from "./types";
+import type { SortValue } from "@/app/components/project_helpers";
+import type { ProjectListItem } from "./types";
 import CustomSelect from "@/app/components/custom_select";
 
-/*
- * The map is the heavy view (map library + tiles). Loading it on demand keeps
- * the grid and list lightweight, and shows a skeleton while it loads.
- */
+/* -------------------------------------------------------------------------- */
+/* Lazy-loaded map                                                            */
+/* -------------------------------------------------------------------------- */
+
 const ProjectMapView = dynamic(
   () => import("@/app/components/project_map_view"),
   {
@@ -65,13 +65,20 @@ const views = [
 ] as const;
 
 type ViewMode = (typeof views)[number]["value"];
-
 type FilterValue = (typeof filters)[number]["value"];
+type UrlKey = "filter" | "sort" | "view" | "q";
 
 const statusFilters = filters.filter((item) => item.value !== "todos");
 
+const URL_DEFAULTS: Record<UrlKey, string> = {
+  filter: "todos",
+  sort: DEFAULT_SORT,
+  view: "grid",
+  q: "",
+};
+
 /* -------------------------------------------------------------------------- */
-/* URL state                                                                  */
+/* URL helpers                                                                */
 /* -------------------------------------------------------------------------- */
 
 function parseFilter(value: string | null): FilterValue {
@@ -83,32 +90,15 @@ function parseView(value: string | null): ViewMode {
 }
 
 function parseSort(value: string | null): SortValue {
-  return SORT_OPTIONS.find((item) => item.value === value)?.value ?? DEFAULT_SORT;
+  return (
+    SORT_OPTIONS.find((item) => item.value === value)?.value ?? DEFAULT_SORT
+  );
 }
 
-type UrlKey = "filter" | "sort" | "view" | "q";
-
-const URL_DEFAULTS: Record<UrlKey, string> = {
-  filter: "todos",
-  sort: DEFAULT_SORT,
-  view: "grid",
-  q: "",
-};
-
-/**
- * Updates the address bar without navigating.
- *
- * router.replace() makes Next.js re-run the server page (and re-fetch every
- * project) on each change. That round trip is what made switching views slow.
- * history.replaceState updates the URL only, so the change is instant, and
- * Next (14.1+) keeps useSearchParams in sync with it.
- *
- * Returns the resulting query string.
- */
-function writeUrl(updates: Partial<Record<UrlKey, string>>) {
+function writeUrl(updates: Partial<Record<UrlKey, string>>): string {
   const params = new URLSearchParams(window.location.search);
 
-  (Object.keys(updates) as UrlKey[]).forEach((key) => {
+  for (const key of Object.keys(updates) as UrlKey[]) {
     const value = updates[key]?.trim() ?? "";
 
     if (!value || value === URL_DEFAULTS[key]) {
@@ -116,29 +106,33 @@ function writeUrl(updates: Partial<Record<UrlKey, string>>) {
     } else {
       params.set(key, value);
     }
-  });
+  }
 
   const next = params.toString();
+  const current = window.location.search.replace(/^\?/, "");
 
-  if (next === window.location.search.replace(/^\?/, "")) return next;
+  if (next === current) return next;
 
-  window.history.replaceState(
-    null,
-    "",
-    next ? `${window.location.pathname}?${next}` : window.location.pathname,
-  );
+  const url = next
+    ? `${window.location.pathname}?${next}`
+    : window.location.pathname;
+
+  window.history.replaceState(null, "", url);
 
   return next;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Small pieces                                                               */
+/* Status indicators                                                          */
 /* -------------------------------------------------------------------------- */
 
 function SummaryMark({ status }: { status: FilterValue }) {
   if (status === "concluido") {
     return (
-      <CheckCircle2 className="h-3 w-3 text-[#002950]" aria-hidden="true" />
+      <CheckCircle2
+        className="h-3 w-3 text-[#002950]"
+        aria-hidden="true"
+      />
     );
   }
 
@@ -153,39 +147,60 @@ function SummaryMark({ status }: { status: FilterValue }) {
 
   if (status === "em-pausa") {
     return (
-      <span aria-hidden="true" className="h-2 w-2 rounded-full bg-gray-300" />
+      <span
+        aria-hidden="true"
+        className="h-2 w-2 rounded-full bg-gray-300"
+      />
     );
   }
 
   return (
-    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[#002950]" />
+    <span
+      aria-hidden="true"
+      className="h-2 w-2 rounded-full bg-[#002950]"
+    />
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Shared styles                                                              */
+/* -------------------------------------------------------------------------- */
+
 const secondaryButton =
   "inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2";
+
+const createProjectButton =
+  "inline-flex w-full flex-shrink-0 items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2.5 text-sm font-medium text-[#002950] shadow-sm transition-colors duration-200 hover:bg-[#BD9655]/90 active:bg-[#BD9655] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 sm:w-auto";
+
+/* -------------------------------------------------------------------------- */
+/* Empty results                                                               */
+/* -------------------------------------------------------------------------- */
 
 function EmptyResults({
   kind,
   searchTerm,
   filterLabel,
+  canCreateProject,
   onClearSearch,
   onClearFilter,
 }: {
   kind: "none" | "search" | "filter";
   searchTerm: string;
   filterLabel: string;
+  canCreateProject: boolean;
   onClearSearch: () => void;
   onClearFilter: () => void;
 }) {
   const isFiltering = filterLabel !== "Todos";
 
-  let title = "";
-  let description = "";
+  let title: string;
+  let description: string;
 
   if (kind === "none") {
     title = "Ainda não existem projectos";
-    description = "Comece por criar o seu primeiro projecto.";
+    description = canCreateProject
+      ? "Comece por criar o seu primeiro projecto."
+      : "Ainda não existem projectos disponíveis para apresentar.";
   } else if (kind === "search") {
     title = `Nenhum resultado para “${searchTerm}”`;
     description = isFiltering
@@ -203,12 +218,14 @@ function EmptyResults({
           <SearchIcon className="h-7 w-7 text-gray-400" />
         </div>
 
-        <h3 className="mb-2 text-lg font-semibold text-gray-900">{title}</h3>
+        <h3 className="mb-2 text-lg font-semibold text-gray-900">
+          {title}
+        </h3>
 
         <p className="mb-6 text-sm text-gray-600">{description}</p>
 
         <div className="flex flex-wrap items-center justify-center gap-2">
-          {kind === "none" && (
+          {kind === "none" && canCreateProject && (
             <Link
               href="/management/projects/create-project"
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#002950] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003b70] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
@@ -246,29 +263,36 @@ function EmptyResults({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Component                                                                  */
+/* Main component                                                             */
 /* -------------------------------------------------------------------------- */
+
+type ProjectsPageInnerProps = {
+  projects: ProjectListItem[];
+  canCreateProject: boolean;
+};
 
 export default function ProjectsPageInner({
   projects,
-}: {
-  projects: ProjectListItem[];
-}) {
+  canCreateProject,
+}: ProjectsPageInnerProps) {
   const searchParams = useSearchParams();
 
-  /*
-   * Local state is the source of truth, so switching view / filter / sort is
-   * instant. The URL is kept in sync for bookmarks and sharing.
-   */
+  /* ------------------------------------------------------------------------ */
+  /* State                                                                    */
+  /* ------------------------------------------------------------------------ */
+
   const [filter, setFilter] = useState<FilterValue>(() =>
     parseFilter(searchParams.get("filter")),
   );
+
   const [sort, setSort] = useState<SortValue>(() =>
     parseSort(searchParams.get("sort")),
   );
+
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
     parseView(searchParams.get("view")),
   );
+
   const [searchTerm, setSearchTerm] = useState(
     () => searchParams.get("q") ?? "",
   );
@@ -279,10 +303,9 @@ export default function ProjectsPageInner({
   const lastUrlRef = useRef(searchParams.toString());
 
   /* ------------------------------------------------------------------------ */
-  /* URL sync                                                                 */
+  /* URL synchronisation                                                      */
   /* ------------------------------------------------------------------------ */
 
-  /* Pick up changes made outside this component (links, back/forward). */
   useEffect(() => {
     const current = searchParams.toString();
 
@@ -296,7 +319,6 @@ export default function ProjectsPageInner({
     setSearchTerm(searchParams.get("q") ?? "");
   }, [searchParams]);
 
-  /* Search is written to the URL after a short pause, not on every key. */
   useEffect(() => {
     const id = window.setTimeout(() => {
       lastUrlRef.current = writeUrl({ q: searchTerm });
@@ -348,7 +370,6 @@ export default function ProjectsPageInner({
 
     for (const project of projects) {
       const key = normalizeStatus(project.status);
-
       counts[key] = (counts[key] ?? 0) + 1;
     }
 
@@ -358,7 +379,8 @@ export default function ProjectsPageInner({
   const filteredProjects = useMemo(() => {
     const matching = projects.filter(
       (project) =>
-        (filter === "todos" || normalizeStatus(project.status) === filter) &&
+        (filter === "todos" ||
+          normalizeStatus(project.status) === filter) &&
         matchesSearch(project, deferredSearch),
     );
 
@@ -367,15 +389,15 @@ export default function ProjectsPageInner({
 
   const isSearching = deferredSearch.trim().length > 0;
 
-  const emptyKind =
+  const emptyKind: "none" | "search" | "filter" =
     projects.length === 0 ? "none" : isSearching ? "search" : "filter";
+
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                   */
+  /* ------------------------------------------------------------------------ */
 
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-gray-900">
-      {/* ------------------------------------------------------------------ */}
-      {/* Header                                                             */}
-      {/* ------------------------------------------------------------------ */}
-
       <header className="bg-white">
         <div className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -384,7 +406,6 @@ export default function ProjectsPageInner({
                 Projectos
               </h1>
 
-              {/* Summary */}
               <ul
                 aria-label="Resumo dos projectos"
                 className="mt-1.5 -ml-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500"
@@ -439,29 +460,25 @@ export default function ProjectsPageInner({
                   : "projectos encontrados"}
               </p>
             </div>
-            
-            <Link
-              href="/management/projects/create-project"
-              className="inline-flex w-full flex-shrink-0 items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2.5 text-sm font-medium text-[#002950] shadow-sm transition-colors duration-200 hover:bg-[#BD9655]/90 active:bg-[#BD9655] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 sm:w-auto"
-            >
-              <Plus className="h-5 w-5" />
 
-              <span className="hidden sm:inline">Novo Projecto</span>
+            {canCreateProject && (
+              <Link
+                href="/management/projects/create-project"
+                className={createProjectButton}
+              >
+                <Plus className="h-5 w-5" />
 
-              <span className="sm:hidden">Novo</span>
-            </Link>
+                <span className="hidden sm:inline">Novo Projecto</span>
+                <span className="sm:hidden">Novo</span>
+              </Link>
+            )}
           </div>
         </div>
       </header>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Controls                                                           */}
-      {/* ------------------------------------------------------------------ */}
-
       <div className="sticky top-0 z-30 border-b border-gray-200/50 bg-white/95 backdrop-blur-sm">
         <div className="px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
           <div className="flex flex-col gap-3.5">
-            {/* Search */}
             <div className="group relative w-full">
               <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-gray-600" />
 
@@ -487,9 +504,7 @@ export default function ProjectsPageInner({
               )}
             </div>
 
-            {/* Filters + sort + views */}
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              {/* Filters (left) */}
               <div className="-mx-4 flex min-w-0 gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 sm:pb-0 md:flex-wrap">
                 {filters.map((item) => {
                   const isActive = filter === item.value;
@@ -500,10 +515,11 @@ export default function ProjectsPageInner({
                       type="button"
                       aria-pressed={isActive}
                       onClick={() => changeFilter(item.value)}
-                      className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${isActive
-                        ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
-                        : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-100"
-                        }`}
+                      className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
+                        isActive
+                          ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
+                          : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-100"
+                      }`}
                     >
                       {item.label}
                     </button>
@@ -511,9 +527,7 @@ export default function ProjectsPageInner({
                 })}
               </div>
 
-              {/* Sort + views (right) */}
               <div className="flex shrink-0 items-center justify-between gap-3 md:justify-end md:gap-4">
-                {/* Sort */}
                 <label className="flex items-center gap-2 text-xs font-medium text-gray-500">
                   <span>Ordenar por:</span>
 
@@ -532,7 +546,6 @@ export default function ProjectsPageInner({
                   </CustomSelect>
                 </label>
 
-                {/* View modes */}
                 <div className="flex items-center gap-2">
                   <span className="hidden text-xs font-medium text-gray-500 sm:inline">
                     Visualizar:
@@ -550,10 +563,11 @@ export default function ProjectsPageInner({
                           aria-pressed={isActive}
                           title={label}
                           onClick={() => changeView(value)}
-                          className={`cursor-pointer rounded p-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${isActive
-                            ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
-                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                            }`}
+                          className={`cursor-pointer rounded p-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
+                            isActive
+                              ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
+                              : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                          }`}
                         >
                           <Icon className="h-4 w-4" />
                         </button>
@@ -567,16 +581,13 @@ export default function ProjectsPageInner({
         </div>
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Content                                                            */}
-      {/* ------------------------------------------------------------------ */}
-
       <main className="flex-1 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         {filteredProjects.length === 0 ? (
           <EmptyResults
             kind={emptyKind}
             searchTerm={deferredSearch.trim()}
             filterLabel={selectedFilter.label}
+            canCreateProject={canCreateProject}
             onClearSearch={clearSearch}
             onClearFilter={() => changeFilter("todos")}
           />
@@ -592,7 +603,7 @@ export default function ProjectsPageInner({
 
             {viewMode === "map" && (
               <div className="h-[400px] w-full">
-                <ProjectMapView projects={projects} />
+                <ProjectMapView projects={filteredProjects} />
               </div>
             )}
           </div>

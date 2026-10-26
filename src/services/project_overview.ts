@@ -19,6 +19,9 @@ export interface OverviewProject {
   status: string;
   startDate: string | null;
   endDate: string | null;
+  municipality:string | null;
+  country:string| null;
+  type:string | null;
 }
 
 export interface OverviewActivity {
@@ -598,23 +601,25 @@ export async function getOverviewData(
 
   const project: OverviewProject = {
     id: stringValue(projectRow.project_id) || projectId,
-    name:
-      stringValue(
-        projectRow.name,
-        projectRow.project_name,
-        projectRow.title,
-      ) || "Projecto sem nome",
+    name: stringValue(
+      projectRow.name,
+      projectRow.project_name,
+      projectRow.title
+    ) || "Projecto sem nome",
     code: stringValue(projectRow.project_code) || null,
     status: stringValue(projectRow.status) || "Sem estado",
     startDate: nullableDate(
       projectRow.start_date,
-      projectRow.started_at,
+      projectRow.started_at
     ),
     endDate: nullableDate(
       projectRow.end_date,
       projectRow.due_date,
-      projectRow.deadline,
+      projectRow.deadline
     ),
+    municipality: stringValue(projectRow.municipality) || null,
+    country: stringValue(projectRow.country) || null,
+    type: stringValue(projectRow.type) || null
   };
 
   /* ------------------------------------------------------------------------ */

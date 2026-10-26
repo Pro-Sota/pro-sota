@@ -703,7 +703,7 @@ export async function getProjectClient(projectId:string): Promise<
       first_name,
       last_name,
       organization_name
-    `).eq("client_id", project.client_id)
+    `)
     .is("deleted_at", null)
     .order("name", { ascending: true });
 

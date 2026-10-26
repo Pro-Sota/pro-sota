@@ -68,7 +68,7 @@ export function prepareProjectPayload(form: ProjectFormState) {
     description: form.description?.trim() || null,
     client_id: cleanUuid(form.client_id || ""),
     country: form.country?.trim() || null,
-    state_province: form.state_province?.trim() || null,
+    province: form.province?.trim() || null,
     municipality: form.municipality.trim(),
     address_line_1: form.address_line_1?.trim() || null,
     address_line_2: form.address_line_2?.trim() || null,
@@ -81,9 +81,8 @@ export function prepareProjectPayload(form: ProjectFormState) {
     estimated_cost: form.estimated_cost ?? form.budget,
     status: form.status || "Em observação",
     urgency: form.urgency ?? null,
-    referencePoint: form.reference_point ?? null,
     created_by: form.created_by ?? null,
-    project_code: "",
+    project_code: form.project_code,
   };
 }
 

@@ -33,7 +33,6 @@ export default async function EditPage({
         address_line_1: project.address_line_1,
         address_line_2: project.address_line_2,
         city: project.city,
-        state_province: project.state_province,
         country: project.country ?? "Angola",
         province: project.province,
         latitude: project.latitude,

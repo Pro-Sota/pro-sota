@@ -1,3 +1,4 @@
+
 import { createClient } from "@/app/lib/supabase/client";
 import type { Database } from "@/app/lib/supabase/models";
 
@@ -16,30 +17,14 @@ export const PROJECT_STATUSES = [
 
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 
-export type ProvisioningResult = {
-    project_id: string;
-    conversation_id: string;
-    task_columns_created: number;
-    phases_created: number;
-    phase_stages_created: number;
-    tasks_created: number;
-    deliverables_created: number;
-    milestones_created: number;
-};
-
 export type CreateProjectResult = {
     project: ProjectRow;
-    provisioning: ProvisioningResult;
 };
 
 export async function createProject(
     projectInput: ProjectInsert
 ): Promise<CreateProjectResult> {
     const supabase = createClient();
-
-    /* ---------------------------------------------------------------------- */
-    /* Auth                                                                   */
-    /* ---------------------------------------------------------------------- */
 
     const {
         data: { user },
@@ -53,10 +38,6 @@ export async function createProject(
     if (!user) {
         throw new Error("Utilizador não autenticado.");
     }
-
-    /* ---------------------------------------------------------------------- */
-    /* Create project                                                         */
-    /* ---------------------------------------------------------------------- */
 
     const projectData: ProjectInsert = {
         ...projectInput,
@@ -80,30 +61,5 @@ export async function createProject(
         throw new Error("O projecto não foi criado.");
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* Provision project defaults                                             */
-    /* ---------------------------------------------------------------------- */
-
-    const {
-        data: provisioning,
-        error: provisioningError,
-    } = await supabase.rpc("provision_project_defaults", {
-        p_project_id: project.project_id,
-        p_creator_profile_id: user.id,
-    });
-
-    if (provisioningError) {
-        throw new Error(provisioningError.message);
-    }
-
-    if (!provisioning) {
-        throw new Error(
-            "O projecto foi criado, mas os dados iniciais não foram configurados."
-        );
-    }
-
-    return {
-        project,
-        provisioning: provisioning as ProvisioningResult,
-    };
+    return { project };
 }

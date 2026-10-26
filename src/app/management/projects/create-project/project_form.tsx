@@ -428,7 +428,6 @@ export default function NewProjectForm({
 
       const {
         project,
-        provisioning,
       } = await createProject(payload);
 
       /* ------------------------------------------------------------------ */
@@ -444,11 +443,6 @@ export default function NewProjectForm({
       console.log(
         "[NewProject] Project created:",
         project
-      );
-
-      console.log(
-        "[NewProject] Project provisioning:",
-        provisioning
       );
 
       /* ------------------------------------------------------------------ */

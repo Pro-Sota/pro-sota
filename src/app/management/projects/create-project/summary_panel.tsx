@@ -44,7 +44,7 @@ export function SummaryPanel({
   }, []);
 
  
-  const location = [form.municipality, form.state_province]
+  const location = [form.municipality, form.province]
     .filter(Boolean)
     .join(", ");
 

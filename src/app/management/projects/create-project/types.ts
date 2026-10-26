@@ -39,7 +39,6 @@ export const INITIAL_PROJECT: ProjectFormState = {
   latitude: null,
   longitude: null,
   municipality: "",
-  state_province: null,
   client_id: null,
   teamMembers: [],
 };

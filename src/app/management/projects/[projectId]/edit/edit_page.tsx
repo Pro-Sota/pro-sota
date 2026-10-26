@@ -1,3 +1,4 @@
+
 "use client";
 
 /* ==========================================================================
@@ -17,9 +18,11 @@ import {
     ArrowLeft,
     Banknote,
     Building2,
+    CalendarDays,
     ChevronDown,
     ChevronRight,
     CircleDot,
+    FileText,
     ImagePlus,
     Loader2,
     MapPin,
@@ -50,10 +53,8 @@ export interface EditProjectFormProps {
     initialValues: Partial<ProjectPayload>;
     clients: { id: string; name: string }[];
 
-    /** Server action already bound to the project ID. */
     onSave: (payload: ProjectPayload) => Promise<ActionResult>;
 
-    /** Optional image upload action returning the public URL. */
     onUploadImage?: (
         file: File,
     ) => Promise<
@@ -111,20 +112,32 @@ const EMPTY: Values = {
     type: "",
     status: "Em observação",
     urgency: "Medium",
+
     client_id: "",
+
+    country: "Angola",
     province: "",
     municipality: "",
     city: "",
     address_line_1: "",
     address_line_2: "",
-    location: "",
     latitude: "",
     longitude: "",
+
     budget: "",
     estimated_cost: "",
+
     start_date: "",
     end_date: "",
+    actual_start_date: "",
+    actual_end_date: "",
+
+    contract_number: "",
+    external_reference: "",
+    completion_percentage: "0",
+
     image: "",
+    reference_point: ""
 };
 
 const inputClass =
@@ -132,7 +145,6 @@ const inputClass =
 
 const focusRing =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] focus-visible:ring-offset-2";
-
 
 /* ==========================================================================
    PART 2 — Value conversion, validation and payload helpers
@@ -181,7 +193,10 @@ function validate(values: Values): Errors {
     (["budget", "estimated_cost"] as const).forEach((key) => {
         const value = values[key].trim();
 
-        if (value !== "" && (!Number.isFinite(Number(value)) || Number(value) < 0)) {
+        if (
+            value !== "" &&
+            (!Number.isFinite(Number(value)) || Number(value) < 0)
+        ) {
             errors[key] = "Introduza um valor igual ou superior a zero.";
         }
     });
@@ -189,7 +204,7 @@ function validate(values: Values): Errors {
     if (values.latitude.trim() !== "") {
         const latitude = Number(values.latitude);
 
-        if (!Number.isFinite(latitude) || Math.abs(latitude) > 90) {
+        if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
             errors.latitude = "Introduza uma latitude entre -90 e 90.";
         }
     }
@@ -197,7 +212,11 @@ function validate(values: Values): Errors {
     if (values.longitude.trim() !== "") {
         const longitude = Number(values.longitude);
 
-        if (!Number.isFinite(longitude) || Math.abs(longitude) > 180) {
+        if (
+            !Number.isFinite(longitude) ||
+            longitude < -180 ||
+            longitude > 180
+        ) {
             errors.longitude = "Introduza uma longitude entre -180 e 180.";
         }
     }
@@ -208,7 +227,37 @@ function validate(values: Values): Errors {
         values.end_date < values.start_date
     ) {
         errors.end_date =
-            "A data de fim não pode ser anterior à data de início.";
+            "A data prevista de fim não pode ser anterior à data de início.";
+    }
+
+    if (
+        values.actual_start_date &&
+        values.actual_end_date &&
+        values.actual_end_date < values.actual_start_date
+    ) {
+        errors.actual_end_date =
+            "A data real de fim não pode ser anterior à data real de início.";
+    }
+
+    if (
+        values.start_date &&
+        values.actual_start_date &&
+        values.actual_start_date < values.start_date
+    ) {
+        errors.actual_start_date =
+            "A data real de início não pode ser anterior à data prevista.";
+    }
+
+    const completion = values.completion_percentage.trim();
+
+    if (
+        completion === "" ||
+        !Number.isFinite(Number(completion)) ||
+        Number(completion) < 0 ||
+        Number(completion) > 100
+    ) {
+        errors.completion_percentage =
+            "A percentagem deve estar entre 0 e 100.";
     }
 
     return errors;
@@ -219,32 +268,42 @@ function toPayload(
     image: string | null,
 ): ProjectPayload {
     return {
-        project_code: values.project_code.trim(),
-        title: values.title.trim(),
-        description: orNull(values.description),
-        type: orNull(values.type),
-        status: values.status as ProjectPayload["status"],
-        urgency: values.urgency as ProjectPayload["urgency"],
-        client_id: orNull(values.client_id),
-        province: orNull(values.province),
-        municipality: values.municipality.trim(),
-        city: orNull(values.city),
-        address_line_1: orNull(values.address_line_1),
-        address_line_2: orNull(values.address_line_2),
-        location: orNull(values.location),
-        latitude: numOrNull(values.latitude),
-        longitude: numOrNull(values.longitude),
-        budget: numOrNull(values.budget),
-        estimated_cost: numOrNull(values.estimated_cost),
-        start_date: orNull(values.start_date),
-        end_date: orNull(values.end_date),
-        image,
-    };
+    project_code: values.project_code.trim(),
+    title: values.title.trim(),
+    description: orNull(values.description),
+    type: orNull(values.type),
+    status: values.status as ProjectPayload["status"],
+    urgency: values.urgency as ProjectPayload["urgency"],
+
+    client_id: orNull(values.client_id),
+
+    country: orNull(values.country) ?? "Angola",
+    province: orNull(values.province),
+    municipality: values.municipality.trim(),
+    city: orNull(values.city),
+    address_line_1: orNull(values.address_line_1),
+    address_line_2: orNull(values.address_line_2),
+    latitude: numOrNull(values.latitude),
+    longitude: numOrNull(values.longitude),
+
+    budget: numOrNull(values.budget),
+    estimated_cost: numOrNull(values.estimated_cost),
+
+    start_date: orNull(values.start_date),
+    end_date: orNull(values.end_date),
+    actual_start_date: orNull(values.actual_start_date),
+    actual_end_date: orNull(values.actual_end_date),
+
+    contract_number: orNull(values.contract_number),
+    external_reference: orNull(values.external_reference),
+    completion_percentage: Number(values.completion_percentage),
+    image,
+    reference_point: null,
+};
 }
 
-
 /* ==========================================================================
-   PART 3 — Reusable card, field and select components
+   PART 3 — Reusable UI components
    ========================================================================== */
 
 function Card({
@@ -266,7 +325,7 @@ function Card({
                 </div>
 
                 <div className="min-w-0">
-                    <h2 className="text-base font-semibold tracking-tight">
+                    <h2 className="text-base font-semibold tracking-tight text-[#002950]">
                         {title}
                     </h2>
                     <p className="mt-0.5 text-sm text-gray-500">
@@ -375,9 +434,8 @@ function Chip({
     );
 }
 
-
 /* ==========================================================================
-   PART 4 — Form state, input bindings and image handling
+   PART 4 — Form state and image handling
    ========================================================================== */
 
 export default function EditProjectForm({
@@ -396,18 +454,18 @@ export default function EditProjectForm({
         () => toValues(initialValues),
     );
 
-    // Snapshot used to detect unsaved changes.
     const initialSnapshot = useRef<string>(
         JSON.stringify(toValues(initialValues)),
     );
-    const initialImage = useRef<string | null>(initialValues.image ?? null);
 
-    const [errors, setErrors] = useState<Errors>({});
-
-    const [coverPreview, setCoverPreview] = useState<string | null>(
+    const initialImage = useRef<string | null>(
         initialValues.image ?? null,
     );
 
+    const [errors, setErrors] = useState<Errors>({});
+    const [coverPreview, setCoverPreview] = useState<string | null>(
+        initialValues.image ?? null,
+    );
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
@@ -416,7 +474,6 @@ export default function EditProjectForm({
         JSON.stringify(values) !== initialSnapshot.current ||
         coverPreview !== initialImage.current;
 
-    // Avoid leaking temporary object URLs when the preview changes or unmounts.
     useEffect(() => {
         return () => {
             if (coverPreview?.startsWith("blob:")) {
@@ -499,7 +556,6 @@ export default function EditProjectForm({
         }
 
         clearError("cover_image");
-
         setImageFile(file);
         setCoverPreview(URL.createObjectURL(file));
     }
@@ -515,9 +571,8 @@ export default function EditProjectForm({
         clearError("cover_image");
     }
 
-
     /* ==========================================================================
-       PART 5 — Form submission and save handling
+       PART 5 — Form submission
        ========================================================================== */
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -528,7 +583,6 @@ export default function EditProjectForm({
         setSubmitError(null);
 
         const foundErrors = validate(values);
-
         setErrors(foundErrors);
 
         const firstError = Object.keys(foundErrors)[0];
@@ -541,7 +595,6 @@ export default function EditProjectForm({
         setSaving(true);
 
         try {
-            // Preserve the existing URL unless the user removed the image.
             let image =
                 coverPreview && !imageFile ? coverPreview : null;
 
@@ -581,33 +634,47 @@ export default function EditProjectForm({
         }
     }
 
-
     /* ==========================================================================
-       PART 6 — Page header, identification, location and budget cards
+       PART 6 — Header data
        ========================================================================== */
 
-    const displayCode = projectCode || values.project_code || projectId;
-    const displayTitle = values.title.trim() || "Projecto sem nome";
+    const displayCode =
+        projectCode || values.project_code || projectId;
+
+    const displayTitle =
+        values.title.trim() || "Projecto sem nome";
+
     const place = [values.municipality.trim(), values.province]
         .filter(Boolean)
         .join(", ");
 
-    const saveLabel = saving ? "A guardar…" : "Guardar alterações";
+    const completion = Math.min(
+        100,
+        Math.max(0, Number(values.completion_percentage) || 0),
+    );
+
+    const saveLabel = saving
+        ? "A guardar…"
+        : "Guardar alterações";
+
     const saveIcon = saving ? (
         <Loader2 size={16} className="animate-spin" aria-hidden="true" />
     ) : (
         <Save size={16} aria-hidden="true" />
     );
 
+    /* ==========================================================================
+       PART 7 — Page UI
+       ========================================================================== */
+
     return (
         <div className="min-h-screen bg-[#F5F5F2] text-[#002950]">
             <header className="relative isolate overflow-hidden bg-[#002950] text-white">
-                {/* Soft gold glow, top-right */}
                 <div
                     aria-hidden="true"
                     className="pointer-events-none absolute -right-24 -top-32 -z-10 h-80 w-80 rounded-full bg-[#BD9655]/25 blur-3xl"
                 />
-                {/* Gold hairline along the bottom edge */}
+
                 <div
                     aria-hidden="true"
                     className="absolute inset-x-0 bottom-0 -z-10 h-px bg-gradient-to-r from-transparent via-[#BD9655] to-transparent"
@@ -649,10 +716,11 @@ export default function EditProjectForm({
                                 className="shrink-0 text-white/30"
                             />
 
-                            <span className="shrink-0 text-white">Editar</span>
+                            <span className="shrink-0 text-white">
+                                Editar
+                            </span>
                         </nav>
 
-                        {/* Desktop actions */}
                         <div className="hidden items-center gap-2 md:flex">
                             <button
                                 type="button"
@@ -758,10 +826,11 @@ export default function EditProjectForm({
                     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
                         {/* Main column */}
                         <div className="min-w-0 space-y-6">
+                            {/* 1. Identification */}
                             <Card
                                 icon={<Building2 size={20} aria-hidden="true" />}
                                 title="Identificação"
-                                description="Nome, código e descrição do projecto."
+                                description="Nome, código, tipo e descrição do projecto."
                             >
                                 <Field
                                     id="title"
@@ -778,7 +847,7 @@ export default function EditProjectForm({
 
                                 <Field
                                     id="project_code"
-                                    label="Código"
+                                    label="Código do projecto"
                                     required
                                     error={errors.project_code}
                                 >
@@ -790,7 +859,9 @@ export default function EditProjectForm({
 
                                 <Field id="type" label="Tipo de projecto">
                                     <SelectBox {...bind("type")}>
-                                        <option value="">Seleccionar tipo</option>
+                                        <option value="">
+                                            Seleccionar tipo
+                                        </option>
 
                                         {PROJECT_TYPES.map((type) => (
                                             <option key={type} value={type}>
@@ -817,7 +888,11 @@ export default function EditProjectForm({
                                     </SelectBox>
                                 </Field>
 
-                                <Field id="description" label="Descrição" wide>
+                                <Field
+                                    id="description"
+                                    label="Descrição"
+                                    wide
+                                >
                                     <textarea
                                         {...bind("description")}
                                         rows={4}
@@ -827,18 +902,44 @@ export default function EditProjectForm({
                                 </Field>
                             </Card>
 
+                            {/* 2. Contractual information */}
+                            <Card
+                                icon={<FileText size={20} aria-hidden="true" />}
+                                title="Dados contratuais"
+                                description="Referências administrativas e contratuais."
+                            >
+                                <Field
+                                    id="contract_number"
+                                    label="Número do contrato"
+                                >
+                                    <input
+                                        {...bind("contract_number")}
+                                        placeholder="Ex.: CT-2026-001"
+                                    />
+                                </Field>
+
+                                <Field
+                                    id="external_reference"
+                                    label="Referência externa"
+                                >
+                                    <input
+                                        {...bind("external_reference")}
+                                        placeholder="Referência do cliente ou entidade"
+                                    />
+                                </Field>
+                            </Card>
+
+                            {/* 3. Location */}
                             <Card
                                 icon={<MapPin size={20} aria-hidden="true" />}
                                 title="Localização"
-                                description="Onde o projecto será executado."
+                                description="Localização geográfica e morada da obra."
                             >
                                 <Field id="country" label="País">
                                     <input
-                                        id="country"
-                                        value="Angola"
-                                        readOnly
-                                        aria-readonly="true"
-                                        className={`${inputClass} border-[#E4E5E3]`}
+                                        {...bind("country")}
+                                        placeholder="Angola"
+                                        autoComplete="country-name"
                                     />
                                 </Field>
 
@@ -872,7 +973,10 @@ export default function EditProjectForm({
                                 </Field>
 
                                 <Field id="city" label="Cidade">
-                                    <input {...bind("city")} />
+                                    <input
+                                        {...bind("city")}
+                                        placeholder="Nome da cidade"
+                                    />
                                 </Field>
 
                                 <Field
@@ -883,28 +987,19 @@ export default function EditProjectForm({
                                     <input
                                         {...bind("address_line_1")}
                                         autoComplete="address-line1"
+                                        placeholder="Rua, avenida ou número do edifício"
                                     />
                                 </Field>
 
                                 <Field
                                     id="address_line_2"
-                                    label="Complemento"
+                                    label="Complemento da morada"
                                     wide
                                 >
                                     <input
                                         {...bind("address_line_2")}
                                         autoComplete="address-line2"
-                                    />
-                                </Field>
-
-                                <Field
-                                    id="reference_point"
-                                    label="Ponto de referência"
-                                    wide
-                                >
-                                    <input
-                                        {...bind("location")}
-                                        placeholder="Ex.: junto à Via Expressa"
+                                        placeholder="Bloco, andar ou outro complemento"
                                     />
                                 </Field>
 
@@ -912,10 +1007,14 @@ export default function EditProjectForm({
                                     id="latitude"
                                     label="Latitude"
                                     error={errors.latitude}
+                                    hint="Valor entre -90 e 90."
                                 >
                                     <input
                                         {...bind("latitude")}
                                         type="number"
+                                        min="-90"
+                                        max="90"
+                                        step="any"
                                         inputMode="decimal"
                                         placeholder="-8.9167"
                                     />
@@ -925,31 +1024,39 @@ export default function EditProjectForm({
                                     id="longitude"
                                     label="Longitude"
                                     error={errors.longitude}
+                                    hint="Valor entre -180 e 180."
                                 >
                                     <input
                                         {...bind("longitude")}
                                         type="number"
+                                        min="-180"
+                                        max="180"
+                                        step="any"
                                         inputMode="decimal"
                                         placeholder="13.1833"
                                     />
                                 </Field>
                             </Card>
 
+                            {/* 4. Financial planning */}
                             <Card
                                 icon={<Banknote size={20} aria-hidden="true" />}
-                                title="Orçamento e prazos"
-                                description="Valores em kwanzas (AOA)."
+                                title="Orçamento e planeamento"
+                                description="Valores financeiros em kwanzas (AOA) e datas previstas."
                             >
                                 <Field
                                     id="budget"
                                     label="Orçamento"
                                     error={errors.budget}
+                                    hint="Valor contratual ou orçamento aprovado."
                                 >
                                     <input
                                         {...bind("budget")}
                                         type="number"
                                         min="0"
+                                        step="0.01"
                                         inputMode="decimal"
+                                        placeholder="0,00"
                                     />
                                 </Field>
 
@@ -957,16 +1064,22 @@ export default function EditProjectForm({
                                     id="estimated_cost"
                                     label="Custo estimado"
                                     error={errors.estimated_cost}
+                                    hint="Estimativa do custo total do projecto."
                                 >
                                     <input
                                         {...bind("estimated_cost")}
                                         type="number"
                                         min="0"
+                                        step="0.01"
                                         inputMode="decimal"
+                                        placeholder="0,00"
                                     />
                                 </Field>
 
-                                <Field id="start_date" label="Data de início">
+                                <Field
+                                    id="start_date"
+                                    label="Data prevista de início"
+                                >
                                     <input
                                         {...bind("start_date")}
                                         type="date"
@@ -975,7 +1088,7 @@ export default function EditProjectForm({
 
                                 <Field
                                     id="end_date"
-                                    label="Data de fim"
+                                    label="Data prevista de fim"
                                     error={errors.end_date}
                                 >
                                     <input
@@ -985,19 +1098,57 @@ export default function EditProjectForm({
                                     />
                                 </Field>
                             </Card>
+
+                            {/* 5. Actual execution */}
+                            <Card
+                                icon={<CalendarDays size={20} aria-hidden="true" />}
+                                title="Execução e progresso"
+                                description="Acompanhamento das datas reais e do avanço do projecto."
+                            >
+                                <Field
+                                    id="actual_start_date"
+                                    label="Data real de início"
+                                    error={errors.actual_start_date}
+                                    hint="Data em que os trabalhos começaram efectivamente."
+                                >
+                                    <input
+                                        {...bind("actual_start_date")}
+                                        type="date"
+                                    />
+                                </Field>
+
+                                <Field
+                                    id="actual_end_date"
+                                    label="Data real de conclusão"
+                                    error={errors.actual_end_date}
+                                    hint="Preencher quando o projecto estiver concluído."
+                                >
+                                    <input
+                                        {...bind("actual_end_date")}
+                                        type="date"
+                                        min={
+                                            values.actual_start_date ||
+                                            undefined
+                                        }
+                                    />
+                                </Field>
+
+                              
+                            </Card>
                         </div>
 
-
-                        {/* ==========================================================================
-                           PART 7 — Sidebar, cover image and sticky action bar
-                           ========================================================================== */}
-
+                        {/* Sidebar */}
                         <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
-                            {/* Status and urgency */}
+                            {/* 6. Status and urgency */}
                             <section className="rounded-2xl border border-[#E8E8E5] bg-white p-5 shadow-[0_1px_2px_rgba(0,41,80,0.04)]">
                                 <h2 className="text-sm font-semibold">
                                     Estado e prioridade
                                 </h2>
+
+                                <p className="mt-1 text-xs leading-5 text-gray-500">
+                                    Define a situação actual e o nível de
+                                    urgência do projecto.
+                                </p>
 
                                 <div className="mt-4 space-y-4">
                                     <Field id="status" label="Estado">
@@ -1015,20 +1166,24 @@ export default function EditProjectForm({
 
                                     <Field id="urgency" label="Urgência">
                                         <SelectBox {...bind("urgency")}>
-                                            {PROJECT_URGENCIES.map((urgency) => (
-                                                <option
-                                                    key={urgency}
-                                                    value={urgency}
-                                                >
-                                                    {URGENCY_LABELS[urgency] ?? urgency}
-                                                </option>
-                                            ))}
+                                            {PROJECT_URGENCIES.map(
+                                                (urgency) => (
+                                                    <option
+                                                        key={urgency}
+                                                        value={urgency}
+                                                    >
+                                                        {URGENCY_LABELS[
+                                                            urgency
+                                                        ] ?? urgency}
+                                                    </option>
+                                                ),
+                                            )}
                                         </SelectBox>
                                     </Field>
                                 </div>
                             </section>
 
-                            {/* Cover image */}
+                            {/* 7. Cover image */}
                             <section className="overflow-hidden rounded-2xl border border-[#E8E8E5] bg-white shadow-[0_1px_2px_rgba(0,41,80,0.04)]">
                                 <div className="border-b border-[#F0F0ED] px-5 py-4">
                                     <h2 className="text-sm font-semibold">
@@ -1036,7 +1191,7 @@ export default function EditProjectForm({
                                     </h2>
 
                                     <p className="mt-1 text-xs text-gray-500">
-                                        JPG, PNG ou WebP, até 5 MB
+                                        JPG, PNG ou WebP, até 5 MB.
                                     </p>
                                 </div>
 
@@ -1140,7 +1295,7 @@ export default function EditProjectForm({
                         </aside>
                     </div>
 
-                    {/* Sticky actions */}
+                    {/* Sticky save actions */}
                     <div className="sticky bottom-3 z-20 mt-8 pb-[env(safe-area-inset-bottom)]">
                         <div className="flex flex-col-reverse gap-3 rounded-2xl border border-[#E4E5E3] bg-white/90 p-3 shadow-[0_8px_30px_rgba(0,41,80,0.10)] backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:pl-5">
                             <p
