@@ -626,7 +626,7 @@ export default function AdminDashboard({
       <CreateMeetingModal
         open={isMeetingModalOpen}
         onClose={() => setIsMeetingModalOpen(false)} participants={data.users} 
-        clients={data.clients.map((client) => ({ ...client, name: client.name ?? "" }))} 
+        clients={data.clients.map((client) => ({ ...client, name: client.name ?? "", first_name: client.first_name ?? "", last_name: client.last_name ?? "" }))} 
         suppliers={data.suppliers.map((supplier) => ({...supplier, id:supplier.supplier_id,name:supplier.supplier_name}))} 
         />
     </div>

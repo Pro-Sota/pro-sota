@@ -32,13 +32,16 @@ export type CalendarParticipant = {
 
 export type CalendarClientOption = {
   client_id: string;
-  name: string;
-  email: string | null;
+  first_name: string;
+  last_name: string;
+   email: string | null;
+   organization_name:string |null;
+   client_type:string;
 };
 
 export type CalendarSupplierOption = {
   supplier_id: string;
-  name: string;
+  supplier_name: string;
 };
 
 type ParticipantCategory = "team" | "clients" | "suppliers";
@@ -171,7 +174,7 @@ export default function CreateMeetingModal({
       return clients.map((client) => ({
         key: `client:${client.client_id}`,
         id: client.client_id,
-        name: client.name,
+        name: `${client.first_name} ${client.last_name}`,
         email: client.email,
         category: "clients",
       }));
@@ -180,7 +183,7 @@ export default function CreateMeetingModal({
     return suppliers.map((supplier) => ({
       key: `supplier:${supplier.supplier_id}`,
       id: supplier.supplier_id,
-      name: supplier.name,
+      name: supplier.supplier_name,
       email: null,
       category: "suppliers",
     }));

@@ -1,5 +1,7 @@
+import { getCalendarContacts } from "@/services/calendar_contacts";
 import CalendarPageInit from "./calendar";
 import { getCalendarEvents } from "@/services/calendar";
+
 
 const TIME_ZONE = "Africa/Luanda";
 
@@ -82,9 +84,18 @@ export default async function CalendarPage() {
         sourceId: event.event_id,
     }));
 
+    const contacts = await getCalendarContacts();
+
     return (
         <CalendarPageInit
             events={events}
+            participants = {contacts.participants}
+            clients = {contacts.clients}
+            suppliers={contacts.suppliers.map((supplier) => ({
+                ...supplier,
+                supplier_name: supplier.name,
+            }))}
+
         />
     );
 }

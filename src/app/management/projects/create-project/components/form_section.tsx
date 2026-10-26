@@ -1,5 +1,5 @@
 "use client";
-
+import dynamic from "next/dynamic";
 import React from "react";
 import {
 	Building2,
@@ -46,6 +46,18 @@ interface FormSectionsProps {
  * Client selection is handled by the separate Client section
  * in NewProjectPage.
  */
+
+const ProjectLocationMap = dynamic(
+  () => import("../components/project_location_map"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[320px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
+        A carregar o mapa...
+      </div>
+    ),
+  }
+);
 export function ProjectInfoSection({ form, onChange, sectionRefs, }: FormSectionsProps) {
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
 		const { name, value } = e.target; onChange({ [name]: value, } as Partial<ProjectFormState>);
@@ -73,106 +85,181 @@ export function ProjectInfoSection({ form, onChange, sectionRefs, }: FormSection
  *
  * Complemento de endereço / address_line_2 was intentionally removed.
  */
+
 export function LocationSection({
-	form,
-	onChange,
-	sectionRefs,
+  form,
+  onChange,
+  sectionRefs,
 }: FormSectionsProps) {
-	const handleInputChange = (
-		e: React.ChangeEvent<
-			HTMLInputElement | HTMLSelectElement
-		>
-	) => {
-		const { name, value } = e.target;
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
 
-		onChange({
-			[name]: value,
-		} as Partial<ProjectFormState>);
-	};
+    onChange({
+      [name]: value,
+    } as Partial<ProjectFormState>);
+  };
 
-	return (
-		<SectionCard
-			id="location"
-			refCb={(el) => {
-				sectionRefs.current.location = el;
-			}}
-			icon={MapPin}
-			title="Localização"
-			description="O lugar onde o trabalho será realizado."
-		>
-			<div className="grid gap-5 md:grid-cols-2">
-				{/* COUNTRY */}
-				<Field
-					label="País"
-					for="country"
-				>
-					<Input
-						name="country"
-						autoComplete="country-name"
-						value={form.country || ""}
-						onChange={handleInputChange}
-						placeholder="Angola"
-					/>
-				</Field>
+  const handleCoordinateChange = (
+    field: "latitude" | "longitude",
+    value: string
+  ) => {
+    const coordinate =
+      value.trim() === "" ? null : Number(value);
 
-				{/* PROVINCE */}
-				<Field
-					label="Província"
-					for="province"
-					required
-				>
-					<Input
-						name="state_province"
-						value={form.state_province || ""}
-						onChange={handleInputChange}
-						placeholder="Ex: Luanda"
-					/>
-				</Field>
+    if (
+      coordinate !== null &&
+      !Number.isFinite(coordinate)
+    ) {
+      return;
+    }
 
-				{/* MUNICIPALITY */}
-				<Field
-					label="Município"
-					for="municipality"
-					required
-				>
-					<Input
-						name="municipality"
-						value={form.municipality || ""}
-						onChange={handleInputChange}
-						placeholder="Ex: Talatona"
-					/>
-				</Field>
+    if (
+      field === "latitude" &&
+      coordinate !== null &&
+      (coordinate < -90 || coordinate > 90)
+    ) {
+      return;
+    }
 
-				{/* ADDRESS */}
-				<Field
-					label="Rua / Endereço"
-					for="address_line_1"
-					required
-				>
-					<Input
-						name="address_line_1"
-						value={form.address_line_1 || ""}
-						onChange={handleInputChange}
-						placeholder="Ex: Rua Principal, 123"
-					/>
-				</Field>
+    if (
+      field === "longitude" &&
+      coordinate !== null &&
+      (coordinate < -180 || coordinate > 180)
+    ) {
+      return;
+    }
 
-				{/* CITY */}
-				<Field
-					label="Cidade"
-					for="city"
-				>
-					<Input
-						name="city"
-						value={form.city || ""}
-						onChange={handleInputChange}
-						placeholder="Ex: Luanda"
-					/>
-				</Field>
-			</div>
-		</SectionCard>
-	);
+    onChange({
+      [field]: coordinate,
+    } as Partial<ProjectFormState>);
+  };
+
+  return (
+    <SectionCard
+      id="location"
+      refCb={(el) => {
+        sectionRefs.current.location = el;
+      }}
+      icon={MapPin}
+      title="Localização"
+      description="Defina a morada e as coordenadas geográficas do projecto."
+    >
+      <div className="grid gap-5 md:grid-cols-2">
+        <Field label="País" for="country">
+          <Input
+            name="country"
+            autoComplete="country-name"
+            value={form.country || ""}
+            onChange={handleInputChange}
+            placeholder="Angola"
+          />
+        </Field>
+
+        <Field label="Província" for="state_province" required>
+          <Input
+            name="state_province"
+            value={form.state_province || ""}
+            onChange={handleInputChange}
+            placeholder="Ex: Luanda"
+          />
+        </Field>
+
+        <Field label="Município" for="municipality" required>
+          <Input
+            name="municipality"
+            value={form.municipality || ""}
+            onChange={handleInputChange}
+            placeholder="Ex: Talatona"
+          />
+        </Field>
+
+        <Field label="Cidade" for="city">
+          <Input
+            name="city"
+            value={form.city || ""}
+            onChange={handleInputChange}
+            placeholder="Ex: Luanda"
+          />
+        </Field>
+
+        <div className="md:col-span-2">
+          <Field
+            label="Rua / Endereço"
+            for="address_line_1"
+            required
+          >
+            <Input
+              name="address_line_1"
+              value={form.address_line_1 || ""}
+              onChange={handleInputChange}
+              placeholder="Ex: Rua Principal, 123"
+            />
+          </Field>
+        </div>
+
+        <div className="md:col-span-2">
+          <div className="mb-3">
+            <h3 className="text-sm font-medium text-slate-800">
+              Localização no mapa
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Seleccione o terreno no mapa. As coordenadas serão
+              preenchidas automaticamente.
+            </p>
+          </div>
+
+          <ProjectLocationMap
+            latitude={form.latitude ?? null}
+            longitude={form.longitude ?? null}
+            onChange={({ latitude, longitude }) =>
+              onChange({ latitude, longitude })
+            }
+          />
+        </div>
+
+        <Field label="Latitude" for="latitude">
+          <Input
+            name="latitude"
+            inputMode="decimal"
+            value={form.latitude ?? ""}
+            onChange={(event) =>
+              handleCoordinateChange(
+                "latitude",
+                event.target.value
+              )
+            }
+            placeholder="-8.8383"
+          />
+        </Field>
+
+        <Field label="Longitude" for="longitude">
+          <Input
+            name="longitude"
+            inputMode="decimal"
+            value={form.longitude ?? ""}
+            onChange={(event) =>
+              handleCoordinateChange(
+                "longitude",
+                event.target.value
+              )
+            }
+            placeholder="13.2344"
+          />
+        </Field>
+
+        <div className="md:col-span-2">
+          <p className="text-xs leading-5 text-slate-400">
+            As coordenadas são opcionais. Pode introduzi-las
+            manualmente ou seleccionar o ponto no mapa.
+          </p>
+        </div>
+      </div>
+    </SectionCard>
+  );
 }
+
 
 /**
  * Timeline section

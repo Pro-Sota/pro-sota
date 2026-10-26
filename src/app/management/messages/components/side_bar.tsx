@@ -1,12 +1,18 @@
 "use client";
 
-import { Search, Building2, User } from "lucide-react";
+import {
+  Search,
+  Building2,
+  User,
+  Plus,
+} from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { LABELS } from "./chat_labels";
 import ChatSection from "./chat_section";
 import type { ConversationWithDetails } from "./chat_item";
+import NewConversationModal from "./new_message_modal";
 
 interface MessageSideBarProps {
   projectConversations: ConversationWithDetails[];
@@ -26,6 +32,11 @@ export default function MessageSideBar({
   directConversations,
 }: MessageSideBarProps) {
   const params = useParams();
+
+
+  const [showNewConversationModal, setShowNewConversationModal] =
+    useState(false);
+
 
   const chatId =
     typeof params.chatId === "string"
@@ -115,9 +126,21 @@ export default function MessageSideBar({
   return (
     <aside className="hidden h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white lg:flex">
       <header className="shrink-0 space-y-4 border-b border-slate-200 p-5">
-        <h1 className="text-xl font-bold tracking-tight text-[#181818]">
-          {LABELS.messages}
-        </h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-bold tracking-tight text-[#181818]">
+            {LABELS.messages}
+          </h1>
+
+          <button
+            type="button"
+            onClick={() => setShowNewConversationModal(true)}
+            aria-label="Nova conversa"
+            title="Nova conversa"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#002950] text-white transition-colors hover:bg-[#003968] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] focus-visible:ring-offset-2"
+          >
+            <Plus size={19} strokeWidth={2} />
+          </button>
+        </div>
 
         <div className="relative">
           <Search
@@ -149,6 +172,12 @@ export default function MessageSideBar({
           selectedChatId={chatId}
         />
       </div>
+      <NewConversationModal
+        open={showNewConversationModal}
+        onClose={() =>
+          setShowNewConversationModal(false)
+        }
+      />
     </aside>
   );
 }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -16,16 +17,29 @@ import { useEffect, useState } from "react";
 import type { EventType } from "./types";
 import { useToast } from "@/app/components/toast/use_toast";
 
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 export type CalendarEventParticipant = {
-    profile_id: string;
-    first_name: string | null;
-    last_name: string | null;
+    profile_id?: string | null;
+    client_id?: string | null;
+    supplier_id?: string | null;
+
+    first_name?: string | null;
+    last_name?: string | null;
+    name?: string | null;
     email?: string | null;
+    organization_name?: string | null;
+    supplier_name?: string | null;
+
+    category?: "team" | "clients" | "suppliers";
 };
 
 export type CalendarEventDetails = {
     event_id: string;
+    /** Authenticated profile/user ID that created this event. */
+    created_by?: string | null;
     title: string;
     event_type: EventType;
     start_at: string;
@@ -39,10 +53,18 @@ export type CalendarEventDetails = {
 type ViewEventModalProps = {
     open: boolean;
     event: CalendarEventDetails | null;
+    /** Authenticated user ID. If missing, editing is disabled. */
+    currentUserId?: string | null;
     onCloseAction: () => void;
     onEditAction?: (event: CalendarEventDetails) => void;
     onDeleteAction?: (event: CalendarEventDetails) => Promise<void> | void;
 };
+
+type ParticipantCategory = "team" | "clients" | "suppliers";
+
+/* -------------------------------------------------------------------------- */
+/* Constants                                                                  */
+/* -------------------------------------------------------------------------- */
 
 const EVENT_LABELS: Record<string, string> = {
     meeting: "Reunião",
@@ -53,7 +75,17 @@ const EVENT_LABELS: Record<string, string> = {
     project: "Projecto",
 };
 
-function formatDate(value: string) {
+const PARTICIPANT_CATEGORY_LABELS: Record<ParticipantCategory, string> = {
+    team: "Equipa",
+    clients: "Cliente",
+    suppliers: "Fornecedor",
+};
+
+/* -------------------------------------------------------------------------- */
+/* Formatting                                                                 */
+/* -------------------------------------------------------------------------- */
+
+function formatDate(value: string): string {
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
@@ -68,7 +100,7 @@ function formatDate(value: string) {
     }).format(date);
 }
 
-function formatTime(value: string) {
+function formatTime(value: string): string {
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
@@ -83,10 +115,22 @@ function formatTime(value: string) {
     }).format(date);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Participants                                                               */
+/* -------------------------------------------------------------------------- */
+
 function getParticipantName(
     participant: CalendarEventParticipant,
-) {
-    const name = [
+): string {
+    if (participant.name?.trim()) {
+        return participant.name.trim();
+    }
+
+    if (participant.supplier_name?.trim()) {
+        return participant.supplier_name.trim();
+    }
+
+    const fullName = [
         participant.first_name,
         participant.last_name,
     ]
@@ -94,27 +138,77 @@ function getParticipantName(
         .join(" ")
         .trim();
 
-    return name || participant.email || "Utilizador";
+    return (
+        fullName ||
+        participant.organization_name ||
+        participant.email ||
+        "Utilizador"
+    );
 }
+
+function getParticipantCategory(
+    participant: CalendarEventParticipant,
+): ParticipantCategory {
+    if (participant.category) {
+        return participant.category;
+    }
+
+    if (participant.client_id) {
+        return "clients";
+    }
+
+    if (participant.supplier_id) {
+        return "suppliers";
+    }
+
+    return "team";
+}
+
+function getParticipantKey(
+    participant: CalendarEventParticipant,
+): string {
+    return (
+        participant.profile_id ||
+        participant.client_id ||
+        participant.supplier_id ||
+        participant.email ||
+        getParticipantName(participant)
+    );
+}
+
+function getParticipantInitials(name: string): string {
+    return name
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase();
+}
+
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
 
 export default function ViewEventModal({
     open,
     event,
+    currentUserId,
     onCloseAction,
     onEditAction,
     onDeleteAction,
 }: ViewEventModalProps) {
     const [isDeleting, setIsDeleting] = useState(false);
-    const [deleteError, setDeleteError] = useState<string | null>(
-        null,
-    );
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+
     const toast = useToast();
 
     useEffect(() => {
         if (!open) return;
 
-        function handleKeyDown(event: KeyboardEvent) {
-            if (event.key === "Escape" && !isDeleting) {
+        function handleKeyDown(keyboardEvent: KeyboardEvent) {
+            if (keyboardEvent.key === "Escape" && !isDeleting) {
                 onCloseAction();
             }
         }
@@ -137,7 +231,14 @@ export default function ViewEventModal({
         return null;
     }
 
-    const selectedEvent: CalendarEventDetails = event;
+    const selectedEvent = event;
+    const participants = selectedEvent.participants ?? [];
+
+    // Fail closed: only the authenticated creator can see the edit action.
+    const canEdit =
+        Boolean(currentUserId) &&
+        Boolean(selectedEvent.created_by) &&
+        currentUserId === selectedEvent.created_by;
 
     async function handleDelete() {
         if (!onDeleteAction || isDeleting) return;
@@ -171,7 +272,11 @@ export default function ViewEventModal({
         }
     }
 
-    const participants = selectedEvent.participants ?? [];
+    function handleEdit() {
+        if (onEditAction && !isDeleting) {
+            onEditAction(selectedEvent);
+        }
+    }
 
     return (
         <div
@@ -191,6 +296,7 @@ export default function ViewEventModal({
                 aria-labelledby="view-event-title"
                 className="my-auto w-full max-w-lg overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl"
             >
+                {/* Header */}
                 <header className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-5 sm:px-6">
                     <div className="flex min-w-0 items-start gap-3">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#F3EBDD]">
@@ -202,12 +308,12 @@ export default function ViewEventModal({
                                 id="view-event-title"
                                 className="break-words text-lg font-semibold text-gray-900"
                             >
-                                {event.title}
+                                {selectedEvent.title}
                             </h2>
 
                             <span className="mt-1 inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
-                                {EVENT_LABELS[event.event_type] ??
-                                    event.event_type}
+                                {EVENT_LABELS[selectedEvent.event_type] ??
+                                    selectedEvent.event_type}
                             </span>
                         </div>
                     </div>
@@ -223,7 +329,9 @@ export default function ViewEventModal({
                     </button>
                 </header>
 
+                {/* Event details */}
                 <div className="max-h-[65vh] space-y-5 overflow-y-auto px-5 py-6 sm:px-6">
+                    {/* Date */}
                     <div className="flex items-start gap-3">
                         <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-[#BD9655]" />
 
@@ -233,53 +341,41 @@ export default function ViewEventModal({
                             </p>
 
                             <p className="mt-1 text-sm text-gray-600">
-                                {formatDate(event.start_at)}
+                                {formatDate(selectedEvent.start_at)}
                             </p>
 
-                            {formatDate(event.start_at) !==
-                                formatDate(event.end_at) && (
-                                    <p className="mt-1 text-sm text-gray-600">
-                                        Até {formatDate(event.end_at)}
-                                    </p>
-                                )}
+                            {formatDate(selectedEvent.start_at) !==
+                                formatDate(selectedEvent.end_at) && (
+                                <p className="mt-1 text-sm text-gray-600">
+                                    Até {formatDate(selectedEvent.end_at)}
+                                </p>
+                            )}
                         </div>
                     </div>
 
-                    {!event.all_day && (
-                        <div className="flex items-start gap-3">
-                            <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-[#BD9655]" />
+                    {/* Time */}
+                    <div className="flex items-start gap-3">
+                        <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-[#BD9655]" />
 
-                            <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                    Horário
-                                </p>
+                        <div>
+                            <p className="text-sm font-medium text-gray-900">
+                                Horário
+                            </p>
 
-                                <p className="mt-1 text-sm text-gray-600">
-                                    {formatTime(event.start_at)} –{" "}
-                                    {formatTime(event.end_at)}
+                            <p className="mt-1 text-sm text-gray-600">
+                                {selectedEvent.all_day
+                                    ? "Dia inteiro"
+                                    : `${formatTime(selectedEvent.start_at)} – ${formatTime(selectedEvent.end_at)}`}
+                                {!selectedEvent.all_day && (
                                     <span className="ml-1 text-xs text-gray-400">
                                         (Luanda)
                                     </span>
-                                </p>
-                            </div>
+                                )}
+                            </p>
                         </div>
-                    )}
+                    </div>
 
-                    {event.all_day && (
-                        <div className="flex items-start gap-3">
-                            <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-[#BD9655]" />
-
-                            <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                    Horário
-                                </p>
-                                <p className="mt-1 text-sm text-gray-600">
-                                    Dia inteiro
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
+                    {/* Location */}
                     <div className="flex items-start gap-3">
                         <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#BD9655]" />
 
@@ -289,67 +385,103 @@ export default function ViewEventModal({
                             </p>
 
                             <p className="mt-1 break-words text-sm text-gray-600">
-                                {event.location || "Sem localização definida"}
+                                {selectedEvent.location ||
+                                    "Sem localização definida"}
                             </p>
                         </div>
                     </div>
 
+                    {/* Description */}
                     <div className="flex items-start gap-3">
                         <FileText className="mt-0.5 h-5 w-5 shrink-0 text-[#BD9655]" />
 
                         <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-gray-900">
-                                Descrição
+                                Agenda / notas
                             </p>
 
                             <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-gray-600">
-                                {event.description || "Sem descrição."}
+                                {selectedEvent.description || "Sem descrição."}
                             </p>
                         </div>
                     </div>
 
+                    {/* Participants */}
                     <div className="flex items-start gap-3">
                         <Users className="mt-0.5 h-5 w-5 shrink-0 text-[#BD9655]" />
 
                         <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-900">
-                                Participantes
-                            </p>
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-medium text-gray-900">
+                                    Participantes
+                                </p>
+
+                                <span className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600">
+                                    {participants.length}
+                                </span>
+                            </div>
 
                             {participants.length === 0 ? (
-                                <p className="mt-1 text-sm text-gray-500">
+                                <p className="mt-2 text-sm text-gray-500">
                                     Nenhum participante associado.
                                 </p>
                             ) : (
-                                <ul className="mt-3 space-y-3">
+                                <ul className="mt-3 space-y-2">
                                     {participants.map((participant) => {
-                                        const name = getParticipantName(participant);
+                                        const name =
+                                            getParticipantName(participant);
+                                        const category =
+                                            getParticipantCategory(participant);
 
                                         return (
                                             <li
-                                                key={participant.profile_id}
-                                                className="flex min-w-0 items-center gap-3"
+                                                key={getParticipantKey(
+                                                    participant,
+                                                )}
+                                                className="flex min-w-0 items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/70 p-3"
                                             >
-                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#002950] text-xs font-semibold text-white">
-                                                    {name
-                                                        .split(/\s+/)
-                                                        .map((part) => part[0])
-                                                        .join("")
-                                                        .slice(0, 2)
-                                                        .toUpperCase()}
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#002950] text-xs font-semibold text-white">
+                                                    {getParticipantInitials(
+                                                        name,
+                                                    ) || "U"}
                                                 </div>
 
-                                                <div className="min-w-0">
-                                                    <p className="truncate text-sm font-medium text-gray-800">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-sm font-medium text-gray-900">
                                                         {name}
                                                     </p>
 
                                                     {participant.email && (
-                                                        <p className="truncate text-xs text-gray-500">
+                                                        <p className="mt-0.5 truncate text-xs text-gray-500">
                                                             {participant.email}
                                                         </p>
                                                     )}
+
+                                                    {participant.organization_name && (
+                                                        <p className="mt-0.5 truncate text-xs text-gray-500">
+                                                            {
+                                                                participant.organization_name
+                                                            }
+                                                        </p>
+                                                    )}
                                                 </div>
+
+                                                <span
+                                                    className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-medium ${
+                                                        category === "team"
+                                                            ? "bg-[#002950]/[0.07] text-[#002950]"
+                                                            : category ===
+                                                                "clients"
+                                                              ? "bg-[#BD9655]/15 text-[#78551F]"
+                                                              : "bg-emerald-50 text-emerald-800"
+                                                    }`}
+                                                >
+                                                    {
+                                                        PARTICIPANT_CATEGORY_LABELS[
+                                                            category
+                                                        ]
+                                                    }
+                                                </span>
                                             </li>
                                         );
                                     })}
@@ -358,6 +490,7 @@ export default function ViewEventModal({
                         </div>
                     </div>
 
+                    {/* Delete error */}
                     {deleteError && (
                         <p
                             role="alert"
@@ -368,6 +501,7 @@ export default function ViewEventModal({
                     )}
                 </div>
 
+                {/* Footer */}
                 <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-5 py-4 sm:px-6">
                     <div>
                         {onDeleteAction && (
@@ -383,7 +517,7 @@ export default function ViewEventModal({
                                     <Trash2 className="h-4 w-4" />
                                 )}
 
-                                Eliminar
+                                {isDeleting ? "A eliminar..." : "Eliminar"}
                             </button>
                         )}
                     </div>
@@ -398,10 +532,10 @@ export default function ViewEventModal({
                             Fechar
                         </button>
 
-                        {onEditAction && (
+                        {onEditAction && canEdit && (
                             <button
                                 type="button"
-                                onClick={() => onEditAction(event)}
+                                onClick={handleEdit}
                                 disabled={isDeleting}
                                 className="inline-flex items-center gap-2 rounded-lg bg-[#002950] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003968] disabled:cursor-not-allowed disabled:opacity-50"
                             >

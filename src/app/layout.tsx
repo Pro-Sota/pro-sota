@@ -9,6 +9,7 @@ import {
   Inter,
 } from "next/font/google";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 import { cn } from "@/lib/utils/utils";
 import { ToastProvider } from "./components/toast/toast_provider";
 

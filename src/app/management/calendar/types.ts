@@ -19,7 +19,15 @@ export type CalendarEvent = {
     source: EventType;
     sourceId?: string;
 };
+import type {
+  CalendarParticipant,
+  CalendarClientOption,
+  CalendarSupplierOption,
+} from "@/app/components/create_meeting_modal";
 
 export type CalendarPageInitProps = {
-    events: CalendarEvent[];
+  events: CalendarEvent[];
+  participants: CalendarParticipant[];
+  clients: CalendarClientOption[];
+  suppliers: CalendarSupplierOption[];
 };

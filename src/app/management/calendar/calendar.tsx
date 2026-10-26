@@ -4,6 +4,7 @@
 import { CalendarDays, Plus } from "lucide-react";
 import { useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
+import CreateMeetingModal from "@/app/components/create_meeting_modal";
 
 import {
   createCalendarEventAction,
@@ -70,7 +71,7 @@ function toEventDetails(
 
   const endAt = new Date(
     startAt.getTime() +
-      (allDay ? 24 : 1) * 60 * 60 * 1000,
+    (allDay ? 24 : 1) * 60 * 60 * 1000,
   );
 
   return {
@@ -88,15 +89,22 @@ function toEventDetails(
 function getLuandaDateTime(date: string, time: string): Date {
   return new Date(`${date}T${time}:00+01:00`);
 }
-
 export default function CalendarPageInit({
   events,
+  participants,
+  clients,
+  suppliers,
 }: CalendarPageInitProps) {
-  const router = useRouter();
-  const calendar = useCalendar({ events });
 
-  const [eventModalDate, setEventModalDate] =
-    useState<string | null>(null);
+  const router = useRouter();
+  const calendar = useCalendar({
+    events,
+    participants,
+    clients,
+    suppliers,
+  });
+
+  const [isCreateMeetingOpen, setIsCreateMeetingOpen] = useState(false);
 
   const [selectedEvent, setSelectedEvent] =
     useState<CalendarEventDetails | null>(null);
@@ -111,12 +119,12 @@ export default function CalendarPageInit({
     selectedEvent !== null &&
     isSupportedEventType(selectedEvent.event_type);
 
-  function openEventModal(date?: string) {
-    setEventModalDate(date ?? calendar.selectedDate);
+  function openEventModal() {
+    setIsCreateMeetingOpen(true);
   }
 
   function closeEventModal() {
-    setEventModalDate(null);
+    setIsCreateMeetingOpen(false);
   }
 
   function closeViewEventModal() {
@@ -127,6 +135,8 @@ export default function CalendarPageInit({
   function closeEditEventModal() {
     setIsEditEventOpen(false);
   }
+
+
 
   function handleSelectEvent(event: CalendarEvent) {
     setSelectedEvent(toEventDetails(event));
@@ -213,7 +223,7 @@ export default function CalendarPageInit({
     if (!result.success) {
       throw new Error(
         result.error ||
-          "Não foi possível actualizar o evento.",
+        "Não foi possível actualizar o evento.",
       );
     }
 
@@ -245,8 +255,8 @@ export default function CalendarPageInit({
 
           <button
             type="button"
-            onClick={() => openEventModal()}
-            className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-5 text-sm font-semibold text-[#002950] transition hover:bg-[#a9854b] focus:outline-none focus:ring-4 focus:ring-[#BD9655]/20 sm:w-auto"
+            onClick={openEventModal}
+            className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-5 text-sm font-semibold text-[#002950] transition hover:bg-[#a9854b] sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             <span>Novo evento</span>
@@ -314,11 +324,7 @@ export default function CalendarPageInit({
               selectedDate={calendar.selectedDate}
               selectedEvents={calendar.selectedEvents}
               onClear={() => calendar.setSelectedDate(null)}
-              onAddEvent={() =>
-                openEventModal(
-                  calendar.selectedDate ?? undefined,
-                )
-              }
+              onAddEvent={openEventModal}
               onSelectEvent={handleSelectEvent}
             />
 
@@ -336,14 +342,14 @@ export default function CalendarPageInit({
         </div>
       </div>
 
-      {eventModalDate !== null && (
-        <NewEventModal
-          open
-          initialDate={eventModalDate}
-          onCloseAction={closeEventModal}
-          onSubmitAction={handleCreateEvent}
-        />
-      )}
+      <CreateMeetingModal
+        open={isCreateMeetingOpen}
+        onClose={closeEventModal}
+        participants={participants}
+        clients={clients}
+        suppliers={suppliers}
+        mode="event"
+      />
 
       <ViewEventModal
         open={isViewEventOpen}

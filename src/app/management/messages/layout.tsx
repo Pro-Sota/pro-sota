@@ -10,7 +10,7 @@ export default async function CommunicationLayout({
   children,
 }: CommunicationLayoutProps) {
   const [projectChats, directChats] = await Promise.all([
-    getChats({ conversationType: "project" }),
+    getChats({ conversationType: "project" }),  
     getChats({ conversationType: "direct" }),
   ]);
 
@@ -19,8 +19,7 @@ export default async function CommunicationLayout({
       <aside className="hidden h-full shrink-0 lg:flex">
         <MessageSideBar
           projectConversations={projectChats}
-          directConversations={directChats}
-        />
+          directConversations={directChats}        />  
       </aside>
 
       <main className="flex h-full min-h-0 min-w-0 flex-1 overflow-hidden">
