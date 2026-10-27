@@ -17,6 +17,11 @@ import {
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import {
+  markAllNotificationsReadAction,
+  markNotificationReadAction,
+} from "@/actions/notification";
+
 type NotificationType =
   | "revision"
   | "deadline"
@@ -163,21 +168,39 @@ export default function NotificationClientPage({
     );
   }, [filteredNotifications]);
 
-  const markAllAsRead = () => {
+  // Optimistic update; restores the previous state if saving fails.
+  const markAllAsRead = async () => {
+    const previous = notifications;
+
     setNotifications((current) => current.map((n) => ({ ...n, unread: false })));
-    // TODO: Persist in Supabase.
+
+    const result = await markAllNotificationsReadAction();
+    if (!result.success) setNotifications(previous);
   };
 
-  const markAsRead = (id: number | string) => {
+  const markAsRead = async (id: number | string) => {
+    const target = notifications.find((n) => n.id === id);
+    if (!target?.unread) return;
+
     setNotifications((current) =>
       current.map((n) => (n.id === id ? { ...n, unread: false } : n))
     );
-    // TODO: Persist in Supabase.
+
+    const result = await markNotificationReadAction(String(id));
+
+    if (!result.success) {
+      setNotifications((current) =>
+        current.map((n) => (n.id === id ? { ...n, unread: true } : n))
+      );
+    }
   };
 
-  const handleView = (notification: Notification) => {
-    markAsRead(notification.id);
-    router.push(notification.action_url || `/notifications/${notification.id}`);
+  const handleView = async (notification: Notification) => {
+    await markAsRead(notification.id);
+
+    if (notification.action_url) {
+      router.push(notification.action_url);
+    }
   };
 
   const clearFilters = () => {

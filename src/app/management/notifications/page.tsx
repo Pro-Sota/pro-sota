@@ -1,26 +1,13 @@
-import NotificationClientPage from "./notification_client_page"
+// Save as: app/management/notifications/page.tsx
+// Adjust the import path to wherever NotificationClientPage lives.
 
+import NotificationClientPage from "./notification_client_page";
+import { getNotifications } from "@/services/notification";
 
-type NotificationType =
-  | "revision"
-  | "deadline"
-  | "approval"
-  | "document";
+export const dynamic = "force-dynamic";
 
-type Notification = {
-  id: number;
-  type: NotificationType;
-  title: string;
-  project: string;
-  description: string;
-  time: string;
-  unread: boolean;
-};
+export default async function NotificationsPage() {
+  const notifications = await getNotifications();
 
-
-export default async function NotificationPage() {
-
-  const notifications : Notification[] = [];
-
-  return <NotificationClientPage notifications={notifications} />
+  return <NotificationClientPage notifications={notifications} />;
 }

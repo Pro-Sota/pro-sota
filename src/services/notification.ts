@@ -1,12 +1,5 @@
-// src/services/notifications.ts
-
-
-import { cookies } from "next/headers";
 import { createClient } from "@/app/lib/supabase/server";
-
-/* -------------------------------------------------------------------------- */
-/* Types                                                                      */
-/* -------------------------------------------------------------------------- */
+import { cookies } from "next/headers";
 
 export type NotificationType =
   | "revision"
@@ -19,278 +12,129 @@ export type NotificationType =
   | "mention"
   | "system";
 
-export type Notification = {
+/** Shape expected by NotificationClientPage. */
+export type NotificationItem = {
   id: string;
   type: NotificationType;
   title: string;
   project: string;
-  project_id: string | null;
-  task_id: string | null;
-  description: string | null;
+  description: string;
   time: string;
   unread: boolean;
   created_at: string;
   action_url: string | null;
-  metadata: Record<string, unknown>;
 };
 
-export type CreateNotificationInput = {
-  recipient_id: string;
+type Row = {
+  notification_id: string;
   type: NotificationType;
   title: string;
   description: string;
-  project_id?: string | null;
-  task_id?: string | null;
-  action_url?: string | null;
-  metadata?: Record<string, unknown>;
-  expires_at?: string | null;
+  action_url: string | null;
+  is_read: boolean;
+  created_at: string;
+  // ASSUMPTION: projects has a `name` column. Change it here if not.
+  projects: { title: string | null } | { title: string | null }[] | null;
 };
 
-export type GetNotificationsOptions = {
-  limit?: number;
-  unreadOnly?: boolean;
-};
+const rtf = new Intl.RelativeTimeFormat("pt-PT", { numeric: "auto" });
 
-/* -------------------------------------------------------------------------- */
-/* Supabase helper                                                            */
-/* -------------------------------------------------------------------------- */
+function formatRelativeTime(iso: string): string {
+  const diffSeconds = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
+  const abs = Math.abs(diffSeconds);
 
-async function getSupabase() {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
+  if (abs < 60) return "agora mesmo";
+  if (abs < 3600) return rtf.format(Math.round(diffSeconds / 60), "minute");
+  if (abs < 86400) return rtf.format(Math.round(diffSeconds / 3600), "hour");
+  if (abs < 2592000) return rtf.format(Math.round(diffSeconds / 86400), "day");
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    return {
-      supabase,
-      user: null,
-    };
-  }
-
-  return {
-    supabase,
-    user,
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/* Get notifications                                                          */
-/* -------------------------------------------------------------------------- */
-
-export async function getNotifications(
-  options: GetNotificationsOptions = {},
-): Promise<Notification[]> {
-  const { supabase, user } = await getSupabase();
-
-  if (!user) return [];
-
-  const limit = Math.min(
-    100,
-    Math.max(1, Math.floor(options.limit ?? 50)),
-  );
-
-  let query = supabase
-    .from("notifications")
-    .select(`
-      notification_id,
-      project_id,
-      task_id,
-      type,
-      title,
-      description,
-      is_read,
-      created_at,
-      action_url,
-      metadata,
-      expires_at,
-      projects (
-        project_code
-      )
-    `)
-    .eq("recipient_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(limit)
-    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
-
-  if (options.unreadOnly) {
-    query = query.eq("is_read", false);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("Error fetching notifications:", error);
-    throw new Error("Não foi possível carregar as notificações.");
-  }
-
-  return (data ?? []).map((notification) => {
-    const project = Array.isArray(notification.projects)
-      ? notification.projects[0]
-      : notification.projects;
-
-    return {
-      id: notification.notification_id,
-      type: notification.type as NotificationType,
-      title: notification.title,
-      project: project?.project_code ?? "Actividade geral",
-      project_id: notification.project_id,
-      task_id: notification.task_id,
-      description: notification.description,
-      time: new Date(notification.created_at).toLocaleString("pt-AO", {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: "Africa/Luanda",
-      }),
-      unread: !notification.is_read,
-      created_at: notification.created_at,
-      action_url: notification.action_url,
-      metadata:
-        (notification.metadata as Record<string, unknown> | null) ?? {},
-    };
+  return new Date(iso).toLocaleDateString("pt-PT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/* Unread count                                                               */
-/* -------------------------------------------------------------------------- */
-
-export async function getUnreadNotificationCount(): Promise<number> {
-  const { supabase, user } = await getSupabase();
-
-  if (!user) return 0;
-
-  const { count, error } = await supabase
-    .from("notifications")
-    .select("notification_id", {
-      count: "exact",
-      head: true,
-    })
-    .eq("recipient_id", user.id)
-    .eq("is_read", false)
-    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
-
-  if (error) {
-    console.error("Error fetching unread notification count:", error);
-    throw new Error("Não foi possível carregar as notificações.");
-  }
-
-  return count ?? 0;
+function projectName(projects: Row["projects"]): string {
+  const project = Array.isArray(projects) ? projects[0] : projects;
+  return project?.title ?? "";
 }
 
-/* -------------------------------------------------------------------------- */
-/* Mark notification as read                                                  */
-/* -------------------------------------------------------------------------- */
+/** Latest notifications for the logged-in user, expired ones excluded. */
+export async function getNotifications(limit = 100): Promise<NotificationItem[]> {
+  const supabase = await createClient(await cookies());
 
-export async function markNotificationAsRead(
-  notificationId: string,
-): Promise<void> {
-  if (!notificationId) {
-    throw new Error("notificationId is required.");
-  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const { supabase, user } = await getSupabase();
+  if (!user) return [];
 
-  if (!user) {
-    throw new Error("Utilizador não autenticado.");
-  }
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("profile_id")
+    .eq("profile_id", user.id)
+    .maybeSingle();
 
-  const { error } = await supabase
-    .from("notifications")
-    .update({
-      is_read: true,
-      read_at: new Date().toISOString(),
-    })
-    .eq("notification_id", notificationId)
-    .eq("recipient_id", user.id);
-
-  if (error) {
-    console.error("Error marking notification as read:", error);
-    throw new Error("Não foi possível actualizar a notificação.");
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Mark all notifications as read                                             */
-/* -------------------------------------------------------------------------- */
-
-export async function markAllNotificationsAsRead(): Promise<void> {
-  const { supabase, user } = await getSupabase();
-
-  if (!user) {
-    throw new Error("Utilizador não autenticado.");
-  }
-
-  const { error } = await supabase
-    .from("notifications")
-    .update({
-      is_read: true,
-      read_at: new Date().toISOString(),
-    })
-    .eq("recipient_id", user.id)
-    .eq("is_read", false);
-
-  if (error) {
-    console.error("Error marking all notifications as read:", error);
-    throw new Error("Não foi possível actualizar as notificações.");
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Create notification                                                        */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Use only from trusted server-side code after validating the caller's
- * permissions and the recipient's access to the related project/task.
- *
- * Do not expose this function directly to untrusted client input.
- */
-export async function createNotification(
-  input: CreateNotificationInput,
-): Promise<void> {
-  if (!input.recipient_id) {
-    throw new Error("recipient_id is required.");
-  }
-
-  if (!input.title.trim() || !input.description.trim()) {
-    throw new Error("O título e a descrição são obrigatórios.");
-  }
-
-  const { supabase, user } = await getSupabase();
-
-  if (!user) {
-    throw new Error("Utilizador não autenticado.");
-  }
-
-  // Prevent this helper from being used to notify arbitrary users.
-  // Extend this check through authorised server workflows when notifying
-  // other team members.
-  if (input.recipient_id !== user.id) {
-    throw new Error(
-      "Não está autorizado a criar notificações para outro utilizador.",
-    );
-  }
-
-  const { error } = await supabase
-    .from("notifications")
-    .insert({
-      recipient_id: input.recipient_id,
-      project_id: input.project_id ?? null,
-      task_id: input.task_id ?? null,
-      type: input.type,
-      title: input.title.trim(),
-      description: input.description.trim(),
-      action_url: input.action_url ?? null,
-      metadata: input.metadata ?? {},
-      expires_at: input.expires_at ?? null,
+  if (profileError) {
+    console.error("getNotifications: profile lookup failed", {
+      message: profileError.message,
+      code: profileError.code,
+      details: profileError.details,
+      hint: profileError.hint,
     });
 
-  if (error) {
-    console.error("Error creating notification:", error);
-    throw new Error("Não foi possível criar a notificação.");
+    return [];
   }
+
+  if (!profile) {
+    console.error("getNotifications: no profile found for authenticated user");
+    return [];
+  }
+
+  const safeLimit = Number.isFinite(limit)
+    ? Math.min(100, Math.max(1, Math.floor(limit)))
+    : 100;
+
+  const { data, error } = await supabase
+    .from("notifications")
+    .select(`
+    notification_id,
+    type,
+    title,
+    description,
+    action_url,
+    is_read,
+    created_at,
+    projects!notifications_project_id_fkey (
+      title
+    )
+  `)
+    .eq("recipient_id", profile.profile_id)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+    .order("created_at", { ascending: false })
+    .limit(safeLimit);
+
+  if (error) {
+    console.error("getNotifications: database query failed", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.notification_id,
+    type: row.type,
+    title: row.title,
+    project: projectName(row.projects),
+    description: row.description,
+    time: formatRelativeTime(row.created_at),
+    unread: !row.is_read,
+    created_at: row.created_at,
+    action_url: row.action_url,
+  }));
 }
