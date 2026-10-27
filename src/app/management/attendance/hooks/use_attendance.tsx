@@ -87,8 +87,8 @@ export function useAttendance({
                 profile.profile_id,
             );
 
-            const status: AttendanceStatus =
-                record?.status ?? "Em falta";
+            const status = (record?.status ??
+                "Em falta") as AttendanceStatus;
 
             const matchesSearch =
                 !query ||

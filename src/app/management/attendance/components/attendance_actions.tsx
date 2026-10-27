@@ -6,18 +6,23 @@ import {
     ChevronDown,
     Clock3,
     Loader2,
+    X,
     XCircle,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-
-// Adjust this import to the location of your existing useToast hook.
+import {
+    useEffect,
+    useRef,
+    useState,
+    type FormEvent,
+} from "react";
 
 import type {
     AttendanceActionLoading,
     AttendanceRecord,
     Profile,
 } from "../types";
-import { useToast } from "@/app/components/toast/use_toast";
+
+type ActionResult = Promise<void | boolean>;
 
 type Props = {
     profile: Profile;
@@ -25,10 +30,10 @@ type Props = {
     loading: AttendanceActionLoading;
     isFuture?: boolean;
 
-    onCheckIn: (id: string) => Promise<void>;
-    onCheckOut: (id: string) => Promise<void>;
-    onMarkLate: (id: string) => Promise<void>;
-    onMarkAbsent: (id: string) => Promise<void>;
+    onCheckIn: (id: string, time: string) => ActionResult;
+    onCheckOut: (id: string) => ActionResult;
+    onMarkLate: (id: string) => ActionResult;
+    onMarkAbsent: (id: string, reason?: string) => ActionResult;
 };
 
 export default function AttendanceActions({
@@ -42,26 +47,32 @@ export default function AttendanceActions({
     onMarkAbsent,
 }: Props) {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
+    const [selectedTime, setSelectedTime] = useState("");
+
+    const [showAbsentModal, setShowAbsentModal] = useState(false);
+    const [absentReason, setAbsentReason] = useState("");
+
+    const [submitting, setSubmitting] = useState(false);
+
     const menuRef = useRef<HTMLDivElement>(null);
-    const toast = useToast();
+    const reasonRef = useRef<HTMLTextAreaElement>(null);
 
     const id = profile.profile_id;
-    const label =
-        `${profile.first_name} ${profile.last_name}`.trim();
+    const label = `${profile.first_name} ${profile.last_name}`.trim();
 
-    const busy = loading?.profileId === id;
-    const action = busy ? loading?.action : null;
+    const busy = loading?.profileId === id || submitting;
+    const action = loading?.profileId === id ? loading.action : null;
 
     const button =
         "inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50";
 
     useEffect(() => {
-        if (!menuOpen) {
-            return;
-        }
+        if (!menuOpen && !showAbsentModal) return;
 
         function handleClickOutside(event: MouseEvent) {
             if (
+                menuOpen &&
                 menuRef.current &&
                 !menuRef.current.contains(event.target as Node)
             ) {
@@ -70,9 +81,11 @@ export default function AttendanceActions({
         }
 
         function handleEscape(event: KeyboardEvent) {
-            if (event.key === "Escape") {
-                setMenuOpen(false);
-            }
+            if (event.key !== "Escape" || submitting) return;
+
+            setMenuOpen(false);
+            setShowTimePicker(false);
+            setShowAbsentModal(false);
         }
 
         document.addEventListener("mousedown", handleClickOutside);
@@ -82,7 +95,90 @@ export default function AttendanceActions({
             document.removeEventListener("mousedown", handleClickOutside);
             document.removeEventListener("keydown", handleEscape);
         };
-    }, [menuOpen]);
+    }, [menuOpen, showAbsentModal, submitting]);
+
+    useEffect(() => {
+        if (showAbsentModal) {
+            reasonRef.current?.focus();
+        }
+    }, [showAbsentModal]);
+
+    async function handleCheckIn(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        if (!selectedTime || busy) return;
+
+        setSubmitting(true);
+
+        try {
+            const result = await onCheckIn(id, selectedTime);
+
+            if (result === false) return;
+
+            setShowTimePicker(false);
+            setSelectedTime("");
+        } catch (error) {
+            console.error("Failed to register check-in:", error);
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function handleConfirmAbsent(
+        event: FormEvent<HTMLFormElement>,
+    ) {
+        event.preventDefault();
+
+        if (busy) return;
+
+        const reason = absentReason.trim();
+
+        if (!reason) {
+            reasonRef.current?.focus();
+            return;
+        }
+
+        setSubmitting(true);
+
+        try {
+            const result = await onMarkAbsent(id, reason);
+
+            if (result === false) return;
+
+            setShowAbsentModal(false);
+            setAbsentReason("");
+        } catch (error) {
+            console.error(
+                "Failed to mark employee absent:",
+                error,
+            );
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    function openAbsentModal() {
+        setMenuOpen(false);
+        setAbsentReason("");
+        setShowAbsentModal(true);
+    }
+
+    function closeAbsentModal() {
+        if (submitting) return;
+
+        setShowAbsentModal(false);
+        setAbsentReason("");
+    }
+
+    const handleLate = async () => {
+        setMenuOpen(false);
+
+        try {
+            await onMarkLate(id);
+        } catch (error) {
+            console.error("Failed to mark employee late:", error);
+        }
+    };
 
     if (isFuture) {
         return (
@@ -110,108 +206,253 @@ export default function AttendanceActions({
         );
     }
 
-    const handleAbsent = async () => {
-        setMenuOpen(false);
-
-        const confirmed = await toast.confirm({
-            title: "Marcar como ausente",
-            message: `Tem a certeza que pretende marcar ${label} como ausente?`,
-            confirmText: "Marcar como ausente",
-            cancelText: "Cancelar",
-            variant: "destructive",
-        });
-
-        if (!confirmed) {
-            return;
-        }
-
-        await onMarkAbsent(id);
-    };
-
-    const handleLate = async () => {
-        setMenuOpen(false);
-        await onMarkLate(id);
-    };
-
     if (!record?.check_in) {
         return (
-            <div className="flex items-center justify-end gap-2">
-                <button
-                    type="button"
-                    onClick={() => onCheckIn(id)}
-                    disabled={busy}
-                    className={`${button} border border-[#BD9655] text-[#BD9655] hover:bg-[#BD9655] hover:text-white`}
-                    aria-label={`Registar entrada de ${label}`}
-                >
-                    {action === "check-in" ? (
-                        <>
-                            <Loader2
-                                className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                                aria-hidden="true"
-                            />
-                            A registar...
-                        </>
-                    ) : (
-                        "Registar entrada"
-                    )}
-                </button>
+            <>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setShowTimePicker((open) => !open)}
+                        disabled={busy}
+                        className={`${button} border border-[#BD9655] text-[#BD9655] hover:bg-[#BD9655] hover:text-white`}
+                        aria-label={`Escolher hora de entrada de ${label}`}
+                        aria-expanded={showTimePicker}
+                    >
+                        <Clock3
+                            className="mr-1.5 h-3.5 w-3.5"
+                            aria-hidden="true"
+                        />
+                        {showTimePicker ? "Cancelar entrada" : "Escolher hora"}
+                    </button>
 
-                {!record && (
-                    <div ref={menuRef} className="relative">
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setMenuOpen((value) => !value)
-                            }
-                            disabled={busy}
-                            aria-label={`Mais ações para ${label}`}
-                            aria-haspopup="menu"
-                            aria-expanded={menuOpen}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <ChevronDown
-                                className="h-4 w-4"
-                                aria-hidden="true"
-                            />
-                        </button>
-
-                        {menuOpen && (
-                            <div
-                                role="menu"
-                                className="absolute right-0 top-full z-30 mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
+                    {!record && (
+                        <div ref={menuRef} className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setMenuOpen((value) => !value)}
+                                disabled={busy}
+                                aria-label={`Mais ações para ${label}`}
+                                aria-haspopup="menu"
+                                aria-expanded={menuOpen}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-50"
                             >
-                                <button
-                                    type="button"
-                                    role="menuitem"
-                                    onClick={handleLate}
-                                    disabled={busy}
-                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
+                                <ChevronDown
+                                    className="h-4 w-4"
+                                    aria-hidden="true"
+                                />
+                            </button>
+
+                            {menuOpen && (
+                                <div
+                                    role="menu"
+                                    className="absolute right-0 top-full z-30 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
                                 >
-                                    <Clock3
-                                        className="h-3.5 w-3.5 text-amber-600"
-                                        aria-hidden="true"
-                                    />
-                                    Marcar como atrasado
-                                </button>
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={handleLate}
+                                        disabled={busy}
+                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
+                                    >
+                                        <Clock3
+                                            className="h-3.5 w-3.5 text-amber-600"
+                                            aria-hidden="true"
+                                        />
+                                        Marcar como atrasado
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={openAbsentModal}
+                                        disabled={busy}
+                                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                    >
+                                        <XCircle
+                                            className="h-3.5 w-3.5 text-red-500"
+                                            aria-hidden="true"
+                                        />
+                                        Marcar como ausente
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {showTimePicker && (
+                        <form
+                            className="flex w-full flex-wrap items-center justify-end gap-2"
+                            onSubmit={handleCheckIn}
+                        >
+                            <label
+                                htmlFor={`attendance-time-${id}`}
+                                className="sr-only"
+                            >
+                                Hora de entrada de {label}
+                            </label>
+
+                            <input
+                                id={`attendance-time-${id}`}
+                                type="time"
+                                required
+                                autoFocus
+                                value={selectedTime}
+                                onChange={(event) =>
+                                    setSelectedTime(event.target.value)
+                                }
+                                disabled={busy}
+                                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-[#002950] focus:border-[#BD9655] focus:outline-none"
+                            />
+
+                            <button
+                                type="submit"
+                                disabled={!selectedTime || busy}
+                                className={`${button} bg-[#002950] text-white hover:bg-[#003b70]`}
+                            >
+                                {busy ? (
+                                    <>
+                                        <Loader2
+                                            className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                                            aria-hidden="true"
+                                        />
+                                        A registar...
+                                    </>
+                                ) : (
+                                    "Confirmar"
+                                )}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowTimePicker(false);
+                                    setSelectedTime("");
+                                }}
+                                disabled={busy}
+                                className={`${button} border border-slate-200 text-slate-600 hover:bg-slate-50`}
+                            >
+                                Cancelar
+                            </button>
+                        </form>
+                    )}
+                </div>
+
+                {showAbsentModal && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]"
+                        onMouseDown={(event) => {
+                            if (event.target === event.currentTarget) {
+                                closeAbsentModal();
+                            }
+                        }}
+                    >
+                        <form
+                            onSubmit={handleConfirmAbsent}
+                            aria-labelledby={`absence-title-${id}`}
+                            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6"
+                        >
+                            <div className="mb-5 flex items-start justify-between gap-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                                        <XCircle
+                                            className="h-5 w-5"
+                                            aria-hidden="true"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <h2
+                                            id={`absence-title-${id}`}
+                                            className="text-base font-semibold text-[#002950]"
+                                        >
+                                            Marcar como ausente
+                                        </h2>
+
+                                        <p className="mt-1 text-sm leading-5 text-slate-500">
+                                            Registar a ausência de{" "}
+                                            <span className="font-medium text-slate-700">
+                                                {label}
+                                            </span>
+                                            .
+                                        </p>
+                                    </div>
+                                </div>
 
                                 <button
                                     type="button"
-                                    role="menuitem"
-                                    onClick={handleAbsent}
-                                    disabled={busy}
-                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                    onClick={closeAbsentModal}
+                                    disabled={submitting}
+                                    aria-label="Fechar janela"
+                                    className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
                                 >
-                                    <XCircle
-                                        className="h-3.5 w-3.5 text-red-500"
+                                    <X
+                                        className="h-5 w-5"
                                         aria-hidden="true"
                                     />
-                                    Marcar como ausente
                                 </button>
                             </div>
-                        )}
+
+                            <label
+                                htmlFor={`absence-reason-${id}`}
+                                className="mb-2 block text-sm font-medium text-slate-700"
+                            >
+                                Motivo da ausência
+                                <span className="ml-1 font-normal text-slate-400">
+                                    (opcional)
+                                </span>
+                            </label>
+
+                            <textarea
+                                ref={reasonRef}
+                                id={`absence-reason-${id}`}
+                                value={absentReason}
+                                onChange={(event) =>
+                                    setAbsentReason(event.target.value)
+                                }
+                                placeholder="Ex.: doença, motivo pessoal, falta injustificada..."
+                                rows={4}
+                                maxLength={1000}
+                                required
+                                disabled={submitting}
+                                className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm leading-5 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#BD9655] focus:ring-2 focus:ring-[#BD9655]/15 disabled:cursor-not-allowed disabled:bg-slate-50"
+                            />
+
+                            <div className="mt-1 text-right text-xs text-slate-400">
+                                {absentReason.length}/1000
+                            </div>
+
+                            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    onClick={closeAbsentModal}
+                                    disabled={submitting}
+                                    className={`${button} border border-slate-200 text-slate-600 hover:bg-slate-50`}
+                                >
+                                    Cancelar
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    disabled={submitting || !absentReason.trim()}
+                                    className={`${button} bg-red-600 text-white hover:bg-red-700`}
+                                >
+                                    {submitting || action === "absent" ? (
+                                        <>
+                                            <Loader2
+                                                className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                                                aria-hidden="true"
+                                            />
+                                            A registar...
+                                        </>
+                                    ) : (
+                                        "Confirmar ausência"
+                                    )}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 )}
-            </div>
+            </>
         );
     }
 
@@ -224,7 +465,7 @@ export default function AttendanceActions({
                 className={`${button} bg-[#BD9655] text-white hover:bg-[#a98245]`}
                 aria-label={`Registar saída de ${label}`}
             >
-                {action === "check-out" ? (
+                {action === "check-out" || submitting ? (
                     <>
                         <Loader2
                             className="mr-1.5 h-3.5 w-3.5 animate-spin"

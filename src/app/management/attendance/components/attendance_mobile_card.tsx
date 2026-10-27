@@ -4,6 +4,9 @@ import type {
     AttendanceRecord,
     Profile,
 } from "../types";
+
+import type { AttendanceStatus } from "@/services/attendance";
+
 import AttendanceActions from "./attendance_actions";
 import AttendanceStatusBadge from "./attendance_status_badge";
 import {
@@ -106,7 +109,7 @@ export default function AttendanceMobileCard({
 
             <div className="mt-3 flex items-center justify-between gap-3">
                 <AttendanceStatusBadge
-                    status={record?.status ?? "Em falta"}
+                    status={(record?.status as AttendanceStatus | undefined) ?? "Em falta"}
                 />
 
                 <div

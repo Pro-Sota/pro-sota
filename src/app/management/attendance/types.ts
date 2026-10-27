@@ -1,6 +1,6 @@
 import type {
   AttendanceProfile,
-  AttendanceStatus,
+ AttendanceStatus,
   AttendanceWithProfile,
 } from "@/services/attendance";
 
@@ -16,6 +16,7 @@ export type MonthlyAttendanceRecord = {
   checkIn: string | null;
   checkOut: string | null;
   status: AttendanceStatus;
+  absence_reason: string | null;
 };
 
 export type AttendanceAction = "check-in" | "check-out" | "late" | "absent";
@@ -26,9 +27,9 @@ export type AttendanceActionLoading = {
 } | null;
 
 export type AttentionStatus =
-    | "Em falta"
-    | "Atrasado"
-    | "Sem saída";
+  | "Em falta"
+  | "Atrasado"
+  | "Sem saída";
 
 export type AttendanceSummary = {
   total: number;
@@ -51,10 +52,17 @@ export type AttendanceProps = {
   selectedDate: string;
   selectedMonth: string;
   view: ViewMode;
-  onCheckIn: (profileId: string) => Promise<void>;
   onCheckOut: (profileId: string) => Promise<void>;
   onMarkLate: (profileId: string) => Promise<void>;
-  onMarkAbsent: (profileId: string) => Promise<void>;
+onCheckIn: (
+  profileId: string,
+  time: string,
+) => Promise<void>;
+
+onMarkAbsent: (
+  profileId: string,
+  reason?: string,
+) => Promise<void>;
 };
 
 export type AttendanceEmployeeDrawerProps = {
@@ -65,3 +73,4 @@ export type AttendanceEmployeeDrawerProps = {
   open: boolean;
   onClose: () => void;
 };
+

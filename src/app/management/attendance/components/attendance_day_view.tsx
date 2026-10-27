@@ -5,6 +5,7 @@ import type {
   AttendanceRecord,
   Profile,
 } from "../types";
+import type { AttendanceStatus } from "@/services/attendance";
 
 import AttendanceActions from "./attendance_actions";
 import AttendanceMobileCard from "./attendance_mobile_card";
@@ -191,8 +192,7 @@ export default function AttendanceDayView({
                   <td className="px-5 py-4">
                     <AttendanceStatusBadge
                       status={
-                        record?.status ??
-                        "Em falta"
+                        (record?.status ?? "Em falta") as AttendanceStatus
                       }
                     />
                   </td>

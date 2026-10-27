@@ -13,12 +13,12 @@ export type AttendanceRecord = {
     attendance_id: string;
     profile_id: string;
     attendance_date: string;
+    status: string;
     check_in: string | null;
     check_out: string | null;
-    status: AttendanceStatus;
+
     notes: string | null;
-    created_at: string;
-    updated_at: string;
+    absence_reason: string | null;
 };
 
 export type AttendanceProfile = {
@@ -48,17 +48,13 @@ export type CreateAttendanceInput = {
     check_out?: string | null;
     status?: AttendanceStatus;
     notes?: string | null;
+    absence_reason?: string | null;
 };
 
 export type UpdateAttendanceInput = Partial<
     Omit<CreateAttendanceInput, 'profile_id'>
 >;
 
-function getTodayDate(): string {
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Africa/Luanda',
-    }).format(new Date());
-}
 
 function normalizeError(error: unknown): Error {
     if (error instanceof Error) {
@@ -120,26 +116,26 @@ export async function getAttendanceByDate(
 
     const { data, error } = await supabase
         .from('attendance_records')
-        .select(
-            `
-                attendance_id,
+        .select(`
+            attendance_id,
+            profile_id,
+            attendance_date,
+            check_in,
+            check_out,
+            status,
+            notes,
+            absence_reason,
+            created_at,
+            updated_at,
+            profile:profiles (
                 profile_id,
-                attendance_date,
-                check_in,
-                check_out,
-                status,
-                notes,
-                created_at,
-                updated_at,
-                profile:profiles (
-                    profile_id,
-                    first_name,
-                    last_name,
-                    job_title,
-                    department,
-                    profile_picture
-                )
-            `,
+                first_name,
+                last_name,
+                job_title,
+                department,
+                profile_picture
+            )
+        `
         )
         .eq('attendance_date', attendanceDate)
         .order('created_at', { ascending: true });
@@ -187,7 +183,7 @@ export async function getAttendanceByMonth(
         throw normalizeError(error);
     }
 
-    return (data ?? []) as AttendanceRecord[];
+    return (data ?? []) as unknown as AttendanceRecord[];
 }
 
 /**
@@ -288,22 +284,22 @@ export async function createAttendance(
 
     const payload = {
         profile_id: input.profile_id,
-        attendance_date:
-            input.attendance_date ?? getTodayDate(),
+        attendance_date: input.attendance_date ?? getTodayDate(),
         check_in: input.check_in ?? null,
         check_out: input.check_out ?? null,
-        status: input.status ?? 'Em falta',
+        status: input.status ?? "Em falta",
         notes: input.notes ?? null,
+        absence_reason: input.absence_reason ?? null,
     };
 
     const { data, error } = await supabase
-        .from('attendance_records')
+        .from("attendance_records")
         .insert(payload)
-        .select('*')
+        .select("*")
         .single();
 
     if (error) {
-        console.error('createAttendance error:', error);
+        console.error("createAttendance error:", error);
         throw normalizeError(error);
     }
 
@@ -485,40 +481,47 @@ export async function registerLate(
 export async function registerAbsent(
     profileId: string,
     attendanceDate = getTodayDate(),
+    reason?: string,
 ): Promise<AttendanceRecord> {
-    const existingAttendance =
-        await getAttendanceForMemberAndDate(
-            profileId,
-            attendanceDate,
-        );
+    const absenceReason = reason?.trim();
+
+    if (!absenceReason) {
+        throw new Error("O motivo da falta é obrigatório.");
+    }
+
+    const existingAttendance = await getAttendanceForMemberAndDate(
+        profileId,
+        attendanceDate,
+    );
 
     if (existingAttendance?.check_in) {
         throw new Error(
-            'Não é possível marcar como ausente um membro que já registou entrada.',
+            "Não é possível marcar como ausente um colaborador que já registou entrada.",
         );
     }
 
-    if (existingAttendance) {
-        return updateAttendance(
-            existingAttendance.attendance_id,
-            {
-                status: 'Ausente',
-                check_in: null,
-                check_out: null,
-            },
-        );
-    }
-
-    return upsertAttendance({
+    const attendanceData = {
         profile_id: profileId,
         attendance_date: attendanceDate,
         check_in: null,
         check_out: null,
-        status: 'Ausente',
-        notes: null,
-    });
-}
+        status: "Ausente" as const,
+        notes: absenceReason,
+        absence_reason: absenceReason,
+    };
 
+    if (existingAttendance) {
+        return updateAttendance(existingAttendance.attendance_id, {
+            status: "Ausente",
+            check_in: null,
+            check_out: null,
+            notes: absenceReason,
+            absence_reason: absenceReason,
+        });
+    }
+
+    return upsertAttendance(attendanceData);
+}
 /**
  * Register check-out for a member.
  */
@@ -571,24 +574,24 @@ export async function upsertAttendance(
 
     const payload = {
         profile_id: input.profile_id,
-        attendance_date:
-            input.attendance_date ?? getTodayDate(),
+        attendance_date: input.attendance_date ?? getTodayDate(),
         check_in: input.check_in ?? null,
         check_out: input.check_out ?? null,
-        status: input.status ?? 'Em falta',
+        status: input.status ?? "Em falta",
         notes: input.notes ?? null,
+        absence_reason: input.absence_reason ?? null,
     };
 
     const { data, error } = await supabase
-        .from('attendance_records')
+        .from("attendance_records")
         .upsert(payload, {
-            onConflict: 'profile_id,attendance_date',
+            onConflict: "profile_id,attendance_date",
         })
-        .select('*')
+        .select("*")
         .single();
 
     if (error) {
-        console.error('upsertAttendance error:', error);
+        console.error("upsertAttendance error:", error);
         throw normalizeError(error);
     }
 
@@ -611,7 +614,8 @@ export async function getAttendanceSummary(
     };
 
     for (const record of records) {
-        summary[record.status] += 1;
+        const status = record.status as AttendanceStatus;
+        summary[status] += 1;
     }
 
     return summary;
@@ -637,8 +641,157 @@ export async function getAttendanceSummaryByRange(
     };
 
     for (const record of records) {
-        summary[record.status] += 1;
+        const status = record.status as AttendanceStatus;
+        summary[status] += 1;
     }
 
     return summary;
+}
+
+
+/**
+ * Register a manually supplied arrival time.
+ * The time is interpreted in Africa/Luanda (UTC+01:00).
+ */
+/* -------------------------------------------------------------------------- */
+/* Time zone — Angola / Luanda                                                */
+/* -------------------------------------------------------------------------- */
+
+const ATTENDANCE_TIME_ZONE = "Africa/Luanda";
+
+/**
+ * Returns today's date in Angola, in YYYY-MM-DD format.
+ */
+function getTodayDate(): string {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: ATTENDANCE_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(new Date());
+
+    const values = Object.fromEntries(
+        parts.map(({ type, value }) => [type, value]),
+    );
+
+    return `${values.year}-${values.month}-${values.day}`;
+}
+
+/**
+ * Converts a date and time selected in Luanda into an absolute timestamp.
+ *
+ * Angola uses UTC+01:00 and does not observe daylight saving time.
+ */
+function luandaDateTimeToISOString(
+    attendanceDate: string,
+    time: string,
+): string {
+    const timestamp = new Date(
+        `${attendanceDate}T${time}:00+01:00`,
+    );
+
+    if (Number.isNaN(timestamp.getTime())) {
+        throw new Error(
+            "Não foi possível interpretar a data e a hora indicadas.",
+        );
+    }
+
+    return timestamp.toISOString();
+}
+
+/**
+ * Register a manually supplied arrival time.
+ *
+ * The selected time is interpreted as local Angola/Luanda time,
+ * then stored as an ISO timestamp in UTC.
+ */
+export async function registerManualCheckIn(
+    profileId: string,
+    attendanceDate: string,
+    time: string,
+): Promise<AttendanceRecord> {
+    if (!profileId?.trim()) {
+        throw new Error("Colaborador inválido.");
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(attendanceDate)) {
+        throw new Error("A data indicada é inválida.");
+    }
+
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+        throw new Error("A hora indicada é inválida.");
+    }
+
+    // Validate that the date actually exists.
+    const [year, month, day] = attendanceDate.split("-").map(Number);
+    const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+    if (
+        parsedDate.getUTCFullYear() !== year ||
+        parsedDate.getUTCMonth() !== month - 1 ||
+        parsedDate.getUTCDate() !== day
+    ) {
+        throw new Error("A data indicada é inválida.");
+    }
+
+    const today = getTodayDate();
+
+    if (attendanceDate > today) {
+        throw new Error(
+            "Não é possível registar presença numa data futura.",
+        );
+    }
+
+    // Interpret the selected time in Angola, not the server's local timezone.
+    const checkInISOString = luandaDateTimeToISOString(
+        attendanceDate,
+        time,
+    );
+
+    const checkInTimestamp = new Date(checkInISOString).getTime();
+
+    if (
+        attendanceDate === today &&
+        checkInTimestamp > Date.now()
+    ) {
+        throw new Error(
+            "A hora de entrada não pode estar no futuro.",
+        );
+    }
+
+    const existing = await getAttendanceForMemberAndDate(
+        profileId,
+        attendanceDate,
+    );
+
+    if (existing?.status === "Ausente") {
+        throw new Error(
+            "Este colaborador está marcado como ausente. Corrija o estado antes de registar a entrada.",
+        );
+    }
+
+    if (existing?.check_in) {
+        throw new Error(
+            "A entrada já foi registada. Não foi alterada.",
+        );
+    }
+
+    if (existing) {
+        return updateAttendance(existing.attendance_id, {
+            check_in: checkInISOString,
+            status:
+                existing.status === "Atrasado"
+                    ? "Atrasado"
+                    : "Presente",
+        });
+    }
+
+    return createAttendance({
+        profile_id: profileId,
+        attendance_date: attendanceDate,
+        check_in: checkInISOString,
+        check_out: null,
+        status: "Presente",
+        notes: null,
+    });
 }

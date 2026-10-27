@@ -3,10 +3,11 @@ import {
     getAttendanceProfiles,
     getAttendanceByDate,
     getAttendanceByMonth,
-    registerCheckIn,
+    registerManualCheckIn,
     registerCheckOut,
     registerLate,
     registerAbsent,
+    type AttendanceStatus,
     type AttendanceWithProfile,
 } from "@/services/attendance";
 
@@ -33,15 +34,8 @@ function isValidDate(value: string): boolean {
         return false;
     }
 
-    const [year, month, day] = value
-        .split("-")
-        .map(Number);
-
-    const date = new Date(
-        year,
-        month - 1,
-        day,
-    );
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
 
     return (
         date.getFullYear() === year &&
@@ -56,7 +50,6 @@ function isValidMonth(value: string): boolean {
     }
 
     const [, month] = value.split("-").map(Number);
-
     return month >= 1 && month <= 12;
 }
 
@@ -65,54 +58,17 @@ function getMonthRange(month: string) {
         return getMonthRange(getCurrentMonth());
     }
 
-    const [year, monthNumber] = month
-        .split("-")
-        .map(Number);
+    const [year, monthNumber] = month.split("-").map(Number);
 
-    const start = `${year}-${String(monthNumber).padStart(
-        2,
-        "0",
-    )}-01`;
+    const start = `${year}-${String(monthNumber).padStart(2, "0")}-01`;
 
-    const lastDay = new Date(
-        year,
-        monthNumber,
-        0,
-    ).getDate();
+    const lastDay = new Date(year, monthNumber, 0).getDate();
 
-    const end = `${year}-${String(monthNumber).padStart(
-        2,
-        "0",
-    )}-${String(lastDay).padStart(2, "0")}`;
+    const end = `${year}-${String(monthNumber).padStart(2, "0")}-${String(
+        lastDay,
+    ).padStart(2, "0")}`;
 
-    return {
-        start,
-        end,
-    };
-}
-
-async function handleCheckIn(profileId: string) {
-    "use server";
-
-    await registerCheckIn(profileId);
-}
-
-async function handleCheckOut(profileId: string) {
-    "use server";
-
-    await registerCheckOut(profileId);
-}
-
-async function handleMarkLate(profileId: string) {
-    "use server";
-
-    await registerLate(profileId);
-}
-
-async function handleMarkAbsent(profileId: string) {
-    "use server";
-
-    await registerAbsent(profileId);
+    return { start, end };
 }
 
 export default async function AttendancePage({
@@ -123,10 +79,7 @@ export default async function AttendancePage({
     const today = getLuandaToday();
     const currentMonth = today.slice(0, 7);
 
-    const view =
-        params.view === "month"
-            ? "month"
-            : "day";
+    const view = params.view === "month" ? "month" : "day";
 
     const selectedDate =
         params.date && isValidDate(params.date)
@@ -138,8 +91,46 @@ export default async function AttendancePage({
             ? params.month
             : currentMonth;
 
-    const { start, end } =
-        getMonthRange(selectedMonth);
+    async function handleCheckIn(
+        profileId: string,
+        time: string,
+    ) {
+        "use server";
+
+        await registerManualCheckIn(
+            profileId,
+            selectedDate,
+            time,
+        );
+    }
+
+    async function handleCheckOut(profileId: string) {
+        "use server";
+
+        await registerCheckOut(profileId, selectedDate);
+    }
+
+    async function handleMarkLate(profileId: string) {
+        "use server";
+
+        await registerLate(profileId, selectedDate);
+    }
+    async function handleMarkAbsent(
+        profileId: string,
+        reason?: string,
+    ) {
+        "use server";
+
+        await registerAbsent(
+            profileId,
+            selectedDate,
+            reason,
+        );
+    }
+
+
+
+    const { start, end } = getMonthRange(selectedMonth);
 
     const [
         profilesResult,
@@ -156,14 +147,13 @@ export default async function AttendancePage({
     const attendanceRecords: AttendanceWithProfile[] =
         attendanceResult ?? [];
 
-    const monthlyRecords = (
-        monthlyRecordsResult ?? []
-    ).map((record) => ({
+    const monthlyRecords = (monthlyRecordsResult ?? []).map((record) => ({
         profileId: record.profile_id,
         attendanceDate: record.attendance_date,
         checkIn: record.check_in,
         checkOut: record.check_out,
-        status: record.status,
+        status: record.status as AttendanceStatus,
+        absence_reason: record.absence_reason,
     }));
 
     return (
@@ -176,7 +166,7 @@ export default async function AttendancePage({
             view={view}
             onCheckIn={handleCheckIn}
             onCheckOut={handleCheckOut}
-            onMarkLate={handleMarkLate}
+            onMarkLateAction={handleMarkLate}
             onMarkAbsent={handleMarkAbsent}
         />
     );

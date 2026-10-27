@@ -244,7 +244,7 @@ export default function KanbanBoard({
   function handleUpdateTask(
     ...args: Parameters<typeof board.updateTask>
   ) {
-    return runBoardAction(
+    return runBoardAction( 
       () => board.updateTask(...args),
       "Tarefa actualizada com sucesso.",
     );
