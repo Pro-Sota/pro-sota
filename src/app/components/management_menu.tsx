@@ -28,8 +28,10 @@ import { useState } from "react";
 
 import { createClient } from "@/app/lib/supabase/client";
 import { usePermissions } from "@/app/components/permission_provider";
+import { useUnreadCounts } from "@/app/hooks/use_unread_counts";
 
 import type { Permission } from "@/app/lib/permissions/types";
+import type { UnreadCounts } from "@/app/hooks/use_unread_counts";
 
 /*
  * ============================================================
@@ -56,12 +58,15 @@ type SidebarItem = {
   permission?: Permission;
   access?: SidebarAccess;
   action?: "logout";
+  /** Which unread counter this item shows as a badge. */
+  badgeKey?: keyof UnreadCounts;
 };
 
 type SidebarItemProps = {
   item: SidebarItem;
   active: boolean;
   collapsed?: boolean;
+  badge?: number;
   onLogout?: () => void;
   logoutLoading?: boolean;
 };
@@ -135,6 +140,7 @@ const menuItems: SidebarItem[] = [
     href: "/management/messages",
     icon: MessageCircle,
     permission: "messages.view",
+    badgeKey: "messages",
   },
   {
     name: "Clientes",
@@ -201,6 +207,7 @@ const bottomItems: SidebarItem[] = [
     href: "/management/notifications",
     icon: Bell,
     permission: "notifications.view",
+    badgeKey: "notifications",
   },
   {
     name: "Sair",
@@ -374,6 +381,7 @@ export default function ManagementMenu({
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   const { can } = usePermissions();
+  const unread = useUnreadCounts();
 
   /*
    * Determine Admin status first.
@@ -564,6 +572,7 @@ export default function ManagementMenu({
               item={item}
               active={isActiveRoute(pathname, item.href)}
               collapsed={collapsed}
+              badge={item.badgeKey ? unread[item.badgeKey] : 0}
             />
           ))}
         </div>
@@ -584,6 +593,7 @@ export default function ManagementMenu({
               item={item}
               active={isActiveRoute(pathname, item.href)}
               collapsed={collapsed}
+              badge={item.badgeKey ? unread[item.badgeKey] : 0}
               onLogout={handleLogout}
               logoutLoading={logoutLoading}
             />
@@ -614,13 +624,54 @@ function isActiveRoute(pathname: string, href: string): boolean {
 
 /*
  * ============================================================
+ * BADGE
+ * ============================================================
+ *
+ * Expanded sidebar: pill aligned to the right of the label.
+ * Collapsed sidebar: small pill over the icon's top-right corner.
+ */
+
+function formatBadge(count: number): string {
+  return count > 99 ? "99+" : String(count);
+}
+
+function Badge({
+  count,
+  floating = false,
+}: {
+  count: number;
+  floating?: boolean;
+}) {
+  if (count <= 0) {
+    return null;
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      className={[
+        "flex h-[18px] min-w-[18px] items-center justify-center",
+        "rounded-full bg-[#002950] px-1.5",
+        "text-[10px] font-semibold leading-none text-white",
+        floating
+          ? "absolute -right-2 -top-2 ring-2 ring-[#F7F7F5]"
+          : "ml-auto shrink-0",
+      ].join(" ")}
+    >
+      {formatBadge(count)}
+    </span>
+  );
+}
+
+/*
+ * ============================================================
  * ICON CONTAINER
  * ============================================================
  */
 
 function SidebarIcon({ children }: { children: React.ReactNode }) {
   return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+    <span className="relative flex h-5 w-5 shrink-0 items-center justify-center">
       {children}
     </span>
   );
@@ -636,6 +687,7 @@ function SidebarItem({
   item,
   active,
   collapsed = false,
+  badge = 0,
   onLogout,
   logoutLoading = false,
 }: SidebarItemProps) {
@@ -645,6 +697,11 @@ function SidebarItem({
     item.action === "logout" && logoutLoading
       ? "A sair..."
       : item.name;
+
+  const unreadLabel =
+    badge > 0
+      ? `${label}, ${badge} ${badge === 1 ? "não lida" : "não lidas"}`
+      : label;
 
   const itemClasses = [
     "group relative flex h-10 w-full min-w-0",
@@ -707,7 +764,8 @@ function SidebarItem({
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
-      title={collapsed ? item.name : undefined}
+      aria-label={unreadLabel}
+      title={collapsed ? unreadLabel : undefined}
       className={[
         itemClasses,
         active
@@ -729,12 +787,18 @@ function SidebarItem({
           className="h-[18px] w-[18px]"
           strokeWidth={1.8}
         />
+
+        {collapsed && <Badge count={badge} floating />}
       </SidebarIcon>
 
       {!collapsed && (
-        <span className="min-w-0 overflow-hidden whitespace-nowrap">
-          {item.name}
-        </span>
+        <>
+          <span className="min-w-0 overflow-hidden whitespace-nowrap">
+            {item.name}
+          </span>
+
+          <Badge count={badge} />
+        </>
       )}
     </Link>
   );

@@ -1,21 +1,16 @@
-
 "use client";
 
 import {
-  AlertTriangle,
   Bell,
   CalendarClock,
   Check,
   CheckCheck,
   CheckCircle2,
   ChevronRight,
-  Circle,
   ClipboardCheck,
   FileText,
   FolderKanban,
-  Mail,
   MessageSquare,
-  MoreHorizontal,
   UserRound,
   X,
 } from "lucide-react";
@@ -62,105 +57,50 @@ const typeConfig: Record<
     icon: typeof FileText;
     iconClass: string;
     iconBackground: string;
-    borderClass: string;
     label: string;
   }
 > = {
-  revision: {
-    icon: FileText,
-    iconClass: "text-red-600",
-    iconBackground: "bg-red-50",
-    borderClass: "border-l-red-500",
-    label: "Revisão",
-  },
-  deadline: {
-    icon: CalendarClock,
-    iconClass: "text-orange-600",
-    iconBackground: "bg-orange-50",
-    borderClass: "border-l-orange-500",
-    label: "Prazo",
-  },
-  approval: {
-    icon: CheckCircle2,
-    iconClass: "text-emerald-600",
-    iconBackground: "bg-emerald-50",
-    borderClass: "border-l-emerald-500",
-    label: "Aprovação",
-  },
-  document: {
-    icon: FileText,
-    iconClass: "text-blue-600",
-    iconBackground: "bg-blue-50",
-    borderClass: "border-l-blue-500",
-    label: "Documento",
-  },
-  task: {
-    icon: ClipboardCheck,
-    iconClass: "text-violet-600",
-    iconBackground: "bg-violet-50",
-    borderClass: "border-l-violet-500",
-    label: "Tarefa",
-  },
-  project: {
-    icon: FolderKanban,
-    iconClass: "text-cyan-600",
-    iconBackground: "bg-cyan-50",
-    borderClass: "border-l-cyan-500",
-    label: "Projecto",
-  },
-  message: {
-    icon: MessageSquare,
-    iconClass: "text-indigo-600",
-    iconBackground: "bg-indigo-50",
-    borderClass: "border-l-indigo-500",
-    label: "Mensagem",
-  },
-  mention: {
-    icon: UserRound,
-    iconClass: "text-pink-600",
-    iconBackground: "bg-pink-50",
-    borderClass: "border-l-pink-500",
-    label: "Menção",
-  },
-  system: {
-    icon: Bell,
-    iconClass: "text-slate-600",
-    iconBackground: "bg-slate-100",
-    borderClass: "border-l-slate-400",
-    label: "Sistema",
-  },
+  revision: { icon: FileText, iconClass: "text-red-600", iconBackground: "bg-red-50", label: "Revisão" },
+  deadline: { icon: CalendarClock, iconClass: "text-orange-600", iconBackground: "bg-orange-50", label: "Prazo" },
+  approval: { icon: CheckCircle2, iconClass: "text-emerald-600", iconBackground: "bg-emerald-50", label: "Aprovação" },
+  document: { icon: FileText, iconClass: "text-blue-600", iconBackground: "bg-blue-50", label: "Documento" },
+  task: { icon: ClipboardCheck, iconClass: "text-violet-600", iconBackground: "bg-violet-50", label: "Tarefa" },
+  project: { icon: FolderKanban, iconClass: "text-cyan-600", iconBackground: "bg-cyan-50", label: "Projecto" },
+  message: { icon: MessageSquare, iconClass: "text-indigo-600", iconBackground: "bg-indigo-50", label: "Mensagem" },
+  mention: { icon: UserRound, iconClass: "text-pink-600", iconBackground: "bg-pink-50", label: "Menção" },
+  system: { icon: Bell, iconClass: "text-slate-600", iconBackground: "bg-slate-100", label: "Sistema" },
 };
 
-const emptyStates: Record<
-  FilterValue,
-  { title: string; description: string }
-> = {
+const emptyStates: Record<FilterValue, { title: string; description: string }> = {
   all: {
     title: "Tudo está tranquilo",
-    description:
-      "Quando houver actividade nos seus projectos, as notificações aparecerão aqui.",
+    description: "Quando houver actividade nos seus projectos, as notificações aparecerão aqui.",
   },
-  unread: {
-    title: "Está tudo actualizado",
-    description: "Não tem notificações por ler.",
-  },
-  revision: {
-    title: "Sem revisões",
-    description: "Não existem notificações de revisão neste momento.",
-  },
-  approval: {
-    title: "Sem aprovações",
-    description: "Não existem aprovações para mostrar.",
-  },
-  document: {
-    title: "Sem documentos",
-    description: "Não existem novas notificações de documentos.",
-  },
-  deadline: {
-    title: "Sem prazos próximos",
-    description: "Não existem notificações de prazos.",
-  },
+  unread: { title: "Está tudo actualizado", description: "Não tem notificações por ler." },
+  revision: { title: "Sem revisões", description: "Não existem notificações de revisão neste momento." },
+  approval: { title: "Sem aprovações", description: "Não existem aprovações para mostrar." },
+  document: { title: "Sem documentos", description: "Não existem novas notificações de documentos." },
+  deadline: { title: "Sem prazos próximos", description: "Não existem notificações de prazos." },
 };
+
+const GROUP_ORDER = ["Hoje", "Ontem", "Mais antigas", "Sem data"];
+
+function getGroup(createdAt?: string) {
+  if (!createdAt) return "Sem data";
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "Sem data";
+
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return "Hoje";
+  if (date.toDateString() === yesterday.toDateString()) return "Ontem";
+  return "Mais antigas";
+}
+
+const focusRing =
+  "outline-none focus-visible:ring-4 focus-visible:ring-[#BD9655]/30";
 
 interface Props {
   notifications: Notification[];
@@ -173,10 +113,7 @@ export default function NotificationClientPage({
 
   const [notifications, setNotifications] =
     useState<Notification[]>(initialNotifications);
-
-  const [activeFilter, setActiveFilter] =
-    useState<FilterValue>("all");
-
+  const [activeFilter, setActiveFilter] = useState<FilterValue>("all");
   const [showOnlyRecent, setShowOnlyRecent] = useState(false);
 
   const unreadCount = useMemo(
@@ -184,27 +121,15 @@ export default function NotificationClientPage({
     [notifications]
   );
 
-  const todayCount = useMemo(() => {
-    if (!notifications.length) return 0;
+  const todayCount = useMemo(
+    () => notifications.filter((n) => getGroup(n.created_at) === "Hoje").length,
+    [notifications]
+  );
 
-    const today = new Date().toDateString();
-
-    return notifications.filter((notification) => {
-      if (!notification.created_at) return false;
-
-      return (
-        new Date(notification.created_at).toDateString() === today
-      );
-    }).length;
-  }, [notifications]);
-
-  const projectCount = useMemo(() => {
-    return new Set(
-      notifications
-        .map((notification) => notification.project)
-        .filter(Boolean)
-    ).size;
-  }, [notifications]);
+  const projectCount = useMemo(
+    () => new Set(notifications.map((n) => n.project).filter(Boolean)).size,
+    [notifications]
+  );
 
   const filteredNotifications = useMemo(() => {
     let result = notifications;
@@ -217,12 +142,9 @@ export default function NotificationClientPage({
 
     if (showOnlyRecent) {
       const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-
-      result = result.filter((n) => {
-        if (!n.created_at) return true;
-
-        return new Date(n.created_at).getTime() >= cutoff;
-      });
+      result = result.filter(
+        (n) => !n.created_at || new Date(n.created_at).getTime() >= cutoff
+      );
     }
 
     return result;
@@ -231,65 +153,31 @@ export default function NotificationClientPage({
   const groupedNotifications = useMemo(() => {
     const groups: Record<string, Notification[]> = {};
 
-    filteredNotifications.forEach((notification) => {
-      let group = "Actividade";
-
-      if (notification.created_at) {
-        const date = new Date(notification.created_at);
-        const today = new Date();
-
-        const yesterday = new Date();
-        yesterday.setDate(today.getDate() - 1);
-
-        if (date.toDateString() === today.toDateString()) {
-          group = "Hoje";
-        } else if (date.toDateString() === yesterday.toDateString()) {
-          group = "Ontem";
-        } else {
-          group = "Mais antigas";
-        }
-      }
-
-      if (!groups[group]) groups[group] = [];
-
-      groups[group].push(notification);
+    filteredNotifications.forEach((n) => {
+      const group = getGroup(n.created_at);
+      (groups[group] ??= []).push(n);
     });
 
-    return groups;
+    return GROUP_ORDER.filter((g) => groups[g]).map(
+      (g) => [g, groups[g]] as const
+    );
   }, [filteredNotifications]);
 
   const markAllAsRead = () => {
-    setNotifications((current) =>
-      current.map((notification) => ({
-        ...notification,
-        unread: false,
-      }))
-    );
-
+    setNotifications((current) => current.map((n) => ({ ...n, unread: false })));
     // TODO: Persist in Supabase.
   };
 
   const markAsRead = (id: number | string) => {
     setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === id
-          ? { ...notification, unread: false }
-          : notification
-      )
+      current.map((n) => (n.id === id ? { ...n, unread: false } : n))
     );
-
     // TODO: Persist in Supabase.
   };
 
   const handleView = (notification: Notification) => {
     markAsRead(notification.id);
-
-    if (notification.action_url) {
-      router.push(notification.action_url);
-      return;
-    }
-
-    router.push(`/notifications/${notification.id}`);
+    router.push(notification.action_url || `/notifications/${notification.id}`);
   };
 
   const clearFilters = () => {
@@ -297,35 +185,28 @@ export default function NotificationClientPage({
     setShowOnlyRecent(false);
   };
 
-  const hasActiveFilters =
-    activeFilter !== "all" || showOnlyRecent;
+  const hasActiveFilters = activeFilter !== "all" || showOnlyRecent;
 
   return (
-    <div className="min-h-screen bg-[#F7F7F5] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl space-y-8">
-
+    <div className="min-h-screen bg-[#F7F7F5]">
+      <div className="mx-auto max-w-4xl space-y-8 px-4 py-8 sm:px-6 lg:py-12">
         {/* Header */}
         <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
-              <Bell className="h-4 w-4" />
-              <span>Centro de actividade</span>
-            </div>
-
+          <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-semibold tracking-tight text-[#002950] sm:text-4xl">
+              <h1 className="text-2xl font-semibold tracking-tight text-[#002950] sm:text-3xl">
                 Notificações
               </h1>
 
               {unreadCount > 0 && (
-                <span className="rounded-full bg-[#002950] px-3 py-1 text-xs font-semibold text-white">
+                <span className="rounded-full bg-[#002950] px-2.5 py-1 text-xs font-medium text-white">
                   {unreadCount} por ler
                 </span>
               )}
             </div>
 
-            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
-              Acompanhe as actualizações e actividades dos seus projectos.
+            <p className="max-w-xl text-sm leading-6 text-slate-500">
+              Acompanhe as actualizações e a actividade dos seus projectos.
             </p>
           </div>
 
@@ -333,7 +214,7 @@ export default function NotificationClientPage({
             type="button"
             onClick={markAllAsRead}
             disabled={unreadCount === 0}
-            className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-[#BD9655] hover:text-[#002950] disabled:cursor-not-allowed disabled:opacity-40"
+            className={`inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-[#BD9655] hover:text-[#002950] disabled:cursor-not-allowed disabled:opacity-40 ${focusRing}`}
           >
             <CheckCheck className="h-4 w-4" />
             Marcar tudo como lido
@@ -341,195 +222,160 @@ export default function NotificationClientPage({
         </header>
 
         {/* Summary */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <SummaryCard
-            icon={<Bell className="h-5 w-5" />}
-            label="Por ler"
-            value={unreadCount}
-            description="Requerem a sua atenção"
-            highlight={unreadCount > 0}
-          />
-
-          <SummaryCard
-            icon={<CalendarClock className="h-5 w-5" />}
-            label="Hoje"
-            value={todayCount}
-            description="Actividade registada hoje"
-          />
-
-          <SummaryCard
-            icon={<FolderKanban className="h-5 w-5" />}
-            label="Projectos"
-            value={projectCount}
-            description="Com actividade recente"
-          />
-        </div>
+        <dl className="grid grid-cols-3 divide-x divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <SummaryItem label="Por ler" value={unreadCount} highlight={unreadCount > 0} />
+          <SummaryItem label="Hoje" value={todayCount} />
+          <SummaryItem label="Projectos" value={projectCount} />
+        </dl>
 
         {/* Filters */}
-        <section className="space-y-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
-              {filters.map((filter) => {
-                const active = activeFilter === filter.value;
+        <section className="space-y-3" aria-label="Filtros">
+          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+            {filters.map((filter) => {
+              const active = activeFilter === filter.value;
 
-                return (
-                  <button
-                    key={filter.value}
-                    type="button"
-                    onClick={() => setActiveFilter(filter.value)}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                      active
-                        ? "bg-[#002950] text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
-                  >
-                    {filter.label}
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setActiveFilter(filter.value)}
+                  className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition ${focusRing} ${
+                    active
+                      ? "border-[#002950] bg-[#002950] text-white shadow-sm"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                  }`}
+                >
+                  {filter.label}
+                  {filter.value === "unread" && unreadCount > 0 && (
+                    <span className={`ml-1.5 text-xs ${active ? "text-[#E7C98D]" : "text-slate-400"}`}>
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
 
-                    {filter.value === "unread" && unreadCount > 0 && (
-                      <span
-                        className={`ml-1.5 text-xs ${
-                          active ? "text-[#E7C98D]" : "text-slate-400"
-                        }`}
-                      >
-                        {unreadCount}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <span className="mx-1 hidden h-5 w-px shrink-0 bg-slate-200 sm:block" />
 
-            <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-pressed={showOnlyRecent}
+              onClick={() => setShowOnlyRecent((c) => !c)}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${focusRing} ${
+                showOnlyRecent
+                  ? "border-[#BD9655] bg-[#BD9655]/10 text-[#002950]"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+            >
+              <CalendarClock className="h-4 w-4" />
+              Últimos 7 dias
+            </button>
+
+            {hasActiveFilters && (
               <button
                 type="button"
-                onClick={() => setShowOnlyRecent((current) => !current)}
-                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
-                  showOnlyRecent
-                    ? "border-[#BD9655] bg-[#BD9655]/10 text-[#002950]"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
+                onClick={clearFilters}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-sm text-slate-500 hover:text-slate-900 ${focusRing}`}
               >
-                <CalendarClock className="h-4 w-4" />
-                Últimos 7 dias
+                <X className="h-4 w-4" />
+                Limpar
               </button>
-
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-sm text-slate-500 hover:text-slate-900"
-                >
-                  <X className="h-4 w-4" />
-                  Limpar
-                </button>
-              )}
-            </div>
+            )}
           </div>
 
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-              Actividade recente
-            </h2>
-
-            <span className="text-xs text-slate-400">
-              {filteredNotifications.length} notificações
-            </span>
-          </div>
+          <p className="text-xs text-slate-400" aria-live="polite">
+            {filteredNotifications.length}{" "}
+            {filteredNotifications.length === 1 ? "notificação" : "notificações"}
+          </p>
         </section>
 
-        {/* Notification List */}
+        {/* List */}
         {filteredNotifications.length > 0 ? (
-          <div className="space-y-7">
-            {Object.entries(groupedNotifications).map(
-              ([group, groupNotifications]) => (
-                <section key={group} className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      {group}
-                    </h3>
-                    <div className="h-px flex-1 bg-slate-200" />
-                  </div>
+          <div className="space-y-8">
+            {groupedNotifications.map(([group, items]) => (
+              <section key={group} className="space-y-3">
+                <h2 className="px-1 text-sm font-semibold text-slate-500">
+                  {group}
+                </h2>
 
-                  <div className="space-y-2">
-                    {groupNotifications.map((notification) => {
-                      const config = typeConfig[notification.type];
-                      const Icon = config.icon;
+                <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  {items.map((notification) => {
+                    const config = typeConfig[notification.type] ?? typeConfig.system;
+                    const Icon = config.icon;
 
-                      return (
-                        <article
-                          key={notification.id}
-                          className={`group relative overflow-hidden rounded-xl border border-slate-200 border-l-4 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md ${config.borderClass} ${
-                            notification.unread
-                              ? "bg-white"
-                              : "opacity-90"
-                          }`}
+                    return (
+                      <li
+                        key={notification.id}
+                        className={`group flex items-stretch transition-colors ${
+                          notification.unread ? "bg-[#BD9655]/[0.05]" : "bg-white"
+                        } hover:bg-slate-50`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleView(notification)}
+                          className={`flex min-w-0 flex-1 items-start gap-4 p-4 text-left sm:p-5 ${focusRing} focus-visible:ring-inset`}
                         >
-                          <button
-                            type="button"
-                            onClick={() => handleView(notification)}
-                            className="flex w-full items-start gap-3 p-4 text-left sm:gap-4 sm:p-5"
+                          <span
+                            className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${config.iconBackground}`}
                           >
-                            <div
-                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${config.iconBackground}`}
+                            <Icon className={`h-5 w-5 ${config.iconClass}`} />
+                            {notification.unread && (
+                              <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#BD9655]">
+                                <span className="sr-only">Não lida</span>
+                              </span>
+                            )}
+                          </span>
+
+                          <span className="min-w-0 flex-1 space-y-1.5">
+                            <span
+                              className={`block text-sm leading-5 ${
+                                notification.unread
+                                  ? "font-semibold text-slate-900"
+                                  : "font-medium text-slate-700"
+                              }`}
                             >
-                              <Icon
-                                className={`h-5 w-5 ${config.iconClass}`}
-                              />
-                            </div>
+                              {notification.title}
+                            </span>
 
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h4
-                                  className={`text-sm leading-5 ${
-                                    notification.unread
-                                      ? "font-semibold text-slate-900"
-                                      : "font-medium text-slate-700"
-                                  }`}
-                                >
-                                  {notification.title}
-                                </h4>
+                            <span className="block text-sm leading-6 text-slate-600">
+                              {notification.description}
+                            </span>
 
-                                {notification.unread && (
-                                  <span className="h-2 w-2 shrink-0 rounded-full bg-[#BD9655]" />
-                                )}
-                              </div>
+                            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
+                              <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-medium text-slate-500">
+                                {config.label}
+                              </span>
+                              {notification.project && <span>{notification.project}</span>}
+                              <span aria-hidden>·</span>
+                              <span>{notification.time}</span>
+                            </span>
+                          </span>
+                        </button>
 
-                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                                <span>{config.label}</span>
-                                <span>•</span>
-                                <span>{notification.project}</span>
-                              </div>
-
-                              <p className="mt-2 text-sm leading-5 text-slate-600">
-                                {notification.description}
-                              </p>
-
-                              <p className="mt-3 text-xs text-slate-400">
-                                {notification.time}
-                              </p>
-                            </div>
-
-                            <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#BD9655]" />
-                          </button>
-
+                        <div className="flex shrink-0 items-center gap-1 pr-3 sm:pr-4">
                           {notification.unread && (
                             <button
                               type="button"
                               aria-label="Marcar notificação como lida"
-                              onClick={() => markAsRead(notification.id)}
-                              className="absolute bottom-3 right-10 hidden rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-[#002950] sm:block"
                               title="Marcar como lida"
+                              onClick={() => markAsRead(notification.id)}
+                              className={`rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-[#002950] ${focusRing}`}
                             >
                               <Check className="h-4 w-4" />
                             </button>
                           )}
-                        </article>
-                      );
-                    })}
-                  </div>
-                </section>
-              )
-            )}
+                          <ChevronRight
+                            aria-hidden
+                            className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#BD9655]"
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
@@ -549,19 +395,11 @@ export default function NotificationClientPage({
               <button
                 type="button"
                 onClick={clearFilters}
-                className="mt-5 rounded-lg bg-[#002950] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#003b70]"
+                className={`mt-6 rounded-xl bg-[#002950] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#003b70] ${focusRing}`}
               >
                 Ver todas as notificações
               </button>
             )}
-          </div>
-        )}
-
-        {/* Footer */}
-        {notifications.length > 0 && (
-          <div className="flex items-center justify-center gap-2 pb-4 text-xs text-slate-400">
-            <CheckCheck className="h-4 w-4" />
-            Está a ver todas as notificações disponíveis
           </div>
         )}
       </div>
@@ -569,42 +407,24 @@ export default function NotificationClientPage({
   );
 }
 
-function SummaryCard({
-  icon,
+function SummaryItem({
   label,
   value,
-  description,
   highlight = false,
 }: {
-  icon: React.ReactNode;
   label: string;
   value: number;
-  description: string;
   highlight?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-            highlight ? "bg-[#BD9655]/15 text-[#002950]" : "bg-slate-100 text-slate-500"
-          }`}
-        >
-          {icon}
-        </div>
-
-        {highlight && (
-          <span className="h-2 w-2 rounded-full bg-[#BD9655]" />
-        )}
-      </div>
-
-      <p className="mt-4 text-sm text-slate-500">{label}</p>
-
-      <p className="mt-1 text-3xl font-semibold tracking-tight text-[#002950]">
+    <div className="space-y-1 px-4 py-4 sm:px-6 sm:py-5">
+      <dt className="flex items-center gap-2 text-sm text-slate-500">
+        {label}
+        {highlight && <span className="h-2 w-2 rounded-full bg-[#BD9655]" />}
+      </dt>
+      <dd className="text-2xl font-semibold tracking-tight text-[#002950] sm:text-3xl">
         {value}
-      </p>
-
-      <p className="mt-1 text-xs text-slate-400">{description}</p>
+      </dd>
     </div>
   );
 }
