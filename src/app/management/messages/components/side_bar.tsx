@@ -81,6 +81,7 @@ export default function MessageSideBar({
         unreadCount: 0,
         lastMessage: "",
         lastMessageAt: null,
+        profileId: null
       };
 
       setDirectChats((currentChats) => {

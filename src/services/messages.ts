@@ -3,16 +3,20 @@ import "server-only";
 import { cookies } from "next/headers";
 import { createClient } from "@/app/lib/supabase/server";
 
-export interface ChatSummary {
+export type ChatSummary = {
+  // Keep your existing fields.
   id: string;
   conversationType: "direct" | "project";
   projectId: string | null;
   displayName: string;
   isOnline: boolean;
   unreadCount: number;
-  lastMessage: string;
+  lastMessage: string | null;
   lastMessageAt: string | null;
-}
+
+  // Add this field.
+  profileId: string | null;
+};
 
 export interface MessageView {
   id: string;
@@ -42,7 +46,6 @@ interface ProfilePreview {
   profile_id: string;
   first_name: string | null;
   last_name: string | null;
-  status: string | null;
 }
 
 const UUID_REGEX =
@@ -465,7 +468,7 @@ export async function getChats(
       ? supabase
           .from("profiles")
           .select(
-            "profile_id, first_name, last_name, status",
+            "profile_id, first_name, last_name",
           )
           .in(
             "profile_id",
@@ -619,6 +622,10 @@ export async function getChats(
 
       return {
         id: conversation.id,
+        profileId:
+          conversationType === "direct"
+            ? otherParticipantId ?? null
+            : null,
         conversationType,
         projectId:
           conversation.project_id ??
@@ -631,9 +638,8 @@ export async function getChats(
               ) ??
               "Projeto sem nome"
             : otherName,
-        isOnline:
-          otherProfile?.status ===
-          "Active",
+        // Realtime Presence determines live online status on the client.
+        isOnline: false,
         unreadCount: 0,
         lastMessage:
           latestMessage?.content ??
@@ -784,97 +790,77 @@ export async function getConversation(
         profileId !== user.id,
     );
 
-  let displayName = "Conversa direta";
-  let isOnline = false;
 
-  if (
-    conversation.conversation_type ===
-    "project"
-  ) {
-    if (conversation.project_id) {
-      const {
-        data: project,
-        error: projectError,
-      } = await supabase
-        .from("projects")
-        .select(
-          "project_id, title",
-        )
-        .eq(
-          "project_id",
-          conversation.project_id,
-        )
-        .maybeSingle();
+let displayName = "Conversa direta";
+let isOnline = false;
+let profileId: string | null = null;
 
-      if (projectError) {
-        throw new Error(
-          `Failed to load conversation project: ${projectError.message}`,
-        );
-      }
-
-      displayName =
-        project?.title ??
-        "Projeto sem nome";
-    } else {
-      displayName =
-        "Projeto sem nome";
-    }
-  } else if (otherParticipantId) {
+if (conversation.conversation_type === "project") {
+  if (conversation.project_id) {
     const {
-      data: profile,
-      error: profileError,
+      data: project,
+      error: projectError,
     } = await supabase
-      .from("profiles")
-      .select(
-        "profile_id, first_name, last_name, status",
-      )
-      .eq(
-        "profile_id",
-        otherParticipantId,
-      )
+      .from("projects")
+      .select("project_id, title")
+      .eq("project_id", conversation.project_id)
       .maybeSingle();
 
-    if (profileError) {
+    if (projectError) {
       throw new Error(
-        `Failed to load conversation profile: ${profileError.message}`,
+        `Failed to load conversation project: ${projectError.message}`,
       );
     }
 
-    const firstName =
-      profile?.first_name?.trim() ??
-      "";
+    displayName = project?.title ?? "Projeto sem nome";
+  } else {
+    displayName = "Projeto sem nome";
+  }
+} else if (otherParticipantId) {
+  const {
+    data: profile,
+    error: profileError,
+  } = await supabase
+    .from("profiles")
+    .select("profile_id, first_name, last_name")
+    .eq("profile_id", otherParticipantId)
+    .maybeSingle();
 
-    const lastName =
-      profile?.last_name?.trim() ??
-      "";
-
-    displayName =
-      `${firstName} ${lastName}`.trim() ||
-      "Conversa direta";
-
-    isOnline =
-      profile?.status === "Active";
+  if (profileError) {
+    throw new Error(
+      `Failed to load conversation profile: ${profileError.message}`,
+    );
   }
 
-  return {
-    id: conversation.id,
-    conversationType:
-      conversation.conversation_type ===
-      "project"
-        ? "project"
-        : "direct",
-    projectId:
-      conversation.project_id ?? null,
-    displayName,
-    isOnline,
-    unreadCount: 0,
-    lastMessage:
-      latestMessage?.content ?? "",
-    lastMessageAt:
-      latestMessage?.created_at ??
-      conversation.created_at,
-  };
+  const firstName = profile?.first_name?.trim() ?? "";
+  const lastName = profile?.last_name?.trim() ?? "";
+
+  displayName =
+    `${firstName} ${lastName}`.trim() || "Conversa direta";
+
+  // Use the actual profile primary key for Realtime Presence.
+  profileId = profile?.profile_id ?? otherParticipantId;
+
+  // Live online status is determined by the client-side
+  // Supabase Realtime Presence hook, not this database query.
+  isOnline = false;
 }
+
+return {
+  id: conversation.id,
+  profileId,
+  conversationType:
+    conversation.conversation_type === "project"
+      ? "project"
+      : "direct",
+  projectId: conversation.project_id ?? null,
+  displayName,
+  isOnline,
+  unreadCount: 0,
+  lastMessage: latestMessage?.content ?? "",
+  lastMessageAt:
+    latestMessage?.created_at ?? conversation.created_at,
+};}
 
 export interface GetMessagesOptions {
   conversationId: string;
@@ -1180,7 +1166,7 @@ export async function getMessageRecipients(): Promise<
   } = await supabase
     .from("profiles")
     .select(
-      "profile_id, first_name, last_name, department, status",
+      "profile_id, first_name, last_name, department",
     )
     .neq(
       "profile_id",
@@ -1207,8 +1193,8 @@ export async function getMessageRecipients(): Promise<
         "Utilizador",
       department:
         profile.department ?? null,
-      isOnline:
-        profile.status === "Active",
+      // Live online status is supplied by the client-side Presence hook.
+      isOnline: false,
     }),
   );
 }

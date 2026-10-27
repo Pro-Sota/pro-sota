@@ -22,8 +22,7 @@ export default function MessageHeader({
 }: MessageHeaderProps) {
     const router = useRouter();
 
-    const [isMenuOpen, setIsMenuOpen] =
-        useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const isProject =
         conversation.conversationType === "project";
@@ -47,10 +46,7 @@ export default function MessageHeader({
     const handleInfo = () => {
         setIsMenuOpen(false);
 
-        if (
-            isProject &&
-            conversation.projectId
-        ) {
+        if (isProject && conversation.projectId) {
             router.push(
                 `/management/projects/${conversation.projectId}`,
             );
@@ -66,10 +62,7 @@ export default function MessageHeader({
                     aria-label="Voltar para as mensagens"
                     className="mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] lg:hidden"
                 >
-                    <ArrowLeft
-                        size={19}
-                        aria-hidden="true"
-                    />
+                    <ArrowLeft size={19} aria-hidden="true" />
                 </button>
 
                 <div className="min-w-0">
@@ -77,11 +70,26 @@ export default function MessageHeader({
                         {conversation.displayName}
                     </h2>
 
-                    <p className="truncate text-xs text-slate-500 sm:text-sm">
-                        {conversation.isOnline
-                            ? "Online"
-                            : "Última actividade"}
-                    </p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                        {!isProject && (
+                            <span
+                                aria-hidden="true"
+                                className={`h-2 w-2 shrink-0 rounded-full ${
+                                    conversation.isOnline
+                                        ? "bg-emerald-500"
+                                        : "bg-slate-300"
+                                }`}
+                            />
+                        )}
+
+                        <p className="truncate text-xs text-slate-500 sm:text-sm">
+                            {isProject
+                                ? "Conversa de projecto"
+                                : conversation.isOnline
+                                  ? "Online"
+                                  : "Offline"}
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -93,9 +101,7 @@ export default function MessageHeader({
                     aria-haspopup="menu"
                     aria-expanded={isMenuOpen}
                     onClick={() =>
-                        setIsMenuOpen(
-                            (current) => !current,
-                        )
+                        setIsMenuOpen((current) => !current)
                     }
                     className={`rounded-lg border p-2.5 text-slate-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] ${
                         isMenuOpen
@@ -103,10 +109,7 @@ export default function MessageHeader({
                             : "border-slate-200 hover:bg-slate-50"
                     }`}
                 >
-                    <MoreVertical
-                        size={17}
-                        aria-hidden="true"
-                    />
+                    <MoreVertical size={17} aria-hidden="true" />
                 </button>
 
                 {isMenuOpen && (
@@ -118,9 +121,7 @@ export default function MessageHeader({
                         <button
                             type="button"
                             role="menuitem"
-                            onClick={
-                                handleMarkAsUnread
-                            }
+                            onClick={handleMarkAsUnread}
                             className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50"
                         >
                             <Check
@@ -128,10 +129,7 @@ export default function MessageHeader({
                                 className="shrink-0 text-slate-400"
                                 aria-hidden="true"
                             />
-
-                            <span>
-                                Marcar como não lida
-                            </span>
+                            <span>Marcar como não lida</span>
                         </button>
 
                         <button
@@ -145,10 +143,7 @@ export default function MessageHeader({
                                 className="shrink-0 text-slate-400"
                                 aria-hidden="true"
                             />
-
-                            <span>
-                                Silenciar notificações
-                            </span>
+                            <span>Silenciar notificações</span>
                         </button>
 
                         <div
@@ -160,10 +155,7 @@ export default function MessageHeader({
                             type="button"
                             role="menuitem"
                             onClick={handleInfo}
-                            disabled={
-                                !isProject ||
-                                !conversation.projectId
-                            }
+                            disabled={!isProject || !conversation.projectId}
                             className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {isProject ? (
