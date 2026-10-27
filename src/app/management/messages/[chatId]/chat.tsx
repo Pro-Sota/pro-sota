@@ -1,6 +1,6 @@
 
 "use client";
-
+import { useOnlineUsersContext } from "@/app/hooks/online_users_context";
 import {
     useCallback,
     useEffect,
@@ -216,6 +216,15 @@ export default function ChatView({
     const [error, setError] = useState<string | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { isOnline } = useOnlineUsersContext();
+
+    const liveConversation = useMemo(
+        () => ({
+            ...conversation,
+            isOnline: isOnline(conversation.profileId),
+        }),
+        [conversation, isOnline],
+    );
 
     /*
      * --------------------------------------------------
@@ -620,7 +629,7 @@ export default function ChatView({
                                     message.id.startsWith("optimistic:") &&
                                     message.senderId === currentUserId &&
                                     message.content ===
-                                        realtimeMessage.content,
+                                    realtimeMessage.content,
                             );
 
                             if (!temporary) return current;
@@ -633,9 +642,9 @@ export default function ChatView({
                                 .map((message) =>
                                     message.id === realtimeMessage.id
                                         ? {
-                                              ...message,
-                                              ...realtimeMessage,
-                                          }
+                                            ...message,
+                                            ...realtimeMessage,
+                                        }
                                         : message,
                                 );
 
@@ -653,7 +662,7 @@ export default function ChatView({
                             ...current,
                             [realtimeMessage.id]:
                                 current[realtimeMessage.id] === "read" ||
-                                current[realtimeMessage.id] === "delivered"
+                                    current[realtimeMessage.id] === "delivered"
                                     ? current[realtimeMessage.id]
                                     : "sent",
                         }));
@@ -750,7 +759,7 @@ export default function ChatView({
         <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-white">
             <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white">
                 <div className="shrink-0">
-                    <MessageHeader conversation={conversation} />
+                    <MessageHeader conversation={liveConversation} />
                 </div>
 
                 {error && (
@@ -878,15 +887,15 @@ function MessageList({
 
                         <div
                             className={`flex ${message.isOwn
-                                    ? "justify-end"
-                                    : "justify-start"
+                                ? "justify-end"
+                                : "justify-start"
                                 }`}
                         >
                             <div className="flex max-w-[90%] items-end gap-2 sm:max-w-[85%]">
                                 <div
                                     className={`min-w-0 max-w-full rounded-lg px-4 py-2 sm:max-w-xs lg:max-w-md xl:max-w-lg ${message.isOwn
-                                            ? "rounded-br-none bg-[#002950] text-white"
-                                            : "rounded-bl-none bg-[#F1F5F9] text-slate-900"
+                                        ? "rounded-br-none bg-[#002950] text-white"
+                                        : "rounded-bl-none bg-[#F1F5F9] text-slate-900"
                                         } ${status === "failed"
                                             ? "ring-1 ring-red-400"
                                             : ""
@@ -904,8 +913,8 @@ function MessageList({
 
                                     <div
                                         className={`mt-1 flex items-center justify-end gap-1 text-xs ${message.isOwn
-                                                ? "text-slate-300"
-                                                : "text-slate-600"
+                                            ? "text-slate-300"
+                                            : "text-slate-600"
                                             }`}
                                     >
                                         <span>
