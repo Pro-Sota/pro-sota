@@ -2,19 +2,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+
+import { createClient } from "@/app/lib/supabase/server";
 
 import {
     createCalendarEvent,
     updateCalendarEvent,
+    deleteCalendarEvent,
 } from "@/services/calendar";
 
-import type {
-    CreateCalendarEventInput,
-} from "@/services/calendar";
-
-import type {
-    CalendarParticipant,
-} from "@/actions/searchCalendarParticipants";
+import type { CreateCalendarEventInput } from "@/services/calendar";
+import type { CalendarParticipant } from "@/actions/searchCalendarParticipants";
 
 const ALLOWED_EVENT_TYPES = [
     "meeting",
@@ -22,8 +21,15 @@ const ALLOWED_EVENT_TYPES = [
     "deadline",
 ] as const;
 
-type SupportedEventType =
-    (typeof ALLOWED_EVENT_TYPES)[number];
+type SupportedEventType = (typeof ALLOWED_EVENT_TYPES)[number];
+
+export type CreateCalendarEventActionInput = Omit<
+    CreateCalendarEventInput,
+    "event_type"
+> & {
+    event_type: SupportedEventType;
+    participantIds?: string[];
+};
 
 export type UpdateCalendarEventActionInput = {
     event_id: string;
@@ -37,18 +43,24 @@ export type UpdateCalendarEventActionInput = {
 };
 
 function isSupportedEventType(
-    value: string,
+    value: unknown,
 ): value is SupportedEventType {
-    return ALLOWED_EVENT_TYPES.some(
-        (type) => type === value,
+    return (
+        typeof value === "string" &&
+        ALLOWED_EVENT_TYPES.some((type) => type === value)
     );
 }
 
 function validateEventDates(
-    startAt: string,
-    endAt: string,
+    startAt: unknown,
+    endAt: unknown,
 ): string | null {
-    if (!startAt || !endAt) {
+    if (
+        typeof startAt !== "string" ||
+        !startAt.trim() ||
+        typeof endAt !== "string" ||
+        !endAt.trim()
+    ) {
         return "Indique datas e horas válidas.";
     }
 
@@ -66,8 +78,38 @@ function validateEventDates(
     return null;
 }
 
+function normalizeOptionalText(
+    value: unknown,
+): string | null {
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    return value.trim() || null;
+}
+
+function normalizeParticipantIds(
+    value: unknown,
+): string[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return [
+        ...new Set(
+            value.filter(
+                (id): id is string =>
+                    typeof id === "string" && id.trim().length > 0,
+            ).map((id) => id.trim()),
+        ),
+    ];
+}
+
+/**
+ * Creates a calendar event and saves its participants.
+ */
 export async function createCalendarEventAction(
-    input: CreateCalendarEventInput,
+    input: CreateCalendarEventActionInput,
 ) {
     try {
         if (
@@ -90,7 +132,7 @@ export async function createCalendarEventAction(
 
         const dateError = validateEventDates(
             input.start_at,
-            input.end_at!,
+            input.end_at,
         );
 
         if (dateError) {
@@ -100,15 +142,63 @@ export async function createCalendarEventAction(
             };
         }
 
-        await createCalendarEvent({
+        const participantIds = normalizeParticipantIds(
+            input.participantIds,
+        );
+
+        const event = await createCalendarEvent({
             title: input.title.trim(),
-            description: input.description || null,
+            description: normalizeOptionalText(input.description),
             event_type: input.event_type,
             start_at: input.start_at,
             end_at: input.end_at,
-            location: input.location || null,
-            all_day: false,
+            location: normalizeOptionalText(input.location),
+            all_day: input.all_day ?? false,
+            project_id: input.project_id ?? null,
+            task_id: input.task_id ?? null,
+            client_id: input.client_id ?? null,
         });
+
+        if (participantIds.length > 0) {
+            const supabase = await createClient(await cookies());
+
+            const { error: participantsError } = await supabase
+                .from("calendar_event_participants")
+                .insert(
+                    participantIds.map((profileId) => ({
+                        event_id: event.event_id,
+                        profile_id: profileId,
+                    })),
+                );
+
+            if (participantsError) {
+                console.error(
+                    "Erro ao guardar participantes do evento:",
+                    participantsError,
+                );
+
+                // Best-effort rollback. The database foreign key
+                // also removes participant rows when an event is deleted.
+                try {
+                    await deleteCalendarEvent(event.event_id);
+                } catch (cleanupError) {
+                    console.error(
+                        "Erro ao reverter a criação do evento:",
+                        cleanupError,
+                    );
+                }
+
+                revalidatePath("/management/calendar");
+                revalidatePath("/management");
+
+                return {
+                    success: false,
+                    error:
+                        "Não foi possível guardar os participantes. " +
+                        "O evento não foi concluído.",
+                };
+            }
+        }
 
         revalidatePath("/management/calendar");
         revalidatePath("/management");
@@ -116,17 +206,26 @@ export async function createCalendarEventAction(
         return {
             success: true,
             error: null,
+            eventId: event.event_id,
         };
     } catch (error) {
         console.error("Erro ao criar evento:", error);
 
         return {
             success: false,
-            error: "Não foi possível guardar o evento. Tente novamente.",
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Não foi possível guardar o evento. Tente novamente.",
         };
     }
 }
 
+/**
+ * Updates an existing calendar event.
+ * Access control must also be enforced by Supabase RLS
+ * or by the service layer.
+ */
 export async function updateCalendarEventAction(
     input: UpdateCalendarEventActionInput,
 ) {
@@ -183,8 +282,8 @@ export async function updateCalendarEventAction(
             event_type: input.event_type,
             start_at: input.start_at,
             end_at: input.end_at,
-            location: input.location || null,
-            description: input.description || null,
+            location: normalizeOptionalText(input.location),
+            description: normalizeOptionalText(input.description),
             all_day: input.all_day,
         });
 
@@ -200,14 +299,24 @@ export async function updateCalendarEventAction(
 
         return {
             success: false,
-            error: "Não foi possível actualizar o evento. Tente novamente.",
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Não foi possível actualizar o evento. Tente novamente.",
         };
     }
 }
 
+/**
+ * Searches profiles that can be invited to calendar events.
+ */
 export async function searchCalendarParticipants(
     query: string,
 ): Promise<CalendarParticipant[]> {
+    if (typeof query !== "string") {
+        return [];
+    }
+
     const search = query.trim();
 
     if (search.length < 2) {
@@ -215,11 +324,6 @@ export async function searchCalendarParticipants(
     }
 
     try {
-        const { createClient } = await import(
-            "@/app/lib/supabase/server"
-        );
-        const { cookies } = await import("next/headers");
-
         const supabase = await createClient(await cookies());
 
         const {
@@ -231,13 +335,23 @@ export async function searchCalendarParticipants(
             return [];
         }
 
+        // Escape PostgREST filter punctuation in user input.
+        const safeSearch = search.replace(
+            /[%_,().\\]/g,
+            (character) => `\\${character}`,
+        );
+
         const { data, error } = await supabase
             .from("profiles")
             .select(
                 "profile_id, first_name, last_name, email, profile_picture",
             )
             .or(
-                `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`,
+                [
+                    `first_name.ilike.%${safeSearch}%`,
+                    `last_name.ilike.%${safeSearch}%`,
+                    `email.ilike.%${safeSearch}%`,
+                ].join(","),
             )
             .limit(10);
 
@@ -246,6 +360,7 @@ export async function searchCalendarParticipants(
                 "Erro ao pesquisar participantes:",
                 error,
             );
+
             return [];
         }
 
@@ -255,6 +370,7 @@ export async function searchCalendarParticipants(
             "Erro ao pesquisar participantes:",
             error,
         );
+
         return [];
     }
 }

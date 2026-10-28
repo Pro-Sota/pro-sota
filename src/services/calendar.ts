@@ -160,8 +160,33 @@ export async function getCalendarEvents(options?: {
     eventType?: EventType;
     projectId?: string;
 }) {
-     const cookieStore = await cookies();
+    const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
+
+    const { profileId, isAdmin } =
+        await getCurrentCalendarAccess(supabase);
+
+    let participantEventIds: string[] = [];
+
+    if (!isAdmin) {
+        const { data: participations, error: participantError } =
+            await supabase
+                .from("calendar_event_participants")
+                .select("event_id")
+                .eq("profile_id", profileId);
+
+        if (participantError) {
+            throw new Error(
+                `Erro ao carregar participações: ${participantError.message}`,
+            );
+        }
+
+        participantEventIds = [
+            ...new Set(
+                (participations ?? []).map((item) => item.event_id),
+            ),
+        ];
+    }
 
     try {
         let query = supabase
@@ -212,6 +237,20 @@ export async function getCalendarEvents(options?: {
                 "project_id",
                 options.projectId,
             );
+        }
+
+        if (!isAdmin) {
+            if (participantEventIds.length > 0) {
+                const eventIds = participantEventIds
+                    .map((id) => `"${id}"`)
+                    .join(",");
+
+                query = query.or(
+                    `created_by.eq.${profileId},event_id.in.(${eventIds})`,
+                );
+            } else {
+                query = query.eq("created_by", profileId);
+            }
         }
 
         const {
@@ -306,63 +345,63 @@ export async function getCalendarEvents(options?: {
         ] = await Promise.all([
             projectIds.length > 0
                 ? supabase
-                      .from("projects")
-                      .select(
-                          "project_id, project_name",
-                      )
-                      .in(
-                          "project_id",
-                          projectIds,
-                      )
+                    .from("projects")
+                    .select(
+                        "project_id, project_name",
+                    )
+                    .in(
+                        "project_id",
+                        projectIds,
+                    )
                 : Promise.resolve({
-                      data: [],
-                      error: null,
-                  }),
+                    data: [],
+                    error: null,
+                }),
 
             taskIds.length > 0
                 ? supabase
-                      .from("tasks")
-                      .select(
-                          "task_id, title",
-                      )
-                      .in(
-                          "task_id",
-                          taskIds,
-                      )
+                    .from("tasks")
+                    .select(
+                        "task_id, title",
+                    )
+                    .in(
+                        "task_id",
+                        taskIds,
+                    )
                 : Promise.resolve({
-                      data: [],
-                      error: null,
-                  }),
+                    data: [],
+                    error: null,
+                }),
 
             clientIds.length > 0
                 ? supabase
-                      .from("clients")
-                      .select(
-                          "client_id, name",
-                      )
-                      .in(
-                          "client_id",
-                          clientIds,
-                      )
+                    .from("clients")
+                    .select(
+                        "client_id, name",
+                    )
+                    .in(
+                        "client_id",
+                        clientIds,
+                    )
                 : Promise.resolve({
-                      data: [],
-                      error: null,
-                  }),
+                    data: [],
+                    error: null,
+                }),
 
             profileIds.length > 0
                 ? supabase
-                      .from("profiles")
-                      .select(
-                          "profile_id, first_name, last_name",
-                      )
-                      .in(
-                          "profile_id",
-                          profileIds,
-                      )
+                    .from("profiles")
+                    .select(
+                        "profile_id, first_name, last_name",
+                    )
+                    .in(
+                        "profile_id",
+                        profileIds,
+                    )
                 : Promise.resolve({
-                      data: [],
-                      error: null,
-                  }),
+                    data: [],
+                    error: null,
+                }),
         ]);
 
         if (projectsResult.error) {
@@ -435,32 +474,32 @@ export async function getCalendarEvents(options?: {
             project: normalizeRelation(
                 event.project_id
                     ? projectMap.get(
-                          event.project_id,
-                      )
+                        event.project_id,
+                    )
                     : null,
             ),
 
             task: normalizeRelation(
                 event.task_id
                     ? taskMap.get(
-                          event.task_id,
-                      )
+                        event.task_id,
+                    )
                     : null,
             ),
 
             client: normalizeRelation(
                 event.client_id
                     ? clientMap.get(
-                          event.client_id,
-                      )
+                        event.client_id,
+                    )
                     : null,
             ),
 
             creator: normalizeRelation(
                 event.created_by
                     ? profileMap.get(
-                          event.created_by,
-                      )
+                        event.created_by,
+                    )
                     : null,
             ),
         }));
@@ -473,8 +512,8 @@ export async function getCalendarEvents(options?: {
         throw error instanceof Error
             ? error
             : new Error(
-                  "Erro ao carregar eventos do calendário.",
-              );
+                "Erro ao carregar eventos do calendário.",
+            );
     }
 }
 
@@ -484,7 +523,7 @@ export async function getCalendarEvents(options?: {
 export async function getCalendarEvent(
     eventId: string,
 ) {
-      const cookieStore = await cookies();
+    const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
 
     const {
@@ -540,7 +579,7 @@ export async function getCalendarEvent(
 export async function createCalendarEvent(
     input: CreateCalendarEventInput,
 ) {
-      const cookieStore = await cookies();
+    const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
 
     if (!input.title?.trim()) {
@@ -558,7 +597,7 @@ export async function createCalendarEvent(
     if (
         input.end_at &&
         new Date(input.end_at) <
-            new Date(input.start_at)
+        new Date(input.start_at)
     ) {
         throw new Error(
             "A data de fim não pode ser anterior à data de início.",
@@ -635,7 +674,7 @@ export async function updateCalendarEvent(
     eventId: string,
     input: UpdateCalendarEventInput,
 ) {
-      const cookieStore = await cookies();
+    const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
 
     const updateData: Record<
@@ -786,7 +825,7 @@ export async function updateCalendarEvent(
 export async function deleteCalendarEvent(
     eventId: string,
 ) {
-      const cookieStore = await cookies();
+    const cookieStore = await cookies();
     const supabase = await createClient(cookieStore);
 
     const {
@@ -818,34 +857,62 @@ export async function deleteCalendarEvent(
 }
 
 export type CalendarParticipant = {
-  profile_id: string;
-  first_name: string | null;
-  email: string | null;
+    profile_id: string;
+    first_name: string | null;
+    email: string | null;
 };
 
 export async function getCalendarParticipants(): Promise<
-  CalendarParticipant[]
+    CalendarParticipant[]
 > {
-  const supabase = createClient(await cookies());
+    const supabase = createClient(await cookies());
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+    const {
+        data: { user },
+        error: authError,
+    } = await supabase.auth.getUser();
 
-  if (authError || !user) {
-    throw new Error("Sessão inválida. Inicie sessão novamente.");
-  }
+    if (authError || !user) {
+        throw new Error("Sessão inválida. Inicie sessão novamente.");
+    }
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("profile_id, first_name, email")
-    .order("first_name", { ascending: true });
+    const { data, error } = await supabase
+        .from("profiles")
+        .select("profile_id, first_name, email")
+        .order("first_name", { ascending: true });
 
-  if (error) {
-    console.error("getCalendarParticipants:", error);
-    throw new Error("Não foi possível carregar os membros da equipa.");
-  }
+    if (error) {
+        console.error("getCalendarParticipants:", error);
+        throw new Error("Não foi possível carregar os membros da equipa.");
+    }
 
-  return (data ?? []) as CalendarParticipant[];
+    return (data ?? []) as CalendarParticipant[];
 }
+
+
+async function getCurrentCalendarAccess(supabase: Awaited<ReturnType<typeof createClient>>) {
+    const {
+        data: { user },
+        error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+        throw new Error("Utilizador não autenticado.");
+    }
+
+    const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("profile_id, role_id")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+
+    if (profileError || !profile) {
+        throw new Error("Não foi possível validar o perfil do utilizador.");
+    }
+
+    return {
+        profileId: profile.profile_id,
+        isAdmin: profile.role_id === 1,
+    };
+}
+
