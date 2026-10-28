@@ -1,4 +1,3 @@
-
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -12,8 +11,14 @@ import {
     deleteCalendarEvent,
 } from "@/services/calendar";
 
-import type { CreateCalendarEventInput } from "@/services/calendar";
-import type { CalendarParticipant } from "@/actions/searchCalendarParticipants";
+import type {
+    CalendarParticipant,
+    CreateCalendarEventInput,
+} from "@/services/calendar";
+
+/* -------------------------------------------------------------------------- */
+/* Constants & types                                                          */
+/* -------------------------------------------------------------------------- */
 
 const ALLOWED_EVENT_TYPES = [
     "meeting",
@@ -23,12 +28,33 @@ const ALLOWED_EVENT_TYPES = [
 
 type SupportedEventType = (typeof ALLOWED_EVENT_TYPES)[number];
 
+/**
+ * Columns of calendar_event_participants, one per participant category.
+ * Each row fills exactly one of them.
+ * Adjust the strings if your column names differ.
+ */
+const PARTICIPANT_COLUMNS = {
+    team: "profile_id",
+    clients: "client_id",
+    suppliers: "supplier_id",
+} as const;
+
+type ParticipantCategory = keyof typeof PARTICIPANT_COLUMNS;
+type ParticipantColumn = (typeof PARTICIPANT_COLUMNS)[ParticipantCategory];
+
+type ParticipantLists = Partial<Record<ParticipantCategory, string[]>>;
+
+/** Matches the payload built by buildEventPayload() in the form. */
 export type CreateCalendarEventActionInput = Omit<
     CreateCalendarEventInput,
     "event_type"
 > & {
     event_type: SupportedEventType;
+
+    /** Team members (profile ids). */
     participantIds?: string[];
+    clientIds?: string[];
+    supplierIds?: string[];
 };
 
 export type UpdateCalendarEventActionInput = {
@@ -39,8 +65,34 @@ export type UpdateCalendarEventActionInput = {
     end_at: string;
     location: string | null;
     description: string | null;
-    all_day: boolean;
+
+    /**
+     * For each list below: omit the property to preserve the existing
+     * participants, pass [] to remove all participants of that category.
+     */
+    participantIds?: string[];
+    clientIds?: string[];
+    supplierIds?: string[];
 };
+
+type ActionResult = {
+    success: boolean;
+    error: string | null;
+    eventId?: string;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+async function getSupabase() {
+    return createClient(await cookies());
+}
+
+function revalidateCalendar() {
+    revalidatePath("/management/calendar");
+    revalidatePath("/management");
+}
 
 function isSupportedEventType(
     value: unknown,
@@ -78,9 +130,28 @@ function validateEventDates(
     return null;
 }
 
-function normalizeOptionalText(
-    value: unknown,
-): string | null {
+/**
+ * Validation shared by create and update.
+ * Returns an error message, or null when the input is valid.
+ */
+function validateEventFields(input: {
+    title: unknown;
+    event_type: unknown;
+    start_at: unknown;
+    end_at: unknown;
+}): string | null {
+    if (typeof input.title !== "string" || !input.title.trim()) {
+        return "Indique o título do evento.";
+    }
+
+    if (!isSupportedEventType(input.event_type)) {
+        return "Tipo de evento inválido.";
+    }
+
+    return validateEventDates(input.start_at, input.end_at);
+}
+
+function normalizeOptionalText(value: unknown): string | null {
     if (typeof value !== "string") {
         return null;
     }
@@ -88,63 +159,252 @@ function normalizeOptionalText(
     return value.trim() || null;
 }
 
-function normalizeParticipantIds(
-    value: unknown,
-): string[] {
+function normalizeIds(value: unknown): string[] {
     if (!Array.isArray(value)) {
         return [];
     }
 
     return [
         ...new Set(
-            value.filter(
-                (id): id is string =>
-                    typeof id === "string" && id.trim().length > 0,
-            ).map((id) => id.trim()),
+            value
+                .filter(
+                    (id): id is string =>
+                        typeof id === "string" &&
+                        id.trim().length > 0,
+                )
+                .map((id) => id.trim()),
         ),
     ];
 }
 
+/* -------------------------------------------------------------------------- */
+/* Permissions                                                                */
+/* -------------------------------------------------------------------------- */
+
 /**
- * Creates a calendar event and saves its participants.
+ * Admins (role_id = 1) can manage all events.
+ * Other users can manage only events they created.
+ */
+async function canManageCalendarEvent(
+    eventId: string,
+): Promise<boolean> {
+    try {
+        const supabase = await getSupabase();
+
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+            return false;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("profile_id, role_id")
+            .eq("profile_id", user.id)
+            .maybeSingle();
+
+        if (profileError || !profile) {
+            return false;
+        }
+
+        if (profile.role_id === 1) {
+            return true;
+        }
+
+        const { data: event, error: eventError } = await supabase
+            .from("calendar_events")
+            .select("created_by")
+            .eq("event_id", eventId)
+            .maybeSingle();
+
+        if (eventError || !event) {
+            return false;
+        }
+
+        return event.created_by === profile.profile_id;
+    } catch (error) {
+        console.error(
+            "Erro ao verificar permissões do evento:",
+            error,
+        );
+
+        return false;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Participants                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Rows to insert in calendar_event_participants
+ * for all three participant categories.
+ */
+function buildParticipantRows(
+    eventId: string,
+    lists: ParticipantLists,
+): Record<string, string>[] {
+    const rows: Record<string, string>[] = [];
+
+    (Object.keys(PARTICIPANT_COLUMNS) as ParticipantCategory[]).forEach(
+        (category) => {
+            const column = PARTICIPANT_COLUMNS[category];
+
+            normalizeIds(lists[category]).forEach((id) => {
+                rows.push({ event_id: eventId, [column]: id });
+            });
+        },
+    );
+
+    return rows;
+}
+
+/**
+ * Synchronizes one participant category with the database:
+ * inserts the new ids and removes the missing ones.
+ */
+async function syncParticipantColumn(
+    eventId: string,
+    column: ParticipantColumn,
+    ids: string[],
+): Promise<void> {
+    const supabase = await getSupabase();
+    const selectedIds = normalizeIds(ids);
+
+    const { data: existing, error: fetchError } = await supabase
+        .from("calendar_event_participants")
+        .select(column)
+        .eq("event_id", eventId)
+        .not(column, "is", null);
+
+    if (fetchError) {
+        console.error(
+            "Erro ao consultar participantes do evento:",
+            fetchError,
+        );
+
+        throw new Error(
+            "Não foi possível consultar os participantes do evento.",
+        );
+    }
+
+    const existingIds = new Set(
+        ((existing ?? []) as unknown as Record<string, string>[]).map(
+            (row) => row[column],
+        ),
+    );
+
+    const selectedIdSet = new Set(selectedIds);
+
+    const toInsert = selectedIds.filter((id) => !existingIds.has(id));
+    const toRemove = [...existingIds].filter(
+        (id) => !selectedIdSet.has(id),
+    );
+
+    if (toInsert.length > 0) {
+        const { error: insertError } = await supabase
+            .from("calendar_event_participants")
+            .insert(
+                toInsert.map((id) => ({
+                    event_id: eventId,
+                    [column]: id,
+                })),
+            );
+
+        if (insertError) {
+            console.error(
+                "Erro ao adicionar participantes ao evento:",
+                insertError,
+            );
+
+            throw new Error(
+                "Não foi possível adicionar os participantes ao evento.",
+            );
+        }
+    }
+
+    if (toRemove.length > 0) {
+        const { error: deleteError } = await supabase
+            .from("calendar_event_participants")
+            .delete()
+            .eq("event_id", eventId)
+            .in(column, toRemove);
+
+        if (deleteError) {
+            console.error(
+                "Erro ao remover participantes do evento:",
+                deleteError,
+            );
+
+            throw new Error(
+                "Não foi possível remover os participantes do evento.",
+            );
+        }
+    }
+}
+
+/**
+ * Synchronizes team, client and supplier participants.
+ * A category whose list is undefined is left untouched.
+ *
+ * Not transactional: if a later category fails, earlier ones stay saved.
+ * Use a PostgreSQL RPC if event updates and participant changes must
+ * be atomic.
+ */
+async function syncCalendarEventParticipants(
+    eventId: string,
+    lists: ParticipantLists,
+): Promise<void> {
+    for (const category of Object.keys(
+        PARTICIPANT_COLUMNS,
+    ) as ParticipantCategory[]) {
+        const ids = lists[category];
+
+        if (ids !== undefined) {
+            await syncParticipantColumn(
+                eventId,
+                PARTICIPANT_COLUMNS[category],
+                ids,
+            );
+        }
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Create                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Creates a calendar event and saves its participants
+ * (team members, clients and suppliers).
  */
 export async function createCalendarEventAction(
     input: CreateCalendarEventActionInput,
-) {
+): Promise<ActionResult> {
     try {
-        if (
-            !input ||
-            typeof input.title !== "string" ||
-            !input.title.trim()
-        ) {
+        if (!input) {
             return {
                 success: false,
-                error: "Indique o título do evento.",
+                error: "Evento inválido.",
             };
         }
 
-        if (!isSupportedEventType(input.event_type)) {
+        const validationError = validateEventFields({
+            title: input.title,
+            event_type: input.event_type,
+            start_at: input.start_at,
+            end_at: input.end_at,
+        });
+
+        if (validationError) {
             return {
                 success: false,
-                error: "Tipo de evento inválido.",
+                error: validationError,
             };
         }
-
-        const dateError = validateEventDates(
-            input.start_at,
-            input.end_at,
-        );
-
-        if (dateError) {
-            return {
-                success: false,
-                error: dateError,
-            };
-        }
-
-        const participantIds = normalizeParticipantIds(
-            input.participantIds,
-        );
 
         const event = await createCalendarEvent({
             title: input.title.trim(),
@@ -153,23 +413,23 @@ export async function createCalendarEventAction(
             start_at: input.start_at,
             end_at: input.end_at,
             location: normalizeOptionalText(input.location),
-            all_day: input.all_day ?? false,
             project_id: input.project_id ?? null,
             task_id: input.task_id ?? null,
             client_id: input.client_id ?? null,
         });
 
-        if (participantIds.length > 0) {
-            const supabase = await createClient(await cookies());
+        const participantRows = buildParticipantRows(event.event_id, {
+            team: input.participantIds,
+            clients: input.clientIds,
+            suppliers: input.supplierIds,
+        });
+
+        if (participantRows.length > 0) {
+            const supabase = await getSupabase();
 
             const { error: participantsError } = await supabase
                 .from("calendar_event_participants")
-                .insert(
-                    participantIds.map((profileId) => ({
-                        event_id: event.event_id,
-                        profile_id: profileId,
-                    })),
-                );
+                .insert(participantRows);
 
             if (participantsError) {
                 console.error(
@@ -177,8 +437,7 @@ export async function createCalendarEventAction(
                     participantsError,
                 );
 
-                // Best-effort rollback. The database foreign key
-                // also removes participant rows when an event is deleted.
+                // Best-effort rollback if participant insertion fails.
                 try {
                     await deleteCalendarEvent(event.event_id);
                 } catch (cleanupError) {
@@ -188,8 +447,7 @@ export async function createCalendarEventAction(
                     );
                 }
 
-                revalidatePath("/management/calendar");
-                revalidatePath("/management");
+                revalidateCalendar();
 
                 return {
                     success: false,
@@ -200,8 +458,7 @@ export async function createCalendarEventAction(
             }
         }
 
-        revalidatePath("/management/calendar");
-        revalidatePath("/management");
+        revalidateCalendar();
 
         return {
             success: true,
@@ -221,78 +478,96 @@ export async function createCalendarEventAction(
     }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Update                                                                     */
+/* -------------------------------------------------------------------------- */
+
 /**
- * Updates an existing calendar event.
- * Access control must also be enforced by Supabase RLS
- * or by the service layer.
+ * Updates an existing calendar event and, for each category provided,
+ * synchronizes its participants.
  */
+export type UpdateCalendarEventPayload = {
+    title: string;
+    event_type: SupportedEventType;
+    start_at: string;
+    end_at: string;
+    location: string | null;
+    description: string | null;
+
+    /**
+     * For each list below: omit the property to preserve the existing
+     * participants, pass [] to remove all participants of that category.
+     */
+    participantIds?: string[];
+    clientIds?: string[];
+    supplierIds?: string[];
+};
+
+
 export async function updateCalendarEventAction(
-    input: UpdateCalendarEventActionInput,
-) {
+    eventId: string,
+    input: UpdateCalendarEventPayload,
+): Promise<ActionResult> {
     try {
-        if (
-            !input ||
-            typeof input.event_id !== "string" ||
-            !input.event_id.trim()
-        ) {
+        if (typeof eventId !== "string" || !eventId.trim()) {
             return {
                 success: false,
                 error: "Evento inválido.",
             };
         }
 
-        if (
-            typeof input.title !== "string" ||
-            !input.title.trim()
-        ) {
+        if (!input) {
             return {
                 success: false,
-                error: "Indique o título do evento.",
+                error: "Dados do evento inválidos.",
             };
         }
 
-        if (!isSupportedEventType(input.event_type)) {
+        const validationError = validateEventFields({
+            title: input.title,
+            event_type: input.event_type,
+            start_at: input.start_at,
+            end_at: input.end_at,
+        });
+
+        if (validationError) {
             return {
                 success: false,
-                error: "Tipo de evento inválido.",
+                error: validationError,
             };
         }
 
-        if (typeof input.all_day !== "boolean") {
+        const normalizedEventId = eventId.trim();
+
+        if (!(await canManageCalendarEvent(normalizedEventId))) {
             return {
                 success: false,
-                error: "Indique se o evento dura o dia inteiro.",
+                error: "Não tem autorização para editar este evento.",
             };
         }
 
-        const dateError = validateEventDates(
-            input.start_at,
-            input.end_at,
-        );
-
-        if (dateError) {
-            return {
-                success: false,
-                error: dateError,
-            };
-        }
-
-        await updateCalendarEvent(input.event_id, {
+        await updateCalendarEvent(normalizedEventId, {
             title: input.title.trim(),
             event_type: input.event_type,
             start_at: input.start_at,
             end_at: input.end_at,
             location: normalizeOptionalText(input.location),
             description: normalizeOptionalText(input.description),
-            all_day: input.all_day,
         });
 
-        revalidatePath("/management/calendar");
-        revalidatePath("/management");
+        // undefined = preserve existing, [] = remove all of that category.
+        await syncCalendarEventParticipants(normalizedEventId, {
+            team: input.participantIds,
+            clients: input.clientIds,
+            suppliers: input.supplierIds,
+        });
+
+        revalidateCalendar();
 
         return {
             success: true,
             error: null,
+            eventId: normalizedEventId,
         };
     } catch (error) {
         console.error("Erro ao actualizar evento:", error);
@@ -306,6 +581,10 @@ export async function updateCalendarEventAction(
         };
     }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Search                                                                     */
+/* -------------------------------------------------------------------------- */
 
 /**
  * Searches profiles that can be invited to calendar events.
@@ -324,7 +603,7 @@ export async function searchCalendarParticipants(
     }
 
     try {
-        const supabase = await createClient(await cookies());
+        const supabase = await getSupabase();
 
         const {
             data: { user },
@@ -375,13 +654,16 @@ export async function searchCalendarParticipants(
     }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Delete                                                                     */
+/* -------------------------------------------------------------------------- */
 
 /**
  * Deletes an existing calendar event.
- * Access control must be enforced by Supabase RLS
- * or by the service layer.
  */
-export async function deleteCalendarEventAction(eventId: string) {
+export async function deleteCalendarEventAction(
+    eventId: string,
+): Promise<ActionResult> {
     try {
         if (
             typeof eventId !== "string" ||
@@ -393,10 +675,18 @@ export async function deleteCalendarEventAction(eventId: string) {
             };
         }
 
-        await deleteCalendarEvent(eventId.trim());
+        const normalizedEventId = eventId.trim();
 
-        revalidatePath("/management/calendar");
-        revalidatePath("/management");
+        if (!(await canManageCalendarEvent(normalizedEventId))) {
+            return {
+                success: false,
+                error: "Não tem autorização para eliminar este evento.",
+            };
+        }
+
+        await deleteCalendarEvent(normalizedEventId);
+
+        revalidateCalendar();
 
         return {
             success: true,
@@ -413,44 +703,4 @@ export async function deleteCalendarEventAction(eventId: string) {
                     : "Não foi possível eliminar o evento. Tente novamente.",
         };
     }
-}
-
-async function canManageCalendarEvent(eventId: string): Promise<boolean> {
-    const supabase = await createClient(await cookies());
-
-    const {
-        data: { user },
-        error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-        return false;
-    }
-
-    const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("profile_id, role_id")
-        .eq("profile_id", user.id)
-        .maybeSingle();
-
-    if (profileError || !profile) {
-        return false;
-    }
-
-    // Admin can manage every event.
-    if (profile.role_id === 1) {
-        return true;
-    }
-
-    const { data: event, error: eventError } = await supabase
-        .from("calendar_events")
-        .select("created_by")
-        .eq("event_id", eventId)
-        .maybeSingle();
-
-    if (eventError || !event) {
-        return false;
-    }
-
-    return event.created_by === profile.profile_id;
 }

@@ -15,7 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import CreateMeetingModal from "../components/create_meeting_modal";
+import CreateMeetingModal from "./calendar/components/create_meeting_modal";
 import { Database } from "../lib/supabase/models";
 
 import UploadDocument from "./projects/[projectId]/(details)/documents/components/upload_document";

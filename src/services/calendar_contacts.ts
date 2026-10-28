@@ -1,4 +1,3 @@
-
 import "server-only";
 
 import { createClient } from "@/app/lib/supabase/server";
@@ -7,6 +6,7 @@ import { cookies } from "next/headers";
 export type CalendarParticipant = {
   profile_id: string;
   first_name: string | null;
+  last_name: string | null;
   email: string | null;
 };
 
@@ -14,14 +14,14 @@ export type CalendarClientOption = {
   client_id: string;
   first_name: string;
   last_name: string;
-   email: string | null;
-   organization_name:string |null;
-   client_type:string;
+  email: string | null;
+  organization_name: string | null;
+  client_type: string;
 };
 
 export type CalendarSupplierOption = {
   supplier_id: string;
-  name: string;
+  supplier_name: string;
 };
 
 export type CalendarContacts = {
@@ -37,13 +37,16 @@ export async function getCalendarContacts(): Promise<CalendarContacts> {
     await Promise.all([
       supabase
         .from("profiles")
-        .select("profile_id, first_name, email")
+        .select("profile_id, first_name, last_name, email")
         .order("first_name", { ascending: true }),
 
+      // The clients table has first_name / last_name, not "name".
       supabase
         .from("clients")
-        .select("client_id, client_type, first_name, last_name, email, organization_name")
-        .order("name", { ascending: true }),
+        .select(
+          "client_id, client_type, first_name, last_name, email, organization_name",
+        )
+        .order("first_name", { ascending: true }),
 
       supabase
         .from("suppliers")
@@ -72,22 +75,23 @@ export async function getCalendarContacts(): Promise<CalendarContacts> {
   return {
     participants: (profilesResult.data ?? []).map((profile) => ({
       profile_id: profile.profile_id,
-      first_name: profile.first_name,
-      email: profile.email,
+      first_name: profile.first_name ?? null,
+      last_name: profile.last_name ?? null,
+      email: profile.email ?? null,
     })),
 
     clients: (clientsResult.data ?? []).map((client) => ({
       client_id: client.client_id,
-      first_name: client.first_name,
-      last_name: client.last_name,
-      email: client.email,
-      organization_name: client.organization_name,
+      first_name: client.first_name ?? "",
+      last_name: client.last_name ?? "",
+      email: client.email ?? null,
+      organization_name: client.organization_name ?? null,
       client_type: client.client_type,
     })),
 
     suppliers: (suppliersResult.data ?? []).map((supplier) => ({
       supplier_id: supplier.supplier_id,
-      name: supplier.supplier_name,
+      supplier_name: supplier.supplier_name,
     })),
   };
 }

@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Database } from "../lib/supabase/models";
-import CreateMeetingModal from "../components/create_meeting_modal";
+import CreateMeetingModal from "./calendar/components/create_meeting_modal";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Project = Database["public"]["Tables"]["projects"]["Row"];

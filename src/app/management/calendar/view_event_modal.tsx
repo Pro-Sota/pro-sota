@@ -38,7 +38,6 @@ export type CalendarEventParticipant = {
 
 export type CalendarEventDetails = {
     event_id: string;
-    /** Authenticated profile ID that created this event. */
     created_by?: string | null;
     title: string;
     event_type: EventType;
@@ -48,6 +47,7 @@ export type CalendarEventDetails = {
     description: string | null;
     all_day: boolean;
     participants?: CalendarEventParticipant[];
+    participant_ids?: string[];
 };
 
 type ViewEventModalProps = {

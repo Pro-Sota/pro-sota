@@ -1,8 +1,8 @@
 import { getCalendarContacts } from "@/services/calendar_contacts";
-import CalendarPageInit from "./calendar";
 import { getCalendarEvents } from "@/services/calendar";
 import { requireUser } from "@/app/lib/supabase/auth";
 
+import CalendarPageInit from "./calendar";
 
 const TIME_ZONE = "Africa/Luanda";
 
@@ -20,17 +20,9 @@ function formatDate(date: string) {
         day: "2-digit",
     }).formatToParts(value);
 
-    const year = parts.find(
-        (part) => part.type === "year",
-    )?.value;
-
-    const month = parts.find(
-        (part) => part.type === "month",
-    )?.value;
-
-    const day = parts.find(
-        (part) => part.type === "day",
-    )?.value;
+    const year = parts.find((part) => part.type === "year")?.value;
+    const month = parts.find((part) => part.type === "month")?.value;
+    const day = parts.find((part) => part.type === "day")?.value;
 
     if (!year || !month || !day) {
         throw new Error(`Unable to format date: ${date}`);
@@ -55,51 +47,54 @@ function formatTime(date: string) {
 }
 
 export default async function CalendarPage() {
-    const dbEvents = await getCalendarEvents();
+    // Independent requests run in parallel.
+    const [dbEvents, contacts, userInfo] = await Promise.all([
+        getCalendarEvents(),
+        getCalendarContacts(),
+        requireUser(),
+    ]);
 
     const events = dbEvents.map((event) => ({
         id: event.event_id,
         title: event.title,
         date: formatDate(event.start_at),
 
-        time: event.all_day
-            ? ""
-            : formatTime(event.start_at),
+        time: event.all_day ? "" : formatTime(event.start_at),
 
         type: event.event_type,
 
-        project:
-            event.project?.project_name ?? undefined,
+        project: event.project?.project_name ?? undefined,
+        projectId: event.project?.project_id ?? undefined,
 
-        projectId:
-            event.project?.project_id ?? undefined,
-
-        location:
-            event.location ?? undefined,
-
-        description:
-            event.description ?? undefined,
+        location: event.location ?? undefined,
+        description: event.description ?? undefined,
 
         source: event.event_type,
-
         sourceId: event.event_id,
+
+        // Needed by the view / edit modals (read in toEventDetails).
+        event_id: event.event_id,
+        created_by: event.created_by,
+        start_at: event.start_at,
+        end_at: event.end_at ?? event.start_at,
+        all_day: event.all_day,
+
+        // Team members, clients and suppliers invited to the event.
+        participant_ids: event.participant_ids ?? [],
+        client_ids: event.client_ids ?? [],
+        supplier_ids: event.supplier_ids ?? [],
     }));
-
-    const contacts = await getCalendarContacts();
-
-    const userInfo = await requireUser();
 
     return (
         <CalendarPageInit
             events={events}
-            participants = {contacts.participants}
-            clients = {contacts.clients}
+            participants={contacts.participants}
+            clients={contacts.clients}
             suppliers={contacts.suppliers.map((supplier) => ({
                 ...supplier,
-                supplier_name: supplier.name,
+                supplier_name: supplier.supplier_name,
             }))}
             userInfo={userInfo}
-
         />
     );
 }

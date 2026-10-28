@@ -1,21 +1,11 @@
-
 "use client";
 
 import { CalendarDays, Plus } from "lucide-react";
-import { useState, type ComponentProps } from "react";
-import { useRouter } from "next/navigation";
-
-import {
-  createCalendarEventAction,
-  updateCalendarEventAction,
-} from "@/actions/calendar";
+import { useMemo, useState } from "react";
 
 import ViewEventModal, {
   type CalendarEventDetails,
 } from "./view_event_modal";
-import EditEventModal, {
-  type UpdateCalendarEventInput,
-} from "./edit_event_modal";
 
 import CalendarFilters from "./components/calendar_filters";
 import CalendarGrid from "./components/calendar_grid";
@@ -31,40 +21,27 @@ import type {
   CalendarEvent,
   CalendarPageInitProps,
 } from "./types";
-import CreateMeetingModal from "@/app/components/create_meeting_modal";
+
+import CreateMeetingModal from "@/app/management/calendar/components/create_meeting_modal";
+import EditMeetingModal, {
+  type EditableCalendarEvent,
+} from "./edit_event_modal";
+import type { SelectedAttendee } from "./components/calendar_event_form";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 
-
-const ALLOWED_EVENT_TYPES = [
-  "meeting",
-  "site_visit",
-  "deadline",
-] as const;
-
-type SupportedEventType = (typeof ALLOWED_EVENT_TYPES)[number];
-
 type CalendarEventWithCreator = CalendarEvent & {
   created_by?: string | null;
   event_id?: string;
+  participant_ids?: string[];
 };
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function isSupportedEventType(
-  type: string,
-): type is SupportedEventType {
-  return ALLOWED_EVENT_TYPES.some((allowed) => allowed === type);
-}
-
-/**
- * Converts the calendar's event shape into the details-modal shape.
- * Preserve the creator ID so the modal can apply its edit visibility rule.
- */
 function toEventDetails(
   event: CalendarEvent,
 ): CalendarEventDetails {
@@ -77,7 +54,7 @@ function toEventDetails(
 
   const endAt = new Date(
     startAt.getTime() +
-    (allDay ? 24 : 1) * 60 * 60 * 1000,
+      (allDay ? 24 : 1) * 60 * 60 * 1000,
   );
 
   return {
@@ -90,11 +67,23 @@ function toEventDetails(
     location: event.location ?? null,
     description: event.description ?? null,
     all_day: allDay,
+    participant_ids: source.participant_ids ?? [],
   };
 }
 
-function getLuandaDateTime(date: string, time: string): Date {
-  return new Date(`${date}T${time}:00+01:00`);
+/** Maps the details shown in the view modal to what the edit modal expects. */
+function toEditableEvent(
+  event: CalendarEventDetails,
+): EditableCalendarEvent {
+  return {
+    id: event.event_id,
+    title: event.title,
+    event_type: event.event_type,
+    start_at: event.start_at,
+    end_at: event.end_at,
+    location: event.location,
+    description: event.description,
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -108,8 +97,6 @@ export default function CalendarPageInit({
   suppliers,
   userInfo,
 }: CalendarPageInitProps) {
-  const router = useRouter();
-
   const calendar = useCalendar({
     events,
     participants,
@@ -121,6 +108,7 @@ export default function CalendarPageInit({
   const [isCreateEventOpen, setIsCreateEventOpen] =
     useState(false);
 
+  // Single source of truth for the event being viewed / edited.
   const [selectedEvent, setSelectedEvent] =
     useState<CalendarEventDetails | null>(null);
 
@@ -129,6 +117,36 @@ export default function CalendarPageInit({
 
   const [isEditEventOpen, setIsEditEventOpen] =
     useState(false);
+
+  /* ---------------------------------------------------------------------- */
+  /* Derived data for the edit modal                                        */
+  /* ---------------------------------------------------------------------- */
+
+  const editableEvent = useMemo(
+    () => (selectedEvent ? toEditableEvent(selectedEvent) : null),
+    [selectedEvent],
+  );
+
+  // Pre-select the team members already invited to the event.
+  const initialAttendees = useMemo<SelectedAttendee[]>(() => {
+    const ids = new Set(selectedEvent?.participant_ids ?? []);
+
+    return participants
+      .filter((person) => ids.has(person.profile_id))
+      .map((person) => ({
+        key: `profile:${person.profile_id}`,
+        id: person.profile_id,
+        name:
+          [person.first_name, person.last_name]
+            .filter(Boolean)
+            .join(" ")
+            .trim() ||
+          person.email ||
+          "Utilizador",
+        email: person.email,
+        category: "team" as const,
+      }));
+  }, [selectedEvent, participants]);
 
   /* ---------------------------------------------------------------------- */
   /* Modal handlers                                                         */
@@ -149,6 +167,7 @@ export default function CalendarPageInit({
 
   function closeEditEventModal() {
     setIsEditEventOpen(false);
+    setSelectedEvent(null);
   }
 
   function handleSelectEvent(event: CalendarEvent) {
@@ -162,50 +181,13 @@ export default function CalendarPageInit({
     setIsViewEventOpen(false);
     setIsEditEventOpen(true);
   }
-  
-  /* ---------------------------------------------------------------------- */
-  /* Update event                                                           */
-  /* ---------------------------------------------------------------------- */
-
-  async function handleUpdateEvent(
-    input: UpdateCalendarEventInput,
-  ) {
-    if (!isSupportedEventType(input.event_type)) {
-      throw new Error(
-        "Este tipo de evento ainda não é suportado.",
-      );
-    }
-
-    const result = await updateCalendarEventAction({
-      ...input,
-      event_type: input.event_type,
-    });
-
-    if (!result.success) {
-      throw new Error(
-        result.error ||
-        "Não foi possível actualizar o evento.",
-      );
-    }
-
-    setIsEditEventOpen(false);
-    setIsViewEventOpen(false);
-    setSelectedEvent(null);
-
-    router.refresh();
-  }
 
   /* ---------------------------------------------------------------------- */
   /* Current user                                                           */
   /* ---------------------------------------------------------------------- */
 
-  const currentUser = userInfo;
-
-  const currentUserId =
-    currentUser?.user.id ?? null;
-
-  const currentUserRoleId =
-    currentUser?.userRole ?? null;
+  const currentUserId = userInfo?.user.id ?? null;
+  const currentUserRoleId = userInfo?.userRole ?? null;
 
   /* ---------------------------------------------------------------------- */
   /* Render                                                                 */
@@ -338,11 +320,14 @@ export default function CalendarPageInit({
         onEditAction={handleEditEvent}
       />
 
-      <EditEventModal
+      <EditMeetingModal
         open={isEditEventOpen}
-        event={selectedEvent}
-        onCloseAction={closeEditEventModal}
-        onSaveAction={handleUpdateEvent}
+        event={editableEvent}
+        onClose={closeEditEventModal}
+        participants={participants}
+        clients={clients}
+        suppliers={suppliers}
+        initialAttendees={initialAttendees}
       />
     </main>
   );
