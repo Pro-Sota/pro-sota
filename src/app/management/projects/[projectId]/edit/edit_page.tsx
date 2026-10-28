@@ -19,6 +19,7 @@ import {
     Banknote,
     Building2,
     CalendarDays,
+    CheckCircle2,
     ChevronDown,
     ChevronRight,
     CircleDot,
@@ -33,6 +34,7 @@ import {
 
 import {
     PROJECT_STATUSES,
+    PROJECT_TYPE_LABELS,
     PROJECT_TYPES,
     PROJECT_URGENCIES,
     type ActionResult,
@@ -137,7 +139,6 @@ const EMPTY: Values = {
     completion_percentage: "0",
 
     image: "",
-    reference_point: ""
 };
 
 const inputClass =
@@ -268,38 +269,37 @@ function toPayload(
     image: string | null,
 ): ProjectPayload {
     return {
-    project_code: values.project_code.trim(),
-    title: values.title.trim(),
-    description: orNull(values.description),
-    type: orNull(values.type),
-    status: values.status as ProjectPayload["status"],
-    urgency: values.urgency as ProjectPayload["urgency"],
+        project_code: values.project_code.trim(),
+        title: values.title.trim(),
+        description: orNull(values.description),
+        type: orNull(values.type) as ProjectPayload["type"],
+        status: values.status as ProjectPayload["status"],
+        urgency: values.urgency as ProjectPayload["urgency"],
 
-    client_id: orNull(values.client_id),
+        client_id: orNull(values.client_id),
 
-    country: orNull(values.country) ?? "Angola",
-    province: orNull(values.province),
-    municipality: values.municipality.trim(),
-    city: orNull(values.city),
-    address_line_1: orNull(values.address_line_1),
-    address_line_2: orNull(values.address_line_2),
-    latitude: numOrNull(values.latitude),
-    longitude: numOrNull(values.longitude),
+        country: orNull(values.country) ?? "Angola",
+        province: orNull(values.province),
+        municipality: values.municipality.trim(),
+        city: orNull(values.city),
+        address_line_1: orNull(values.address_line_1),
+        address_line_2: orNull(values.address_line_2),
+        latitude: numOrNull(values.latitude),
+        longitude: numOrNull(values.longitude),
 
-    budget: numOrNull(values.budget),
-    estimated_cost: numOrNull(values.estimated_cost),
+        budget: numOrNull(values.budget),
+        estimated_cost: numOrNull(values.estimated_cost),
 
-    start_date: orNull(values.start_date),
-    end_date: orNull(values.end_date),
-    actual_start_date: orNull(values.actual_start_date),
-    actual_end_date: orNull(values.actual_end_date),
+        start_date: orNull(values.start_date),
+        end_date: orNull(values.end_date),
+        actual_start_date: orNull(values.actual_start_date),
+        actual_end_date: orNull(values.actual_end_date),
 
-    contract_number: orNull(values.contract_number),
-    external_reference: orNull(values.external_reference),
-    completion_percentage: Number(values.completion_percentage),
-    image,
-    reference_point: null,
-};
+        contract_number: orNull(values.contract_number),
+        external_reference: orNull(values.external_reference),
+        completion_percentage: Number(values.completion_percentage),
+        image,
+    };
 }
 
 /* ==========================================================================
@@ -380,9 +380,8 @@ function Field({
             {message && (
                 <p
                     id={`${id}-msg`}
-                    className={`text-xs leading-5 ${
-                        error ? "text-red-600" : "text-gray-500"
-                    }`}
+                    className={`text-xs leading-5 ${error ? "text-red-600" : "text-gray-500"
+                        }`}
                 >
                     {message}
                 </p>
@@ -469,6 +468,7 @@ export default function EditProjectForm({
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const dirty =
         JSON.stringify(values) !== initialSnapshot.current ||
@@ -519,9 +519,8 @@ export default function EditProjectForm({
             "aria-invalid": hasError || undefined,
             "aria-describedby": hasError ? `${key}-msg` : undefined,
 
-            className: `${inputClass} ${
-                hasError ? "border-red-400" : "border-[#E4E5E3]"
-            }`,
+            className: `${inputClass} ${hasError ? "border-red-400" : "border-[#E4E5E3]"
+                }`,
         };
     }
 
@@ -581,6 +580,7 @@ export default function EditProjectForm({
         if (saving) return;
 
         setSubmitError(null);
+        setSuccessMessage(null);
 
         const foundErrors = validate(values);
         setErrors(foundErrors);
@@ -623,8 +623,13 @@ export default function EditProjectForm({
                 return;
             }
 
-            router.push(backHref);
-            router.refresh();
+            setSuccessMessage("As alterações do projecto foram guardadas com sucesso.");
+
+            // Keep the success toast visible briefly before leaving the form.
+            window.setTimeout(() => {
+                router.push(backHref);
+                router.refresh();
+            }, 1400);
         } catch {
             setSubmitError(
                 "Não foi possível guardar as alterações. Tente novamente.",
@@ -669,6 +674,22 @@ export default function EditProjectForm({
 
     return (
         <div className="min-h-screen bg-[#F5F5F2] text-[#002950]">
+            {successMessage && (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className="fixed right-4 top-4 z-[100] flex max-w-[calc(100vw-2rem)] items-start gap-3 rounded-xl border border-emerald-200 bg-white px-4 py-3.5 text-sm text-[#002950] shadow-[0_12px_35px_rgba(0,41,80,0.16)] sm:right-6 sm:top-6"
+                >
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                        <CheckCircle2 size={18} aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0">
+                        <span className="block font-semibold">Guardado com sucesso</span>
+                        <span className="mt-0.5 block text-gray-600">{successMessage}</span>
+                    </span>
+                </div>
+            )}
+
             <header className="relative isolate overflow-hidden bg-[#002950] text-white">
                 <div
                     aria-hidden="true"
@@ -859,13 +880,11 @@ export default function EditProjectForm({
 
                                 <Field id="type" label="Tipo de projecto">
                                     <SelectBox {...bind("type")}>
-                                        <option value="">
-                                            Seleccionar tipo
-                                        </option>
+                                        <option value="">Seleccionar tipo</option>
 
                                         {PROJECT_TYPES.map((type) => (
                                             <option key={type} value={type}>
-                                                {type}
+                                                {PROJECT_TYPE_LABELS[type] ?? type}
                                             </option>
                                         ))}
                                     </SelectBox>
@@ -1133,7 +1152,7 @@ export default function EditProjectForm({
                                     />
                                 </Field>
 
-                              
+
                             </Card>
                         </div>
 
@@ -1258,11 +1277,10 @@ export default function EditProjectForm({
                                                     ? true
                                                     : undefined
                                             }
-                                            className={`flex aspect-[4/3] w-full flex-col items-center justify-center rounded-xl border-2 border-dashed bg-[#FBFBFA] px-4 text-center transition hover:border-[#BD9655] hover:bg-[#BD9655]/[0.05] ${focusRing} ${
-                                                errors.cover_image
+                                            className={`flex aspect-[4/3] w-full flex-col items-center justify-center rounded-xl border-2 border-dashed bg-[#FBFBFA] px-4 text-center transition hover:border-[#BD9655] hover:bg-[#BD9655]/[0.05] ${focusRing} ${errors.cover_image
                                                     ? "border-red-400"
                                                     : "border-[#D9DAD6]"
-                                            }`}
+                                                }`}
                                         >
                                             <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#BD9655]/12 text-[#8E6B2F]">
                                                 <ImagePlus

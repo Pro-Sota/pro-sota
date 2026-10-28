@@ -1,56 +1,90 @@
-import { Database } from "@/app/lib/supabase/models";
+
+import type { Database } from "@/app/lib/supabase/models";
+
+/* -------------------------------------------------------------------------- */
+/* Project types                                                              */
+/* -------------------------------------------------------------------------- */
 
 export type Project =
-  Database["public"]["Tables"]["projects"]["Row"];
+    Database["public"]["Tables"]["projects"]["Row"];
 
 export type ProjectListItem = Project & {
-  client_name: string | null;
-  progress: number;
-  phase_name: string | null;
-  task_count: number;
-  completed_task_count: number;
-  member_count: number;
-  member_avatars: string[];
-  next_deadline: string | null;
-  project_manager: {
-    name: string;
-  } | null;
+    client_name: string | null;
+    progress: number;
+    phase_name: string | null;
+    task_count: number;
+    completed_task_count: number;
+    member_count: number;
+    member_avatars: string[];
+    next_deadline: string | null;
+    project_manager: {
+        name: string;
+    } | null;
 };
 
-export const PROJECT_STATUSES = [
-  "Em curso",
-  "Em observação",
-  "Concluído",
-  "Em pausa",
-] as const;
+/* -------------------------------------------------------------------------- */
+/* Constants                                                                  */
+/* -------------------------------------------------------------------------- */
 
-export const PROJECT_TYPES = [
-  "Residential",
-  "Commercial",
-  "Industrial",
-  "Institutional",
-  "Mixed Use",
-  "Renovation",
-  "Interior Design",
-  "Landscape",
-  "Other",
+export const PROJECT_STATUSES = [
+    "Em curso",
+    "Em observação",
+    "Concluído",
+    "Em pausa",
 ] as const;
 
 export const PROJECT_URGENCIES = [
-  "Low",
-  "Medium",
-  "High",
-  "Critical",
+    "Low",
+    "Medium",
+    "High",
+    "Critical",
 ] as const;
+
+export const PROJECT_TYPES = [
+    "Residencial",
+    "Comercial",
+    "Industrial",
+    "Institucional",
+    "Uso misto",
+    "Reabilitação",
+    "Design de interiores",
+    "Paisagismo",
+    "Outro",
+] as const;
+
+/* -------------------------------------------------------------------------- */
+/* Labels                                                                     */
+/* -------------------------------------------------------------------------- */
+
+export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
+    Residencial: "Residencial",
+    Comercial: "Comercial",
+    Industrial: "Industrial",
+    Institucional: "Institucional",
+    "Uso misto": "Uso misto",
+    Reabilitação: "Reabilitação",
+    "Design de interiores": "Design de interiores",
+    Paisagismo: "Paisagismo",
+    Outro: "Outro",
+};
+
+/* -------------------------------------------------------------------------- */
+/* Derived types                                                              */
+/* -------------------------------------------------------------------------- */
 
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 export type ProjectUrgency = (typeof PROJECT_URGENCIES)[number];
+export type ProjectType = (typeof PROJECT_TYPES)[number];
+
+/* -------------------------------------------------------------------------- */
+/* Project payload                                                            */
+/* -------------------------------------------------------------------------- */
 
 export type ProjectPayload = {
     project_code: string;
     title: string;
     description: string | null;
-    type: string | null;
+    type: ProjectType | null;
     status: ProjectStatus;
     urgency: ProjectUrgency;
 
@@ -63,7 +97,6 @@ export type ProjectPayload = {
     city: string | null;
     address_line_1: string | null;
     address_line_2: string | null;
-    reference_point:string | null;
     latitude: number | null;
     longitude: number | null;
 
@@ -87,4 +120,7 @@ export type ProjectPayload = {
 };
 
 export type UpdateProjectInput = ProjectPayload;
-export type ActionResult = { success: true } | { success: false; error: string };
+
+export type ActionResult =
+    | { success: true }
+    | { success: false; error: string };
