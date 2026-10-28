@@ -134,7 +134,7 @@ export default function MemberProfilePage({ member }: Props) {
                             <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
                                 {/* Avatar */}
                                 <div className="relative h-24 w-24 shrink-0">
-                                    {member.profile_picture ? (
+                                    {member.profile_picture?.trim() ? (
                                         <Image
                                             src={member.profile_picture}
                                             alt={`Fotografia de ${name}`}
@@ -143,7 +143,10 @@ export default function MemberProfilePage({ member }: Props) {
                                             className="h-24 w-24 rounded-2xl object-cover ring-1 ring-slate-200"
                                         />
                                     ) : (
-                                        <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-[#002950] text-2xl font-semibold tracking-wide text-white">
+                                        <div
+                                            aria-label={`Iniciais de ${name}`}
+                                            className="flex h-24 w-24 items-center justify-center rounded-2xl bg-[#002950] text-2xl font-semibold tracking-wide text-white"
+                                        >
                                             {initials}
                                         </div>
                                     )}
@@ -213,16 +216,13 @@ export default function MemberProfilePage({ member }: Props) {
 
                 {/* Overview */}
                 <section>
-                    <div className="mb-3 flex items-center justify-between">
+                    <div className="mb-3">
                         <h2 className="text-sm font-semibold text-slate-800">
                             Resumo
                         </h2>
-                        <span className="text-xs text-slate-400">
-                            Informação do colaborador
-                        </span>
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
                         <SummaryCard
                             icon={FolderKanban}
                             label="Projectos associados"
@@ -234,12 +234,26 @@ export default function MemberProfilePage({ member }: Props) {
                             }
                         />
 
-                        <SummaryCard
-                            icon={CircleUserRound}
-                            label="Estado da conta"
-                            value={getStatusLabel(member.status)}
-                            description="Estado actual do colaborador"
-                        />
+                        <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm sm:min-w-56">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50">
+                                <CircleUserRound
+                                    size={17}
+                                    className="text-slate-500"
+                                />
+                            </div>
+
+                            <div className="min-w-0">
+                                <p className="text-xs text-slate-500">
+                                    Estado da conta
+                                </p>
+
+                                <span
+                                    className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${getStatusStyle(member.status)}`}
+                                >
+                                    {getStatusLabel(member.status)}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
