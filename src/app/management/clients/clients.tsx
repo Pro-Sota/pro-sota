@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Building2,
   Briefcase,
@@ -26,6 +27,13 @@ type ClientFilters = {
   projects: string;
 };
 
+const DEFAULT_FILTERS: ClientFilters = {
+  query: "",
+  status: "All",
+  type: "All",
+  projects: "All",
+};
+
 function normalizeSearch(value: string): string {
   return value
     .normalize("NFD")
@@ -34,20 +42,82 @@ function normalizeSearch(value: string): string {
     .trim();
 }
 
+/**
+ * Sort clients by first name, then surname.
+ * Names with accents are sorted consistently.
+ * Missing names are placed after named clients.
+ */
+function compareClients(
+  a: ClientWithProjectCount,
+  b: ClientWithProjectCount,
+): number {
+  const firstNameA = normalizeSearch(
+    a.first_name ?? a.name ?? "",
+  );
+  const firstNameB = normalizeSearch(
+    b.first_name ?? b.name ?? "",
+  );
+
+  const firstNameComparison = firstNameA.localeCompare(
+    firstNameB,
+    "pt",
+    { sensitivity: "base", numeric: true },
+  );
+
+  if (firstNameComparison !== 0) {
+    if (!firstNameA) return 1;
+    if (!firstNameB) return -1;
+
+    return firstNameComparison;
+  }
+
+  const lastNameA = normalizeSearch(a.last_name ?? "");
+  const lastNameB = normalizeSearch(b.last_name ?? "");
+
+  const lastNameComparison = lastNameA.localeCompare(
+    lastNameB,
+    "pt",
+    { sensitivity: "base", numeric: true },
+  );
+
+  if (lastNameComparison !== 0) {
+    return lastNameComparison;
+  }
+
+  return normalizeSearch(a.name ?? "").localeCompare(
+    normalizeSearch(b.name ?? ""),
+    "pt",
+    { sensitivity: "base", numeric: true },
+  );
+}
+
+/**
+ * Prevent spreadsheet applications from interpreting
+ * untrusted text as a formula when opening a CSV file.
+ */
 function escapeCsvValue(value: unknown): string {
-  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+  let text = String(value ?? "");
+
+  if (
+    typeof value === "string" &&
+    /^[\t\r\n ]*[=+\-@]/.test(text)
+  ) {
+    text = `'${text}`;
+  }
+
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 function downloadCsv(
   filename: string,
   rows: Array<Array<unknown>>,
-) {
+): void {
   const csv = rows
     .map((row) => row.map(escapeCsvValue).join(","))
-    .join("\n");
+    .join("\r\n");
 
   const blob = new Blob(["\uFEFF", csv], {
-    type: "text/csv;charset=utf-8",
+    type: "text/csv;charset=utf-8;",
   });
 
   const url = URL.createObjectURL(blob);
@@ -55,6 +125,7 @@ function downloadCsv(
 
   link.href = url;
   link.download = filename;
+  link.style.display = "none";
 
   document.body.appendChild(link);
   link.click();
@@ -62,23 +133,49 @@ function downloadCsv(
 
   window.setTimeout(() => {
     URL.revokeObjectURL(url);
-  }, 100);
+  }, 1000);
 }
 
 export default function ClientsPage({ allClients }: Props) {
   const router = useRouter();
 
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleOutsideClick(event: PointerEvent) {
+      if (
+        filterPanelRef.current &&
+        !filterPanelRef.current.contains(event.target as Node)
+      ) {
+        setIsFilterOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsideClick);
+    };
+  }, []);
+
   const [filters, setFilters] = useState<ClientFilters>({
-    query: "",
-    status: "All",
-    type: "All",
-    projects: "All",
+    ...DEFAULT_FILTERS,
   });
+
+  /**
+   * Sort once when the source client list changes.
+   * Copy the array to avoid mutating server-provided props.
+   */
+  const sortedClients = useMemo(
+    () => [...allClients].sort(compareClients),
+    [allClients],
+  );
 
   const filteredClients = useMemo(() => {
     const normalizedQuery = normalizeSearch(filters.query);
 
-    return allClients.filter((client) => {
+    return sortedClients.filter((client) => {
       const searchableValues = [
         client.name,
         client.first_name,
@@ -97,7 +194,7 @@ export default function ClientsPage({ allClients }: Props) {
         !normalizedQuery ||
         searchableValues.some(
           (value) =>
-            Boolean(value) &&
+            value != null &&
             normalizeSearch(String(value)).includes(
               normalizedQuery,
             ),
@@ -125,8 +222,12 @@ export default function ClientsPage({ allClients }: Props) {
         matchesProjects
       );
     });
-  }, [allClients, filters]);
+  }, [sortedClients, filters]);
 
+  /**
+   * Statistics represent the complete client list,
+   * independently of the currently applied filters.
+   */
   const stats = useMemo(() => {
     return allClients.reduce(
       (result, client) => {
@@ -140,37 +241,49 @@ export default function ClientsPage({ allClients }: Props) {
           result.prospectiveClients += 1;
         }
 
+        if (client.projectCount > 0) {
+          result.clientsWithProjects += 1;
+        } else {
+          result.clientsWithoutProjects += 1;
+        }
+
         return result;
       },
       {
         activeClients: 0,
         prospectiveClients: 0,
         projectCount: 0,
+        clientsWithProjects: 0,
+        clientsWithoutProjects: 0,
       },
     );
   }, [allClients]);
 
+  const activeFilterCount = useMemo(() => {
+    return (
+      Number(Boolean(filters.query.trim())) +
+      Number(filters.status !== "All") +
+      Number(filters.type !== "All") +
+      Number(filters.projects !== "All")
+    );
+  }, [filters]);
+
   function updateFilter<K extends keyof ClientFilters>(
     key: K,
     value: ClientFilters[K],
-  ) {
+  ): void {
     setFilters((current) => ({
       ...current,
       [key]: value,
     }));
   }
 
-  function resetFilters() {
-    setFilters({
-      query: "",
-      status: "All",
-      type: "All",
-      projects: "All",
-    });
+  function resetFilters(): void {
+    setFilters({ ...DEFAULT_FILTERS });
   }
 
-  function exportClients() {
-    const rows = [
+  function exportClients(): void {
+    const rows: Array<Array<unknown>> = [
       [
         "Cliente",
         "Categoria",
@@ -183,12 +296,12 @@ export default function ClientsPage({ allClients }: Props) {
       ],
       ...filteredClients.map((client) => [
         client.name ?? "",
-        client.client_type,
+        client.client_type ?? "",
         client.nif ?? "",
         client.email ?? "",
         client.phone ?? "",
         client.city ?? "",
-        client.status,
+        client.status ?? "",
         client.projectCount,
       ]),
     ];
@@ -277,6 +390,30 @@ export default function ClientsPage({ allClients }: Props) {
           totalCount={allClients.length}
         />
 
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <p className="text-gray-500" aria-live="polite">
+              {activeFilterCount}{" "}
+              {activeFilterCount === 1
+                ? "filtro activo"
+                : "filtros activos"}
+              {" · "}
+              {filteredClients.length}{" "}
+              {filteredClients.length === 1
+                ? "cliente encontrado"
+                : "clientes encontrados"}
+            </p>
+
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="cursor-pointer font-medium text-[#002950] underline underline-offset-2 transition hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
+            >
+              Limpar filtros
+            </button>
+          </div>
+        )}
+
         {hasFilteredClients ? (
           <ClientsTable clients={filteredClients} />
         ) : (
@@ -298,7 +435,7 @@ export default function ClientsPage({ allClients }: Props) {
 
             <p className="mx-auto mt-1 max-w-md text-sm text-gray-500">
               {hasClients
-                ? "Tente alterar a pesquisa ou remover os filtros."
+                ? "Não foram encontrados clientes com os critérios seleccionados. Experimente alterar a pesquisa ou limpar os filtros."
                 : "Adicione o primeiro cliente para começar a gerir a sua carteira de clientes."}
             </p>
 

@@ -16,7 +16,7 @@ export const CLIENT_TYPES = [
 export const CLIENT_STATUSES = [
   {
     value: "Active",
-    label: "Ativo",
+    label: "Activo",
   },
   {
     value: "Prospective",
@@ -24,7 +24,7 @@ export const CLIENT_STATUSES = [
   },
   {
     value: "Inactive",
-    label: "Inativo",
+    label: "Inactivo",
   },
 ] as const;
 
@@ -44,8 +44,8 @@ export const CONTACT_METHODS = [
 ] as const;
 
 export const STATUS_LABELS: Record<string, string> = {
-  Active: "Ativo",
-  Inactive: "Inativo",
+  Active: "Activo",
+  Inactive: "Inactivo",
   Prospective: "Potencial",
 };
 

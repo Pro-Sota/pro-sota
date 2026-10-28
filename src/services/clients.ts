@@ -44,7 +44,7 @@ export async function getClients(): Promise<ClientWithProjectCount[]> {
     .from("clients")
     .select("*")
     .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .order("name", { ascending: true });
 
   if (error) {
     console.error("getClients:", error);
