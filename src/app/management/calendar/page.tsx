@@ -1,6 +1,7 @@
 import { getCalendarContacts } from "@/services/calendar_contacts";
 import CalendarPageInit from "./calendar";
 import { getCalendarEvents } from "@/services/calendar";
+import { requireUser } from "@/app/lib/supabase/auth";
 
 
 const TIME_ZONE = "Africa/Luanda";
@@ -86,6 +87,8 @@ export default async function CalendarPage() {
 
     const contacts = await getCalendarContacts();
 
+    const userInfo = await requireUser();
+
     return (
         <CalendarPageInit
             events={events}
@@ -95,6 +98,7 @@ export default async function CalendarPage() {
                 ...supplier,
                 supplier_name: supplier.name,
             }))}
+            userInfo={userInfo}
 
         />
     );

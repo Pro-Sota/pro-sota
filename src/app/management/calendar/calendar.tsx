@@ -4,14 +4,12 @@
 import { CalendarDays, Plus } from "lucide-react";
 import { useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
-import CreateMeetingModal from "@/app/components/create_meeting_modal";
 
 import {
   createCalendarEventAction,
   updateCalendarEventAction,
 } from "@/actions/calendar";
 
-import NewEventModal from "./new_event_modal";
 import ViewEventModal, {
   type CalendarEventDetails,
 } from "./view_event_modal";
@@ -33,12 +31,12 @@ import type {
   CalendarEvent,
   CalendarPageInitProps,
 } from "./types";
+import CreateMeetingModal from "@/app/components/create_meeting_modal";
 
-type NewEventSubmit = NonNullable<
-  ComponentProps<typeof NewEventModal>["onSubmitAction"]
->;
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
-type NewEventPayload = Parameters<NewEventSubmit>[0];
 
 const ALLOWED_EVENT_TYPES = [
   "meeting",
@@ -48,6 +46,15 @@ const ALLOWED_EVENT_TYPES = [
 
 type SupportedEventType = (typeof ALLOWED_EVENT_TYPES)[number];
 
+type CalendarEventWithCreator = CalendarEvent & {
+  created_by?: string | null;
+  event_id?: string;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
 function isSupportedEventType(
   type: string,
 ): type is SupportedEventType {
@@ -55,14 +62,13 @@ function isSupportedEventType(
 }
 
 /**
- * Adapts the calendar's existing event shape to the modal's detail shape.
- *
- * CalendarEvent currently has no end time. Timed events therefore use a
- * one-hour default; events without a time are treated as all-day events.
+ * Converts the calendar's event shape into the details-modal shape.
+ * Preserve the creator ID so the modal can apply its edit visibility rule.
  */
 function toEventDetails(
   event: CalendarEvent,
 ): CalendarEventDetails {
+  const source = event as CalendarEventWithCreator;
   const allDay = !event.time;
 
   const startAt = new Date(
@@ -75,7 +81,8 @@ function toEventDetails(
   );
 
   return {
-    event_id: event.id,
+    event_id: source.event_id ?? event.id,
+    created_by: source.created_by ?? null,
     title: event.title,
     event_type: event.type,
     start_at: startAt.toISOString(),
@@ -89,22 +96,30 @@ function toEventDetails(
 function getLuandaDateTime(date: string, time: string): Date {
   return new Date(`${date}T${time}:00+01:00`);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
+
 export default function CalendarPageInit({
   events,
   participants,
   clients,
   suppliers,
+  userInfo,
 }: CalendarPageInitProps) {
-
   const router = useRouter();
+
   const calendar = useCalendar({
     events,
     participants,
     clients,
     suppliers,
+    userInfo,
   });
 
-  const [isCreateMeetingOpen, setIsCreateMeetingOpen] = useState(false);
+  const [isCreateEventOpen, setIsCreateEventOpen] =
+    useState(false);
 
   const [selectedEvent, setSelectedEvent] =
     useState<CalendarEventDetails | null>(null);
@@ -115,16 +130,16 @@ export default function CalendarPageInit({
   const [isEditEventOpen, setIsEditEventOpen] =
     useState(false);
 
-  const canEditSelectedEvent =
-    selectedEvent !== null &&
-    isSupportedEventType(selectedEvent.event_type);
+  /* ---------------------------------------------------------------------- */
+  /* Modal handlers                                                         */
+  /* ---------------------------------------------------------------------- */
 
   function openEventModal() {
-    setIsCreateMeetingOpen(true);
+    setIsCreateEventOpen(true);
   }
 
   function closeEventModal() {
-    setIsCreateMeetingOpen(false);
+    setIsCreateEventOpen(false);
   }
 
   function closeViewEventModal() {
@@ -135,8 +150,6 @@ export default function CalendarPageInit({
   function closeEditEventModal() {
     setIsEditEventOpen(false);
   }
-
-
 
   function handleSelectEvent(event: CalendarEvent) {
     setSelectedEvent(toEventDetails(event));
@@ -149,62 +162,10 @@ export default function CalendarPageInit({
     setIsViewEventOpen(false);
     setIsEditEventOpen(true);
   }
-
-  async function handleCreateEvent(payload: NewEventPayload) {
-    const eventType = String(payload.type);
-
-    if (!isSupportedEventType(eventType)) {
-      throw new Error(
-        "Este tipo de evento ainda não é suportado.",
-      );
-    }
-
-    if (
-      !payload.date ||
-      !payload.startTime ||
-      !payload.endTime
-    ) {
-      throw new Error("Indique a data e as horas do evento.");
-    }
-
-    const startAt = getLuandaDateTime(
-      payload.date,
-      payload.startTime,
-    );
-
-    const endAt = getLuandaDateTime(
-      payload.date,
-      payload.endTime,
-    );
-
-    if (
-      !Number.isFinite(startAt.getTime()) ||
-      !Number.isFinite(endAt.getTime()) ||
-      endAt <= startAt
-    ) {
-      throw new Error(
-        "A hora de fim deve ser posterior à hora de início.",
-      );
-    }
-
-    const result = await createCalendarEventAction({
-      title: payload.title.trim(),
-      event_type: eventType,
-      start_at: startAt.toISOString(),
-      end_at: endAt.toISOString(),
-      location: payload.location || null,
-      description: payload.description || null,
-    });
-
-    if (!result.success) {
-      throw new Error(
-        result.error || "Não foi possível criar o evento.",
-      );
-    }
-
-    closeEventModal();
-    router.refresh();
-  }
+  
+  /* ---------------------------------------------------------------------- */
+  /* Update event                                                           */
+  /* ---------------------------------------------------------------------- */
 
   async function handleUpdateEvent(
     input: UpdateCalendarEventInput,
@@ -233,6 +194,22 @@ export default function CalendarPageInit({
 
     router.refresh();
   }
+
+  /* ---------------------------------------------------------------------- */
+  /* Current user                                                           */
+  /* ---------------------------------------------------------------------- */
+
+  const currentUser = userInfo;
+
+  const currentUserId =
+    currentUser?.user.id ?? null;
+
+  const currentUserRoleId =
+    currentUser?.userRole ?? null;
+
+  /* ---------------------------------------------------------------------- */
+  /* Render                                                                 */
+  /* ---------------------------------------------------------------------- */
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#F7F7F5] px-3 py-4 sm:px-4 sm:py-6 md:px-6 lg:px-8 lg:py-8">
@@ -323,7 +300,9 @@ export default function CalendarPageInit({
             <SelectedDayAgenda
               selectedDate={calendar.selectedDate}
               selectedEvents={calendar.selectedEvents}
-              onClear={() => calendar.setSelectedDate(null)}
+              onClear={() =>
+                calendar.setSelectedDate(null)
+              }
               onAddEvent={openEventModal}
               onSelectEvent={handleSelectEvent}
             />
@@ -343,21 +322,20 @@ export default function CalendarPageInit({
       </div>
 
       <CreateMeetingModal
-        open={isCreateMeetingOpen}
+        open={isCreateEventOpen}
         onClose={closeEventModal}
         participants={participants}
         clients={clients}
         suppliers={suppliers}
-        mode="event"
       />
 
       <ViewEventModal
         open={isViewEventOpen}
         event={selectedEvent}
+        currentUserId={currentUserId}
+        currentUserRoleId={currentUserRoleId}
         onCloseAction={closeViewEventModal}
-        onEditAction={
-          canEditSelectedEvent ? handleEditEvent : undefined
-        }
+        onEditAction={handleEditEvent}
       />
 
       <EditEventModal

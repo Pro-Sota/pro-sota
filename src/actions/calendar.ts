@@ -374,3 +374,83 @@ export async function searchCalendarParticipants(
         return [];
     }
 }
+
+
+/**
+ * Deletes an existing calendar event.
+ * Access control must be enforced by Supabase RLS
+ * or by the service layer.
+ */
+export async function deleteCalendarEventAction(eventId: string) {
+    try {
+        if (
+            typeof eventId !== "string" ||
+            !eventId.trim()
+        ) {
+            return {
+                success: false,
+                error: "Evento inválido.",
+            };
+        }
+
+        await deleteCalendarEvent(eventId.trim());
+
+        revalidatePath("/management/calendar");
+        revalidatePath("/management");
+
+        return {
+            success: true,
+            error: null,
+        };
+    } catch (error) {
+        console.error("Erro ao eliminar evento:", error);
+
+        return {
+            success: false,
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Não foi possível eliminar o evento. Tente novamente.",
+        };
+    }
+}
+
+async function canManageCalendarEvent(eventId: string): Promise<boolean> {
+    const supabase = await createClient(await cookies());
+
+    const {
+        data: { user },
+        error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+        return false;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("profile_id, role_id")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+
+    if (profileError || !profile) {
+        return false;
+    }
+
+    // Admin can manage every event.
+    if (profile.role_id === 1) {
+        return true;
+    }
+
+    const { data: event, error: eventError } = await supabase
+        .from("calendar_events")
+        .select("created_by")
+        .eq("event_id", eventId)
+        .maybeSingle();
+
+    if (eventError || !event) {
+        return false;
+    }
+
+    return event.created_by === profile.profile_id;
+}

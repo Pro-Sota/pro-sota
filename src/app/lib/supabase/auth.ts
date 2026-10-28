@@ -7,7 +7,7 @@ type Role = {
   name: string | null;
 };
 
-type ProfileWithRole = {
+export type ProfileWithRole = {
   profile_id: string;
   role_id: number | null;
   roles: Role | Role[] | null;

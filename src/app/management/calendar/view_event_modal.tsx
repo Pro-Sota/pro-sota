@@ -38,7 +38,7 @@ export type CalendarEventParticipant = {
 
 export type CalendarEventDetails = {
     event_id: string;
-    /** Authenticated profile/user ID that created this event. */
+    /** Authenticated profile ID that created this event. */
     created_by?: string | null;
     title: string;
     event_type: EventType;
@@ -53,8 +53,13 @@ export type CalendarEventDetails = {
 type ViewEventModalProps = {
     open: boolean;
     event: CalendarEventDetails | null;
-    /** Authenticated user ID. If missing, editing is disabled. */
+
+    /** Authenticated user's profile ID. */
     currentUserId?: string | null;
+
+    /** Authenticated user's role ID. Admin = 1. */
+    currentUserRoleId?: string | null;
+
     onCloseAction: () => void;
     onEditAction?: (event: CalendarEventDetails) => void;
     onDeleteAction?: (event: CalendarEventDetails) => Promise<void> | void;
@@ -65,6 +70,8 @@ type ParticipantCategory = "team" | "clients" | "suppliers";
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                  */
 /* -------------------------------------------------------------------------- */
+
+const ADMIN_ROLE_ID = "admin";
 
 const EVENT_LABELS: Record<string, string> = {
     meeting: "Reunião",
@@ -195,6 +202,7 @@ export default function ViewEventModal({
     open,
     event,
     currentUserId,
+    currentUserRoleId,
     onCloseAction,
     onEditAction,
     onDeleteAction,
@@ -234,11 +242,15 @@ export default function ViewEventModal({
     const selectedEvent = event;
     const participants = selectedEvent.participants ?? [];
 
-    // Fail closed: only the authenticated creator can see the edit action.
-    const canEdit =
+    // Admins can edit every event. Other users can only edit events they created.
+    const isAdmin = currentUserRoleId?.toLocaleLowerCase() === ADMIN_ROLE_ID;
+
+    const isCreator =
         Boolean(currentUserId) &&
         Boolean(selectedEvent.created_by) &&
         currentUserId === selectedEvent.created_by;
+
+    const canEdit = isAdmin || isCreator;
 
     async function handleDelete() {
         if (!onDeleteAction || isDeleting) return;
@@ -273,7 +285,7 @@ export default function ViewEventModal({
     }
 
     function handleEdit() {
-        if (onEditAction && !isDeleting) {
+        if (onEditAction && canEdit && !isDeleting) {
             onEditAction(selectedEvent);
         }
     }
@@ -470,8 +482,7 @@ export default function ViewEventModal({
                                                     className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-medium ${
                                                         category === "team"
                                                             ? "bg-[#002950]/[0.07] text-[#002950]"
-                                                            : category ===
-                                                                "clients"
+                                                            : category === "clients"
                                                               ? "bg-[#BD9655]/15 text-[#78551F]"
                                                               : "bg-emerald-50 text-emerald-800"
                                                     }`}
