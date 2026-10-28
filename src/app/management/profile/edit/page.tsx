@@ -1,9 +1,16 @@
-export const dynamic = "force-dynamic";
+import { requireUser } from "@/app/lib/supabase/auth";
 import EditForm from "./edit_form";
-import { getProfile } from "@/services/auth_server";
 
+export const dynamic = "force-dynamic";
 
 export default async function EditProfilePage() {
-    const profile = await getProfile();
-    return (<EditForm profile={profile || null} />)
+  const { user, profile, isAdmin } = await requireUser();
+
+  return (
+    <EditForm
+      profile={profile}
+      isAdmin={isAdmin}
+      isOwnProfile={user.id === profile.profile_id}
+    />
+  );
 }

@@ -1,15 +1,23 @@
+
 "use client";
 
-import ProjectCard from "./components/project_card";
-import { Database } from "@/app/lib/supabase/models";
+import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import type { Database } from "@/app/lib/supabase/models";
 import {
     Calendar,
+    CheckCircle2,
+    CircleHelp,
     FolderOpen,
     Mail,
     Pencil,
     Phone,
+    BriefcaseBusiness,
+    ArrowRight,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+
+import ProjectCard from "./components/project_card";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Project = Database["public"]["Tables"]["projects"]["Row"];
@@ -19,51 +27,130 @@ type Props = {
     projects: Project[];
 };
 
-const formatDate = (dateString: string | null) => {
+const MAX_VISIBLE_PROJECTS = 6;
+
+function formatDate(dateString: string | null): string {
     if (!dateString) return "—";
 
-    return new Date(dateString).toLocaleDateString("pt-PT", {
-        year: "numeric",
-        month: "long",
+    const date = new Date(dateString);
+
+    if (Number.isNaN(date.getTime())) return "—";
+
+    return new Intl.DateTimeFormat("pt-PT", {
         day: "numeric",
-    });
-};
+        month: "long",
+        year: "numeric",
+        timeZone: "Africa/Luanda",
+    }).format(date);
+}
+
+function normalizeStatus(status: string | null | undefined): string {
+    return (status ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase();
+}
+
+function isCompleted(status: string | null | undefined): boolean {
+    return ["concluido", "concluida", "completed", "complete"].includes(
+        normalizeStatus(status),
+    );
+}
+
+function isArchived(project: Project): boolean {
+    return (
+        "archived_at" in project &&
+        Boolean(project.archived_at)
+    );
+}
 
 export default function ProfileClient({
     profile,
     projects,
 }: Props) {
-    const router = useRouter();
+    const [imageFailed, setImageFailed] = useState(false);
 
-    const fullName =
-        `${profile.first_name || ""} ${profile.last_name || ""}`
-            .trim();
-
-    const initials = fullName
-        .split(" ")
+    const fullName = [
+        profile.first_name?.trim(),
+        profile.last_name?.trim(),
+    ]
         .filter(Boolean)
-        .map((name) => name[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
+        .join(" ");
+
+    const initials =
+        fullName
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((part) => part[0])
+            .slice(0, 2)
+            .join("")
+            .toUpperCase() || "—";
+
+    // Derive project metrics from the projects provided by the server.
+    const uniqueProjects = Array.from(
+        new Map(
+            projects.map((project) => [
+                project.project_id,
+                project,
+            ]),
+        ).values(),
+    );
+
+    const visibleProjects = uniqueProjects.slice(
+        0,
+        MAX_VISIBLE_PROJECTS,
+    );
+
+    const activeProjects = uniqueProjects.filter(
+        (project) =>
+            !isArchived(project) &&
+            !isCompleted(project.status),
+    ).length;
+
+    const completedProjects = uniqueProjects.filter(
+        (project) =>
+            !isArchived(project) &&
+            isCompleted(project.status),
+    ).length;
 
     const stats = [
-        { title: "Projectos Activos", value: 0 },
-        { title: "Concluído", value: 0 },
-        { title: "Comentário pendentes", value: 0 },
-        { title: "Experiência", value: 0 },
+        {
+            title: "Projectos Activos",
+            value: activeProjects,
+            icon: FolderOpen,
+            description: "Projectos não concluídos",
+        },
+        {
+            title: "Concluídos",
+            value: completedProjects,
+            icon: CheckCircle2,
+            description: "Projectos finalizados",
+        },
+        {
+            title: "Comentários pendentes",
+            value: "—" as const,
+            icon: CircleHelp,
+            description: "Dados não disponibilizados",
+        },
+        {
+            title: "Experiência",
+            value: "—" as const,
+            icon: BriefcaseBusiness,
+            description: "Anos de experiência profissional",
+        },
     ];
 
     const info = [
         {
             icon: Mail,
             label: "Email",
-            value: profile.email || "—",
+            value: profile.email?.trim() || "—",
         },
         {
             icon: Phone,
             label: "Telefone",
-            value: profile.phone_number || "—",
+            value: profile.phone_number?.trim() || "—",
         },
         {
             icon: Calendar,
@@ -72,134 +159,223 @@ export default function ProfileClient({
         },
     ];
 
+    // Support an optional profile_picture column without requiring
+    // it to be present in the generated Supabase type.
+    const profilePicture =
+        "profile_picture" in profile &&
+        typeof profile.profile_picture === "string"
+            ? profile.profile_picture.trim()
+            : "";
+
+    const showProfilePicture =
+        Boolean(profilePicture) && !imageFailed;
+
     return (
-        <div className="min-h-screen p-6 md:p-10">
-            <div className="mx-auto max-w-7xl space-y-8">
-                {/* Header */}
-                <section className="rounded-3xl bg-white p-8 shadow-sm">
+        <main className="min-h-screen p-4 sm:p-6 md:p-10">
+            <div className="mx-auto max-w-7xl space-y-6 md:space-y-8">
+                {/* Profile header */}
+                <section
+                    aria-labelledby="profile-heading"
+                    className="rounded-3xl bg-white p-5 shadow-sm sm:p-8"
+                >
                     <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-[#BD9655] text-3xl font-semibold text-[#002950]">
-                                {initials || "—"}
+                        <div className="flex min-w-0 items-center gap-4 sm:gap-5">
+                            <div
+                                className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#BD9655] text-2xl font-semibold text-[#002950] sm:h-24 sm:w-24 sm:text-3xl"
+                                aria-label={`Foto de ${fullName || "utilizador"}`}
+                            >
+                                {showProfilePicture ? (
+                                    <Image
+                                        src={profilePicture}
+                                        alt={`Foto de perfil de ${fullName || "utilizador"}`}
+                                        fill
+                                        sizes="96px"
+                                        className="object-cover"
+                                        onError={() => setImageFailed(true)}
+                                    />
+                                ) : (
+                                    <span aria-hidden="true">
+                                        {initials}
+                                    </span>
+                                )}
                             </div>
 
-                            <div>
-                                <h1 className="mt-2 text-[#002950] text-4xl font-medium">
+                            <div className="min-w-0">
+                                <h1
+                                    id="profile-heading"
+                                    className="break-words text-2xl font-medium text-[#002950] sm:text-3xl md:text-4xl"
+                                >
                                     {fullName || "Utilizador"}
                                 </h1>
 
-                                <p className="mt-1 text-sm text-gray-400">
-                                    {profile.department || "—"}
+                                <p className="mt-2 break-words text-sm text-gray-500">
+                                    {profile.department || "Departamento não definido"}
+                                </p>
+
+                                <p className="mt-1 text-xs text-gray-400">
+                                    Membro desde {formatDate(profile.created_at)}
                                 </p>
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={() =>
-                                router.push("/management/profile/edit")
-                            }
-                            className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-6 py-3 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90"
+                        <Link
+                            href="/management/profile/edit"
+                            aria-label="Editar perfil"
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#BD9655] px-5 py-3 text-sm font-medium text-[#002950] transition hover:bg-[#BD9655]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
                         >
-                            <Pencil size={16} />
+                            <Pencil size={16} aria-hidden="true" />
                             Editar perfil
-                        </button>
+                        </Link>
                     </div>
                 </section>
 
-                {/* Stats */}
-                <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                    {stats.map((item) => (
-                        <div
-                            key={item.title}
-                            className="rounded-2xl bg-white p-6 shadow-xs transition hover:-translate-y-1"
-                        >
-                            <p className="text-xs uppercase tracking-widest text-gray-500">
-                                {item.title}
-                            </p>
+                {/* Statistics */}
+                <section
+                    aria-label="Estatísticas do perfil"
+                    className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                >
+                    {stats.map((item) => {
+                        const Icon = item.icon;
 
-                            <h3 className="mt-4 text-4xl font-sans">
-                                {item.value}
-                            </h3>
-                        </div>
-                    ))}
+                        return (
+                            <article
+                                key={item.title}
+                                className="rounded-2xl bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-6"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+                                        {item.title}
+                                    </p>
+
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#BD9655]/15 text-[#002950]">
+                                        <Icon
+                                            size={18}
+                                            aria-hidden="true"
+                                        />
+                                    </div>
+                                </div>
+
+                                <p className="mt-4 text-3xl font-semibold tabular-nums text-[#002950] sm:text-4xl">
+                                    {item.value}
+                                </p>
+
+                                <p className="mt-2 text-xs text-gray-400">
+                                    {item.description}
+                                </p>
+                            </article>
+                        );
+                    })}
                 </section>
 
-                <div className="grid gap-6 xl:grid-cols-3">
-                    {/* Information */}
-                    <section className="rounded-3xl bg-white p-7 xl:col-span-1">
-                        <h2 className="mb-8 text-xl font-sans">
+                {/* Personal information and projects */}
+                <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-3">
+                    {/* Personal information */}
+                    <section
+                        aria-labelledby="personal-information-heading"
+                        className="min-w-0 rounded-3xl bg-white p-5 sm:p-7 xl:col-span-1"
+                    >
+                        <h2
+                            id="personal-information-heading"
+                            className="mb-7 text-xl font-medium text-[#002950]"
+                        >
                             Informação pessoal
                         </h2>
 
                         <div className="grid gap-6">
-                            {info.map(
-                                ({
-                                    icon: Icon,
-                                    label,
-                                    value,
-                                }) => (
-                                    <div
-                                        key={label}
-                                        className="flex gap-4"
-                                    >
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-300">
-                                            <Icon
-                                                size={18}
-                                                className="text-gray-700"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <p className="text-xs uppercase tracking-wider text-gray-400">
-                                                {label}
-                                            </p>
-
-                                            <p className="mt-1 text-sm font-medium text-gray-900">
-                                                {value}
-                                            </p>
-                                        </div>
+                            {info.map(({ icon: Icon, label, value }) => (
+                                <div
+                                    key={label}
+                                    className="flex min-w-0 items-start gap-4"
+                                >
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200">
+                                        <Icon
+                                            size={18}
+                                            className="text-gray-600"
+                                            aria-hidden="true"
+                                        />
                                     </div>
-                                )
-                            )}
+
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                                            {label}
+                                        </p>
+
+                                        <p className="mt-1 break-words text-sm font-medium text-gray-900">
+                                            {value}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </section>
 
-                    {/* Projects */}
-                    <section className="rounded-3xl bg-white p-7 xl:col-span-2">
-                        <div className="mb-8 flex items-center justify-between">
-                            <h2 className="text-xl font-sans">
-                                Projectos atribuídos
-                            </h2>
+                    {/* Assigned projects */}
+                    <section
+                        aria-labelledby="assigned-projects-heading"
+                        className="min-w-0 rounded-3xl bg-white p-5 sm:p-7 xl:col-span-2"
+                    >
+                        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8">
+                            <div>
+                                <h2
+                                    id="assigned-projects-heading"
+                                    className="text-xl font-medium text-[#002950]"
+                                >
+                                    Projectos atribuídos
+                                </h2>
 
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    router.push(
-                                        "/management/projects"
-                                    )
-                                }
-                                className="cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition hover:border-gray-400"
+                                <p className="mt-1 text-sm text-gray-500">
+                                    {uniqueProjects.length}{" "}
+                                    {uniqueProjects.length === 1
+                                        ? "projecto"
+                                        : "projectos"}
+                                </p>
+                            </div>
+
+                            <Link
+                                href="/management/projects"
+                                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition hover:border-[#BD9655] hover:text-[#002950] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
                             >
                                 Ver todos
-                            </button>
+                                <ArrowRight
+                                    size={15}
+                                    aria-hidden="true"
+                                />
+                            </Link>
                         </div>
 
-                        {projects.length > 0 ? (
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-                                {projects.map((project) => (
-                                    <ProjectCard
-                                        key={project.project_id}
-                                        project={project}
-                                    />
-                                ))}
-                            </div>
+                        {visibleProjects.length > 0 ? (
+                            <>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    {visibleProjects.map((project) => (
+                                        <ProjectCard
+                                            key={project.project_id}
+                                            project={project}
+                                        />
+                                    ))}
+                                </div>
+
+                                {uniqueProjects.length >
+                                    MAX_VISIBLE_PROJECTS && (
+                                    <div className="mt-6 border-t border-gray-100 pt-4 text-center">
+                                        <Link
+                                            href="/management/projects"
+                                            className="text-sm font-medium text-[#002950] underline decoration-[#BD9655] underline-offset-4 hover:text-[#BD9655] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
+                                        >
+                                            Ver os restantes{" "}
+                                            {uniqueProjects.length -
+                                                MAX_VISIBLE_PROJECTS}{" "}
+                                            projectos
+                                        </Link>
+                                    </div>
+                                )}
+                            </>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-12 text-center">
                                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
                                     <FolderOpen
-                                        size={24}
+                                        size={26}
                                         className="text-gray-400"
+                                        aria-hidden="true"
                                     />
                                 </div>
 
@@ -207,16 +383,27 @@ export default function ProfileClient({
                                     Sem projectos atribuídos
                                 </h3>
 
-                                <p className="mt-2 max-w-xs text-sm text-gray-500">
-                                    Nenhum projecto foi atribuído
-                                    ainda. Os projectos aparecerão aqui
-                                    quando forem adicionados.
+                                <p className="mt-2 max-w-xs text-sm leading-6 text-gray-500">
+                                    Ainda não existem projectos associados
+                                    ao seu perfil. Os projectos atribuídos
+                                    aparecerão aqui.
                                 </p>
+
+                                <Link
+                                    href="/management/projects"
+                                    className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-[#002950] underline decoration-[#BD9655] underline-offset-4 hover:text-[#BD9655] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950]"
+                                >
+                                    Consultar projectos
+                                    <ArrowRight
+                                        size={15}
+                                        aria-hidden="true"
+                                    />
+                                </Link>
                             </div>
                         )}
                     </section>
                 </div>
             </div>
-        </div>
+        </main>
     );
 }

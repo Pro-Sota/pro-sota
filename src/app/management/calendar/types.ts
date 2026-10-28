@@ -25,8 +25,7 @@ import type {
   CalendarSupplierOption,
 } from "@/app/management/calendar/components/create_meeting_modal";
 
-import { ProfileWithRole, requireUser } from "@/app/lib/supabase/auth";
-import { User } from "@supabase/supabase-js";
+import { requireUser } from "@/app/lib/supabase/auth";
 
 export type CalendarPageInitProps = {
   events: CalendarEvent[];

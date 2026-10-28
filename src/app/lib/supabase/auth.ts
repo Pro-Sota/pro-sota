@@ -1,17 +1,13 @@
 import { createClient } from "@/app/lib/supabase/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import type { Database } from "@/app/lib/supabase/models";
+
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 type Role = {
   role_id: number;
   name: string | null;
-};
-
-export type ProfileWithRole = {
-  profile_id: string;
-  role_id: number | null;
-  roles: Role | Role[] | null;
-  department: string | null;
 };
 
 export async function getAuthenticatedUser() {
@@ -23,14 +19,12 @@ export async function getAuthenticatedUser() {
     error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) {
-    return null;
-  }
+  if (error || !user) return null;
 
   return user;
 }
 
-export async function requireUser() {
+export async function requireUser(profileId?: string) {
   const user = await getAuthenticatedUser();
 
   if (!user) {
@@ -40,55 +34,62 @@ export async function requireUser() {
   const cookieStore = await cookies();
   const supabase = await createClient(cookieStore);
 
+  // Fetch the complete profile being edited.
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select(`
-      profile_id,
-      department,
-      role_id,
-      roles (
-        role_id,
-        name
-      )
-    `)
-    .eq("profile_id", user.id)
-    .maybeSingle<ProfileWithRole>();
+    .select("*")
+    .eq("profile_id", profileId ?? user.id)
+    .maybeSingle<Profile>();
 
   if (profileError) {
-    console.error("Error loading authenticated user profile:", {
-      message: profileError.message,
-      details: profileError.details,
-      hint: profileError.hint,
-      code: profileError.code,
-    });
+    console.error("Error loading profile:", profileError);
   }
 
   if (!profile) {
-    console.warn("No profile found for authenticated user:", user.id);
+    redirect("/management");
   }
 
-  if (profile && !profile.role_id) {
-    console.warn("Profile has no role_id:", user.id);
+  // Fetch the role matching this profile's role_id.
+  let role: Role | null = null;
+
+  if (profile.role_id !== null) {
+    const { data: roleData, error: roleError } = await supabase
+      .from("roles")
+      .select("role_id, name")
+      .eq("role_id", profile.role_id)
+      .maybeSingle();
+
+    if (roleError) {
+      console.error("Error loading profile role:", roleError);
+    }
+
+    role = roleData;
   }
 
-  const roles = profile?.roles;
+  // Only allow users to view their own profile unless they are admins.
+  const { data: currentProfile, error: currentProfileError } =
+    await supabase
+      .from("profiles")
+      .select("role_id")
+      .eq("profile_id", user.id)
+      .maybeSingle();
 
-  const userRole = Array.isArray(roles)
-    ? roles[0]?.name ?? null
-    : roles?.name ?? null;
+  if (currentProfileError || !currentProfile) {
+    redirect("/management");
+  }
 
-  const userDepartment = profile?.department;
+  const isAdmin = currentProfile.role_id === 1;
 
-  console.log("Authenticated user:", user.id);
-  console.log("Profile role_id:", profile?.role_id);
-  console.log("Resolved role:", userRole);
-  console.log("Resolved department:", userDepartment);
-
+  if (profile.profile_id !== user.id && !isAdmin) {
+    redirect("/management");
+  }
 
   return {
     user,
     profile,
-    userRole,
-    userDepartment
+    role,
+    userRole: role?.name ?? null,
+    userDepartment: profile.department ?? null,
+    isAdmin,
   };
 }
