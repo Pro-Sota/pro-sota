@@ -118,6 +118,12 @@ const menuItems: SidebarItem[] = [
     icon: ListTodo,
     permission: "tasks.view",
   },
+  {
+    name: "Briefings",
+    href: "/management/project-briefing",
+    icon: ListTodo,
+    permission: "project_briefing.view",
+  },
 
   // Uncomment when the documents route and permission are ready.
   /*

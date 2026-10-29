@@ -1,4 +1,3 @@
-
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -169,7 +168,7 @@ function validate(input: UpdateProjectInput): string | null {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Image upload                                                               */
+/* Image storage helpers                                                      */
 /* -------------------------------------------------------------------------- */
 
 async function removeUploadedImage(
@@ -190,8 +189,44 @@ async function removeUploadedImage(
     }
 }
 
+/**
+ * Gets the Storage object path from a public URL belonging to our bucket.
+ * External URLs and files outside this project's folder are never deleted.
+ */
+function getProjectImagePath(
+    imageUrl: string | null,
+    projectId: string,
+): string | null {
+    if (!imageUrl) return null;
+
+    try {
+        const url = new URL(imageUrl);
+        const marker = `/storage/v1/object/public/${IMAGE_BUCKET}/`;
+        const markerIndex = url.pathname.indexOf(marker);
+
+        if (markerIndex === -1) return null;
+
+        const encodedPath = url.pathname.slice(
+            markerIndex + marker.length,
+        );
+
+        const filePath = encodedPath
+            .split("/")
+            .map((segment) => decodeURIComponent(segment))
+            .join("/");
+
+        if (!filePath || !filePath.startsWith(`${projectId}/`)) {
+            return null;
+        }
+
+        return filePath;
+    } catch {
+        return null;
+    }
+}
+
 /* -------------------------------------------------------------------------- */
-/* Update project details and upload image                                    */
+/* Update project details, upload image, or delete image                      */
 /* -------------------------------------------------------------------------- */
 
 export async function updateProjectDetails(
@@ -227,7 +262,7 @@ export async function updateProjectDetails(
             };
         }
 
-        /* Validate the file before uploading. */
+        /* Validate the image before uploading. */
         if (imageFile && imageFile.size > 0) {
             if (!EXTENSIONS[imageFile.type]) {
                 return {
@@ -259,7 +294,7 @@ export async function updateProjectDetails(
             };
         }
 
-        /* Confirm that the project exists and is accessible through RLS. */
+        /* Fetch the project and its current image through RLS. */
         const {
             data: existingProjectData,
             error: projectError,
@@ -287,15 +322,15 @@ export async function updateProjectDetails(
             existingProjectData as ExistingProject;
 
         /*
-         * Keep the current image by default.
-         * A new upload replaces the URL saved in the database.
+         * Preserve the current image by default.
+         * Explicit deletion clears the URL.
+         * A newly uploaded image replaces the current image.
          */
-        let imageUrl =
-            input.image?.trim() ||
-            existingProject.image ||
-            null;
+        let imageUrl = removeImage
+            ? null
+            : input.image?.trim() || existingProject.image || null;
 
-        /* Upload the new image to Supabase Storage. */
+        /* Upload a replacement image when one was provided. */
         if (imageFile && imageFile.size > 0) {
             const extension = EXTENSIONS[imageFile.type];
 
@@ -398,7 +433,7 @@ export async function updateProjectDetails(
                 hint: updateError?.hint,
             });
 
-            /* Remove the new file if the database update failed. */
+            /* Roll back the newly uploaded file if saving failed. */
             await removeUploadedImage(supabase, uploadedFilePath);
             uploadedFilePath = null;
 
@@ -437,42 +472,31 @@ export async function updateProjectDetails(
 
         /*
          * The database update succeeded.
-         * Keep the newly uploaded image and clean up the previous Storage
-         * image only when it belongs to this bucket and project folder.
+         * Remove the previous Storage file only if its image was removed
+         * or replaced. Never delete external URLs or files outside this
+         * project's own folder.
          */
+        const imageWasChanged =
+            removeImage ||
+            Boolean(uploadedFilePath) ||
+            (Boolean(existingProject.image) &&
+                imageUrl !== existingProject.image);
+
         if (
-            uploadedFilePath &&
+            imageWasChanged &&
             existingProject.image &&
             existingProject.image !== imageUrl
         ) {
-            try {
-                const previousUrl = new URL(existingProject.image);
-                const publicPathMarker =
-                    `/storage/v1/object/public/${IMAGE_BUCKET}/`;
+            const previousFilePath = getProjectImagePath(
+                existingProject.image,
+                projectId,
+            );
 
-                const markerIndex =
-                    previousUrl.pathname.indexOf(publicPathMarker);
-
-                if (markerIndex !== -1) {
-                    const previousFilePath = decodeURIComponent(
-                        previousUrl.pathname.slice(
-                            markerIndex + publicPathMarker.length,
-                        ),
-                    );
-
-                    if (
-                        previousFilePath.startsWith(`${projectId}/`) &&
-                        previousFilePath !== uploadedFilePath
-                    ) {
-                        await removeUploadedImage(
-                            supabase,
-                            previousFilePath,
-                        );
-                    }
-                }
-            } catch (cleanupError) {
-                /* Do not fail a successful save because old-file cleanup failed. */
-                console.error("Previous project image cleanup failed:", cleanupError);
+            if (
+                previousFilePath &&
+                previousFilePath !== uploadedFilePath
+            ) {
+                await removeUploadedImage(supabase, previousFilePath);
             }
         }
 

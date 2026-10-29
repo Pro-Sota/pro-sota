@@ -58,11 +58,11 @@ export default async function EditPage({
     return (
         <EditProjectForm
             projectId={projectId}
-            projectCode={project.project_code ?? ""}
+            projectCode={project.project_code}
             initialValues={initialValues}
             clients={clients}
             onSave={updateProjectDetails.bind(null, projectId)}
-            backHref={`/management/projects/${projectId}/overview`}
+            backHref={`/management/projects/${projectId}`}
         />
     );
 }

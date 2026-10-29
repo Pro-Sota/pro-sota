@@ -62,6 +62,11 @@ export type Permission =
   | "suppliers.edit"
   | "suppliers.delete"
 
+  // Project Briefing
+  | "project_briefing.view"
+  |"project_briefing.create"
+  |"project_briefing.delete"
+
   // Documents
   | "documents.view"
   | "documents.upload"
