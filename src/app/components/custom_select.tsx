@@ -5,9 +5,12 @@ import { useState } from "react";
 
 export default function CustomSelect({
     children,
+    onMouseDown,
+    onBlur,
+    onChange,
+    onKeyDown,
     ...props
 }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-
     const [open, setOpen] = useState(false);
 
     const inputStyle =
@@ -15,14 +18,34 @@ export default function CustomSelect({
 
     return (
         <div className="relative">
-            <select {...props}
+            <select
+                {...props}
                 className={`${inputStyle} appearance-none pr-10`}
-                onClick={() => setOpen(!open)}
-                onBlur={() => setOpen(false)}
+                onMouseDown={(e) => {
+                    setOpen((prev) => !prev);
+                    onMouseDown?.(e);
+                }}
+                onChange={(e) => {
+                    setOpen(false);
+                    onChange?.(e);
+                }}
+                onBlur={(e) => {
+                    setOpen(false);
+                    onBlur?.(e);
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === "Escape" || e.key === "Enter") setOpen(false);
+                    onKeyDown?.(e);
+                }}
             >
                 {children}
             </select>
-            <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+
+            <ChevronDown
+                className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform duration-200 ${
+                    open ? "rotate-180" : ""
+                }`}
+            />
         </div>
     );
 }

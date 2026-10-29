@@ -1,7 +1,9 @@
+
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback } from "react";
 
 interface ProjectNavbarProps {
   projectId: string;
@@ -11,6 +13,7 @@ export default function ProjectNavbar({
   projectId,
 }: ProjectNavbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const basePath = `/management/projects/${projectId}`;
 
@@ -42,6 +45,13 @@ export default function ProjectNavbar({
     },
   ];
 
+  const prefetchPage = useCallback(
+    (href: string) => {
+      router.prefetch(href);
+    },
+    [router],
+  );
+
   const isActive = (item: (typeof tabMenu)[number]) => {
     const pathToMatch = item.matchPath ?? item.href.split("?")[0];
 
@@ -54,7 +64,7 @@ export default function ProjectNavbar({
   return (
     <nav
       aria-label="Navegação do projecto"
-      className="shrink-0 border-b border-gray-200 bg-white px-4"
+      className="sticky top-0 z-10 shrink-0 border-b border-gray-200 bg-white px-4"
     >
       <ul
         className="
@@ -71,6 +81,9 @@ export default function ProjectNavbar({
             <li key={item.href} className="shrink-0">
               <Link
                 href={item.href}
+                prefetch={true}
+                onMouseEnter={() => prefetchPage(item.href)}
+                onFocus={() => prefetchPage(item.href)}
                 aria-current={active ? "page" : undefined}
                 className={[
                   "relative block whitespace-nowrap px-3 py-3",

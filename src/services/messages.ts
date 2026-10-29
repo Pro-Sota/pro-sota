@@ -301,6 +301,11 @@ export async function getOrCreateConversation(
   return conversation.id;
 }
 
+/**
+ * Creates a project group chat if one does not already exist.
+ * Adds the project's team members as conversation participants.
+ */
+
 export interface GetChatsOptions {
   conversationType: "direct" | "project";
   limit?: number;

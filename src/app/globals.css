@@ -180,3 +180,59 @@ html {
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 41, 80, 0.3);
 }
+
+.leaflet-tooltip.project-tooltip,
+.leaflet-popup.project-map-popup .leaflet-popup-content-wrapper {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.leaflet-tooltip.project-tooltip::before {
+  display: none;
+}
+.leaflet-popup.project-map-popup .leaflet-popup-content {
+  margin: 0;
+}
+.leaflet-popup.project-map-popup .leaflet-popup-tip {
+  display: none;
+}
+
+
+.project-map-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 0.75rem;
+}
+
+.project-map-popup .leaflet-popup-content {
+  width: 256px !important;
+  margin: 0;
+}
+
+.project-map-popup .leaflet-popup-content a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.project-map-popup .leaflet-popup-content a:hover {
+  text-decoration: none;
+}
+
+.project-map-popup .leaflet-popup-close-button {
+  z-index: 2;
+}
+
+.project-map-card {
+  cursor: pointer;
+  transition: box-shadow 150ms ease;
+}
+
+.project-map-card:hover {
+  box-shadow: 0 12px 28px rgb(0 0 0 / 18%);
+}
+
+.project-map-card:focus-visible {
+  outline: 2px solid #bd9655;
+  outline-offset: -2px;
+}

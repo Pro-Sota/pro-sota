@@ -2,8 +2,8 @@
 import { notFound } from "next/navigation";
 
 import { getOverviewData } from "@/services/project_overview";
-import OverviewClientPage from "./overview_client_view";
 import { requireUser } from "@/app/lib/supabase/auth";
+import OverviewClientPage from "./overview_client_view";
 
 interface OverviewPageProps {
   params: Promise<{
@@ -16,13 +16,17 @@ export default async function OverviewPage({
 }: OverviewPageProps) {
   const { projectId } = await params;
 
-  const data = await getOverviewData(projectId);
+  // Fetch overview data and authenticate concurrently.
+  const [data, { userRole }] = await Promise.all([
+    getOverviewData(projectId),
+    requireUser(),
+  ]);
 
   if (!data) {
     notFound();
   }
-  const { userRole } = await requireUser();
-  const isAdmin = userRole?.toLowerCase() === "admin"
+
+  const isAdmin = userRole?.toLowerCase() === "admin";
 
   return <OverviewClientPage data={data} isAdmin={isAdmin} />;
 }

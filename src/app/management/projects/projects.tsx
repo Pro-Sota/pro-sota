@@ -392,12 +392,15 @@ export default function ProjectsPageInner({
   const emptyKind: "none" | "search" | "filter" =
     projects.length === 0 ? "none" : isSearching ? "search" : "filter";
 
+  const isMap = viewMode === "map";
+
+
   /* ------------------------------------------------------------------------ */
   /* Render                                                                   */
   /* ------------------------------------------------------------------------ */
 
   return (
-    <div className="min-h-screen bg-[#F7F7F5] text-gray-900">
+   <div className="flex min-h-screen flex-col bg-[#F7F7F5] text-gray-900">
       <header className="bg-white">
         <div className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -515,11 +518,10 @@ export default function ProjectsPageInner({
                       type="button"
                       aria-pressed={isActive}
                       onClick={() => changeFilter(item.value)}
-                      className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
-                        isActive
-                          ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
-                          : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-100"
-                      }`}
+                      className={`flex-shrink-0 cursor-pointer whitespace-nowrap rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${isActive
+                        ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
+                        : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-100"
+                        }`}
                     >
                       {item.label}
                     </button>
@@ -563,11 +565,10 @@ export default function ProjectsPageInner({
                           aria-pressed={isActive}
                           title={label}
                           onClick={() => changeView(value)}
-                          className={`cursor-pointer rounded p-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${
-                            isActive
-                              ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
-                              : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                          }`}
+                          className={`cursor-pointer rounded p-2 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 ${isActive
+                            ? "bg-[#BD9655] text-[#002950] shadow-sm hover:bg-[#BD9655]/90"
+                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                            }`}
                         >
                           <Icon className="h-4 w-4" />
                         </button>
@@ -581,7 +582,13 @@ export default function ProjectsPageInner({
         </div>
       </div>
 
-      <main className="flex-1 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+
+      <main
+        className={`flex min-h-0 flex-1 flex-col ${isMap
+            ? "px-4 py-8 sm:px-6 sm:py-12 lg:px-8"
+            : "px-4 py-8 sm:px-6 sm:py-12 lg:px-8"
+          }`}
+      >
         {filteredProjects.length === 0 ? (
           <EmptyResults
             kind={emptyKind}
@@ -591,20 +598,19 @@ export default function ProjectsPageInner({
             onClearSearch={clearSearch}
             onClearFilter={() => changeFilter("todos")}
           />
+        ) : isMap ? (
+          <div className="relative min-h-[400px] flex-1 animate-fade-in">
+            <div className="absolute inset-0">
+              <ProjectMapView projects={filteredProjects} />
+            </div>
+          </div>
         ) : (
           <div className="animate-fade-in">
             {viewMode === "grid" && (
               <ProjectGridView projects={filteredProjects} />
             )}
-
             {viewMode === "list" && (
               <ProjectTableView projects={filteredProjects} />
-            )}
-
-            {viewMode === "map" && (
-              <div className="h-[400px] w-full">
-                <ProjectMapView projects={filteredProjects} />
-              </div>
             )}
           </div>
         )}

@@ -1,7 +1,13 @@
-
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -10,6 +16,7 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  X,
 } from "lucide-react";
 import {
   MS_PER_DAY,
@@ -113,25 +120,41 @@ const COLORS = {
 /* -------------------------------------------------------------------------- */
 
 const ROW_HEIGHT = 52;
+const ROW_HEIGHT_NARROW = 44;
 const MONTH_ROW_HEIGHT = 24;
 const DAY_ROW_HEIGHT = 20;
 const HEADER_HEIGHT = MONTH_ROW_HEIGHT + DAY_ROW_HEIGHT;
+
 const LABEL_WIDTH = 280;
+const LABEL_WIDTH_NARROW = 124;
+/** Container width (px) under which the compact mobile layout is used. */
+const NARROW_BREAKPOINT = 640;
+
 const MIN_TIMELINE_DAYS = 60;
 const START_BUFFER_DAYS = 3;
 const END_BUFFER_DAYS = 15;
 const TODAY_RANGE_PADDING_DAYS = 45;
 const BAR_LABEL_MIN_WIDTH = 60;
 const AUTO_SCROLL_LEAD_PX = 120;
+const AUTO_SCROLL_LEAD_NARROW_PX = 40;
+/** Below this day width, only Mondays get a day number in the header. */
+const EVERY_DAY_LABEL_MIN_WIDTH = 14;
 
 const ZOOM_LEVELS = {
-  overview: { dayWidth: 8, label: "Visão geral" },
-  compact: { dayWidth: 16, label: "Compacto" },
-  comfortable: { dayWidth: 26, label: "Confortável" },
+  overview: { dayWidth: 8, label: "Visão geral", short: "Geral" },
+  compact: { dayWidth: 16, label: "Compacto", short: "Médio" },
+  comfortable: { dayWidth: 26, label: "Confortável", short: "Amplo" },
 } as const;
 
-
 type ZoomLevel = keyof typeof ZOOM_LEVELS;
+type ZoomMode = ZoomLevel | "fit";
+
+const CLAMP_2_LINES = {
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+} as const;
 
 /*
  * Phase colours remain within the Pro-Sota navy/gold identity.
@@ -179,6 +202,10 @@ const PHASE_PALETTE: PhaseColor[] = [
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
+
+// useLayoutEffect warns during SSR in some React versions.
+const useIsoLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 function uniqueById<T extends { id: string }>(items: T[]): T[] {
   const seen = new Set<string>();
@@ -230,6 +257,29 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function itemKey(item: { kind: TimelineItemType; id: string }) {
+  return `${item.kind}-${item.id}`;
+}
+
+function isOverdue(item: ScheduledTimelineItem, today: Date) {
+  return Boolean(
+    item.end &&
+      item.end.getTime() < today.getTime() &&
+      clampProgress(item.progress) < 100,
+  );
+}
+
+function getItemStatus(item: ScheduledTimelineItem, today: Date) {
+  const progress = clampProgress(item.progress);
+
+  if (progress >= 100) return "Concluído";
+  if (!item.start || !item.end) return "Sem datas definidas";
+  if (isOverdue(item, today)) return "Atrasado";
+  if (item.start.getTime() > today.getTime()) return "Por iniciar";
+
+  return "Em curso";
+}
+
 /* -------------------------------------------------------------------------- */
 /* Component                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -255,17 +305,17 @@ export default function GanttChart({
     [deliverablesProp],
   );
 
-  const [zoom, setZoom] = useState<ZoomLevel>("compact");
+  const [zoom, setZoom] = useState<ZoomMode>("compact");
   const [collapsedPhases, setCollapsedPhases] = useState<
     Record<string, boolean>
   >({});
   const [today, setToday] = useState<Date>(() => startOfDay(new Date()));
-  const [fitToTimeline, setFitToTimeline] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const didAutoScroll = useRef(false);
-  const previousZoom = useRef<ZoomLevel>(zoom);
-  const skipZoomAdjustment = useRef(false);
+  const didInitZoom = useRef(false);
   const zoomAnchorDay = useRef<number | null>(null);
 
   useEffect(() => {
@@ -327,6 +377,38 @@ export default function GanttChart({
     ],
     [steps, deliverables],
   );
+
+  const hasPhases =
+    phases.length > 0 || timelineItems.length > 0;
+
+  /* ------------------------------------------------------------------------ */
+  /* Container size                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  // Measure before paint so phones never flash the desktop layout.
+  useIsoLayoutEffect(() => {
+    const element = scrollRef.current;
+
+    if (!element) return;
+
+    const update = () => setContainerWidth(element.clientWidth);
+
+    update();
+
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [hasPhases]);
+
+  const isNarrow =
+    containerWidth > 0 && containerWidth < NARROW_BREAKPOINT;
+  const labelWidth = isNarrow ? LABEL_WIDTH_NARROW : LABEL_WIDTH;
+  const rowHeight = isNarrow ? ROW_HEIGHT_NARROW : ROW_HEIGHT;
+
+  /* ------------------------------------------------------------------------ */
+  /* Phase groups                                                             */
+  /* ------------------------------------------------------------------------ */
 
   const { phaseGroups, unscheduledCount, orphanCount } = useMemo(() => {
     const sortedPhases = [...phases].sort(
@@ -530,20 +612,25 @@ export default function GanttChart({
     };
   }, [phaseGroups, startDate, today]);
 
-    const dayWidth = fitToTimeline
-  ? Math.max(
-      2,
-      (scrollRef.current?.clientWidth ?? 800 - LABEL_WIDTH) /
-        totalDays,
-    )
-  : ZOOM_LEVELS[zoom].dayWidth;
+  /* ------------------------------------------------------------------------ */
+  /* Day width                                                                */
+  /* ------------------------------------------------------------------------ */
+
+  // "fit" stretches the whole timeline across the visible width (no scroll).
+  const fitDayWidth =
+    containerWidth > 0
+      ? Math.max(2, (containerWidth - labelWidth) / totalDays)
+      : ZOOM_LEVELS.compact.dayWidth;
+
+  const dayWidth =
+    zoom === "fit" ? fitDayWidth : ZOOM_LEVELS[zoom].dayWidth;
 
   const timelineWidth = totalDays * dayWidth;
+  const totalWidth = labelWidth + timelineWidth;
   const todayOffset = differenceInDays(timelineStart, today);
   const todayVisible =
     todayOffset >= 0 && todayOffset < totalDays;
   const todayPosition = todayOffset * dayWidth + dayWidth / 2;
-
 
   /* ------------------------------------------------------------------------ */
   /* Timeline header                                                          */
@@ -560,6 +647,7 @@ export default function GanttChart({
       key: string;
       day: number;
       isToday: boolean;
+      isMonday: boolean;
     }[] = [];
 
     for (let index = 0; index < totalDays; index++) {
@@ -581,6 +669,7 @@ export default function GanttChart({
         key: formatDate(date),
         day: date.getDate(),
         isToday: index === todayOffset,
+        isMonday: date.getDay() === 1,
       });
     }
 
@@ -589,8 +678,6 @@ export default function GanttChart({
       dayCells: cells,
     };
   }, [timelineStart, totalDays, todayOffset]);
-
-  const fullHeaderHeight = HEADER_HEIGHT;
 
   /* ------------------------------------------------------------------------ */
   /* Grid styling                                                             */
@@ -612,143 +699,85 @@ export default function GanttChart({
     };
   }, [timelineStart, dayWidth]);
 
-  const hasPhases =
-    phases.length > 0 || timelineItems.length > 0;
-
   /* ------------------------------------------------------------------------ */
   /* Navigation                                                               */
   /* ------------------------------------------------------------------------ */
 
+  /*
+   * The label column is sticky, so it covers the first `labelWidth` pixels of
+   * the viewport. A scrollLeft of N therefore puts timeline day N / dayWidth
+   * right at the edge of the visible timeline area.
+   */
   const scrollToToday = useCallback(() => {
     const element = scrollRef.current;
 
     if (!element || !todayVisible) return;
 
-    // The timeline starts after the fixed-width label column.
-    const targetScrollLeft =
-      LABEL_WIDTH + todayPosition - AUTO_SCROLL_LEAD_PX;
+    const lead = isNarrow
+      ? AUTO_SCROLL_LEAD_NARROW_PX
+      : AUTO_SCROLL_LEAD_PX;
 
     element.scrollLeft = clampNumber(
-      targetScrollLeft,
+      todayPosition - lead,
       0,
       Math.max(0, element.scrollWidth - element.clientWidth),
     );
-  }, [todayVisible, todayPosition]);
+  }, [todayVisible, todayPosition, isNarrow]);
 
-  const fitTimeline = useCallback(() => {
-    const element = scrollRef.current;
-
-    if (!element) return;
-
-    const availableWidth = Math.max(
-      1,
-      element.clientWidth - LABEL_WIDTH,
-    );
-
-    const idealWidth = availableWidth / totalDays;
-
-    const nextLevel: ZoomLevel =
-      idealWidth >= ZOOM_LEVELS.comfortable.dayWidth
-        ? "comfortable"
-        : idealWidth >= ZOOM_LEVELS.compact.dayWidth
-          ? "compact"
-          : "overview";
-
-    /*
-     * "Ajustar" should reset the viewport to the beginning.
-     * Prevent the zoom-preservation effect from moving it again.
-     */
-    skipZoomAdjustment.current = true;
-    zoomAnchorDay.current = null;
-
-    setZoom(nextLevel);
-    element.scrollLeft = 0;
-
-    if (nextLevel === zoom) {
-      skipZoomAdjustment.current = false;
-    }
-  }, [totalDays, zoom]);
-
-  const handleZoomChange = useCallback(
-    (nextZoom: ZoomLevel) => {
-      if (nextZoom === zoom) return;
+  const changeZoom = useCallback(
+    (next: ZoomMode) => {
+      if (next === zoom) return;
 
       const element = scrollRef.current;
 
-      if (element) {
-        const timelineOffset = Math.max(
-          0,
-          element.scrollLeft - LABEL_WIDTH,
-        );
+      // Remember which day is at the left edge so zooming keeps it in view.
+      zoomAnchorDay.current =
+        element && dayWidth > 0 ? element.scrollLeft / dayWidth : null;
 
-        zoomAnchorDay.current =
-          timelineOffset / ZOOM_LEVELS[zoom].dayWidth;
-      } else {
-        zoomAnchorDay.current = null;
-      }
-
-      skipZoomAdjustment.current = false;
-      setZoom(nextZoom);
+      setZoom(next);
     },
-    [zoom],
+    [zoom, dayWidth],
   );
 
+  useIsoLayoutEffect(() => {
+    const element = scrollRef.current;
+    const anchor = zoomAnchorDay.current;
+
+    if (!element || anchor === null) return;
+
+    zoomAnchorDay.current = null;
+
+    element.scrollLeft =
+      zoom === "fit"
+        ? 0
+        : clampNumber(
+            anchor * dayWidth,
+            0,
+            Math.max(0, element.scrollWidth - element.clientWidth),
+          );
+  }, [dayWidth, zoom]);
+
+  /*
+   * First render with a measured width: pick a sensible zoom for phones,
+   * then scroll to today once the final day width is applied.
+   */
   useEffect(() => {
-    if (
-      !hasPhases ||
-      !scrollRef.current ||
-      didAutoScroll.current
-    ) {
+    if (!hasPhases || containerWidth === 0 || didAutoScroll.current) {
       return;
+    }
+
+    if (!didInitZoom.current) {
+      didInitZoom.current = true;
+
+      if (containerWidth < NARROW_BREAKPOINT && zoom !== "overview") {
+        setZoom("overview");
+        return;
+      }
     }
 
     didAutoScroll.current = true;
     requestAnimationFrame(scrollToToday);
-  }, [hasPhases, scrollToToday]);
-
-  /*
-   * Preserve the approximate date visible in the timeline when zooming.
-   * The fixed label column must be excluded from the timeline offset.
-   */
-  useEffect(() => {
-    if (previousZoom.current === zoom) return;
-
-    const element = scrollRef.current;
-
-    if (skipZoomAdjustment.current) {
-      skipZoomAdjustment.current = false;
-      zoomAnchorDay.current = null;
-
-      if (element) element.scrollLeft = 0;
-
-      previousZoom.current = zoom;
-      return;
-    }
-
-    if (element) {
-      const anchorDay = zoomAnchorDay.current;
-      const oldWidth =
-        ZOOM_LEVELS[previousZoom.current].dayWidth;
-      const newWidth = ZOOM_LEVELS[zoom].dayWidth;
-
-      const dayAtViewport =
-        anchorDay ??
-        Math.max(0, element.scrollLeft - LABEL_WIDTH) /
-          oldWidth;
-
-      const targetScrollLeft =
-        LABEL_WIDTH + dayAtViewport * newWidth;
-
-      element.scrollLeft = clampNumber(
-        targetScrollLeft,
-        0,
-        Math.max(0, element.scrollWidth - element.clientWidth),
-      );
-    }
-
-    zoomAnchorDay.current = null;
-    previousZoom.current = zoom;
-  }, [zoom]);
+  }, [hasPhases, containerWidth, zoom, scrollToToday]);
 
   /* ------------------------------------------------------------------------ */
   /* Phase controls                                                           */
@@ -772,6 +801,28 @@ export default function GanttChart({
   const expandAll = useCallback(() => {
     setCollapsedPhases({});
   }, []);
+
+  /* ------------------------------------------------------------------------ */
+  /* Selection (tap a row or bar to see its details)                          */
+  /* ------------------------------------------------------------------------ */
+
+  const toggleSelect = useCallback((key: string) => {
+    setSelectedKey((previous) => (previous === key ? null : key));
+  }, []);
+
+  const selected = useMemo(() => {
+    if (!selectedKey) return null;
+
+    for (const group of phaseGroups) {
+      for (const item of group.items) {
+        if (itemKey(item) === selectedKey) {
+          return { item, phase: group };
+        }
+      }
+    }
+
+    return null;
+  }, [selectedKey, phaseGroups]);
 
   /* ------------------------------------------------------------------------ */
   /* Empty state                                                              */
@@ -800,7 +851,6 @@ export default function GanttChart({
     );
   }
 
-  const totalWidth = LABEL_WIDTH + timelineWidth;
   const hasNotices =
     unscheduledCount > 0 || orphanCount > 0;
 
@@ -808,17 +858,19 @@ export default function GanttChart({
     (phase) => collapsedPhases[phase.id],
   );
 
+  const showEveryDayLabel = dayWidth >= EVERY_DAY_LABEL_MIN_WIDTH;
+
   /* ------------------------------------------------------------------------ */
   /* Render                                                                   */
   /* ------------------------------------------------------------------------ */
 
   return (
     <div
-      className="w-full space-y-3 py-4"
+      className="w-full min-w-0 space-y-3 py-3 sm:py-4"
       style={{ color: COLORS.text }}
     >
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 sm:gap-3">
         <div
           className="flex items-center gap-1.5 text-xs"
           style={{ color: COLORS.muted }}
@@ -839,8 +891,13 @@ export default function GanttChart({
             <button
               type="button"
               onClick={allCollapsed ? expandAll : collapseAll}
-              className="flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors hover:bg-[#F7F7F5]"
+              className="flex items-center gap-1 rounded px-2 py-1.5 text-xs transition-colors hover:bg-[#F7F7F5] sm:py-1"
               style={{ color: COLORS.navy }}
+              aria-label={
+                allCollapsed
+                  ? "Expandir todas as fases"
+                  : "Recolher todas as fases"
+              }
               title={
                 allCollapsed
                   ? "Expandir todas as fases"
@@ -859,27 +916,41 @@ export default function GanttChart({
                 />
               )}
 
-              {allCollapsed ? "Expandir tudo" : "Recolher tudo"}
+              <span className="hidden sm:inline">
+                {allCollapsed ? "Expandir tudo" : "Recolher tudo"}
+              </span>
             </button>
 
             <button
               type="button"
-              onClick={fitTimeline}
-              className="flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors hover:bg-[#F7F7F5]"
-              style={{ color: COLORS.navy }}
+              onClick={() =>
+                changeZoom(zoom === "fit" ? "compact" : "fit")
+              }
+              aria-pressed={zoom === "fit"}
+              className="flex items-center gap-1 rounded px-2 py-1.5 text-xs transition-colors sm:py-1"
+              style={
+                zoom === "fit"
+                  ? {
+                      backgroundColor: COLORS.navy,
+                      color: COLORS.white,
+                      fontWeight: 500,
+                    }
+                  : { color: COLORS.navy }
+              }
               title="Ajustar o cronograma à largura disponível"
             >
               <Maximize2
                 className="h-3.5 w-3.5"
                 aria-hidden="true"
               />
-              Ajustar
+              <span>Ajustar</span>
             </button>
 
             <button
               type="button"
               onClick={scrollToToday}
-              className="rounded px-2 py-1 text-xs transition-colors hover:bg-[#F7F7F5]"
+              disabled={!todayVisible || zoom === "fit"}
+              className="rounded px-2 py-1.5 text-xs transition-colors hover:bg-[#F7F7F5] disabled:cursor-not-allowed disabled:opacity-40 sm:py-1"
               style={{ color: COLORS.navy }}
             >
               Hoje
@@ -903,9 +974,10 @@ export default function GanttChart({
                   <button
                     key={level}
                     type="button"
-                    onClick={() => handleZoomChange(level)}
+                    onClick={() => changeZoom(level)}
                     aria-pressed={active}
-                    className="flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors"
+                    aria-label={ZOOM_LEVELS[level].label}
+                    className="flex items-center gap-1 rounded px-2 py-1.5 text-xs transition-colors sm:py-1"
                     style={
                       active
                         ? {
@@ -919,10 +991,15 @@ export default function GanttChart({
                     }
                   >
                     <Icon
-                      className="h-3.5 w-3.5"
+                      className="hidden h-3.5 w-3.5 sm:block"
                       aria-hidden="true"
                     />
-                    {ZOOM_LEVELS[level].label}
+                    <span className="sm:hidden">
+                      {ZOOM_LEVELS[level].short}
+                    </span>
+                    <span className="hidden sm:inline">
+                      {ZOOM_LEVELS[level].label}
+                    </span>
                   </button>
                 );
               },
@@ -933,40 +1010,41 @@ export default function GanttChart({
 
       {/* Chart */}
       <div
-        className="rounded-xl border bg-white"
+        className="min-w-0 overflow-hidden rounded-xl border bg-white"
         style={{ borderColor: COLORS.border }}
       >
         {/*
-          Keep horizontal scrolling inside the chart.
-          No max-height is applied, so the chart can grow vertically
-          as phases and items are expanded.
+          Horizontal scrolling stays inside the chart. On phones the label
+          column is narrower, so more of the timeline is visible at once.
         */}
         <div
           ref={scrollRef}
-          className="relative max-w-full overflow-x-auto overflow-y-hidden"
+          className="relative max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
         >
           <div style={{ width: totalWidth }}>
             {/* Timeline header */}
             <div
               className="sticky top-0 z-30 flex border-b bg-white"
               style={{
-                height: fullHeaderHeight,
+                height: HEADER_HEIGHT,
                 width: totalWidth,
                 borderColor: COLORS.border,
               }}
             >
               <div
-                className="sticky left-0 z-40 flex shrink-0 items-center border-r bg-white px-3 shadow-[2px_0_4px_rgba(0,0,0,0.04)]"
+                className="sticky left-0 z-40 flex shrink-0 items-center border-r bg-white px-2 shadow-[2px_0_4px_rgba(0,0,0,0.04)] sm:px-3"
                 style={{
-                  width: LABEL_WIDTH,
+                  width: labelWidth,
                   borderColor: COLORS.border,
                 }}
               >
                 <span
-                  className="text-xs font-semibold uppercase tracking-wide"
+                  className="truncate text-xs font-semibold uppercase tracking-wide"
                   style={{ color: COLORS.navy }}
                 >
-                  Fases, passos e entregáveis
+                  {isNarrow
+                    ? "Cronograma"
+                    : "Fases, passos e entregáveis"}
                 </span>
               </div>
 
@@ -998,7 +1076,7 @@ export default function GanttChart({
                   ))}
                 </div>
 
-                {/* Day row */}
+                {/* Day row: thin zoom levels only label Mondays */}
                 <div
                   className="flex border-b"
                   style={{
@@ -1006,28 +1084,35 @@ export default function GanttChart({
                     borderColor: COLORS.border,
                   }}
                 >
-                  {dayCells.map((cell) => (
-                    <div
-                      key={cell.key}
-                      className="flex shrink-0 items-center justify-center text-[10px]"
-                      style={{
-                        width: dayWidth,
-                        backgroundColor: cell.isToday
-                          ? COLORS.navy
-                          : COLORS.white,
-                        color: cell.isToday
-                          ? COLORS.white
-                          : COLORS.muted,
-                        fontWeight: cell.isToday ? 600 : 400,
-                      }}
-                      aria-current={
-                        cell.isToday ? "date" : undefined
-                      }
-                      title={cell.key}
-                    >
-                      {cell.day}
-                    </div>
-                  ))}
+                  {dayCells.map((cell) => {
+                    const showLabel = showEveryDayLabel
+                      ? true
+                      : cell.isMonday && !cell.isToday;
+
+                    return (
+                      <div
+                        key={cell.key}
+                        className="flex shrink-0 items-center justify-center whitespace-nowrap text-[10px]"
+                        style={{
+                          width: dayWidth,
+                          overflow: "visible",
+                          backgroundColor: cell.isToday
+                            ? COLORS.navy
+                            : undefined,
+                          color: cell.isToday
+                            ? COLORS.white
+                            : COLORS.muted,
+                          fontWeight: cell.isToday ? 600 : 400,
+                        }}
+                        aria-current={
+                          cell.isToday ? "date" : undefined
+                        }
+                        title={cell.key}
+                      >
+                        {showLabel ? cell.day : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1042,7 +1127,7 @@ export default function GanttChart({
                 aria-hidden="true"
                 className="pointer-events-none absolute bottom-0 top-0 z-0"
                 style={{
-                  left: LABEL_WIDTH,
+                  left: labelWidth,
                   width: timelineWidth,
                   ...gridStyle,
                 }}
@@ -1067,7 +1152,7 @@ export default function GanttChart({
                     <div
                       className="flex"
                       style={{
-                        height: ROW_HEIGHT,
+                        height: rowHeight,
                         width: totalWidth,
                       }}
                     >
@@ -1075,12 +1160,12 @@ export default function GanttChart({
                         type="button"
                         onClick={() => togglePhase(group.id)}
                         aria-expanded={!collapsed}
-                        className="sticky left-0 z-20 flex shrink-0 items-center gap-1.5 border-b border-r px-3 text-left shadow-[2px_0_4px_rgba(0,0,0,0.04)] transition-colors hover:bg-[#F7F7F5]"
+                        className="sticky left-0 z-20 flex shrink-0 items-center gap-1.5 border-b border-r bg-[#F7F7F5] px-2 text-left shadow-[2px_0_4px_rgba(0,0,0,0.04)] transition-colors hover:bg-[#EFEFEA] sm:px-3"
                         style={{
-                          width: LABEL_WIDTH,
+                          width: labelWidth,
                           borderColor: COLORS.border,
-                          backgroundColor: COLORS.background,
                         }}
+                        title={group.name}
                       >
                         {collapsed ? (
                           <ChevronRight
@@ -1105,14 +1190,19 @@ export default function GanttChart({
                         />
 
                         <span
-                          className="truncate text-sm font-semibold"
-                          style={{ color: COLORS.navy }}
+                          className={`min-w-0 flex-1 text-sm font-semibold ${
+                            isNarrow ? "leading-tight" : "truncate"
+                          }`}
+                          style={{
+                            color: COLORS.navy,
+                            ...(isNarrow ? CLAMP_2_LINES : {}),
+                          }}
                         >
                           {group.name}
                         </span>
 
                         <span
-                          className="ml-auto shrink-0 text-xs tabular-nums"
+                          className="shrink-0 text-[11px] tabular-nums sm:text-xs"
                           style={{ color: COLORS.muted }}
                         >
                           {group.avgProgress}%
@@ -1211,6 +1301,8 @@ export default function GanttChart({
                     {/* Steps and deliverables */}
                     {!collapsed &&
                       group.items.map((item) => {
+                        const key = itemKey(item);
+                        const isSelected = selectedKey === key;
                         const progress = clampProgress(item.progress);
                         const isScheduled = Boolean(
                           item.start && item.end,
@@ -1264,11 +1356,7 @@ export default function GanttChart({
                         const isDeliverable =
                           item.kind === "deliverable";
 
-                        const overdue = Boolean(
-                          item.end &&
-                            item.end.getTime() < today.getTime() &&
-                            progress < 100,
-                        );
+                        const overdue = isOverdue(item, today);
 
                         const barColor = isDeliverable
                           ? COLORS.gold
@@ -1284,25 +1372,38 @@ export default function GanttChart({
 
                         return (
                           <div
-                            key={`${item.kind}-${item.id}`}
+                            key={key}
                             className="group flex"
                             style={{
-                              height: ROW_HEIGHT,
+                              height: rowHeight,
                               width: totalWidth,
                             }}
                           >
                             {/* Item label */}
-                            <div
-                              className="sticky left-0 z-20 flex shrink-0 items-center gap-2 border-b border-r pl-7 pr-3 shadow-[2px_0_4px_rgba(0,0,0,0.04)] transition-colors group-hover:bg-[#F7F7F5]"
+                            <button
+                              type="button"
+                              onClick={() => toggleSelect(key)}
+                              aria-pressed={isSelected}
+                              className={`sticky left-0 z-20 flex shrink-0 items-center gap-2 border-b border-r pr-2 text-left shadow-[2px_0_4px_rgba(0,0,0,0.04)] transition-colors sm:pr-3 ${
+                                isNarrow ? "pl-5" : "pl-7"
+                              } ${
+                                isSelected
+                                  ? "bg-[#F7F1E7]"
+                                  : "bg-white group-hover:bg-[#F7F7F5]"
+                              }`}
                               style={{
-                                width: LABEL_WIDTH,
+                                width: labelWidth,
                                 borderColor: COLORS.border,
-                                backgroundColor: COLORS.white,
                               }}
                               title={item.name}
                             >
+                              {/* Square = passo, diamond = entregável */}
                               <span
-                                className="h-2 w-2 shrink-0 rounded-sm"
+                                className={`h-2 w-2 shrink-0 ${
+                                  isDeliverable
+                                    ? "rotate-45"
+                                    : "rounded-sm"
+                                }`}
                                 style={{
                                   backgroundColor: barColor,
                                 }}
@@ -1310,35 +1411,53 @@ export default function GanttChart({
                               />
 
                               <span
-                                className="min-w-0 flex-1 truncate text-sm"
-                                style={{ color: COLORS.text }}
+                                className={`min-w-0 flex-1 text-sm ${
+                                  isNarrow ? "leading-tight" : "truncate"
+                                }`}
+                                style={{
+                                  color: COLORS.text,
+                                  ...(isNarrow ? CLAMP_2_LINES : {}),
+                                }}
                               >
                                 {item.name}
                               </span>
 
-                              {overdue && (
+                              {overdue &&
+                                (isNarrow ? (
+                                  <span
+                                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                    style={{
+                                      backgroundColor: COLORS.danger,
+                                    }}
+                                    role="img"
+                                    aria-label="Atrasado"
+                                  />
+                                ) : (
+                                  <span
+                                    className="shrink-0 rounded px-1 py-0.5 text-[9px] font-semibold"
+                                    style={{
+                                      color: COLORS.danger,
+                                      backgroundColor:
+                                        COLORS.dangerSoft,
+                                    }}
+                                  >
+                                    Atrasado
+                                  </span>
+                                ))}
+
+                              {!isNarrow && (
                                 <span
-                                  className="shrink-0 rounded px-1 py-0.5 text-[9px] font-semibold"
+                                  className="shrink-0 text-[10px]"
                                   style={{
-                                    color: COLORS.danger,
-                                    backgroundColor: COLORS.dangerSoft,
+                                    color: isDeliverable
+                                      ? "#927037"
+                                      : COLORS.muted,
                                   }}
                                 >
-                                  Atrasado
+                                  {isDeliverable ? "Entrega" : "Passo"}
                                 </span>
                               )}
-
-                              <span
-                                className="shrink-0 text-[10px]"
-                                style={{
-                                  color: isDeliverable
-                                    ? "#927037"
-                                    : COLORS.muted,
-                                }}
-                              >
-                                {isDeliverable ? "Entrega" : "Passo"}
-                              </span>
-                            </div>
+                            </button>
 
                             {/* Item timeline */}
                             <div
@@ -1349,11 +1468,19 @@ export default function GanttChart({
                               }}
                             >
                               {isScheduled ? (
-                                <div
-                                  role="img"
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSelect(key)}
+                                  aria-pressed={isSelected}
                                   aria-label={`${item.name}, ${isDeliverable ? "entregável" : "passo"}, ${progress}% concluído, ${range}${overdue ? ", atrasado" : ""}`}
                                   title={`${item.name}\n${isDeliverable ? "Entregável" : "Passo"}\n${range}\n${progress}% concluído${item.reversed ? "\nAtenção: as datas de início e fim estavam invertidas." : ""}${overdue ? "\nAtrasado" : ""}`}
-                                  className={`absolute top-1/2 h-5 -translate-y-1/2 overflow-hidden rounded border ${item.reversed ? "border-dashed" : ""}`}
+                                  className={`absolute top-1/2 -translate-y-1/2 overflow-hidden rounded border p-0 text-left ${
+                                    isNarrow ? "h-6" : "h-5"
+                                  } ${item.reversed ? "border-dashed" : ""} ${
+                                    isSelected
+                                      ? "ring-2 ring-[#BD9655]/70"
+                                      : ""
+                                  }`}
                                   style={{
                                     left: barLeft,
                                     width: barWidth,
@@ -1365,8 +1492,8 @@ export default function GanttChart({
                                         : barBorder,
                                   }}
                                 >
-                                  <div
-                                    className="h-full transition-[width] duration-300"
+                                  <span
+                                    className="block h-full transition-[width] duration-300"
                                     style={{
                                       width: `${progress}%`,
                                       backgroundColor: overdue
@@ -1392,7 +1519,7 @@ export default function GanttChart({
                                       {progress}%
                                     </span>
                                   )}
-                                </div>
+                                </button>
                               ) : (
                                 <div
                                   className="absolute left-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-[10px]"
@@ -1415,6 +1542,92 @@ export default function GanttChart({
           </div>
         </div>
       </div>
+
+      {/* Details of the tapped item (names are truncated on small screens) */}
+      {selected && (
+        <div
+          className="rounded-xl border bg-white p-3 sm:p-4"
+          style={{ borderColor: COLORS.border }}
+          aria-live="polite"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p
+                className="break-words text-sm font-semibold"
+                style={{ color: COLORS.navy }}
+              >
+                {selected.item.name}
+              </p>
+
+              <p
+                className="mt-0.5 text-xs"
+                style={{ color: COLORS.muted }}
+              >
+                {selected.item.kind === "deliverable"
+                  ? "Entregável"
+                  : "Passo"}{" "}
+                em {selected.phase.name}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSelectedKey(null)}
+              className="-mr-1 -mt-1 shrink-0 rounded p-1.5 transition-colors hover:bg-[#F7F7F5]"
+              style={{ color: COLORS.muted }}
+              aria-label="Fechar detalhes"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
+            <div>
+              <dt style={{ color: COLORS.muted }}>Período</dt>
+              <dd className="font-medium">
+                {selected.item.start && selected.item.end
+                  ? `${formatDate(selected.item.start)} – ${formatDate(selected.item.end)}`
+                  : "Sem datas definidas"}
+              </dd>
+            </div>
+
+            <div>
+              <dt style={{ color: COLORS.muted }}>Estado</dt>
+              <dd
+                className="font-medium"
+                style={{
+                  color: isOverdue(selected.item, today)
+                    ? COLORS.danger
+                    : undefined,
+                }}
+              >
+                {getItemStatus(selected.item, today)}
+              </dd>
+            </div>
+
+            <div className="col-span-2 sm:col-span-1">
+              <dt style={{ color: COLORS.muted }}>Progresso</dt>
+              <dd className="mt-1 flex items-center gap-2">
+                <span
+                  className="h-1.5 flex-1 overflow-hidden rounded-full"
+                  style={{ backgroundColor: COLORS.navySoft }}
+                >
+                  <span
+                    className="block h-full rounded-full"
+                    style={{
+                      width: `${clampProgress(selected.item.progress)}%`,
+                      backgroundColor: COLORS.navy,
+                    }}
+                  />
+                </span>
+                <span className="font-medium tabular-nums">
+                  {clampProgress(selected.item.progress)}%
+                </span>
+              </dd>
+            </div>
+          </dl>
+        </div>
+      )}
 
       {/* Data-quality notices */}
       {hasNotices && (

@@ -189,6 +189,9 @@ function formatDateTime(value: string | null | undefined): string {
 /* Shared components                                                          */
 /* -------------------------------------------------------------------------- */
 
+import { useId } from "react";
+// Keep your existing imports for Link, ArrowRight and SectionCardProps.
+
 function SectionCard({
   id,
   title,
@@ -200,12 +203,17 @@ function SectionCard({
   heightMode = "max",
   scrollable = true,
 }: SectionCardProps) {
+  const titleId = useId();
+
   const style =
     height === "auto"
       ? undefined
       : heightMode === "fixed"
         ? { height }
         : { maxHeight: height };
+
+  // Only treat the body as a scroll region when it can actually be capped.
+  const isScrollRegion = scrollable && height !== "auto";
 
   return (
     <section
@@ -215,7 +223,9 @@ function SectionCard({
     >
       <header className="flex shrink-0 flex-col gap-2 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
         <div className="min-w-0">
-          <h2 className="font-semibold text-gray-900">{title}</h2>
+          <h2 id={titleId} className="font-semibold text-gray-900">
+            {title}
+          </h2>
 
           {subtitle && (
             <p className="mt-1 text-xs text-gray-500">{subtitle}</p>
@@ -239,10 +249,20 @@ function SectionCard({
         )}
       </header>
 
+      {/*
+        overscroll-y-auto (the default) lets the page take over once this
+        area hits its top or bottom. overscroll-y-contain was what trapped
+        the wheel and touch scrolling inside the card.
+      */}
       <div
+        {...(isScrollRegion && {
+          role: "region",
+          "aria-labelledby": titleId,
+          tabIndex: 0,
+        })}
         className={`min-w-0 px-5 py-5 sm:px-6 ${
           scrollable
-            ? "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
+            ? "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#002950]"
             : "overflow-visible"
         }`}
       >
