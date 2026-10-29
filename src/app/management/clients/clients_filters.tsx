@@ -19,6 +19,7 @@ import {
   CLIENT_STATUSES,
   CLIENT_TYPES,
 } from "./constants";
+import CustomSelect from "@/app/components/custom_select";
 
 interface Props {
   query: string;
@@ -216,7 +217,7 @@ export default function ClientsFilters({
                       Estado do cliente
                     </label>
 
-                    <select
+                    <CustomSelect
                       id="client-status-filter"
                       value={statusFilter}
                       onChange={(event) =>
@@ -231,7 +232,7 @@ export default function ClientsFilters({
                           {status.label}
                         </option>
                       ))}
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   {/* Client type */}
@@ -243,7 +244,7 @@ export default function ClientsFilters({
                       Categoria
                     </label>
 
-                    <select
+                    <CustomSelect
                       id="client-type-filter"
                       value={typeFilter}
                       onChange={(event) =>
@@ -258,7 +259,7 @@ export default function ClientsFilters({
                           {type.label}
                         </option>
                       ))}
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   {/* Projects */}
@@ -270,7 +271,7 @@ export default function ClientsFilters({
                       Projectos associados
                     </label>
 
-                    <select
+                    <CustomSelect
                       id="client-project-filter"
                       value={projectFilter}
                       onChange={(event) =>
@@ -281,7 +282,7 @@ export default function ClientsFilters({
                       <option value="All">Todos os clientes</option>
                       <option value="WithProjects">Com projectos</option>
                       <option value="WithoutProjects">Sem projectos</option>
-                    </select>
+                    </CustomSelect>
                   </div>
                 </div>
 

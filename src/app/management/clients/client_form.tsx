@@ -18,6 +18,8 @@ import {
   CONTACT_METHODS,
   getClientDisplayName,
 } from "./constants";
+import CustomSelect from "@/app/components/custom_select";
+import { useToast } from "@/app/components/toast/use_toast";
 
 interface Props {
   mode: "create" | "edit";
@@ -29,6 +31,7 @@ export default function ClientForm({
   client,
 }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] =
@@ -96,33 +99,47 @@ export default function ClientForm({
     }));
   }
 
-  function submit() {
-    setError("");
-    setFieldErrors({});
+ async function submit() {
+  setError("");
+  setFieldErrors({});
 
-    startTransition(async () => {
+  startTransition(async () => {
+    try {
       const result =
         mode === "create"
           ? await createClientAction(form)
-          : await updateClientAction(
-              client!.client_id,
-              form
-            );
+          : await updateClientAction(client!.client_id, form);
 
       if (!result.success) {
         setError(result.message);
-        setFieldErrors(
-          result.fieldErrors ?? {}
-        );
+
+        setFieldErrors(result.fieldErrors ?? {});
+
+        toast.error(result.message);
+
         return;
       }
 
-      router.push(
-        `/management/clients/${result.clientId}`
+      toast.success(
+        mode === "create"
+          ? "Cliente criado com sucesso."
+          : "Alterações do cliente guardadas com sucesso."
       );
+
+      router.push("/management/clients");
       router.refresh();
-    });
-  }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Ocorreu um erro inesperado ao guardar o cliente.";
+
+      setError(message);
+
+      toast.error(message);
+    }
+  });
+}
 
   const isOrganization =
     form.client_type === "Company" ||
@@ -172,7 +189,7 @@ export default function ClientForm({
 
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             <Field label="Tipo de cliente" required>
-              <select
+              <CustomSelect
                 value={form.client_type}
                 onChange={(event) =>
                   update(
@@ -192,7 +209,7 @@ export default function ClientForm({
                     {type.label}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
 
               <FieldError
                 message={fieldErrors.client_type}
@@ -200,7 +217,7 @@ export default function ClientForm({
             </Field>
 
             <Field label="Estado">
-              <select
+              <CustomSelect
                 value={form.status}
                 onChange={(event) =>
                   update(
@@ -218,7 +235,7 @@ export default function ClientForm({
                     {status.label}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
             </Field>
 
             {isOrganization ? (
@@ -385,7 +402,7 @@ export default function ClientForm({
             </Field>
 
             <Field label="Contacto preferencial">
-              <select
+              <CustomSelect
                 value={
                   form.preferred_contact_method ?? ""
                 }
@@ -406,7 +423,7 @@ export default function ClientForm({
                     {method.label}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
             </Field>
           </div>
         </section>

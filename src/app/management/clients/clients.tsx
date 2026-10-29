@@ -95,27 +95,25 @@ function compareClients(
  * Prevent spreadsheet applications from interpreting
  * untrusted text as a formula when opening a CSV file.
  */
+
+const CSV_SEPARATOR = ";";
+
 function escapeCsvValue(value: unknown): string {
-  let text = String(value ?? "");
+  let str = value == null ? "" : String(value);
 
-  if (
-    typeof value === "string" &&
-    /^[\t\r\n ]*[=+\-@]/.test(text)
-  ) {
-    text = `'${text}`;
-  }
+  // Prevent Excel from running text like "=1+1" as a formula
+  if (/^[=+\-@]/.test(str)) str = `'${str}`;
 
-  return `"${text.replace(/"/g, '""')}"`;
+  // Quote when the value has the separator, quotes or line breaks
+  return /[";\r\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
 
-function downloadCsv(
-  filename: string,
-  rows: Array<Array<unknown>>,
-): void {
+function downloadCsv(filename: string, rows: Array<Array<unknown>>): void {
   const csv = rows
-    .map((row) => row.map(escapeCsvValue).join(","))
+    .map((row) => row.map(escapeCsvValue).join(CSV_SEPARATOR))
     .join("\r\n");
 
+  // BOM so Excel reads accents (ã, ç, é) as UTF-8
   const blob = new Blob(["\uFEFF", csv], {
     type: "text/csv;charset=utf-8;",
   });
@@ -273,7 +271,7 @@ export default function ClientsPage({ allClients }: Props) {
     value: ClientFilters[K],
   ): void {
     setFilters((current) => ({
-      ...current,
+      ...current, 
       [key]: value,
     }));
   }
@@ -281,7 +279,7 @@ export default function ClientsPage({ allClients }: Props) {
   function resetFilters(): void {
     setFilters({ ...DEFAULT_FILTERS });
   }
-
+  
   function exportClients(): void {
     const rows: Array<Array<unknown>> = [
       [

@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/app/lib/supabase/client";
 
 const PRESENCE_CHANNEL = "prosota:online-users";
 
-export function useOnlineUsers(
-    profileId: string | null | undefined,
-) {
+export function useOnlineUsers(profileId: string | null | undefined) {
     const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(
         () => new Set(),
     );
@@ -20,109 +19,95 @@ export function useOnlineUsers(
 
         const supabase = createClient();
         let active = true;
-        let subscribed = false;
+        let channel: RealtimeChannel | null = null;
+        const start = async () => {
+            // 👇 NEW: add this as the first line
+            await supabase.realtime.setAuth();
 
-        console.log("[Presence] Creating channel", {
-            profileId,
-            topic: PRESENCE_CHANNEL,
-        }); 
+            const stale = supabase
+                .getChannels()
+                .find((c) => c.topic === `realtime:${PRESENCE_CHANNEL}`);
 
-        const channel = supabase.channel(PRESENCE_CHANNEL, {
-            config: {
-                private: true,
-                presence: {
-                    key: profileId,
+            if (stale) {
+                await supabase.removeChannel(stale);
+            }
+
+            if (!active) return;
+
+            const ch = supabase.channel(PRESENCE_CHANNEL, {
+                config: {
+                    private: true,
+                    presence: { key: profileId },
                 },
-            },
-        });
+            });
+            channel = ch;
 
-        const syncOnlineUsers = () => {
-            if (!active) return;
+            const syncOnlineUsers = () => {
+                if (!active) return;
+                setOnlineUserIds(new Set(Object.keys(ch.presenceState())));
+            };
 
-            const ids = Object.keys(channel.presenceState());
-            setOnlineUserIds(new Set(ids));
-        };
+            ch.on("presence", { event: "sync" }, syncOnlineUsers)
+                .on("presence", { event: "join" }, syncOnlineUsers)
+                .on("presence", { event: "leave" }, syncOnlineUsers);
 
-        // Register all callbacks before subscribing.
-        channel
-            .on("presence", { event: "sync" }, syncOnlineUsers)
-            .on("presence", { event: "join" }, syncOnlineUsers)
-            .on("presence", { event: "leave" }, syncOnlineUsers);
+            let tracked = false;
 
-        console.log("[Presence] Callbacks registered; subscribing");
+            ch.subscribe(async (status, error) => {
+                if (!active) return;
 
-        channel.subscribe(async (status, error) => {
-            if (!active) return;
+                if (status === "SUBSCRIBED") {
+                    if (tracked) return;
+                    tracked = true;
 
-            console.log("[Presence] Channel status:", status);
+                    try {
+                        const result = await ch.track({
+                            profile_id: profileId,
+                            online_at: new Date().toISOString(),
+                        });
+                        if (!active) return;
 
-            if (status === "SUBSCRIBED") {
-                if (subscribed) return;
-                subscribed = true;
-
-                try {
-                    const result = await channel.track({
-                        profile_id: profileId,
-                        online_at: new Date().toISOString(),
-                    });
-
-                    if (!active) return;
-
-                    if (result !== "ok") {
-                        console.error(
-                            "[Presence] Failed to track user:",
-                            result,
-                        );
-                        return;
+                        if (result !== "ok") {
+                            console.error("[Presence] Failed to track user:", result);
+                            return;
+                        }
+                        syncOnlineUsers();
+                    } catch (trackError) {
+                        if (active) {
+                            console.error("[Presence] Failed to track user:", trackError);
+                        }
                     }
-
-                    syncOnlineUsers();
-                } catch (trackError) {
-                    if (!active) return;
-
-                    console.error(
-                        "[Presence] Failed to track user:",
-                        trackError,
-                    );
+                    return;
                 }
 
-                return;
-            }
+                if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                    console.error(
+                        "[Presence] Channel error:",
+                        status,
+                        error?.message ?? error,
+                    );
+                    setOnlineUserIds(new Set());
+                    return;
+                }
 
-            if (
-                status === "CHANNEL_ERROR" ||
-                status === "TIMED_OUT" ||
-                status === "CLOSED"
-            ) {
-                console.error("[Presence] Channel error:", {
-                    status,
-                    error,
-                });
+                if (status === "CLOSED") {
+                    setOnlineUserIds(new Set());
+                }
+            });
+        };
 
-                setOnlineUserIds(new Set());
-            }
-        });
+        void start();
 
         return () => {
             active = false;
-
-            console.log("[Presence] Removing channel", {
-                profileId,
-                topic: PRESENCE_CHANNEL,
-            });
-
-            void supabase.removeChannel(channel);
+            if (channel) void supabase.removeChannel(channel);
         };
     }, [profileId]);
 
     const isOnline = useCallback(
-        (id: string | null | undefined) =>
-            Boolean(id && onlineUserIds.has(id)),
+        (id: string | null | undefined) => Boolean(id && onlineUserIds.has(id)),
         [onlineUserIds],
     );
 
-    return {
-        onlineUserIds,
-        isOnline,
-    };
+    return { onlineUserIds, isOnline };
 }
