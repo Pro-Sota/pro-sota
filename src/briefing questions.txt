@@ -1,0 +1,37 @@
+
+
+
+1 - Nome Completo ?
+2 - Contacto  (Phone, Email) ? 
+3 - Quem toma as decisões sobre o projecto ? options (apenas eu, eu e o conjugue, familia, socios)
+4 - Melhor forma de contacto ? options (chamada, whatsaap, email, presencial)
+5 - Localizacao (Endereco, Bairro, Municipio, Referencia, Cidade, Provincia, Mapa)
+6 - Ja é proprietário do terreno ? options (Sim, com documentação, Sim, sem documentação regularizada, ainda não)
+7 - Área aproximada do terreno em m2? (cumprimento, largura)
+8 - Tipo de terreno? Options(SecurityPolicyViolationEvent, Em declive, aterrado, não sei)
+9 - Existem construções? Options(Sim, não,) anexo
+10 - árvores no terreno? Options(Sim, não,) anexo
+11 - Infra-estruturas existentes ? Selection (Rede electrica, agua canalizada, esgoto, estrada asfaltada, internet, nenhuma)
+12 - fotos do terreno? anexo 
+13 - Quantas pessoas vão morar em casa ? 
+14 - Terá trabalhadore em casa ? options (sim, nao) se, sim quantos?
+15 - Idades e perfis(crianças, idosos, pessoas com mobilidade reduzida)
+16 - Prevê crescimento da familia, nos proximos 10 anos? options(sim, não, talvez)
+17 - Trabalha em casa? options (sim, nao, frequentemente)
+18 - Recebe visitas com frequencia? Costuma organizar eventos em casa? options([Sim, muito frequuente], [sim, frequentemente], [sim, algumas vezes], [sim, raramente], nao recebo visitas )
+19 - Tem animais de estimacao ? quais?
+20 - o que mais incomoda na casa onde vive hoje?
+21 - o que mais gosta na casa onde vive hoje?
+22 - Numero de quartos? quantas suites?
+23 - Espacos desejados? selection (sala de estar, sala de jantar, cozinha, cozinha de apoio/exterior, escritorio, lavandaria, despensa, quarto da empregada, varanda, terraco, piscina, jardim, churrasqueira/area gourmet, ginasio, garagem, outro)
+24 - quantos carros (garagem) ?
+25 - preferencia de layout da cozinha? options(aberta para sala, fechada, semi-aberta)
+26 - quantos pisos deseja? options (res de chao, 1 andar, outro)
+27 - algum espaco que considere indispensavel e que nao foi listado?
+28 - Estilo que lhe agradam? options (contemporaneo, minimalista/rustico, tropical, industrial, classico, outro)
+29 - Cores e materias de que gosta ou nao gosta?
+30 - quanto valoriza luz natural e ligacao com o exterior? options (1,2,3,4,5)
+31 - Quanto valoriza privacidade em relacao a rua e vizinhos? options (1,2,3,4,5)
+32 - Imagens ou linkes de referencia(pinterest, instagram, fotos de casa)? anexos
+33 - Ha algo importante que nao foi perguntado? 
+

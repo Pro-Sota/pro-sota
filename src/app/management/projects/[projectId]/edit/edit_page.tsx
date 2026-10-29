@@ -55,14 +55,11 @@ export interface EditProjectFormProps {
     initialValues: Partial<ProjectPayload>;
     clients: { id: string; name: string }[];
 
-    onSave: (payload: ProjectPayload) => Promise<ActionResult>;
-
-    onUploadImage?: (
-        file: File,
-    ) => Promise<
-        | { success: true; url: string }
-        | { success: false; error: string }
-    >;
+    onSave: (
+        payload: ProjectPayload,
+        imageFile?: File | null,
+        removeImage?: boolean,
+    ) => Promise<ActionResult>;
 
     backHref: string;
 }
@@ -443,7 +440,6 @@ export default function EditProjectForm({
     initialValues,
     clients,
     onSave,
-    onUploadImage,
     backHref,
 }: EditProjectFormProps) {
     const router = useRouter();
@@ -466,13 +462,15 @@ export default function EditProjectForm({
         initialValues.image ?? null,
     );
     const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imageRemoved, setImageRemoved] = useState(false);
     const [saving, setSaving] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const dirty =
         JSON.stringify(values) !== initialSnapshot.current ||
-        coverPreview !== initialImage.current;
+        imageFile !== null ||
+        imageRemoved;
 
     useEffect(() => {
         return () => {
@@ -519,8 +517,9 @@ export default function EditProjectForm({
             "aria-invalid": hasError || undefined,
             "aria-describedby": hasError ? `${key}-msg` : undefined,
 
-            className: `${inputClass} ${hasError ? "border-red-400" : "border-[#E4E5E3]"
-                }`,
+            className: `${inputClass} ${
+                hasError ? "border-red-400" : "border-[#E4E5E3]"
+            }`,
         };
     }
 
@@ -556,6 +555,7 @@ export default function EditProjectForm({
 
         clearError("cover_image");
         setImageFile(file);
+        setImageRemoved(false);
         setCoverPreview(URL.createObjectURL(file));
     }
 
@@ -563,16 +563,16 @@ export default function EditProjectForm({
         setCoverPreview(null);
         setImageFile(null);
 
+        // If an image already exists in the database, explicitly request
+        // its removal. Otherwise, there is nothing to delete from storage.
+        setImageRemoved(Boolean(initialImage.current));
+
         if (fileRef.current) {
             fileRef.current.value = "";
         }
 
         clearError("cover_image");
     }
-
-    /* ==========================================================================
-       PART 5 — Form submission
-       ========================================================================== */
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -595,42 +595,60 @@ export default function EditProjectForm({
         setSaving(true);
 
         try {
-            let image =
-                coverPreview && !imageFile ? coverPreview : null;
+            /*
+             * If the user removed the image, send null and explicitly
+             * flag the deletion. If a new file was selected, the server
+             * action uploads it. Otherwise, retain the existing URL.
+             */
+            const payload = toPayload(
+                values,
+                imageRemoved
+                    ? null
+                    : imageFile
+                      ? initialImage.current
+                      : coverPreview ?? initialImage.current,
+            );
 
-            if (imageFile) {
-                if (!onUploadImage) {
-                    setSubmitError(
-                        "O carregamento de imagens ainda não está configurado.",
-                    );
-                    return;
-                }
-
-                const upload = await onUploadImage(imageFile);
-
-                if (!upload.success) {
-                    setSubmitError(upload.error);
-                    return;
-                }
-
-                image = upload.url;
-            }
-
-            const result = await onSave(toPayload(values, image));
+            const result = await onSave(
+                payload,
+                imageFile,
+                imageRemoved,
+            );
 
             if (!result.success) {
                 setSubmitError(result.error);
                 return;
             }
 
-            setSuccessMessage("As alterações do projecto foram guardadas com sucesso.");
+            // Update the local baseline only after a successful save.
+            const savedImage = imageRemoved
+                ? null
+                : imageFile
+                  ? payload.image
+                  : coverPreview ?? initialImage.current;
 
-            // Keep the success toast visible briefly before leaving the form.
+            initialImage.current = savedImage;
+            initialSnapshot.current = JSON.stringify(values);
+
+            setImageFile(null);
+            setImageRemoved(false);
+            setCoverPreview(savedImage);
+
+            if (fileRef.current) {
+                fileRef.current.value = "";
+            }
+
+            setSuccessMessage(
+                "As alterações do projecto foram guardadas com sucesso.",
+            );
+
             window.setTimeout(() => {
                 router.push(backHref);
                 router.refresh();
             }, 1400);
-        } catch {
+        } catch (error) {
+            console.error("Failed to save project:", error);
+
             setSubmitError(
                 "Não foi possível guardar as alterações. Tente novamente.",
             );
@@ -638,6 +656,9 @@ export default function EditProjectForm({
             setSaving(false);
         }
     }
+
+    // Mantenha aqui o restante código da Parte 6 e Parte 7 do seu ficheiro,
+    // incluindo todo o JSX actual do formulário.
 
     /* ==========================================================================
        PART 6 — Header data
