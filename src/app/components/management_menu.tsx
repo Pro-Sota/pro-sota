@@ -6,22 +6,23 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   CalendarDays,
+  SquareCheck,
   Clock3,
+  ContactRound,
   FileText,
-  Folder,
+  FolderKanban,
   Handshake,
-  HomeIcon,
+  House,
   ListTodo,
   LogOut,
   Loader2,
   MessageCircle,
   PanelLeftClose,
   PanelLeftOpen,
-  User,
+  HardHat,
+  UserRound,
   UserPlus,
-  Users,
   UsersRound,
-  WalletCards,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
@@ -93,7 +94,7 @@ const menuItems: SidebarItem[] = [
   {
     name: "Visão geral",
     href: "/management",
-    icon: HomeIcon,
+    icon: House,
     permission: "dashboard.view",
   },
   {
@@ -109,8 +110,14 @@ const menuItems: SidebarItem[] = [
   {
     name: "Projectos",
     href: "/management/projects",
-    icon: Folder,
+    icon: FolderKanban,
     permission: "projects.view",
+  },
+  {
+    name: "Submissões",
+    href: "/management/submissions",
+    icon: SquareCheck,
+    permission: "submissions.view",
   },
   {
     name: "Tarefas",
@@ -121,7 +128,7 @@ const menuItems: SidebarItem[] = [
   {
     name: "Briefings",
     href: "/management/project-briefing",
-    icon: ListTodo,
+    icon: FileText,
     permission: "project_briefing.view",
   },
 
@@ -151,7 +158,7 @@ const menuItems: SidebarItem[] = [
   {
     name: "Clientes",
     href: "/management/clients",
-    icon: Users,
+    icon: ContactRound,
     permission: "clients.view",
     access: {
       departments: ["commercial"],
@@ -178,7 +185,7 @@ const menuItems: SidebarItem[] = [
   {
     name: "Recursos de obra",
     href: "/management/work-resources",
-    icon: WalletCards,
+    icon: HardHat,
     permission: "work_resources.view",
     access: {
       departments: ["architecture", "engineering"],
@@ -205,7 +212,7 @@ const bottomItems: SidebarItem[] = [
   {
     name: "Meu perfil",
     href: "/management/profile",
-    icon: User,
+    icon: UserRound,
     permission: "profile.view",
   },
   {
@@ -530,7 +537,7 @@ export default function ManagementMenu({
           >
             <PanelLeftClose
               aria-hidden="true"
-              className="h-[18px] w-[18px]"
+              className="h-[18px] w-[18px] shrink-0"
               strokeWidth={1.8}
             />
           </button>
@@ -747,7 +754,7 @@ function SidebarItem({
           ) : (
             <Icon
               aria-hidden="true"
-              className="h-[18px] w-[18px]"
+              className="h-[18px] w-[18px] shrink-0"
               strokeWidth={1.8}
             />
           )}
@@ -790,7 +797,7 @@ function SidebarItem({
       <SidebarIcon>
         <Icon
           aria-hidden="true"
-          className="h-[18px] w-[18px]"
+          className="h-[18px] w-[18px] shrink-0"
           strokeWidth={1.8}
         />
 
