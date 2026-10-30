@@ -23,6 +23,7 @@ import {
   UserRound,
   UserPlus,
   UsersRound,
+  Settings,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
@@ -108,10 +109,25 @@ const menuItems: SidebarItem[] = [
     },
   },
   {
+    name: "Clientes",
+    href: "/management/clients",
+    icon: ContactRound,
+    permission: "clients.view",
+    access: {
+      departments: ["commercial"],
+    },
+  },
+  {
     name: "Projectos",
     href: "/management/projects",
     icon: FolderKanban,
     permission: "projects.view",
+  },
+  {
+    name: "Briefings",
+    href: "/management/project-briefing",
+    icon: FileText,
+    permission: "project_briefing.view",
   },
   {
     name: "Submissões",
@@ -126,61 +142,10 @@ const menuItems: SidebarItem[] = [
     permission: "tasks.view",
   },
   {
-    name: "Briefings",
-    href: "/management/project-briefing",
-    icon: FileText,
-    permission: "project_briefing.view",
-  },
-
-  // Uncomment when the documents route and permission are ready.
-  /*
-  {
-    name: "Documentos",
-    href: "/management/documents",
-    icon: FileText,
-    permission: "documents.view",
-  },
-  */
-
-  {
     name: "Calendário",
     href: "/management/calendar",
     icon: CalendarDays,
     permission: "calendar.view",
-  },
-  {
-    name: "Mensagens",
-    href: "/management/messages",
-    icon: MessageCircle,
-    permission: "messages.view",
-    badgeKey: "messages",
-  },
-  {
-    name: "Clientes",
-    href: "/management/clients",
-    icon: ContactRound,
-    permission: "clients.view",
-    access: {
-      departments: ["commercial"],
-    },
-  },
-  {
-    name: "Equipa",
-    href: "/management/team",
-    icon: UsersRound,
-    permission: "team.view",
-    access: {
-      adminOnly: true,
-    },
-  },
-  {
-    name: "Presença",
-    href: "/management/attendance",
-    icon: Clock3,
-    permission: "attendance.view",
-    access: {
-      adminOnly: true,
-    },
   },
   {
     name: "Recursos de obra",
@@ -200,7 +165,15 @@ const menuItems: SidebarItem[] = [
       departments: ["engineering"],
     },
   },
+  {
+    name: "Mensagens",
+    href: "/management/messages",
+    icon: MessageCircle,
+    permission: "messages.view",
+    badgeKey: "messages",
+  },
 ];
+
 
 /*
  * ============================================================
@@ -208,13 +181,8 @@ const menuItems: SidebarItem[] = [
  * ============================================================
  */
 
+
 const bottomItems: SidebarItem[] = [
-  {
-    name: "Meu perfil",
-    href: "/management/profile",
-    icon: UserRound,
-    permission: "profile.view",
-  },
   {
     name: "Notificações",
     href: "/management/notifications",
@@ -223,12 +191,46 @@ const bottomItems: SidebarItem[] = [
     badgeKey: "notifications",
   },
   {
+    name: "Presença",
+    href: "/management/attendance",
+    icon: Clock3,
+    permission: "attendance.view",
+    access: {
+      adminOnly: true,
+    },
+  },
+  {
+    name: "Equipa",
+    href: "/management/team",
+    icon: UsersRound,
+    permission: "team.view",
+    access: {
+      adminOnly: true,
+    },
+  },
+  {
+    name: "Meu perfil",
+    href: "/management/profile",
+    icon: UserRound,
+    permission: "profile.view",
+  },
+  {
+    name: "Definições",
+    href: "/management/settings",
+    icon: Settings,
+    permission: "settings.view",
+    access: {
+      adminOnly: true,
+    },
+  },
+  {
     name: "Sair",
     href: "",
     icon: LogOut,
     action: "logout",
   },
 ];
+
 
 /*
  * ============================================================

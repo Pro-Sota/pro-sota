@@ -1,248 +1,246 @@
+
 import type {
-  Permission,
-  SystemRole,
+    Permission,
+    SystemRole,
 } from "./types";
 
+/* -------------------------------------------------------------------------- */
+/* All available permissions                                                  */
+/* -------------------------------------------------------------------------- */
+
 export const ALL_PERMISSIONS: Permission[] = [
-  "dashboard.view",
+    "dashboard.view",
 
-  "leads.view",
-  "leads.create",
-  "leads.edit",
-  "leads.delete",
+    // Leads
+    "leads.view",
+    "leads.create",
+    "leads.edit",
+    "leads.delete",
 
-  "projects.view",
-  "projects.create",
-  "projects.edit",
-  "projects.delete",
+    // Projects
+    "projects.view",
+    "projects.create",
+    "projects.edit",
+    "projects.delete",
 
-  "tasks.view",
-  "tasks.create",
-  "tasks.edit",
-  "tasks.delete",
-  "tasks.assign",
+    // Tasks
+    "tasks.view",
+    "tasks.create",
+    "tasks.edit",
+    "tasks.delete",
+    "tasks.assign",
 
-  "calendar.view",
-  "calendar.create",
-  "calendar.edit",
-  "calendar.delete",
+    // Calendar
+    "calendar.view",
+    "calendar.create",
+    "calendar.edit",
+    "calendar.delete",
 
-  "messages.view",
-  "messages.create",
+    // Messages
+    "messages.view",
+    "messages.create",
 
-  "clients.view",
-  "clients.create",
-  "clients.edit",
-  "clients.delete",
+    // Clients
+    "clients.view",
+    "clients.create",
+    "clients.edit",
+    "clients.delete",
 
-  "team.view",
-  "team.create",
-  "team.edit",
-  "team.delete",
+    // Team
+    "team.view",
+    "team.create",
+    "team.edit",
+    "team.delete",
 
-  "attendance.view",
-  "attendance.manage",
+    // Attendance
+    "attendance.view",
+    "attendance.manage",
 
-  "work_resources.view",
-  "work_resources.create",
-  "work_resources.edit",
-  "work_resources.delete",
-  "work_resources.move",
+    // Work resources
+    "work_resources.view",
+    "work_resources.create",
+    "work_resources.edit",
+    "work_resources.delete",
+    "work_resources.move",
 
-  "suppliers.view",
-  "suppliers.create",
-  "suppliers.edit",
-  "suppliers.delete",
+    // Suppliers
+    "suppliers.view",
+    "suppliers.create",
+    "suppliers.edit",
+    "suppliers.delete",
 
-  "documents.view",
-  "documents.upload",
-  "documents.edit",
-  "documents.delete",
+    // Project briefing
+    "project_briefing.view",
+    "project_briefing.create",
+    "project_briefing.delete",
 
-  "submissions.view",
-  "submissions.create",
-  "submissions.edit",
-  "submissions.delete",
-  "submissions.review",
+    // Documents
+    "documents.view",
+    "documents.upload",
+    "documents.create",
+    "documents.edit",
+    "documents.delete",
+    "documents.approve",
 
-  "notifications.view",
+    // Submissions
+    "submissions.view",
+    "submissions.create",
+    "submissions.edit",
+    "submissions.delete",
+    "submissions.review",
+    "submissions.approve",
 
-  "profile.view",
-  "profile.edit",
+    // Notifications
+    "notifications.view",
+
+    // Profile
+    "profile.view",
+    "profile.edit",
+
+    // Settings
+    "settings.view",
+    "settings.edit",
+    "settings.roles.view",
+    "settings.roles.manage",
+    "settings.notifications.view",
+    "settings.notifications.manage",
+    "settings.operational.view",
+    "settings.operational.manage",
+    "settings.audit.view",
 ];
 
-/*
- * ============================================================
- * ROLE DEFAULT PERMISSIONS
- * ============================================================
- *
- * These are defaults only.
- *
- * Later, these can come from:
- *
- * roles
- * role_permissions
- * user_permissions
- *
- * in Supabase.
- */
+/* -------------------------------------------------------------------------- */
+/* Admin permissions                                                          */
+/* -------------------------------------------------------------------------- */
 
-
-/*
- * Admin
- *
- * Administrative access.
- */
 export const ADMIN_PERMISSIONS: Permission[] = [
-  "dashboard.view",
-
-  "leads.view",
-  "leads.create",
-  "leads.edit",
-  "leads.delete",
-
-  "projects.view",
-  "projects.create",
-  "projects.edit",
-  "projects.delete",
-
-  "tasks.view",
-  "tasks.create",
-  "tasks.edit",
-  "tasks.delete",
-  "tasks.assign",
-
-  "calendar.view",
-  "calendar.create",
-  "calendar.edit",
-  "calendar.delete",
-
-  "messages.view",
-  "messages.create",
-
-  "clients.view",
-  "clients.create",
-  "clients.edit",
-  "clients.delete",
-
-  "team.view",
-  "team.create",
-  "team.edit",
-  "team.delete",
-
-  "attendance.view",
-  "attendance.manage",
-
-  "work_resources.view",
-  "work_resources.create",
-  "work_resources.edit",
-  "work_resources.delete",
-  "work_resources.move",
-
-  "suppliers.view",
-  "suppliers.create",
-  "suppliers.edit",
-  "suppliers.delete",
-
-  "documents.view",
-  "documents.upload",
-  "documents.edit",
-  "documents.delete",
-
-  "submissions.view",
-  "submissions.create",
-  "submissions.edit",
-  "submissions.delete",
-  "submissions.review",
-
-  "notifications.view",
-
-  "profile.view",
-  "profile.edit",
+    ...ALL_PERMISSIONS,
 ];
 
-/*
- * Director
- */
+/* -------------------------------------------------------------------------- */
+/* Director permissions                                                       */
+/* -------------------------------------------------------------------------- */
+
 export const DIRECTOR_PERMISSIONS: Permission[] = [
-  "dashboard.view",
+    "dashboard.view",
 
-  "leads.view",
+    // Leads
+    "leads.view",
 
-  "projects.view",
-  "projects.create",
-  "projects.edit",
+    // Projects
+    "projects.view",
+    "projects.create",
+    "projects.edit",
 
-  "tasks.view",
-  "tasks.create",
-  "tasks.edit",
-  "tasks.assign",
+    // Tasks
+    "tasks.view",
+    "tasks.create",
+    "tasks.edit",
+    "tasks.assign",
 
-  "calendar.view",
-  "calendar.create",
-  "calendar.edit",
+    // Calendar
+    "calendar.view",
+    "calendar.create",
+    "calendar.edit",
 
-  "messages.view",
-  "messages.create",
+    // Messages
+    "messages.view",
+    "messages.create",
 
-  "clients.view",
+    // Clients
+    "clients.view",
 
-  "team.view",
+    // Team
+    "team.view",
 
-  "attendance.view",
+    // Attendance
+    "attendance.view",
 
-  "work_resources.view",
+    // Work resources
+    "work_resources.view",
 
-  "suppliers.view",
+    // Suppliers
+    "suppliers.view",
 
-  "documents.view",
-  "documents.upload",
-  "documents.edit",
+    // Project briefing
+    "project_briefing.view",
+    "project_briefing.create",
 
-  "submissions.view",
-  "submissions.create",
-  "submissions.edit",
-  "submissions.review",
+    // Documents
+    "documents.view",
+    "documents.upload",
+    "documents.edit",
 
-  "notifications.view",
+    // Submissions
+    "submissions.view",
+    "submissions.create",
+    "submissions.edit",
+    "submissions.review",
 
-  "profile.view",
-  "profile.edit",
+    // Notifications
+    "notifications.view",
+
+    // Profile
+    "profile.view",
+    "profile.edit",
+
+    // Settings
+    "settings.view",
+    "settings.notifications.view",
+    "settings.operational.view",
 ];
 
-/*
- * Normal Utilizador
- */
+/* -------------------------------------------------------------------------- */
+/* Normal user permissions                                                    */
+/* -------------------------------------------------------------------------- */
+
 export const USER_PERMISSIONS: Permission[] = [
-  "dashboard.view",
+    "dashboard.view",
 
-  "projects.view",
+    // Projects
+    "projects.view",
 
-  "tasks.view",
-  "tasks.create",
-  "tasks.edit",
+    // Tasks
+    "tasks.view",
+    "tasks.create",
+    "tasks.edit",
 
-  "calendar.view",
+    // Calendar
+    "calendar.view",
 
-  "messages.view",
-  "messages.create",
+    // Messages
+    "messages.view",
+    "messages.create",
 
-  "documents.view",
-  "documents.upload",
+    // Project briefing
+    "project_briefing.view",
+    "project_briefing.create",
 
-  "submissions.view",
-  "submissions.create",
+    // Documents
+    "documents.view",
+    "documents.upload",
 
-  "notifications.view",
+    // Submissions
+    "submissions.view",
+    "submissions.create",
 
-  "profile.view",
-  "profile.edit",
+    // Notifications
+    "notifications.view",
+
+    // Profile
+    "profile.view",
+    "profile.edit",
+
+    // Personal Settings
+    "settings.view",
 ];
 
-export const ROLE_PERMISSIONS: Record<
-  SystemRole,
-  Permission[]
-> = {
-  Admin: ADMIN_PERMISSIONS,
-  Utilizador: USER_PERMISSIONS,
+/* -------------------------------------------------------------------------- */
+/* Role permission mapping                                                    */
+/* -------------------------------------------------------------------------- */
+
+export const ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
+    Admin: ADMIN_PERMISSIONS,
+    Director: DIRECTOR_PERMISSIONS,
+    Utilizador: USER_PERMISSIONS,
 };

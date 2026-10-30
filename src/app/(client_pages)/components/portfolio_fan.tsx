@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import { useRef } from "react";
 
 type PortfolioProject = {
   id: string;
@@ -11,167 +10,73 @@ type PortfolioProject = {
   images?: string[];
 };
 
-type PortfolioFanProps = {
-  projects: PortfolioProject[];
-  onOpen: (id: string) => void;
-};
-
-type FanCardStyle = CSSProperties & {
-  "--offset": number;
-  "--distance": number;
-  "--angle": string;
-};
-
+/* Same props as before: drop-in replacement. A snap carousel replaces the 3D fan. */
 export default function PortfolioFan({
   projects,
   onOpen,
-}: PortfolioFanProps) {
-  const [active, setActive] = useState(0);
-  const dragStart = useRef<number | null>(null);
-  const swipedAt = useRef(0);
+}: {
+  projects: PortfolioProject[];
+  onOpen: (id: string) => void;
+}) {
+  const track = useRef<HTMLDivElement>(null);
+  if (projects.length === 0) return null;
 
-  const count = projects.length;
-
-  if (count === 0) return null;
-
-  // Navegação circular entre projectos.
-  const select = (step: number) => {
-    setActive((index) => (index + step + count) % count);
-  };
+  const scrollBy = (dir: -1 | 1) =>
+    track.current?.scrollBy({ left: dir * 420, behavior: "smooth" });
 
   return (
-    <div className="portfolio-fan">
+    <div>
       <div
-        className="portfolio-fan__stage"
+        ref={track}
         role="group"
         aria-label="Projectos em destaque"
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (
-            event.target === event.currentTarget &&
-            (event.key === "ArrowLeft" || event.key === "ArrowRight")
-          ) {
-            event.preventDefault();
-            select(event.key === "ArrowLeft" ? -1 : 1);
-          }
-        }}
-        onPointerDown={(event) => {
-          if (event.pointerType === "mouse" && event.button !== 0) return;
-          dragStart.current = event.clientX;
-        }}
-        onPointerUp={(event) => {
-          if (dragStart.current === null) return;
-
-          const distance = event.clientX - dragStart.current;
-          dragStart.current = null;
-
-          if (Math.abs(distance) < 45) return;
-
-          // Ignora o clique que possa ocorrer imediatamente após o gesto.
-          swipedAt.current = Date.now();
-          select(distance > 0 ? -1 : 1);
-        }}
-        onPointerCancel={() => {
-          dragStart.current = null;
-        }}
-        onLostPointerCapture={() => {
-          dragStart.current = null;
-        }}
+        className="-mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-4 [scrollbar-width:none] md:-mx-10 md:px-10 [&::-webkit-scrollbar]:hidden"
       >
-        {projects.map((project, index) => {
-          let offset = index - active;
-
-          if (offset > count / 2) offset -= count;
-          if (offset < -count / 2) offset += count;
-
-          const distance = Math.abs(offset);
-          const visible = distance <= 2;
-          const current = offset === 0;
-          const cover = project.images?.[0];
-
-          const cardStyle: FanCardStyle = {
-            "--offset": offset,
-            "--distance": distance,
-            "--angle": `${offset * 8}deg`,
-            zIndex: 10 - distance,
-          };
-
+        {projects.map((p) => {
+          const cover = p.images?.[0];
           return (
             <button
+              key={p.id}
               type="button"
-              key={project.id}
-              className={`portfolio-fan__card${
-                current ? " is-active" : ""
-              }`}
-              style={cardStyle}
-              aria-label={
-                current
-                  ? `Ver projecto ${project.name}`
-                  : `Seleccionar projecto ${project.name}`
-              }
-              aria-hidden={!visible}
-              tabIndex={visible ? 0 : -1}
-              onClick={() => {
-                if (Date.now() - swipedAt.current < 400) return;
-
-                if (current) {
-                  onOpen(project.id);
-                } else {
-                  setActive(index);
-                }
-              }}
+              onClick={() => onOpen(p.id)}
+              aria-label={`Ver projecto ${p.name}`}
+              className="group relative aspect-[4/5] w-[min(82vw,380px)] shrink-0 snap-start overflow-hidden rounded-3xl bg-navy text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
             >
-              {cover ? (
+              {cover && (
                 <img
                   src={cover}
                   alt=""
-                  loading={visible ? "eager" : "lazy"}
+                  loading="lazy"
                   draggable={false}
-                />
-              ) : (
-                <span
-                  className="portfolio-fan__placeholder"
-                  aria-hidden="true"
+                  className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105"
                 />
               )}
-
-              <span className="portfolio-fan__caption">
-                <small>
-                  {project.category} · {project.year}
+              <span className="absolute inset-0 bg-gradient-to-t from-navy-deep/90 via-navy-deep/10 to-transparent" />
+              <span className="absolute inset-x-0 bottom-0 p-6 text-white">
+                <small className="block text-sm text-white/70">
+                  {p.category}, {p.year}
                 </small>
-                <strong>{project.name}</strong>
+                <strong className="mt-1 block font-display text-2xl font-semibold leading-tight">
+                  {p.name}
+                </strong>
               </span>
             </button>
           );
         })}
       </div>
 
-      <div className="portfolio-fan__controls">
-        <button
-          type="button"
-          onClick={() => select(-1)}
-          aria-label="Projecto anterior"
-          disabled={count < 2}
-        >
-          <span aria-hidden="true">←</span>
-        </button>
-
-        <span aria-live="polite" aria-atomic="true">
-          <b>{String(active + 1).padStart(2, "0")}</b>
-          {" / "}
-          {String(count).padStart(2, "0")}
-          {" · "}
-          {projects[active].name}
-        </span>
-
-        <button
-          type="button"
-          onClick={() => select(1)}
-          aria-label="Projecto seguinte"
-          disabled={count < 2}
-        >
-          <span aria-hidden="true">→</span>
-        </button>
+      <div className="mt-6 flex gap-2">
+        {([-1, 1] as const).map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => scrollBy(d)}
+            aria-label={d < 0 ? "Projecto anterior" : "Projecto seguinte"}
+            className="flex size-12 items-center justify-center rounded-full border border-navy/20 text-navy transition hover:bg-navy hover:text-white"
+          >
+            {d < 0 ? "←" : "→"}
+          </button>
+        ))}
       </div>
     </div>
   );

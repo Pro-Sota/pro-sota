@@ -15,12 +15,18 @@ import {
 import { useRouter } from "next/navigation";
 
 import { StatCard } from "@/app/components/StatCard";
-import type { Lead, LeadStatus } from "@/services/leads";
-import { updateLeadStatus } from "@/services/leads";
+
+import type {
+    Lead,
+    LeadStatus,
+} from "@/app/management/leads/types";
+
+import { updateLeadStatusAction } from "@/actions/leads";
 
 import CreateLeadModal from "./create_lead_modal";
 import LeadDetailDrawer from "./components/detail_drawer";
 import LeadsKanbanBoard from "./components/kanban_board";
+
 import {
     ALL_COLUMNS,
     CLOSED_COLUMNS,
@@ -33,51 +39,73 @@ import {
     type LeadsSort,
     type LeadsView,
 } from "./utils";
+
 import EditLeadModal from "./components/edit_modal";
+
+/* -------------------------------------------------------------------------- */
+/* Props                                                                      */
+/* -------------------------------------------------------------------------- */
 
 type LeadsInitProps = {
     leads: Lead[];
 };
+
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
 
 export default function LeadsInit({
     leads: initialLeads,
 }: LeadsInitProps) {
     const router = useRouter();
 
+    /* ---------------------------------------------------------------------- */
+    /* State                                                                  */
+    /* ---------------------------------------------------------------------- */
+
     const [search, setSearch] = useState("");
-    const [activeView, setActiveView] = useState<LeadsView>("pipeline");
-    const [sortBy, setSortBy] = useState<LeadsSort>("newest");
+
+    const [activeView, setActiveView] =
+        useState<LeadsView>("pipeline");
+
+    const [sortBy, setSortBy] =
+        useState<LeadsSort>("newest");
+
     const [showFilters, setShowFilters] = useState(false);
-    const [showCreateLeadModal, setShowCreateLeadModal] = useState(false);
+
+    const [showCreateLeadModal, setShowCreateLeadModal] =
+        useState(false);
+
     const [createInitialStatus, setCreateInitialStatus] =
-        useState<LeadStatus>("new")
+        useState<LeadStatus>("new");
 
+    const [editingLead, setEditingLead] =
+        useState<Lead | null>(null);
 
-    const [editingLead, setEditingLead] = useState<Lead | null>(null);
+    const [updatedLeads, setUpdatedLeads] =
+        useState<Record<string, Lead>>({});
 
-    const [updateInProgress, setUpdateInProgress] = useState(false);
+    const [pendingLeadIds, setPendingLeadIds] =
+        useState<Set<string>>(() => new Set());
 
+    const [selectedLeadId, setSelectedLeadId] =
+        useState<string | null>(null);
 
+    const [moveError, setMoveError] =
+        useState<string | null>(null);
 
-    const [updatedLeads, setUpdatedLeads] = useState<
-        Record<string, Lead>
-    >({});
-    const [pendingLeadIds, setPendingLeadIds] = useState<Set<string>>(
-        () => new Set(),
-    );
-    const [selectedLeadId, setSelectedLeadId] = useState<string | null>(
-        null,
-    );
-    const [moveError, setMoveError] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(
-        null,
-    );
+    const [successMessage, setSuccessMessage] =
+        useState<string | null>(null);
+
     const [dragOverStatus, setDragOverStatus] =
         useState<LeadStatus | null>(null);
 
     const draggingLeadId = useRef<string | null>(null);
 
-    // Fresh server data supersedes local mutation overlays after refresh.
+    /* ---------------------------------------------------------------------- */
+    /* Synchronise server data                                                */
+    /* ---------------------------------------------------------------------- */
+
     useEffect(() => {
         setUpdatedLeads({});
     }, [initialLeads]);
@@ -89,6 +117,10 @@ export default function LeadsInit({
             ),
         [initialLeads, updatedLeads],
     );
+
+    /* ---------------------------------------------------------------------- */
+    /* Statistics                                                             */
+    /* ---------------------------------------------------------------------- */
 
     const activeLeads = useMemo(
         () => leads.filter((lead) => !isClosedLead(lead)),
@@ -116,6 +148,10 @@ export default function LeadsInit({
         (lead) => lead.status === "negotiation",
     ).length;
 
+    /* ---------------------------------------------------------------------- */
+    /* Views and filtering                                                     */
+    /* ---------------------------------------------------------------------- */
+
     const viewLeads = useMemo(() => {
         if (activeView === "pipeline") {
             return activeLeads;
@@ -136,6 +172,7 @@ export default function LeadsInit({
     const columns = useMemo(() => {
         if (activeView === "pipeline") return PIPELINE_COLUMNS;
         if (activeView === "closed") return CLOSED_COLUMNS;
+
         return ALL_COLUMNS;
     }, [activeView]);
 
@@ -149,36 +186,56 @@ export default function LeadsInit({
         [leads, selectedLeadId],
     );
 
-    // Avoid leaving a drawer open if the selected lead disappears.
+    /* ---------------------------------------------------------------------- */
+    /* Selected lead synchronisation                                          */
+    /* ---------------------------------------------------------------------- */
+
     useEffect(() => {
         if (
             selectedLeadId &&
-            !leads.some((lead) => lead.lead_id === selectedLeadId)
+            !leads.some(
+                (lead) => lead.lead_id === selectedLeadId,
+            )
         ) {
             setSelectedLeadId(null);
         }
     }, [leads, selectedLeadId]);
 
-    function setLeadPending(leadId: string, pending: boolean) {
+    /* ---------------------------------------------------------------------- */
+    /* Pending state                                                           */
+    /* ---------------------------------------------------------------------- */
+
+    function setLeadPending(
+        leadId: string,
+        pending: boolean,
+    ) {
         setPendingLeadIds((current) => {
             const next = new Set(current);
 
-            if (pending) next.add(leadId);
-            else next.delete(leadId);
+            if (pending) {
+                next.add(leadId);
+            } else {
+                next.delete(leadId);
+            }
 
             return next;
         });
     }
 
+    /* ---------------------------------------------------------------------- */
+    /* Update lead status — Server Action                                    */
+    /* ---------------------------------------------------------------------- */
+
     async function changeLeadStatus(
         leadId: string,
         nextStatus: LeadStatus,
     ) {
-        const lead = leads.find((item) => item.lead_id === leadId);
+        const lead = leads.find(
+            (item) => item.lead_id === leadId,
+        );
 
         if (!lead || lead.status === nextStatus) return;
 
-        // Prevent conflicting requests for the same lead.
         if (pendingLeadIds.has(leadId)) return;
 
         setLeadPending(leadId, true);
@@ -186,13 +243,21 @@ export default function LeadsInit({
         setSuccessMessage(null);
 
         try {
-            const updatedLead = await updateLeadStatus(
+            const result = await updateLeadStatusAction(
                 leadId,
                 nextStatus,
             );
 
+            if (!result.success || !result.data) {
+                throw new Error(
+                    result.error ||
+                    "Não foi possível actualizar o estado da lead.",
+                );
+            }
+
+            const updatedLead = result.data as Lead;
+
             if (
-                !updatedLead ||
                 updatedLead.lead_id !== leadId ||
                 updatedLead.status !== nextStatus
             ) {
@@ -222,10 +287,20 @@ export default function LeadsInit({
         }
     }
 
-    function openCreateModal(status: LeadStatus = "new") {
+    /* ---------------------------------------------------------------------- */
+    /* Create lead                                                             */
+    /* ---------------------------------------------------------------------- */
+
+    function openCreateModal(
+        status: LeadStatus = "new",
+    ) {
         setCreateInitialStatus(status);
         setShowCreateLeadModal(true);
     }
+
+    /* ---------------------------------------------------------------------- */
+    /* Drag and drop                                                           */
+    /* ---------------------------------------------------------------------- */
 
     function handleDragStart(leadId: string) {
         draggingLeadId.current = leadId;
@@ -237,15 +312,15 @@ export default function LeadsInit({
         leadId: string,
         nextStatus: LeadStatus,
     ) {
-        const lead = leads.find((item) => item.lead_id === leadId);
+        const lead = leads.find(
+            (item) => item.lead_id === leadId,
+        );
 
         setDragOverStatus(null);
         draggingLeadId.current = null;
 
         if (!lead || lead.status === nextStatus) return;
 
-        // Dropping a card onto a different board must not bypass
-        // the view filter or accidentally close a lead.
         if (
             activeView === "pipeline" &&
             isClosedLead(lead)
@@ -263,6 +338,10 @@ export default function LeadsInit({
         void changeLeadStatus(leadId, nextStatus);
     }
 
+    /* ---------------------------------------------------------------------- */
+    /* Totals                                                                  */
+    /* ---------------------------------------------------------------------- */
+
     const totalPipelineValue = activeLeads.reduce(
         (sum, lead) => sum + (lead.budget ?? 0),
         0,
@@ -273,15 +352,25 @@ export default function LeadsInit({
         0,
     );
 
+    /* ---------------------------------------------------------------------- */
+    /* Render                                                                  */
+    /* ---------------------------------------------------------------------- */
+
     return (
         <main className="min-h-screen bg-[#F7F7F5] px-4 py-5 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-[1700px]">
+
+                {/* Header */}
+
                 <header className="mb-6">
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+
                         <div className="min-w-0">
                             <div className="mb-2 flex items-center gap-2 text-sm text-neutral-500">
                                 <UserPlus className="h-4 w-4" />
-                                <span>Desenvolvimento de negócio</span>
+                                <span>
+                                    Desenvolvimento de negócio
+                                </span>
                             </div>
 
                             <h1 className="text-2xl font-semibold tracking-tight text-neutral-950 sm:text-3xl">
@@ -305,12 +394,15 @@ export default function LeadsInit({
                     </div>
                 </header>
 
+                {/* Error message */}
+
                 {moveError && (
                     <div
                         role="alert"
                         className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
                     >
                         <p>{moveError}</p>
+
                         <button
                             type="button"
                             onClick={() => setMoveError(null)}
@@ -321,12 +413,15 @@ export default function LeadsInit({
                     </div>
                 )}
 
+                {/* Success message */}
+
                 {successMessage && (
                     <div
                         role="status"
                         className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
                     >
                         <p>{successMessage}</p>
+
                         <button
                             type="button"
                             onClick={() => setSuccessMessage(null)}
@@ -337,22 +432,27 @@ export default function LeadsInit({
                     </div>
                 )}
 
+                {/* Statistics */}
+
                 <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
                     <StatCard
                         title="Leads activos"
                         value={String(activeLeads.length)}
                         icon={<Users className="h-5 w-5" />}
                     />
+
                     <StatCard
                         title="Qualificados"
                         value={String(qualifiedCount)}
                         icon={<Building2 className="h-5 w-5" />}
                     />
+
                     <StatCard
                         title="Negociações"
                         value={String(negotiationCount)}
                         icon={<ArrowDownUp className="h-5 w-5" />}
                     />
+
                     <StatCard
                         title="Ganhos"
                         value={String(wonLeads.length)}
@@ -360,11 +460,17 @@ export default function LeadsInit({
                     />
                 </div>
 
+                {/* Search and filters */}
+
                 <section className="mb-5 rounded-2xl border border-neutral-200/80 bg-white p-3 shadow-sm">
+
                     <div className="flex flex-col gap-3">
+
                         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+
                             <div className="relative min-w-0 flex-1">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+
                                 <input
                                     value={search}
                                     onChange={(event) =>
@@ -377,16 +483,18 @@ export default function LeadsInit({
                             </div>
 
                             <div className="flex gap-2">
+
                                 <button
                                     type="button"
                                     aria-expanded={showFilters}
                                     onClick={() =>
                                         setShowFilters((value) => !value)
                                     }
-                                    className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium sm:flex-none ${showFilters
-                                        ? "border-[#002950] bg-[#002950] text-white"
-                                        : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
-                                        }`}
+                                    className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium sm:flex-none ${
+                                        showFilters
+                                            ? "border-[#002950] bg-[#002950] text-white"
+                                            : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                                    }`}
                                 >
                                     <Filter className="h-4 w-4" />
                                     Filtros
@@ -404,14 +512,19 @@ export default function LeadsInit({
                                     className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-neutral-200 px-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 sm:flex-none"
                                 >
                                     <ArrowDownUp className="h-4 w-4" />
+
                                     {sortBy === "newest"
                                         ? "Mais recentes"
                                         : "Maior orçamento"}
                                 </button>
+
                             </div>
                         </div>
 
+                        {/* Views */}
+
                         <div className="flex flex-wrap items-center gap-1 border-t border-neutral-100 pt-3">
+
                             {(
                                 ["pipeline", "closed", "all"] as LeadsView[]
                             ).map((view) => {
@@ -431,32 +544,40 @@ export default function LeadsInit({
                                             setActiveView(view);
                                             setDragOverStatus(null);
                                         }}
-                                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${activeView === view
-                                            ? "bg-[#002950] text-white"
-                                            : "text-neutral-600 hover:bg-neutral-100"
-                                            }`}
+                                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                                            activeView === view
+                                                ? "bg-[#002950] text-white"
+                                                : "text-neutral-600 hover:bg-neutral-100"
+                                        }`}
                                     >
                                         {VIEW_LABELS[view]}
+
                                         <span
-                                            className={`rounded-md px-1.5 py-0.5 text-[10px] ${activeView === view
-                                                ? "bg-white/15 text-white"
-                                                : "bg-neutral-100 text-neutral-500"
-                                                }`}
+                                            className={`rounded-md px-1.5 py-0.5 text-[10px] ${
+                                                activeView === view
+                                                    ? "bg-white/15 text-white"
+                                                    : "bg-neutral-100 text-neutral-500"
+                                            }`}
                                         >
                                             {count}
                                         </span>
                                     </button>
                                 );
                             })}
+
                         </div>
                     </div>
 
+                    {/* Expanded filters */}
+
                     {showFilters && (
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 pt-3">
+
                             <div>
                                 <p className="text-xs font-medium text-neutral-700">
                                     Vista: {VIEW_LABELS[activeView]}
                                 </p>
+
                                 <p className="mt-1 text-xs text-neutral-400">
                                     {filteredLeads.length} resultados
                                 </p>
@@ -472,9 +593,12 @@ export default function LeadsInit({
                             >
                                 Limpar filtros
                             </button>
+
                         </div>
                     )}
                 </section>
+
+                {/* Kanban board */}
 
                 <LeadsKanbanBoard
                     columns={columns}
@@ -492,22 +616,34 @@ export default function LeadsInit({
                     onAddLead={openCreateModal}
                 />
 
+                {/* Values */}
+
                 <p className="mt-3 text-right text-xs text-neutral-400">
                     Valor da vista: {formatCompactCurrency(currentViewValue)}
+
                     {activeView !== "closed" && (
-                        <> · Pipeline total: {formatCompactCurrency(totalPipelineValue)}</>
+                        <>
+                            {" "}· Pipeline total:{" "}
+                            {formatCompactCurrency(totalPipelineValue)}
+                        </>
                     )}
                 </p>
+
+                {/* Lead details */}
 
                 {selectedLead && (
                     <LeadDetailDrawer
                         lead={selectedLead}
-                        pending={pendingLeadIds.has(selectedLead.lead_id)}
+                        pending={pendingLeadIds.has(
+                            selectedLead.lead_id,
+                        )}
                         onClose={() => setSelectedLeadId(null)}
                         onChangeStatus={changeLeadStatus}
                         onEdit={(lead) => setEditingLead(lead)}
                     />
                 )}
+
+                {/* Edit lead */}
 
                 {editingLead && (
                     <EditLeadModal
@@ -522,6 +658,8 @@ export default function LeadsInit({
                     />
                 )}
 
+                {/* Create lead */}
+
                 <CreateLeadModal
                     open={showCreateLeadModal}
                     onClose={() => setShowCreateLeadModal(false)}
@@ -530,6 +668,7 @@ export default function LeadsInit({
                         router.refresh();
                     }}
                 />
+
             </div>
         </main>
     );

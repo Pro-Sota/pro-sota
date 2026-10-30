@@ -1,13 +1,15 @@
+
 import { redirect } from "next/navigation";
 
-import { createClient } from "@/app/lib/supabase/server";
+import { requireUser } from "@/app/lib/supabase/auth";
+import { getCurrentUserPermissions } from "@/app/lib/permissions/server";
+
 import {
     getManagementSettings,
-    requireSettingsAdmin,
+    getOrganisationNotificationSettings,
 } from "@/services/settings";
 
-import SettingsTabs from "./settings_tabs";
-import { requireUser } from "@/app/lib/supabase/auth";
+import Settings from "./settings_page";
 
 export const metadata = {
     title: "Definições | Pro-Sota",
@@ -15,27 +17,78 @@ export const metadata = {
 };
 
 export default async function SettingsPage() {
-    
-    const {user} = await requireUser();
+    /* ---------------------------------------------------------------------- */
+    /* Authentication                                                         */
+    /* ---------------------------------------------------------------------- */
+
+    const { user } = await requireUser();
+
     if (!user) {
         redirect("/login");
     }
 
-    const initialSettings = await getManagementSettings();
+    /* ---------------------------------------------------------------------- */
+    /* Effective permissions                                                  */
+    /* ---------------------------------------------------------------------- */
 
-    let canManage = false;
+    const auth = await getCurrentUserPermissions();
+    const isAdmin = auth.role === "Admin";
 
-    try {
-        await requireSettingsAdmin();
-        canManage = true;
-    } catch {
-        canManage = false;
+    if (
+        !isAdmin &&
+        !auth.permissions.has("settings.view")
+    ) {
+        redirect("/management");
     }
 
+    /* ---------------------------------------------------------------------- */
+    /* Personal settings                                                      */
+    /* ---------------------------------------------------------------------- */
+
+    const initialSettings = await getManagementSettings();
+
+    const canManagePersonal =
+        isAdmin ||
+        auth.permissions.has("settings.manage");
+
+    /* ---------------------------------------------------------------------- */
+    /* Organisation notification permissions                                 */
+    /* ---------------------------------------------------------------------- */
+
+    const canViewOrganisationNotifications =
+        isAdmin ||
+        auth.permissions.has("settings.notifications.view");
+
+    const canManageOrganisationNotifications =
+        isAdmin ||
+        auth.permissions.has("settings.notifications.manage");
+
+    /* ---------------------------------------------------------------------- */
+    /* Organisation notification settings                                    */
+    /* ---------------------------------------------------------------------- */
+
+    const initialOrganisationNotifications =
+        canViewOrganisationNotifications
+            ? await getOrganisationNotificationSettings()
+            : null;
+
+    /* ---------------------------------------------------------------------- */
+    /* Render                                                                 */
+    /* ---------------------------------------------------------------------- */
+
     return (
-        <SettingsTabs
+        <Settings
             initialSettings={initialSettings}
-            canManage={canManage}
+            canManage={canManagePersonal}
+            initialOrganisationNotifications={
+                initialOrganisationNotifications
+            }
+            canViewOrganisationNotifications={
+                canViewOrganisationNotifications
+            }
+            canManageOrganisationNotifications={
+                canManageOrganisationNotifications
+            }
         />
     );
 }

@@ -1,5 +1,5 @@
+import { LeadStatus, Lead } from "./types";
 
-import type { Lead, LeadStatus } from "@/services/leads";
 
 export type LeadsView = "pipeline" | "closed" | "all";
 export type LeadsSort = "newest" | "budget";

@@ -8,6 +8,7 @@ export type EventType =
 
 export type CalendarEvent = {
     id: string;
+    event_id?: string;
     title: string;
     date: string;
     time?: string;
@@ -18,7 +19,15 @@ export type CalendarEvent = {
     description?: string;
     source: EventType;
     sourceId?: string;
+
+    // Lead association
+    lead_id?: string | null;
+
+    // Event permissions and participants
+    created_by?: string | null;
+    participant_ids?: string[];
 };
+
 import type {
   CalendarParticipant,
   CalendarClientOption,

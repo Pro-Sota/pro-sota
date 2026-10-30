@@ -48,6 +48,30 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+@theme {
+  --animate-ticker: ticker 35s linear infinite;
+  --animate-scroll-line: scrollLine 1.8s ease-in-out infinite;
+
+  @keyframes ticker {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes scrollLine {
+    0% {
+      transform: translateY(-100%);
+    }
+    100% {
+      transform: translateY(250%);
+    }
+  }
+}
+
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -236,3 +260,5 @@ html {
   outline: 2px solid #bd9655;
   outline-offset: -2px;
 }
+
+

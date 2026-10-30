@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -13,6 +12,7 @@ import {
   UserPlus,
   Folder,
   ListTodo,
+  FileText,
   CalendarDays,
   MessageCircle,
   Handshake,
@@ -100,6 +100,18 @@ const menuItems: NavigationItem[] = [
     href: "/management/tasks",
     icon: ListTodo,
     permission: "tasks.view",
+  },
+  {
+    name: "Submissões",
+    href: "/management/submissions",
+    icon: ListTodo,
+    permission: "submissions.view",
+  },
+  {
+    name: "Briefings",
+    href: "/management/project-briefing",
+    icon: FileText,
+    permission: "project_briefing.view",
   },
   {
     name: "Calendário",
@@ -273,28 +285,28 @@ function canSeeNavigationItem(
 
 interface Props {
   userRole: string;
-  userDeparment:string;
+  userDeparment: string;
 }
 
-export default function MobileNavbar({userRole, userDeparment}:Props) {
+export default function MobileNavbar({
+  userRole,
+  userDeparment,
+}: Props) {
   const pathname = usePathname();
-
-  /*
-   * This implementation expects usePermissions() to expose:
-   * can, userRole, and department.
-   *
-   * Map these names if your provider uses different fields.
-   */
-
-  const {
-    can,
-  } = usePermissions();
+  const { can } = usePermissions();
 
   const [isOpen, setIsOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   // Role ID 1 is Admin in the Pro-Sota application.
-  const isAdmin = userRole.toLowerCase() === "admin";
+  const normalizedRole = userRole.trim().toLowerCase();
+  const isAdmin =
+    normalizedRole === "1" ||
+    normalizedRole === "admin" ||
+    normalizedRole === "administrator" ||
+    normalizedRole === "administrador" ||
+    normalizedRole === "superadmin" ||
+    normalizedRole === "super admin";
 
   const normalizedDepartment = normalizeDepartment(userDeparment);
 
@@ -342,10 +354,7 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
       return pathname === href;
     }
 
-    return (
-      pathname === href ||
-      pathname.startsWith(`${href}/`)
-    );
+    return pathname === href || pathname.startsWith(`${href}/`);
   };
 
   /*
@@ -373,7 +382,6 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
 
     try {
       const supabase = createClient();
-
       const { error } = await supabase.auth.signOut();
 
       if (error) {
@@ -390,9 +398,9 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
   };
 
   /*
-   * ==========================================================
+   * ============================================================
    * RENDER
-   * ==========================================================
+   * ============================================================
    */
 
   return (
@@ -402,7 +410,6 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
         className="fixed inset-x-0 top-0 z-50 border-b border-[#BD9655] bg-[#F7F7F5] md:hidden"
       >
         {/* HEADER */}
-
         <div className="flex h-20 items-center justify-between border-b border-[#BD9655] px-4">
           <Link
             href="/management"
@@ -423,11 +430,7 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
           <button
             type="button"
             onClick={() => setIsOpen((open) => !open)}
-            aria-label={
-              isOpen
-                ? "Fechar menu"
-                : "Abrir menu"
-            }
+            aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
             aria-expanded={isOpen}
             aria-controls="mobile-navigation"
             className={[
@@ -445,13 +448,13 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
             {isOpen ? (
               <X
                 aria-hidden="true"
-                className="h-[18px] w-[18px]"
+                className="h-[18px] w-[18px] shrink-0"
                 strokeWidth={1.8}
               />
             ) : (
               <Menu
                 aria-hidden="true"
-                className="h-[18px] w-[18px]"
+                className="h-[18px] w-[18px] shrink-0"
                 strokeWidth={1.8}
               />
             )}
@@ -459,7 +462,6 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
         </div>
 
         {/* MOBILE MENU */}
-
         {isOpen && (
           <div
             id="mobile-navigation"
@@ -471,7 +473,6 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
             ].join(" ")}
           >
             {/* MAIN MENU */}
-
             <div className="space-y-1">
               {visibleMenuItems.map((item) => (
                 <MobileNavItem
@@ -484,16 +485,11 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
             </div>
 
             {/* BOTTOM MENU */}
-
             <div className="mt-3 border-t border-[#BD9655] pt-3">
               <div className="space-y-1">
                 {visibleBottomItems.map((item) => (
                   <MobileNavItem
-                    key={
-                      item.action === "logout"
-                        ? "logout"
-                        : item.href
-                    }
+                    key={item.action === "logout" ? "logout" : item.href}
                     item={item}
                     active={isActiveRoute(item.href)}
                     onClick={
@@ -502,9 +498,7 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
                         : handleNavClick
                     }
                     logoutLoading={
-                      item.action === "logout"
-                        ? logoutLoading
-                        : false
+                      item.action === "logout" ? logoutLoading : false
                     }
                   />
                 ))}
@@ -515,7 +509,6 @@ export default function MobileNavbar({userRole, userDeparment}:Props) {
       </nav>
 
       {/* SPACER */}
-
       <div className="h-20 md:hidden" />
     </>
   );
@@ -536,9 +529,7 @@ function MobileNavItem({
   const Icon = item.icon;
 
   const label =
-    item.action === "logout" && logoutLoading
-      ? "A sair..."
-      : item.name;
+    item.action === "logout" && logoutLoading ? "A sair..." : item.name;
 
   const itemClasses = [
     "group relative flex w-full min-w-0",
@@ -552,10 +543,7 @@ function MobileNavItem({
     "focus-visible:ring-offset-2",
   ].join(" ");
 
-  /*
-   * LOGOUT BUTTON
-   */
-
+  /* LOGOUT BUTTON */
   if (item.action === "logout") {
     return (
       <button
@@ -576,13 +564,13 @@ function MobileNavItem({
           {logoutLoading ? (
             <Loader2
               aria-hidden="true"
-              className="h-[18px] w-[18px] animate-spin"
+              className="h-[18px] w-[18px] shrink-0 animate-spin"
               strokeWidth={1.8}
             />
           ) : (
             <Icon
               aria-hidden="true"
-              className="h-[18px] w-[18px]"
+              className="h-[18px] w-[18px] shrink-0"
               strokeWidth={1.8}
             />
           )}
@@ -595,10 +583,7 @@ function MobileNavItem({
     );
   }
 
-  /*
-   * NORMAL NAVIGATION LINK
-   */
-
+  /* NORMAL NAVIGATION LINK */
   return (
     <Link
       href={item.href}
@@ -624,7 +609,7 @@ function MobileNavItem({
       <span className="flex h-5 w-5 shrink-0 items-center justify-center">
         <Icon
           aria-hidden="true"
-          className="h-[18px] w-[18px]"
+          className="h-[18px] w-[18px] shrink-0"
           strokeWidth={1.8}
         />
       </span>

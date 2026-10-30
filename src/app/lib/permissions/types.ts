@@ -1,4 +1,17 @@
-// src/app/lib/permissions/types.ts
+
+/* -------------------------------------------------------------------------- */
+/* Permission keys                                                            */
+/* -------------------------------------------------------------------------- */
+
+export type SettingsPermission =
+  | "settings.view"
+  | "settings.roles.view"
+  | "settings.roles.manage"
+  | "settings.notifications.view"
+  | "settings.notifications.manage"
+  | "settings.operational.view"
+  | "settings.operational.manage"
+  | "settings.audit.view";
 
 export type Permission =
   // Dashboard
@@ -64,8 +77,8 @@ export type Permission =
 
   // Project Briefing
   | "project_briefing.view"
-  |"project_briefing.create"
-  |"project_briefing.delete"
+  | "project_briefing.create"
+  | "project_briefing.delete"
 
   // Documents
   | "documents.view"
@@ -83,12 +96,31 @@ export type Permission =
   | "submissions.review"
   | "submissions.approve"
 
+  // Settings
+  | SettingsPermission[number]
+
+  // Legacy/general settings permission
+  | "settings.edit"
+
   // Notifications
   | "notifications.view"
 
   // Profile
   | "profile.view"
   | "profile.edit";
+
+/* -------------------------------------------------------------------------- */
+/* Roles                                                                      */
+/* -------------------------------------------------------------------------- */
+
+export type SystemRole =
+  | "Admin"
+  | "Director"
+  | "Utilizador";
+
+/* -------------------------------------------------------------------------- */
+/* Permission overrides                                                      */
+/* -------------------------------------------------------------------------- */
 
 export type PermissionEffect = "allow" | "deny";
 
@@ -98,13 +130,19 @@ export type PermissionOverride = {
   reason?: string | null;
 };
 
-export type SystemRole = "Admin" | "Utilizador";
+/* -------------------------------------------------------------------------- */
+/* Permission collections                                                    */
+/* -------------------------------------------------------------------------- */
+
+export type PermissionSet = ReadonlySet<Permission>;
+
+/* -------------------------------------------------------------------------- */
+/* Permission context                                                         */
+/* -------------------------------------------------------------------------- */
 
 export type PermissionContextValue = {
-  permissions: ReadonlySet<Permission>;
+  permissions: PermissionSet;
   can: (permission: Permission) => boolean;
   canAny: (permissions: readonly Permission[]) => boolean;
   canAll: (permissions: readonly Permission[]) => boolean;
 };
-export type PermissionSet = ReadonlySet<Permission>;
-

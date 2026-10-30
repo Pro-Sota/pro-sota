@@ -42,6 +42,7 @@ import { deactivateTeamMember } from "@/actions/team";
 type TeamPageProps = {
     team: TeamMember[];
     isAdmin: boolean;
+    canManagePermissions: boolean;
 };
 
 const getInitials = (
@@ -100,6 +101,7 @@ const getJobTitle = (employee: TeamMember) => {
 export default function TeamPage({
     team,
     isAdmin,
+    canManagePermissions
 }: TeamPageProps) {
     const router = useRouter();
     const toast = useToast();
@@ -209,7 +211,7 @@ export default function TeamPage({
     };
 
     const handleViewPermissions = () => {
-        if (!isAdmin) return;
+        if (!canManagePermissions) return;
 
         router.push("/management/team/permissions");
     };
@@ -252,7 +254,7 @@ export default function TeamPage({
                 if (!result.success) {
                     toast.error(
                         result.error ??
-                            "Não foi possível desactivar o colaborador.",
+                        "Não foi possível desactivar o colaborador.",
                     );
                     return;
                 }
@@ -308,7 +310,7 @@ export default function TeamPage({
                     </div>
 
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        {isAdmin && (
+                        {canManagePermissions && (
                             <button
                                 type="button"
                                 onClick={handleViewPermissions}
@@ -411,11 +413,10 @@ export default function TeamPage({
                                     onClick={() => setView("grid")}
                                     aria-label="Vista em grelha"
                                     aria-pressed={view === "grid"}
-                                    className={`cursor-pointer p-2.5 transition ${
-                                        view === "grid"
+                                    className={`cursor-pointer p-2.5 transition ${view === "grid"
                                             ? "bg-[#002950] text-white"
                                             : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                                    }`}
+                                        }`}
                                 >
                                     <LayoutGrid size={16} />
                                 </button>
@@ -425,11 +426,10 @@ export default function TeamPage({
                                     onClick={() => setView("list")}
                                     aria-label="Vista em lista"
                                     aria-pressed={view === "list"}
-                                    className={`cursor-pointer border-l border-slate-200 p-2.5 transition ${
-                                        view === "list"
+                                    className={`cursor-pointer border-l border-slate-200 p-2.5 transition ${view === "list"
                                             ? "bg-[#002950] text-white"
                                             : "bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                                    }`}
+                                        }`}
                                 >
                                     <List size={16} />
                                 </button>
@@ -768,11 +768,10 @@ function MemberMenu({
                     onToggle();
                 }}
                 disabled={disabled}
-                className={`shrink-0 cursor-pointer rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:opacity-50 ${
-                    isOpen
+                className={`shrink-0 cursor-pointer rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:opacity-50 ${isOpen
                         ? "bg-slate-100 text-slate-600 opacity-100"
                         : "opacity-0 group-hover:opacity-100 focus:opacity-100"
-                }`}
+                    }`}
             >
                 <MoreVertical size={17} />
             </button>

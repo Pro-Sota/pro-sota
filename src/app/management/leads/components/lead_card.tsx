@@ -2,13 +2,13 @@
 "use client";
 
 import { Building2, Ellipsis } from "lucide-react";
-import type { Lead } from "@/services/leads";
 import {
     formatCompactCurrency,
     formatDate,
     getInitials,
     STATUS_LABELS,
 } from "../utils";
+import { Lead } from "../types";
 
 type LeadCardProps = {
     lead: Lead;

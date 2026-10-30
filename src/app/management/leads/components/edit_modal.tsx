@@ -11,11 +11,9 @@ import {
     Save,
     X,
 } from "lucide-react";
+import { Lead } from "../types";
+import { updateLeadAction } from "@/actions/leads";
 
-import {
-    updateLead,
-    type Lead,
-} from "@/services/leads";
 
 type EditLeadModalProps = {
     open: boolean;
@@ -238,7 +236,7 @@ export default function EditLeadModal({
         setError(null);
 
         try {
-            await updateLead(lead.lead_id, {
+            await updateLeadAction(lead.lead_id, {
                 name,
                 company: form.company.trim() || null,
                 email: email || null,

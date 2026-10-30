@@ -2,10 +2,22 @@ import { getTeamMembers } from "@/services/team";
 
 import TeamPage from "./team";
 import { requireUser } from "@/app/lib/supabase/auth";
+import { getCurrentUserPermissions } from "@/app/lib/permissions";
 
 export default async function Page() {
     const team = await getTeamMembers();
-    const {userRole} = await requireUser();
+    const auth = await getCurrentUserPermissions();
 
-    return <TeamPage team={team} isAdmin= {userRole?.toLowerCase() == "admin"} />;
+    const isAdmin = auth.role === "Admin";
+
+    const canManagePermissions =
+        isAdmin || auth.permissions.has("team.permissions.manage");
+
+    return (
+        <TeamPage
+            team={team}
+            isAdmin={isAdmin}
+            canManagePermissions={canManagePermissions}
+        />
+    );
 }

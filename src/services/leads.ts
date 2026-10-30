@@ -1,54 +1,20 @@
-import { createClient } from "@/app/lib/supabase/client";
+import "server-only";
 
-export type LeadStatus =
-    | "new"
-    | "contacted"
-    | "qualified"
-    | "proposal"
-    | "negotiation"
-    | "won"
-    | "lost";
+import { cookies } from "next/headers";
+import { createClient } from "@/app/lib/supabase/server";
+import { Lead, LeadNote, LeadReminder } from "@/app/management/leads/types";
 
-export type Lead = {
-    lead_id: string;
-    name: string;
-    company: string | null;
-    email: string | null;
-    phone: string | null;
-    project_name: string;
-    project_type: string;
-    budget: number | null;
-    location: string | null;
-    status: LeadStatus;
-    created_by: string | null;
-    created_at: string;
-    updated_at: string;
-};
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
-export type CreateLeadInput = {
-    name: string;
-    company?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    project_name: string;
-    project_type: string;
-    budget?: number | null;
-    location?: string | null;
-};
 
-export type UpdateLeadInput = {
-    name?: string;
-    company?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    project_name?: string;
-    project_type?: string;
-    budget?: number | null;
-    location?: string | null;
-    status?: LeadStatus;
-};
 
-const leadSelect = `
+/* -------------------------------------------------------------------------- */
+/* Constants                                                                  */
+/* -------------------------------------------------------------------------- */
+
+const LEAD_SELECT = `
     lead_id,
     name,
     company,
@@ -61,15 +27,56 @@ const leadSelect = `
     status,
     created_by,
     created_at,
+    updated_at,
+    source,
+    description,
+    urgency,
+    notes
+`;
+
+const NOTE_SELECT = `
+    note_id,
+    lead_id,
+    content,
+    created_by,
+    updated_by,
+    created_at,
     updated_at
 `;
 
+const REMINDER_SELECT = `
+    reminder_id,
+    lead_id,
+    event_id,
+    title,
+    description,
+    due_at,
+    status,
+    created_by,
+    assigned_to,
+    completed_at,
+    created_at,
+    updated_at
+`;
+
+/* -------------------------------------------------------------------------- */
+/* Supabase                                                                   */
+/* -------------------------------------------------------------------------- */
+
+async function getSupabase() {
+    return createClient(await cookies());
+}
+
+/* -------------------------------------------------------------------------- */
+/* Lead queries                                                               */
+/* -------------------------------------------------------------------------- */
+
 export async function getLeads(): Promise<Lead[]> {
-    const supabase = createClient();
+    const supabase = await getSupabase();
 
     const { data, error } = await supabase
         .from("leads")
-        .select(leadSelect)
+        .select(LEAD_SELECT)
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -83,11 +90,15 @@ export async function getLeads(): Promise<Lead[]> {
 export async function getLeadById(
     leadId: string,
 ): Promise<Lead | null> {
-    const supabase = createClient();
+    if (!leadId?.trim()) {
+        return null;
+    }
+
+    const supabase = await getSupabase();
 
     const { data, error } = await supabase
         .from("leads")
-        .select(leadSelect)
+        .select(LEAD_SELECT)
         .eq("lead_id", leadId)
         .maybeSingle();
 
@@ -99,226 +110,56 @@ export async function getLeadById(
     return data as Lead | null;
 }
 
-export async function createLead(
-    input: CreateLeadInput,
-): Promise<Lead> {
-    const supabase = createClient();
+/* -------------------------------------------------------------------------- */
+/* Lead note queries                                                          */
+/* -------------------------------------------------------------------------- */
 
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) {
-        console.error(
-            "Failed to get authenticated user:",
-            userError,
-        );
-
-        throw new Error(
-            "Não foi possível verificar o utilizador.",
-        );
-    }
-
-    if (!user) {
-        throw new Error(
-            "Utilizador não autenticado.",
-        );
-    }
-
-    const name = input.name.trim();
-    const projectName = input.project_name.trim();
-    const projectType = input.project_type.trim();
-
-    if (!name) {
-        throw new Error(
-            "O nome do contacto é obrigatório.",
-        );
-    }
-
-    if (!projectName) {
-        throw new Error(
-            "O nome do projecto é obrigatório.",
-        );
-    }
-
-    if (!projectType) {
-        throw new Error(
-            "O tipo de projecto é obrigatório.",
-        );
-    }
-
-    if (
-        input.budget !== null &&
-        input.budget !== undefined &&
-        (!Number.isFinite(input.budget) || input.budget < 0)
-    ) {
-        throw new Error(
-            "O orçamento introduzido não é válido.",
-        );
-    }
-
-    const { data, error } = await supabase
-        .from("leads")
-        .insert({
-            name,
-            company: input.company?.trim() || null,
-            email: input.email?.trim() || null,
-            phone: input.phone?.trim() || null,
-            project_name: projectName,
-            project_type: projectType,
-            budget: input.budget ?? null,
-            location: input.location?.trim() || null,
-
-            // New leads always start here.
-            status: "new",
-
-            // The authenticated user becomes the creator.
-            created_by: user.id,
-        })
-        .select(leadSelect)
-        .single();
-
-    if (error) {
-        console.error("Failed to create lead:", error);
-
-        if (error.code === "42501") {
-            throw new Error(
-                "Não tem permissão para criar leads.",
-            );
-        }
-
-        throw new Error(
-            error.message ||
-                "Não foi possível criar o lead.",
-        );
-    }
-
-    return data as Lead;
-}
-
-export async function updateLead(
+export async function getLeadNotes(
     leadId: string,
-    input: UpdateLeadInput,
-): Promise<Lead> {
-    const supabase = createClient();
-
-    const updateData: Record<string, unknown> = {};
-
-    if (input.name !== undefined) {
-        updateData.name = input.name.trim();
+): Promise<LeadNote[]> {
+    if (!leadId?.trim()) {
+        return [];
     }
 
-    if (input.company !== undefined) {
-        updateData.company =
-            input.company?.trim() || null;
-    }
-
-    if (input.email !== undefined) {
-        updateData.email =
-            input.email?.trim() || null;
-    }
-
-    if (input.phone !== undefined) {
-        updateData.phone =
-            input.phone?.trim() || null;
-    }
-
-    if (input.project_name !== undefined) {
-        updateData.project_name =
-            input.project_name.trim();
-    }
-
-    if (input.project_type !== undefined) {
-        updateData.project_type =
-            input.project_type.trim();
-    }
-
-    if (input.budget !== undefined) {
-        updateData.budget = input.budget;
-    }
-
-    if (input.location !== undefined) {
-        updateData.location =
-            input.location?.trim() || null;
-    }
-
-    if (input.status !== undefined) {
-        updateData.status = input.status;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-        throw new Error(
-            "Nenhuma alteração foi fornecida.",
-        );
-    }
+    const supabase = await getSupabase();
 
     const { data, error } = await supabase
-        .from("leads")
-        .update(updateData)
+        .from("lead_notes")
+        .select(NOTE_SELECT)
         .eq("lead_id", leadId)
-        .select(leadSelect)
-        .single();
+        .order("created_at", { ascending: false });
 
     if (error) {
-        console.error("Failed to update lead:", error);
-
-        throw new Error(
-            error.message ||
-                "Não foi possível actualizar o lead.",
-        );
+        console.error("Failed to fetch lead notes:", error);
+        throw new Error("Não foi possível carregar as notas do lead.");
     }
 
-    return data as Lead;
+    return (data ?? []) as LeadNote[];
 }
 
-export async function updateLeadStatus(
+/* -------------------------------------------------------------------------- */
+/* Lead reminder queries                                                      */
+/* -------------------------------------------------------------------------- */
+
+export async function getLeadReminders(
     leadId: string,
-    status: LeadStatus,
-): Promise<Lead> {
-    const supabase = createClient();
+): Promise<LeadReminder[]> {
+    if (!leadId?.trim()) {
+        return [];
+    }
+
+    const supabase = await getSupabase();
 
     const { data, error } = await supabase
-        .from("leads")
-        .update({ status })
+        .from("lead_reminders")
+        .select(REMINDER_SELECT)
         .eq("lead_id", leadId)
-        .select(leadSelect)
-        .single();
+        .order("due_at", { ascending: true });
 
     if (error) {
-        console.error(
-            "Failed to update lead status:",
-            error,
-        );
-
-        throw new Error(
-            error.message ||
-                "Não foi possível actualizar o estado do lead.",
-        );
+        console.error("Failed to fetch lead reminders:", error);
+        throw new Error("Não foi possível carregar os lembretes.");
     }
 
-    return data as Lead;
-}
-
-export async function deleteLead(
-    leadId: string,
-): Promise<void> {
-    const supabase = createClient();
-
-    const { error } = await supabase
-        .from("leads")
-        .delete()
-        .eq("lead_id", leadId);
-
-    if (error) {
-        console.error(
-            "Failed to delete lead:",
-            error,
-        );
-
-        throw new Error(
-            error.message ||
-                "Não foi possível eliminar o lead.",
-        );
-    }
+    return (data ?? []) as LeadReminder[];
 }

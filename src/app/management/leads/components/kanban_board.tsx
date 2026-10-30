@@ -2,12 +2,12 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import type { Lead, LeadStatus } from "@/services/leads";
 import LeadCard from "./lead_card";
 import {
     formatCompactCurrency,
     type LeadsView,
 } from "../utils";
+import { LeadStatus, Lead } from "../types";
 
 type BoardColumn = {
     id: LeadStatus;

@@ -3,8 +3,8 @@
 
 import { useState, type FormEvent } from "react";
 import { Loader2, UserPlus, X } from "lucide-react";
+import { createLeadAction } from "@/actions/leads";
 
-import { createLead } from "@/services/leads";
 
 type CreateLeadModalProps = {
   open: boolean;
@@ -213,7 +213,7 @@ export default function CreateLeadModal({
     setError(null);
 
     try {
-      await createLead({
+      await createLeadAction({
         name,
         company: form.company.trim() || null,
         email: form.email.trim() || null,
