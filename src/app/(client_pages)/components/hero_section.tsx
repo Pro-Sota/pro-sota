@@ -43,7 +43,7 @@ export default function Hero() {
               </span>
             </h1>
 
-            <p className="mt-8 max-w-md text-base leading-7 text-muted">
+            <p className="mt-8 max-w-md text-base leading-7 text-gray-400">
               Unimos arquitectura, engenharia e construção para desenvolver
               soluções integradas, funcionais e duradouras, com qualidade e
               rigor em cada projecto.
@@ -93,7 +93,7 @@ export default function Hero() {
                 {years}
                 <span className="text-gold"> anos</span>
               </p>
-              <p className="mt-1.5 text-xs text-muted">
+              <p className="mt-1.5 text-xs text-gray-400">
                 a construir em Angola desde {FOUNDING_YEAR}
               </p>
             </div>
@@ -120,7 +120,7 @@ export default function Hero() {
               } ${i < DISCIPLINES.length - 1 ? "md:pr-8" : ""}`}
             >
               <h2 className="text-base font-semibold">{item.title}</h2>
-              <p className="mt-2 max-w-xs text-sm leading-6 text-muted">
+              <p className="mt-2 max-w-xs text-sm leading-6 text-gray-400">
                 {item.text}
               </p>
             </li>
