@@ -18,28 +18,35 @@ const SERVICES = [
 
 const URGENCY = ["Imediata", "Até 1 mês", "1 a 3 meses"];
 
-const CONTACT_LINKS = [
+const PHONES = [
   { href: "tel:+244947803610", label: "+244 947 803 610" },
   { href: "tel:+244947804186", label: "+244 947 804 186" },
-  { href: "mailto:geral@prosota.ao", label: "geral@prosota.ao" },
 ];
+
+const EMAIL = { href: "mailto:geral@prosota.ao", label: "geral@prosota.ao" };
 
 type Status = { type: "idle" | "success" | "error"; text: string };
 
 const IDLE: Status = { type: "idle", text: "" };
 
-/* Tailwind class groups (the gold colours still come from your CSS variables) */
-const labelClass = "flex flex-col gap-1.5 text-sm font-medium text-white/80";
+/* Tailwind class groups */
+const labelClass = "flex flex-col gap-2 text-[13px] font-medium text-white/70";
 
-const fieldClass =
-  "w-full rounded-md border border-white/15 bg-white/5 px-3.5 py-2.5 text-base text-white " +
-  "placeholder:text-white/40 transition-colors " +
-  "focus:border-[var(--gold-light)] focus:outline-none focus:ring-2 focus:ring-[var(--gold-light)]/40 " +
+const fieldBase =
+  "w-full border border-white/20 bg-transparent px-3.5 text-sm text-white " +
+  "placeholder:text-white/40 transition-colors hover:border-white/40 " +
+  "focus:border-gold focus:outline-none focus-visible:ring-1 focus-visible:ring-gold " +
   "disabled:opacity-60";
+
+const inputClass = `${fieldBase} h-11`;
+const textareaClass = `${fieldBase} resize-y py-3`;
+
+// Two fields per row on larger screens, using flex instead of grid
+const half = "w-full sm:w-[calc(50%-0.625rem)]";
 
 const statusClass: Record<Status["type"], string> = {
   idle: "text-transparent",
-  success: "text-[var(--gold-light)]",
+  success: "text-gold",
   error: "text-red-300",
 };
 
@@ -215,49 +222,53 @@ export default function Contact() {
     <section
       id="contacto"
       aria-labelledby="contact-title"
-      className="relative overflow-hidden bg-neutral-950 py-20 text-white md:py-28"
+      className="relative scroll-mt-24 overflow-hidden bg-ink py-4 text-white md:py-28"
     >
-      {/* Decorative grid */}
+      {/* Faint blueprint grid */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]"
       />
 
-      <div className="relative mx-auto w-full max-w-6xl px-6">
-        <p className="mb-4 text-sm font-semibold tracking-wide text-[var(--gold-light)]">
-          Vamos conversar
-        </p>
+      <div className="relative mx-auto w-full max-w-6xl px-6 md:px-12 lg:px-16">
+        {/* TITLE */}
+        <div className="mb-8 flex items-center gap-3 text-sm font-medium text-white/70">
+          <span aria-hidden className="h-0.5 w-10 bg-gold" />
+          Contacto
+        </div>
 
         <h2
           id="contact-title"
-          className="max-w-3xl text-balance text-4xl font-semibold leading-tight md:text-5xl"
+          className="max-w-2xl text-[clamp(1.875rem,3.2vw,3rem)] font-semibold leading-[1.1] tracking-[-0.035em]"
         >
-          Prontos para construir{" "}
-          <em className="italic text-[var(--gold-light)]">o futuro</em>{" "}
-          consigo.
+          Prontos para construir
+          <span className="block text-white/45">o futuro consigo.</span>
         </h2>
 
-        <div className="mt-10 md:mt-14">
+        <div className="mt-12 flex flex-col gap-14 md:mt-16 lg:flex-row lg:gap-20">
+          {/* FORM */}
           <form
             onSubmit={submit}
             aria-busy={busy}
-            className="relative flex w-full max-w-3xl flex-col gap-5 rounded-xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-sm md:p-8"
+            className="relative flex w-full min-w-0 flex-1 flex-col gap-5"
           >
-            <h3 className="text-xl font-semibold">Peça um orçamento</h3>
+            <h3 className="border-b border-white/15 pb-4 text-lg font-semibold">
+              Peça um orçamento
+            </h3>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <label className={labelClass}>
+            <div className="flex flex-wrap gap-5">
+              <label className={`${labelClass} ${half}`}>
                 Nome *
                 <input
                   name="name"
                   required
                   maxLength={120}
                   autoComplete="name"
-                  className={fieldClass}
+                  className={inputClass}
                 />
               </label>
 
-              <label className={labelClass}>
+              <label className={`${labelClass} ${half}`}>
                 Email (opcional)
                 <input
                   name="email"
@@ -265,11 +276,11 @@ export default function Contact() {
                   maxLength={200}
                   autoComplete="email"
                   inputMode="email"
-                  className={fieldClass}
+                  className={inputClass}
                 />
               </label>
 
-              <label className={labelClass}>
+              <label className={`${labelClass} ${half}`}>
                 Telefone *
                 <input
                   name="phone"
@@ -280,17 +291,17 @@ export default function Contact() {
                   inputMode="tel"
                   pattern="[0-9+()\s\-]{7,}"
                   title="Introduza um número de telefone válido, por exemplo +244 900 000 000."
-                  className={fieldClass}
+                  className={inputClass}
                 />
               </label>
 
-              <label className={labelClass}>
+              <label className={`${labelClass} ${half}`}>
                 Tipo de serviço *
                 <select
                   name="service"
                   required
                   defaultValue=""
-                  className={`${fieldClass} [&>option]:text-neutral-900`}
+                  className={`${inputClass} [&>option]:text-ink`}
                 >
                   <option value="" disabled>
                     Seleccione
@@ -303,12 +314,12 @@ export default function Contact() {
                 </select>
               </label>
 
-              <label className={labelClass}>
+              <label className={`${labelClass} ${half}`}>
                 Urgência (opcional)
                 <select
                   name="urgency"
                   defaultValue=""
-                  className={`${fieldClass} [&>option]:text-neutral-900`}
+                  className={`${inputClass} [&>option]:text-ink`}
                 >
                   <option value="">Sem prazo definido</option>
                   {URGENCY.map((item) => (
@@ -319,8 +330,10 @@ export default function Contact() {
                 </select>
               </label>
 
-              <div className="flex flex-col gap-1.5 text-sm font-medium text-white/80">
-                <span id="image-label">Imagem opcional</span>
+              <div
+                className={`flex flex-col gap-2 text-[13px] font-medium text-white/70 ${half}`}
+              >
+                <span id="image-label">Imagem (opcional)</span>
 
                 <input
                   ref={imageInput}
@@ -340,9 +353,9 @@ export default function Contact() {
                       : "Escolher imagem opcional"
                   }
                   onClick={() => imageInput.current?.click()}
-                  className={`${fieldClass} cursor-pointer truncate text-left ${
-                    imageName ? "text-white" : "text-white/60"
-                  } hover:border-white/30`}
+                  className={`${inputClass} cursor-pointer truncate text-left ${
+                    imageName ? "text-white" : "text-white/50"
+                  }`}
                 >
                   {imageName || "Escolher imagem"}
                 </button>
@@ -351,31 +364,31 @@ export default function Contact() {
                   <button
                     type="button"
                     onClick={clearImage}
-                    className="self-start text-xs text-white/60 underline underline-offset-2 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold-light)]/60"
+                    className="self-start text-xs text-white/60 underline underline-offset-2 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold"
                   >
                     Remover imagem
                   </button>
                 )}
               </div>
-            </div>
 
-            <label className={labelClass}>
-              Mensagem (opcional)
-              <textarea
-                name="message"
-                rows={3}
-                maxLength={MESSAGE_MAX}
-                onChange={(event) =>
-                  setMessageLength(event.target.value.length)
-                }
-                className={`${fieldClass} resize-y`}
-              />
-              {messageLength > MESSAGE_MAX * 0.8 && (
-                <small className="text-right text-xs text-white/60">
-                  {messageLength}/{MESSAGE_MAX}
-                </small>
-              )}
-            </label>
+              <label className={`${labelClass} w-full`}>
+                Mensagem (opcional)
+                <textarea
+                  name="message"
+                  rows={4}
+                  maxLength={MESSAGE_MAX}
+                  onChange={(event) =>
+                    setMessageLength(event.target.value.length)
+                  }
+                  className={textareaClass}
+                />
+                {messageLength > MESSAGE_MAX * 0.8 && (
+                  <small className="text-right text-xs text-white/60">
+                    {messageLength}/{MESSAGE_MAX}
+                  </small>
+                )}
+              </label>
+            </div>
 
             {/* Honeypot field: hidden from people and assistive tech. */}
             <div
@@ -396,9 +409,9 @@ export default function Contact() {
             <button
               type="submit"
               disabled={busy}
-              className="inline-flex items-center justify-center rounded-md bg-[var(--gold)] px-6 py-3 text-base font-semibold text-neutral-950 transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 disabled:cursor-not-allowed disabled:opacity-60 sm:self-start"
+              className="inline-flex h-12 items-center justify-center bg-gold px-8 text-sm font-semibold text-ink transition-colors hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold disabled:cursor-not-allowed disabled:opacity-60 sm:self-start"
             >
-              {busy ? "A enviar…" : "Enviar pedido →"}
+              {busy ? "A enviar…" : "Enviar pedido"}
             </button>
 
             <p
@@ -409,26 +422,41 @@ export default function Contact() {
               {status.text}
             </p>
           </form>
+
+          {/* CONTACT INFO COLUMN */}
+          <aside
+            aria-label="Contactos"
+            className="flex flex-col gap-8 border-t border-white/15 pt-10 lg:w-72 lg:shrink-0 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0"
+          >
+            <div className="flex flex-col gap-2">
+              <p className="text-[13px] text-white/50">Telefone</p>
+              {PHONES.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="w-fit text-base text-white transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <p className="text-[13px] text-white/50">Email</p>
+              <Link
+                href={EMAIL.href}
+                className="w-fit text-base text-white transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+              >
+                {EMAIL.label}
+              </Link>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <p className="text-[13px] text-white/50">Localização</p>
+              <p className="text-base text-white">Luanda, Angola</p>
+            </div>
+          </aside>
         </div>
-
-        <nav
-          aria-label="Contactos"
-          className="mt-12 flex flex-col gap-2 text-base md:mt-16"
-        >
-          <p className="mb-1 text-sm font-semibold tracking-wide text-white/60">
-            Contactos
-          </p>
-
-          {CONTACT_LINKS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="w-fit text-lg text-white transition-colors hover:text-[var(--gold-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold-light)]/60"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
       </div>
     </section>
   );

@@ -22,10 +22,19 @@ import {
 import "../../admin.css";
 import "../../styles.css";
 
+/* -------------------------------------------------------------------------- */
+/* Configuration                                                              */
+/* -------------------------------------------------------------------------- */
+
 const SERVICES = services;
 
 const MOBILE_BREAKPOINT = "(max-width: 900px)";
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+const SCROLL_OFFSETS = {
+  desktop: 110,
+  mobileNav: 82,
+  mobileGap: 24,
+} as const;
 
 const SCENE_BY_SERVICE = {
   arquitectura: SCENES.arquitectura,
@@ -37,12 +46,9 @@ const SCENE_BY_SERVICE = {
   (typeof SCENES)[keyof typeof SCENES]
 >;
 
-const SCROLL_OFFSETS = {
-  desktop: 110,
-  mobileNav: 82,
-  mobileGap: 24,
-  desktopTracking: 110,
-} as const;
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
 
 export default function ServicesOverview() {
   const [active, setActive] = useState<ServiceKey>(
@@ -56,14 +62,17 @@ export default function ServicesOverview() {
     (service) => service.key === active,
   );
 
+  const currentNumber = Math.max(0, activeIndex + 1);
+
   const remaining =
     activeIndex < 0
       ? SERVICES.length
       : SERVICES.length - activeIndex - 1;
 
-  /**
-   * Navigate to a service section.
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Navigation                                                               */
+  /* ------------------------------------------------------------------------ */
+
   const goToService = useCallback((index: number) => {
     const step = stepsRef.current[index];
 
@@ -89,7 +98,7 @@ export default function ServicesOverview() {
       offset;
 
     const reducedMotion = window.matchMedia(
-      REDUCED_MOTION_QUERY,
+      "(prefers-reduced-motion: reduce)",
     ).matches;
 
     window.scrollTo({
@@ -100,121 +109,128 @@ export default function ServicesOverview() {
     step.focus({ preventScroll: true });
   }, []);
 
-  /**
-   * Track the service closest to the reading position.
-   */
+  /* ------------------------------------------------------------------------ */
+  /* Active service tracking                                                  */
+  /* ------------------------------------------------------------------------ */
+
   useEffect(() => {
-    let frame = 0;
-    let disposed = false;
+    if (!("IntersectionObserver" in window)) return;
 
-    const update = () => {
-      frame = 0;
+    let observer: IntersectionObserver | null = null;
 
-      if (disposed) return;
+    const observeServices = () => {
+      observer?.disconnect();
 
       const isMobile = window.matchMedia(
         MOBILE_BREAKPOINT,
       ).matches;
 
-      const visualBottom =
-        visualRef.current?.getBoundingClientRect().bottom ??
-        SCROLL_OFFSETS.mobileNav;
+      const visualHeight = isMobile
+        ? visualRef.current?.getBoundingClientRect().height ?? 0
+        : 0;
 
       const visibleTop = isMobile
-        ? Math.max(
-            SCROLL_OFFSETS.mobileNav,
-            visualBottom,
-          )
-        : SCROLL_OFFSETS.desktopTracking;
+        ? SCROLL_OFFSETS.mobileNav +
+          visualHeight +
+          SCROLL_OFFSETS.mobileGap
+        : SCROLL_OFFSETS.desktop;
 
-      const centre = Math.min(
-        window.innerHeight - 24,
-        visibleTop +
-          (window.innerHeight - visibleTop) * 0.3,
+      const bottomOffset = Math.min(
+        window.innerHeight * 0.55,
+        Math.max(
+          0,
+          window.innerHeight - visibleTop - 80,
+        ),
       );
 
-      let closest: {
-        key: ServiceKey;
-        distance: number;
-      } | null = null;
+      const readingPosition =
+        visibleTop +
+        (window.innerHeight - visibleTop - bottomOffset) / 2;
 
-      for (const step of stepsRef.current) {
-        if (!step) continue;
+      observer = new IntersectionObserver(
+        (entries) => {
+          const visibleEntries = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => {
+              const aDistance = Math.abs(
+                a.boundingClientRect.top +
+                  a.boundingClientRect.height / 2 -
+                  readingPosition,
+              );
 
-        const rect = step.getBoundingClientRect();
+              const bDistance = Math.abs(
+                b.boundingClientRect.top +
+                  b.boundingClientRect.height / 2 -
+                  readingPosition,
+              );
 
-        const distance = Math.max(
-          rect.top - centre,
-          centre - rect.bottom,
-          0,
-        );
+              return aDistance - bDistance;
+            });
 
-        if (!closest || distance < closest.distance) {
-          const key = step.dataset.service;
+          const closest = visibleEntries[0];
+
+          if (!closest) return;
+
+          const key = closest.target.getAttribute(
+            "data-service",
+          );
 
           if (
             key &&
             SERVICE_KEYS.includes(key as ServiceKey)
           ) {
-            closest = {
-              key: key as ServiceKey,
-              distance,
-            };
+            setActive((current) =>
+              current === key
+                ? current
+                : (key as ServiceKey),
+            );
           }
-        }
-      }
+        },
+        {
+          root: null,
+          rootMargin: `-${visibleTop}px 0px -${bottomOffset}px 0px`,
+          threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
+        },
+      );
 
-      if (closest) {
-        setActive((current) =>
-          current === closest!.key
-            ? current
-            : closest!.key,
-        );
-      }
+      stepsRef.current.forEach((step) => {
+        if (step) observer?.observe(step);
+      });
     };
 
-    const scheduleUpdate = () => {
-      if (frame !== 0) return;
+    observeServices();
 
-      frame = window.requestAnimationFrame(update);
-    };
-
-    update();
-
-    window.addEventListener("scroll", scheduleUpdate, {
+    window.addEventListener("resize", observeServices, {
       passive: true,
     });
 
-    window.addEventListener("resize", scheduleUpdate);
-    window.addEventListener("load", scheduleUpdate);
-
     return () => {
-      disposed = true;
+      observer?.disconnect();
 
-      window.removeEventListener("scroll", scheduleUpdate);
-      window.removeEventListener("resize", scheduleUpdate);
-      window.removeEventListener("load", scheduleUpdate);
-
-      if (frame !== 0) {
-        window.cancelAnimationFrame(frame);
-      }
+      window.removeEventListener(
+        "resize",
+        observeServices,
+      );
     };
   }, []);
+
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                   */
+  /* ------------------------------------------------------------------------ */
 
   return (
     <>
       <Nav dark />
 
       <main className="bg-[#F7F7F5]">
-
-        {/* =====================================================
-            SERVICES HERO
-        ===================================================== */}
+        {/* ================================================================== */}
+        {/* HERO                                                               */}
+        {/* ================================================================== */}
 
         <section
           className="
             relative isolate flex min-h-[440px] items-end
-            overflow-hidden bg-[#002950] pb-16 pt-32
+            overflow-hidden bg-[#002950] pb-14 pt-32
             text-white md:min-h-[540px] md:pb-20
           "
           aria-labelledby="services-page-title"
@@ -230,7 +246,7 @@ export default function ServicesOverview() {
             "
           />
 
-          {/* Decorative accent */}
+          {/* Decorative circles */}
 
           <div
             aria-hidden="true"
@@ -250,16 +266,35 @@ export default function ServicesOverview() {
             "
           />
 
-          <div className="relative mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20">
+          {/* Hero content */}
+
+          <div
+            className="
+              relative mx-auto w-full max-w-[1440px]
+              px-6 md:px-12 lg:px-20
+            "
+          >
             <div className="mb-8 flex items-center gap-4">
               <span className="h-px w-10 bg-[#BD9655]" />
 
-              <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/55">
-                02 / Áreas de actuação
+              <span
+                className="
+                  text-[10px] font-semibold uppercase
+                  tracking-[0.25em] text-white/55
+                "
+              >
+                PRO SOTA / O que fazemos
               </span>
             </div>
 
-            <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+            <div
+              className="
+                grid gap-10 lg:grid-cols-[1.2fr_0.8fr]
+                lg:items-end
+              "
+            >
+              {/* Title */}
+
               <div>
                 <h1
                   id="services-page-title"
@@ -270,14 +305,27 @@ export default function ServicesOverview() {
                   "
                 >
                   Serviços
-                  <span className="block font-normal italic text-[#BD9655]">
+
+                  <span
+                    className="
+                      block font-normal italic
+                      text-[#BD9655]
+                    "
+                  >
                     integrados.
                   </span>
                 </h1>
               </div>
 
+              {/* Introduction */}
+
               <div className="max-w-md lg:justify-self-end">
-                <p className="text-sm leading-8 text-white/65 md:text-base">
+                <p
+                  className="
+                    text-sm leading-8 text-white/65
+                    md:text-base
+                  "
+                >
                   Da primeira ideia à entrega da obra,
                   reunimos arquitectura, engenharia,
                   construção e fiscalização num processo
@@ -285,14 +333,63 @@ export default function ServicesOverview() {
                   a cada detalhe.
                 </p>
 
-                <div className="mt-8 flex items-center gap-5">
+                <div className="mt-8">
+                  <a
+                    href={`#${SERVICES[0]?.key ?? ""}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      goToService(0);
+                    }}
+                    className="
+                      group inline-flex items-center gap-4
+                      text-[10px] font-semibold uppercase
+                      tracking-[0.2em] text-white
+                      transition-colors hover:text-[#BD9655]
+                      focus-visible:outline-none
+                      focus-visible:ring-2
+                      focus-visible:ring-[#BD9655]
+                      focus-visible:ring-offset-4
+                      focus-visible:ring-offset-[#002950]
+                    "
+                  >
+                    Explorar serviços
+
+                    <span
+                      aria-hidden="true"
+                      className="
+                        flex size-9 items-center justify-center
+                        rounded-full border border-white/25
+                        text-base transition-all duration-300
+                        group-hover:translate-y-1
+                        group-hover:border-[#BD9655]
+                        group-hover:text-[#BD9655]
+                      "
+                    >
+                      ↓
+                    </span>
+                  </a>
+                </div>
+
+                {/* Service count */}
+
+                <div
+                  className="
+                    mt-9 flex items-center gap-5
+                    border-t border-white/15 pt-5
+                  "
+                >
                   <span className="text-xs font-semibold text-[#BD9655]">
                     {String(SERVICES.length).padStart(2, "0")}
                   </span>
 
                   <span className="h-px flex-1 bg-white/20" />
 
-                  <span className="text-[9px] uppercase tracking-[0.2em] text-white/45">
+                  <span
+                    className="
+                      text-[9px] uppercase tracking-[0.2em]
+                      text-white/45
+                    "
+                  >
                     Áreas de especialização
                   </span>
                 </div>
@@ -301,17 +398,16 @@ export default function ServicesOverview() {
           </div>
         </section>
 
-        {/* =====================================================
-            SERVICES SCROLL EXPERIENCE
-        ===================================================== */}
+        {/* ================================================================== */}
+        {/* SERVICES SCROLL EXPERIENCE                                        */}
+        {/* ================================================================== */}
 
         <section
           className="services-scroll relative"
-          aria-label="Áreas de actuação"
+          aria-label="Áreas de actuação da PRO SOTA"
         >
           <div className="mx-auto max-w-[1440px] px-6 md:px-12 lg:px-20">
             <div className="services-scroll__layout">
-
               {/* SERVICE CONTENT */}
 
               <div className="services-scroll__copy">
@@ -328,18 +424,33 @@ export default function ServicesOverview() {
                     className={`
                       services-scroll__step
                       group relative
-                      ${active === service.key ? "is-active" : ""}
+                      ${
+                        active === service.key
+                          ? "is-active"
+                          : ""
+                      }
                     `}
                   >
-                    <div className="mb-8 flex items-center justify-between">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#BD9655]">
+                    {/* Service identification */}
+
+                    <div className="mb-8 flex items-center justify-between gap-4">
+                      <span
+                        className="
+                          text-[11px] font-semibold uppercase
+                          tracking-[0.2em] text-[#BD9655]
+                        "
+                      >
                         {service.num} / {service.label}
                       </span>
 
-                      <span className="text-[10px] text-[#002950]/35">
-                        0{index + 1} — 0{SERVICES.length}
+                      <span className="text-[10px] tabular-nums text-[#002950]/35">
+                        {String(index + 1).padStart(2, "0")}
+                        {" — "}
+                        {String(SERVICES.length).padStart(2, "0")}
                       </span>
                     </div>
+
+                    {/* Service title */}
 
                     <h2
                       id={`${service.key}-title`}
@@ -354,9 +465,19 @@ export default function ServicesOverview() {
                       {service.title}
                     </h2>
 
-                    <p className="services-scroll__intro mt-8 max-w-xl text-base leading-8 text-[#73777C] md:text-lg">
+                    {/* Service introduction */}
+
+                    <p
+                      className="
+                        services-scroll__intro mt-8 max-w-xl
+                        text-base leading-8 text-[#73777C]
+                        md:text-lg
+                      "
+                    >
                       {service.intro}
                     </p>
+
+                    {/* Service capabilities */}
 
                     <div className="mt-12 border-t border-[#002950]/15">
                       {service.items.map(
@@ -370,8 +491,8 @@ export default function ServicesOverview() {
                               md:gap-6
                             "
                           >
-                            <span className="text-[10px] font-medium text-[#BD9655]">
-                              0{itemIndex + 1}
+                            <span className="text-[10px] font-medium tabular-nums text-[#BD9655]">
+                              {String(itemIndex + 1).padStart(2, "0")}
                             </span>
 
                             <h3 className="text-sm font-semibold text-[#002950]">
@@ -386,10 +507,17 @@ export default function ServicesOverview() {
                       )}
                     </div>
 
+                    {/* Service signature */}
+
                     <div className="mt-12 flex items-center gap-4">
                       <span className="h-px w-10 bg-[#BD9655]" />
 
-                      <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-[#002950]/45">
+                      <span
+                        className="
+                          text-[9px] font-semibold uppercase
+                          tracking-[0.2em] text-[#002950]/45
+                        "
+                      >
                         PRO SOTA · {service.label}
                       </span>
                     </div>
@@ -402,12 +530,14 @@ export default function ServicesOverview() {
               <aside
                 ref={visualRef}
                 className="services-scroll__visual relative"
-                aria-label="Navegação entre serviços"
+                aria-label="Visualização e navegação dos serviços"
               >
                 <div
                   className="stage__grid"
                   aria-hidden="true"
                 />
+
+                {/* 3D scenes */}
 
                 {SERVICES.map((service) => {
                   const sceneKey = service.key as ServiceKey;
@@ -454,12 +584,21 @@ export default function ServicesOverview() {
                         <button
                           key={service.key}
                           type="button"
-                          aria-label={`${index + 1} de ${SERVICES.length}: ${service.title}`}
+                          aria-label={
+                            `${index + 1} de ${SERVICES.length}: ${service.title}`
+                          }
                           aria-current={
                             isActive ? "step" : undefined
                           }
+                          aria-controls={service.key}
                           title={service.title}
                           onClick={() => goToService(index)}
+                          className="
+                            focus-visible:outline-none
+                            focus-visible:ring-2
+                            focus-visible:ring-[#BD9655]
+                            focus-visible:ring-offset-4
+                          "
                         >
                           <span aria-hidden="true" />
                         </button>
@@ -469,13 +608,15 @@ export default function ServicesOverview() {
 
                   <p aria-live="off">
                     <span>
-                      {String(
-                        Math.max(0, activeIndex + 1),
-                      ).padStart(2, "0")}
+                      {String(currentNumber).padStart(2, "0")}
                     </span>
+
                     {" / "}
+
                     {String(SERVICES.length).padStart(2, "0")}
+
                     {" · "}
+
                     {remaining > 0
                       ? `${remaining} por explorar`
                       : "Último serviço"}
@@ -486,9 +627,9 @@ export default function ServicesOverview() {
           </div>
         </section>
 
-        {/* =====================================================
-            CONTACT
-        ===================================================== */}
+        {/* ================================================================== */}
+        {/* CONTACT                                                            */}
+        {/* ================================================================== */}
 
         <Contact />
       </main>

@@ -1,107 +1,131 @@
-
 import Image from "next/image";
 import Link from "next/link";
 
 const FOUNDING_YEAR = 1997;
 
+const DISCIPLINES = [
+  {
+    title: "Arquitectura",
+    text: "Concepção de projectos que unem forma, função e contexto.",
+  },
+  {
+    title: "Engenharia",
+    text: "Estruturas, instalações e fiscalização com rigor técnico.",
+  },
+  {
+    title: "Construção",
+    text: "Execução em obra com controlo de prazos, custos e qualidade.",
+  },
+];
+
 export default function Hero() {
+  const years = new Date().getFullYear() - FOUNDING_YEAR;
+
   return (
     <section
       id="top"
-      className="relative isolate overflow-hidden bg-[#F7F7F5]"
+      className="relative isolate bg-paper text-navy"
     >
-      <div className="mx-auto grid min-h-[calc(100svh-76px)] w-full max-w-[1600px] lg:grid-cols-[0.9fr_1.1fr]">
-        {/* LEFT: EDITORIAL INTRODUCTION */}
-        <div className="relative z-10 flex flex-col justify-between px-6 py-16 md:px-12 md:py-20 lg:px-16 lg:py-24">
-          <div>
-            <p className="mb-12 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#002950]/60">
-              <span className="h-px w-9 bg-[#BD9655]" />
-              Angola · Desde {FOUNDING_YEAR}
-            </p>
+      <div className="mx-auto flex min-h-[calc(100svh-76px)] w-full max-w-[1600px] flex-col px-6 md:px-12 lg:px-16">
+        {/* MAIN ROW */}
+        <div className="grid flex-1 gap-10 py-10 md:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:gap-12 lg:py-16">
+          {/* LEFT: MESSAGE */}
+          <div className="relative z-10 flex min-w-0 flex-col justify-center">
+            <div className="mb-8 flex items-center gap-3 text-sm font-medium text-navy/70">
+              <span aria-hidden className="h-0.5 w-10 bg-gold" />
+              Luanda, Angola
+            </div>
 
-            <h1 className="text-[clamp(4rem,8vw,7.5rem)] font-semibold leading-[0.82] tracking-[-0.075em] text-[#002950]">
-              PRO
-              <br />
-              SOTA<span className="text-[#BD9655]">.</span>
+            <h1 className="text-[clamp(2.25rem,3.4vw,3.75rem)] font-semibold leading-[1.05] tracking-[-0.04em] [overflow-wrap:anywhere] sm:[overflow-wrap:normal]">
+              Pensamos espaços.
+              <span className="block text-navy/40">
+                Construímos possibilidades.
+              </span>
             </h1>
 
-            <div className="mt-12 max-w-lg">
-              <h2 className="text-3xl font-medium leading-[1.15] tracking-[-0.04em] text-[#002950] md:text-4xl">
-                Pensamos espaços.
-                <br />
-                <span className="text-[#002950]/40">
-                  Construímos possibilidades.
-                </span>
-              </h2>
+            <p className="mt-8 max-w-md text-base leading-7 text-muted">
+              Unimos arquitectura, engenharia e construção para desenvolver
+              soluções integradas, funcionais e duradouras, com qualidade e
+              rigor em cada projecto.
+            </p>
 
-              <p className="mt-7 max-w-md text-sm leading-7 text-[#666D73] md:text-base">
-                Unimos arquitectura, engenharia e construção para
-                desenvolver soluções integradas, funcionais e duradouras.
-                Cada projecto reflecte o nosso compromisso com a qualidade,
-                o rigor e a excelência.
-              </p>
+            <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
+              <Link
+                href="/portfolio"
+                className="inline-flex h-12 items-center bg-navy px-7 text-sm font-semibold !text-white transition-colors hover:bg-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+              >
+                Ver projectos
+              </Link>
 
-              <div className="mt-9 flex flex-wrap items-center gap-6">
-                <Link
-                  href="/portfolio"
-                  className="group inline-flex h-12 items-center gap-4 bg-[#002950] px-6 text-xs font-semibold uppercase tracking-wider text-white transition-colors hover:bg-[#BD9655]"
-                >
-                  Explorar projectos
-                  <span className="transition-transform group-hover:translate-x-1">
-                    →
-                  </span>
-                </Link>
-
-                <Link
-                  href="/#contacto"
-                  className="text-xs font-semibold uppercase tracking-wider text-[#002950] underline decoration-[#BD9655] decoration-2 underline-offset-8 transition-colors hover:text-[#BD9655]"
-                >
-                  Fale connosco
-                </Link>
-              </div>
+              <Link
+                href="/#contacto"
+                className="text-sm font-semibold underline decoration-gold decoration-2 underline-offset-8 transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+              >
+                Fale connosco
+              </Link>
             </div>
           </div>
 
-          <div className="mt-16 flex items-center justify-between border-t border-[#002950]/15 pt-5">
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#777D82]">
-              Arquitectura · Engenharia · Construção
-            </span>
+          {/* RIGHT: IMAGE */}
+          <div className="relative z-0 min-h-[360px] min-w-0 overflow-hidden bg-stone sm:min-h-[460px] lg:min-h-0">
+            <Image
+              src="/images/planta-arquitectonica.svg"
+              alt="Planta arquitectónica de um projecto da PRO SOTA"
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 58vw"
+              className="object-cover"
+            />
 
-            <span className="text-[10px] font-medium tracking-wider text-[#777D82]">
-              01 / 04
-            </span>
-          </div>
-        </div>
+            {/* Subtle blueprint grid */}
+            <div
+              aria-hidden
+              className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] [background-size:48px_48px]"
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-gradient-to-t from-ink/80 via-navy/10 to-transparent"
+            />
 
-        {/* RIGHT: ARCHITECTURAL IMAGE */}
-        <div className="relative min-h-[480px] overflow-hidden bg-[#D9D9D5] lg:min-h-full">
-          <Image
-            src="images/planta-arquitectonica.svg"
-            alt="Projecto de arquitectura da PRO SOTA"
-            fill
-            priority
-            sizes="(max-width: 1024px) 100vw, 55vw"
-            className="object-cover"
-          />
+            {/* Experience badge */}
+            <div className="absolute right-0 top-0 bg-paper px-5 py-4 text-navy">
+              <p className="text-3xl font-semibold leading-none tracking-tight">
+                {years}
+                <span className="text-gold"> anos</span>
+              </p>
+              <p className="mt-1.5 text-xs text-muted">
+                a construir em Angola desde {FOUNDING_YEAR}
+              </p>
+            </div>
 
-          <div className="absolute inset-0 bg-gradient-to-t from-[#002950]/35 via-transparent to-transparent" />
-
-          <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between text-white md:bottom-12 md:left-12 md:right-12">
-            <div>
-              <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">
-                A nossa visão
-              </span>
-
-              <p className="max-w-xs text-xl font-medium leading-tight md:text-2xl">
+            {/* Vision caption */}
+            <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-10">
+              <div className="mb-4 h-0.5 w-10 bg-gold" aria-hidden />
+              <p className="max-w-sm text-xl font-medium leading-snug md:text-2xl">
                 Espaços concebidos para permanecer.
               </p>
             </div>
-
-            <span className="hidden text-xs tracking-wider text-white/70 sm:block">
-              LUANDA, ANGOLA
-            </span>
           </div>
         </div>
+
+        {/* DISCIPLINES */}
+        <ul className="grid border-t border-navy/15 md:grid-cols-3">
+          {DISCIPLINES.map((item, i) => (
+            <li
+              key={item.title}
+              className={`py-6 md:py-8 ${
+                i > 0
+                  ? "border-t border-navy/15 md:border-l md:border-t-0 md:pl-8"
+                  : ""
+              } ${i < DISCIPLINES.length - 1 ? "md:pr-8" : ""}`}
+            >
+              <h2 className="text-base font-semibold">{item.title}</h2>
+              <p className="mt-2 max-w-xs text-sm leading-6 text-muted">
+                {item.text}
+              </p>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

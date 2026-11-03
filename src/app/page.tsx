@@ -1,15 +1,13 @@
 
 import HomePage from "@/app/(client_pages)/home_page";
-
-
-import getProjects from "@/app/(client_pages)/services/portfolio";
-import { Suspense } from "react";
+import {getPublishedPortfolioProjects} from "@/services/portfolio";
+import { Suspense, type ComponentProps } from "react";
 
 export const revalidate = 300;
 
 export default async function Home() {
 
-  const projects = await getProjects();
+  const projects = await getPublishedPortfolioProjects();
   return (<Suspense
     fallback={
       <main
@@ -18,7 +16,7 @@ export default async function Home() {
       />
     }
   >
-    <HomePage projects={projects} />
+    <HomePage projects={projects as unknown as ComponentProps<typeof HomePage>["projects"]} />
   </Suspense>
   );
 }
