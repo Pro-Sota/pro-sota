@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { CalendarEvent } from "../types";
@@ -20,62 +21,32 @@ function getDateKey(date: Date) {
     return `${year}-${month}-${day}`;
 }
 
-function getEventStart(event: CalendarEvent) {
-    return event.startDate || event.date;
-}
-
-function getEventEnd(event: CalendarEvent) {
-    return event.endDate || event.startDate || event.date;
-}
-
-function getEventSegmentClass(
-    event: CalendarEvent,
-    dateKey: string,
-) {
-    const start = getEventStart(event);
-    const end = getEventEnd(event);
-
-    const isStart = dateKey === start;
-    const isEnd = dateKey === end;
-    const isRange = start !== end;
-
-    if (!isRange) {
-        return "rounded-md";
-    }
-
-    if (isStart) {
-        return "rounded-l-md rounded-r-none";
-    }
-
-    if (isEnd) {
-        return "rounded-l-none rounded-r-md";
-    }
-
-    return "rounded-none";
+function getSource(event: CalendarEvent) {
+    return event.source || event.type;
 }
 
 function getEventStyle(event: CalendarEvent) {
-    switch (event.source) {
+    switch (getSource(event)) {
         case "project":
-            return "bg-[#002950]/[0.10] text-[#002950]";
+            return "border-l-2 border-[#002950] bg-[#002950]/[0.07] text-[#002950]";
 
         case "task":
-            return "bg-[#BD9655]/20 text-[#78551F]";
+            return "border-l-2 border-[#BD9655] bg-[#BD9655]/[0.14] text-[#78551F]";
 
         case "submission":
-            return "bg-emerald-100 text-emerald-800";
+            return "border-l-2 border-[#648A78] bg-[#648A78]/[0.12] text-[#426B58]";
 
         case "deadline":
-            return "bg-red-100 text-red-800";
+            return "border-l-2 border-red-400 bg-red-50 text-red-800";
 
         case "meeting":
-            return "bg-blue-100 text-blue-800";
+            return "border-l-2 border-blue-500 bg-blue-50 text-blue-800";
 
         case "site_visit":
-            return "bg-violet-100 text-violet-800";
+            return "border-l-2 border-violet-500 bg-violet-50 text-violet-800";
 
         default:
-            return "bg-[#002950]/[0.06] text-[#002950]";
+            return "border-l-2 border-[#002950]/30 bg-[#002950]/[0.04] text-[#002950]";
     }
 }
 
@@ -97,18 +68,16 @@ export default function CalendarDay({
     const isToday = dateKey === todayKey;
     const isSelected = dateKey === selectedDate;
 
-    const visibleEvents = events.slice(0, 3);
+    const MAX_VISIBLE = 3;
 
-    const remainingCount = Math.max(
-        events.length - visibleEvents.length,
-        0,
-    );
+    const visibleEvents = events.slice(0, MAX_VISIBLE);
+    const remainingCount = Math.max(events.length - MAX_VISIBLE, 0);
 
     return (
         <div
             onClick={() => onSelectDate(dateKey)}
             className={[
-                "min-h-[105px] min-w-0 cursor-pointer border-r border-b border-black/[0.06] p-2 transition-colors focus-within:bg-[#002950]/[0.03]",
+                "min-h-[115px] min-w-0 cursor-pointer border-r border-b border-black/[0.06] p-1.5 transition-colors sm:p-2",
                 isSelected
                     ? "bg-[#002950]/[0.025]"
                     : !isCurrentMonth
@@ -122,8 +91,8 @@ export default function CalendarDay({
                     event.stopPropagation();
                     onSelectDate(dateKey);
                 }}
-                className="mb-2 flex w-full items-center text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] focus-visible:ring-offset-1"
-                aria-label={`Seleccionar ${date.toLocaleDateString("pt-PT", {
+                className="mb-2 flex w-full items-center text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655]"
+                aria-label={`Selecionar ${date.toLocaleDateString("pt-PT", {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
@@ -146,41 +115,34 @@ export default function CalendarDay({
             </button>
 
             <div className="space-y-1">
-                {visibleEvents.map((event) => {
-                    const isRange =
-                        getEventStart(event) !== getEventEnd(event);
+                {visibleEvents.map((event) => (
+                    <button
+                        key={event.id}
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectDate(dateKey);
+                            onSelectEvent?.(event);
+                        }}
+                        className={[
+                            "block w-full min-w-0 truncate rounded-r-md px-1.5 py-1 text-left text-[10px] font-medium transition-colors sm:text-[11px]",
+                            getEventStyle(event),
+                            !isCurrentMonth
+                                ? "opacity-40"
+                                : "hover:brightness-95",
+                        ].join(" ")}
+                        title={event.title}
+                        aria-label={event.title}
+                    >
+                        {event.time && (
+                            <span className="mr-1 font-semibold">
+                                {event.time}
+                            </span>
+                        )}
 
-                    return (
-                        <button
-                            key={event.id}
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectDate(dateKey);
-                                onSelectEvent?.(event);
-                            }}
-                            className={[
-                                "block w-full min-w-0 truncate px-1.5 py-1 text-left text-[11px] transition-colors",
-                                getEventSegmentClass(event, dateKey),
-                                getEventStyle(event),
-                                !isCurrentMonth
-                                    ? "opacity-40"
-                                    : "hover:brightness-95",
-                                isRange ? "-mx-2 w-[calc(100%+1rem)] px-3" : "",
-                            ].join(" ")}
-                            title={`${event.title} · ${getEventStart(event)} a ${getEventEnd(event)}`}
-                            aria-label={`${event.title}, ${getEventStart(event)} a ${getEventEnd(event)}`}
-                        >
-                            {event.time && (
-                                <span className="mr-1 font-medium">
-                                    {event.time}
-                                </span>
-                            )}
-
-                            <span>{event.title}</span>
-                        </button>
-                    );
-                })}
+                        {event.title}
+                    </button>
+                ))}
 
                 {remainingCount > 0 && (
                     <button
@@ -189,7 +151,7 @@ export default function CalendarDay({
                             e.stopPropagation();
                             onSelectDate(dateKey);
                         }}
-                        className="px-1.5 text-[11px] font-medium text-[#002950]/60 hover:text-[#002950]"
+                        className="px-1.5 py-0.5 text-[10px] font-semibold text-[#002950]/60 hover:text-[#002950] sm:text-[11px]"
                     >
                         + {remainingCount} mais
                     </button>

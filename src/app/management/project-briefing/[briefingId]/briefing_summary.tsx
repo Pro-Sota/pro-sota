@@ -1,18 +1,21 @@
-
 import type { ReactNode } from "react";
 
 import Link from "next/link";
 
 import {
+    ArrowLeft,
     ArrowUpRight,
-    CheckCircle2,
-    ClipboardList,
+    BedDouble,
+    Car,
     Download,
     FileText,
+    FolderKanban,
+    Layers,
     Mail,
     MapPin,
-    MessageSquareText,
+    Paperclip,
     Phone,
+    Ruler,
     Users,
 } from "lucide-react";
 
@@ -95,61 +98,109 @@ type Briefing = {
     converted_project_id: string | null;
 };
 
+type FormAction = (formData: FormData) => void | Promise<void>;
+
+/** Server Actions. Omit `actions` entirely to render the page read-only. */
+type Actions = {
+    /** Reads `id`, `status` and optional `rejection_reason`. */
+    updateStatus: FormAction;
+    /** Reads `id` and `internal_notes`. */
+    saveNotes: FormAction;
+    /** Reads `id`. Should create the project and set status to "converted". */
+    convertToProject: FormAction;
+};
+
 type Props = {
     briefing: Briefing;
     attachments: Attachment[];
+    /** Resolved display name for `briefing.reviewed_by` (look it up server-side). */
+    reviewerName?: string | null;
+    actions?: Actions;
+};
+
+type Item = {
+    label: string;
+    value: unknown;
+    wide?: boolean;
 };
 
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                  */
 /* -------------------------------------------------------------------------- */
 
-const STATUS_LABELS: Record<string, string> = {
-    pending: "Novo",
-    in_review: "Em análise",
-    contacted: "Contactado",
-    approved: "Aprovado",
-    rejected: "Rejeitado",
-    converted: "Convertido em projecto",
+const STATUS: Record<string, { label: string; dot: string }> = {
+    pending: { label: "Novo", dot: "bg-amber-500" },
+    in_review: { label: "Em análise", dot: "bg-blue-500" },
+    contacted: { label: "Contactado", dot: "bg-violet-500" },
+    approved: { label: "Aprovado", dot: "bg-emerald-500" },
+    rejected: { label: "Rejeitado", dot: "bg-red-500" },
+    converted: { label: "Convertido em projecto", dot: "bg-slate-400" },
 };
 
-const STATUS_STYLES: Record<string, string> = {
-    pending: "bg-amber-50 text-amber-800 ring-amber-200",
-    in_review: "bg-blue-50 text-blue-800 ring-blue-200",
-    contacted: "bg-violet-50 text-violet-800 ring-violet-200",
-    approved: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-    rejected: "bg-red-50 text-red-800 ring-red-200",
-    converted: "bg-slate-100 text-slate-700 ring-slate-200",
+/** What the architect should do next, per status. */
+const NEXT_STEP: Record<
+    string,
+    {
+        hint: string;
+        primary?: { label: string; status: string };
+        canReject?: boolean;
+        canConvert?: boolean;
+    }
+> = {
+    pending: {
+        hint: "Leia o briefing e comece a análise.",
+        primary: { label: "Iniciar análise", status: "in_review" },
+    },
+    in_review: {
+        hint: "Valide o terreno e o programa, depois contacte o cliente.",
+        primary: { label: "Marcar como contactado", status: "contacted" },
+        canReject: true,
+    },
+    contacted: {
+        hint: "Decida se o projecto avança, com base na conversa com o cliente.",
+        primary: { label: "Aprovar briefing", status: "approved" },
+        canReject: true,
+    },
+    approved: {
+        hint: "Crie o projecto para começar o estudo prévio.",
+        canConvert: true,
+    },
+    rejected: {
+        hint: "Pode reabrir a análise se o cliente voltar a contactar.",
+        primary: { label: "Reabrir análise", status: "in_review" },
+    },
+    converted: {
+        hint: "O projecto já foi criado. Continue o trabalho a partir de lá.",
+    },
 };
+
+const buttonBase =
+    "inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655]";
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
+function isEmpty(value: unknown) {
+    return (
+        value === null ||
+        value === undefined ||
+        value === "" ||
+        (Array.isArray(value) && value.length === 0)
+    );
+}
+
 function display(value: unknown): string {
-    if (value === null || value === undefined || value === "") {
-        return "Não indicado";
-    }
-
-    if (typeof value === "boolean") {
-        return value ? "Sim" : "Não";
-    }
-
-    if (Array.isArray(value)) {
-        return value.length ? value.join(", ") : "Não indicado";
-    }
-
+    if (typeof value === "boolean") return value ? "Sim" : "Não";
+    if (Array.isArray(value)) return value.join(", ");
     return String(value);
 }
 
 function formatDate(value: string | null | undefined) {
-    if (!value) return "Data indisponível";
+    if (!value) return null;
 
     const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "Data indisponível";
-    }
+    if (Number.isNaN(date.getTime())) return null;
 
     return new Intl.DateTimeFormat("pt-PT", {
         day: "2-digit",
@@ -160,554 +211,422 @@ function formatDate(value: string | null | undefined) {
 }
 
 function formatFileSize(bytes: number) {
-    if (!Number.isFinite(bytes) || bytes < 0) {
-        return "Tamanho desconhecido";
-    }
-
-    if (bytes < 1024 * 1024) {
-        return `${(bytes / 1024).toFixed(0)} KB`;
-    }
-
+    if (!Number.isFinite(bytes) || bytes < 0) return "";
+    if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function isSafeExternalUrl(value: string) {
     try {
-        const url = new URL(value);
-
-        return ["http:", "https:"].includes(url.protocol);
+        return ["http:", "https:"].includes(new URL(value).protocol);
     } catch {
         return false;
     }
 }
 
+function initials(name: string) {
+    return name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join("");
+}
+
+function withUnit(value: number | null, unit: string) {
+    return value === null ? null : `${value} ${unit}`;
+}
+
 /* -------------------------------------------------------------------------- */
-/* Reusable Components                                                        */
+/* Components                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/** A titled group of answers. Unanswered fields are hidden; empty groups too. */
 function Section({
     title,
-    description,
-    icon,
+    items,
     children,
 }: {
     title: string;
-    description?: string;
-    icon: ReactNode;
+    items?: Item[];
+    children?: ReactNode;
+}) {
+    const filled = items?.filter((item) => !isEmpty(item.value)) ?? [];
+
+    if (filled.length === 0 && !children) return null;
+
+    return (
+        <section className="py-8 first:pt-0">
+            <h2 className="text-base font-semibold text-[#002950]">{title}</h2>
+
+            {filled.length > 0 && (
+                <dl className="mt-5 grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
+                    {filled.map((item) => (
+                        <div
+                            key={item.label}
+                            className={item.wide ? "sm:col-span-2" : undefined}
+                        >
+                            <dt className="text-sm text-slate-500">
+                                {item.label}
+                            </dt>
+                            <dd className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6 text-slate-900">
+                                {display(item.value)}
+                            </dd>
+                        </div>
+                    ))}
+                </dl>
+            )}
+
+            {children}
+        </section>
+    );
+}
+
+function SideCard({
+    title,
+    children,
+}: {
+    title: string;
     children: ReactNode;
 }) {
     return (
-        <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-            <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#002950]/5 text-[#BD9655]">
-                    {icon}
-                </span>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-4 text-base font-semibold text-[#002950]">
+                {title}
+            </h2>
+            {children}
+        </section>
+    );
+}
 
-                <div>
-                    <h2 className="font-semibold text-[#002950]">
-                        {title}
-                    </h2>
+function NextStep({
+    briefingId,
+    step,
+    actions,
+}: {
+    briefingId: string;
+    step: (typeof NEXT_STEP)[string];
+    actions: Actions;
+}) {
+    return (
+        <section className="rounded-2xl bg-[#002950] p-5 text-white shadow-sm">
+            <h2 className="text-base font-semibold">Próximo passo</h2>
+            <p className="mt-1.5 text-sm leading-5 text-white/70">
+                {step.hint}
+            </p>
 
-                    {description && (
-                        <p className="mt-1 text-sm leading-5 text-slate-500">
-                            {description}
-                        </p>
-                    )}
-                </div>
-            </div>
+            <div className="mt-4 space-y-2">
+                {step.primary && (
+                    <form action={actions.updateStatus}>
+                        <input type="hidden" name="id" value={briefingId} />
+                        <input
+                            type="hidden"
+                            name="status"
+                            value={step.primary.status}
+                        />
+                        <button
+                            type="submit"
+                            className={`${buttonBase} w-full justify-center bg-[#BD9655] text-white hover:bg-[#a98446]`}
+                        >
+                            {step.primary.label}
+                        </button>
+                    </form>
+                )}
 
-            <div className="grid grid-cols-1 gap-x-8 gap-y-5 p-5 sm:grid-cols-2 sm:p-6">
-                {children}
+                {step.canConvert && (
+                    <form action={actions.convertToProject}>
+                        <input type="hidden" name="id" value={briefingId} />
+                        <button
+                            type="submit"
+                            className={`${buttonBase} w-full justify-center bg-[#BD9655] text-white hover:bg-[#a98446]`}
+                        >
+                            <FolderKanban size={15} />
+                            Converter em projecto
+                        </button>
+                    </form>
+                )}
+
+                {step.canReject && (
+                    <details className="group rounded-lg bg-white/5">
+                        <summary className="flex h-9 cursor-pointer list-none items-center justify-center rounded-lg text-sm font-medium text-white/80 transition hover:bg-white/10">
+                            Rejeitar briefing
+                        </summary>
+
+                        <form
+                            action={actions.updateStatus}
+                            className="space-y-2 p-3"
+                        >
+                            <input type="hidden" name="id" value={briefingId} />
+                            <input type="hidden" name="status" value="rejected" />
+                            <label
+                                htmlFor="rejection_reason"
+                                className="text-xs text-white/70"
+                            >
+                                Motivo (fica registado)
+                            </label>
+                            <textarea
+                                id="rejection_reason"
+                                name="rejection_reason"
+                                required
+                                rows={3}
+                                className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus-visible:outline-2 focus-visible:outline-[#BD9655]"
+                                placeholder="Ex.: terreno sem documentação."
+                            />
+                            <button
+                                type="submit"
+                                className={`${buttonBase} w-full justify-center bg-red-600 text-white hover:bg-red-700`}
+                            >
+                                Confirmar rejeição
+                            </button>
+                        </form>
+                    </details>
+                )}
             </div>
         </section>
     );
 }
 
-function Field({
-    label,
-    value,
-    fullWidth = false,
-}: {
-    label: string;
-    value: unknown;
-    fullWidth?: boolean;
-}) {
-    return (
-        <div className={fullWidth ? "sm:col-span-2" : ""}>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                {label}
-            </p>
+function Rating({ label, value }: { label: string; value: number | null }) {
+    if (value === null) return null;
 
-            <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
-                {display(value)}
-            </p>
-        </div>
-    );
-}
-
-function RatingField({
-    label,
-    value,
-}: {
-    label: string;
-    value: number | null;
-}) {
     return (
         <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                {label}
-            </p>
-
-            <div className="mt-2 flex items-center gap-1.5">
-                {[1, 2, 3, 4, 5].map((number) => (
-                    <span
-                        key={number}
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold ${
-                            value !== null && number <= value
-                                ? "bg-[#BD9655] text-white"
-                                : "bg-slate-100 text-slate-400"
-                        }`}
-                    >
-                        {number}
-                    </span>
-                ))}
-
-                <span className="ml-2 text-xs text-slate-500">
-                    {value !== null ? `${value}/5` : "Não indicado"}
+            <dt className="text-sm text-slate-500">{label}</dt>
+            <dd className="mt-2 flex items-center gap-1.5">
+                <span
+                    role="img"
+                    aria-label={`${value} de 5`}
+                    className="flex items-center gap-1"
+                >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                        <span
+                            key={n}
+                            className={`h-2 w-6 rounded-full ${
+                                n <= value ? "bg-[#BD9655]" : "bg-slate-200"
+                            }`}
+                        />
+                    ))}
                 </span>
-            </div>
+                <span className="ml-1 text-sm text-slate-500">{value}/5</span>
+            </dd>
         </div>
     );
 }
 
 /* -------------------------------------------------------------------------- */
-/* Main Component                                                             */
+/* Main component                                                             */
 /* -------------------------------------------------------------------------- */
 
 export default function BriefingSummary({
     briefing,
     attachments,
+    reviewerName,
+    actions,
 }: Props) {
-    const status = briefing.status ?? "pending";
+    const status = STATUS[briefing.status ?? "pending"] ?? {
+        label: briefing.status ?? "Novo",
+        dot: "bg-slate-400",
+    };
 
-    const statusLabel = STATUS_LABELS[status] ?? status;
+    const referenceLinks =
+        briefing.reference_links
+            ?.split(/\r?\n/)
+            .map((url) => url.trim())
+            .filter(Boolean) ?? [];
 
-    const statusStyle =
-        STATUS_STYLES[status] ?? STATUS_STYLES.pending;
+    const place = [briefing.location_municipality, briefing.location_province]
+        .filter(Boolean)
+        .join(", ");
 
-    const referenceLinks = briefing.reference_links
-        ?.split(/\r?\n/)
-        .map((url) => url.trim())
-        .filter(Boolean) ?? [];
+    const mapLink =
+        briefing.map_link && isSafeExternalUrl(briefing.map_link)
+            ? briefing.map_link
+            : null;
+
+    const reviewedAt = formatDate(briefing.reviewed_at);
+    const updatedAt = formatDate(briefing.updated_at);
+
+    const quickFacts = [
+        { icon: Ruler, label: "Área", value: withUnit(briefing.land_area, "m²") },
+        { icon: BedDouble, label: "Quartos", value: briefing.bedrooms_count },
+        { icon: Users, label: "Moradores", value: briefing.residents_count },
+        { icon: Layers, label: "Pisos", value: briefing.floor_count },
+        { icon: Car, label: "Viaturas", value: briefing.cars_count },
+        { icon: Paperclip, label: "Anexos", value: attachments.length },
+    ].filter((fact) => !isEmpty(fact.value));
+
+    const hasRatings =
+        briefing.natural_light_rating !== null ||
+        briefing.privacy_rating !== null;
 
     return (
-        <div className="space-y-6">
-            {/* ---------------------------------------------------------------- */}
-            {/* Header                                                           */}
-            {/* ---------------------------------------------------------------- */}
+        <div className="mx-auto max-w-6xl">
+            {/* ------------------------------ Header ------------------------------ */}
+            <header className="pb-8">
+                <Link
+                    href="/management/project-briefs"
+                    className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition hover:text-[#002950]"
+                >
+                    <ArrowLeft size={15} />
+                    Briefings
+                </Link>
 
-            <header className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-                <div className="bg-[#002950] px-5 py-6 text-white sm:px-7 sm:py-8">
-                    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
-                        <div className="min-w-0">
-                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#D6B77F]">
-                                Briefing de arquitectura residencial
-                            </p>
+                <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                        <h1 className="break-words text-3xl font-semibold tracking-tight text-[#002950]">
+                            {briefing.full_name || "Cliente sem nome"}
+                        </h1>
 
-                            <h1 className="mt-3 break-words text-2xl font-semibold tracking-tight sm:text-3xl">
-                                {briefing.full_name || "Cliente sem nome"}
-                            </h1>
-
-                            <p className="mt-2 text-sm text-white/65">
-                                Referência{" "}
-                                {briefing.id.slice(0, 8).toUpperCase()}
-                                {" · "}
-                                Recebido a {formatDate(briefing.created_at)}
-                            </p>
-                        </div>
-
-                        <span
-                            className={`inline-flex w-fit shrink-0 items-center rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${statusStyle}`}
-                        >
-                            {statusLabel}
-                        </span>
+                        <p className="mt-2 text-sm text-slate-500">
+                            Ref. {briefing.id.slice(0, 8).toUpperCase()}
+                            {formatDate(briefing.created_at) &&
+                                `, recebido a ${formatDate(briefing.created_at)}`}
+                            {place && ` · ${place}`}
+                        </p>
                     </div>
 
-                    <div className="mt-7 grid grid-cols-1 gap-4 border-t border-white/15 pt-5 sm:grid-cols-3">
-                        <div className="flex min-w-0 items-start gap-3">
-                            <Phone
-                                size={17}
-                                className="mt-0.5 shrink-0 text-[#D6B77F]"
-                            />
-
-                            <div className="min-w-0">
-                                <p className="text-xs text-white/55">
-                                    Telefone
-                                </p>
-
-                                {briefing.contact_phone ? (
-                                    <a
-                                        href={`tel:${briefing.contact_phone}`}
-                                        className="mt-1 block break-words text-sm hover:underline"
-                                    >
-                                        {briefing.contact_phone}
-                                    </a>
-                                ) : (
-                                    <p className="mt-1 text-sm">
-                                        Não indicado
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex min-w-0 items-start gap-3">
-                            <Mail
-                                size={17}
-                                className="mt-0.5 shrink-0 text-[#D6B77F]"
-                            />
-
-                            <div className="min-w-0">
-                                <p className="text-xs text-white/55">
-                                    Email
-                                </p>
-
-                                {briefing.contact_email ? (
-                                    <a
-                                        href={`mailto:${briefing.contact_email}`}
-                                        className="mt-1 block break-all text-sm hover:underline"
-                                    >
-                                        {briefing.contact_email}
-                                    </a>
-                                ) : (
-                                    <p className="mt-1 text-sm">
-                                        Não indicado
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex min-w-0 items-start gap-3">
-                            <MapPin
-                                size={17}
-                                className="mt-0.5 shrink-0 text-[#D6B77F]"
-                            />
-
-                            <div className="min-w-0">
-                                <p className="text-xs text-white/55">
-                                    Localização
-                                </p>
-
-                                <p className="mt-1 break-words text-sm">
-                                    {[
-                                        briefing.location_municipality,
-                                        briefing.location_province,
-                                    ]
-                                        .filter(Boolean)
-                                        .join(", ") || "Não indicada"}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+                    <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
+                        <span className={`h-2 w-2 rounded-full ${status.dot}`} />
+                        {status.label}
+                    </span>
                 </div>
 
-                <div className="flex flex-col justify-between gap-3 px-5 py-4 sm:flex-row sm:items-center sm:px-7">
-                    <p className="text-sm text-slate-500">
-                        Consulte as respostas e os documentos enviados pelo cliente.
-                    </p>
+                <div className="mt-6 flex flex-wrap gap-2">
+                    {briefing.contact_phone && (
+                        <a
+                            href={`tel:${briefing.contact_phone}`}
+                            className={`${buttonBase} bg-[#002950] text-white hover:bg-[#003968]`}
+                        >
+                            <Phone size={15} />
+                            {briefing.contact_phone}
+                        </a>
+                    )}
 
-                    {briefing.map_link &&
-                        isSafeExternalUrl(briefing.map_link) && (
-                            <a
-                                href={briefing.map_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-sm font-medium text-[#002950] hover:text-[#BD9655]"
-                            >
-                                Ver localização no mapa
-                                <ArrowUpRight size={16} />
-                            </a>
-                        )}
+                    {briefing.contact_email && (
+                        <a
+                            href={`mailto:${briefing.contact_email}`}
+                            className={`${buttonBase} bg-slate-100 text-[#002950] hover:bg-slate-200`}
+                        >
+                            <Mail size={15} />
+                            {briefing.contact_email}
+                        </a>
+                    )}
+
+                    {mapLink && (
+                        <a
+                            href={mapLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`${buttonBase} bg-slate-100 text-[#002950] hover:bg-slate-200`}
+                        >
+                            <MapPin size={15} />
+                            Ver no mapa
+                            <ArrowUpRight size={14} />
+                        </a>
+                    )}
                 </div>
             </header>
 
-            {/* ---------------------------------------------------------------- */}
-            {/* Main Content                                                     */}
-            {/* ---------------------------------------------------------------- */}
-
-            <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-                <div className="min-w-0 space-y-5">
-                    {/* Client */}
+            {/* ------------------------------ Content ----------------------------- */}
+            <div className="grid grid-cols-1 items-start gap-10 border-t border-slate-200 pt-8 md:grid-cols-[minmax(0,1fr)_260px] md:gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10">
+                <div className="min-w-0 divide-y divide-slate-200">
+                    <Section
+                        title="Cliente"
+                        items={[
+                            {
+                                label: "Quem toma as decisões",
+                                value: briefing.decision_makers,
+                            },
+                            {
+                                label: "Contacto preferido",
+                                value: briefing.preferred_contact,
+                            },
+                        ]}
+                    />
 
                     <Section
-                        title="Cliente e contacto"
-                        description="Identificação, decisores e comunicação preferida."
-                        icon={<Users size={19} />}
-                    >
-                        <Field
-                            label="Nome completo"
-                            value={briefing.full_name}
-                        />
-
-                        <Field
-                            label="Telefone"
-                            value={briefing.contact_phone}
-                        />
-
-                        <Field
-                            label="Email"
-                            value={briefing.contact_email}
-                        />
-
-                        <Field
-                            label="Quem toma as decisões"
-                            value={briefing.decision_makers}
-                        />
-
-                        <Field
-                            label="Forma preferida de contacto"
-                            value={briefing.preferred_contact}
-                        />
-                    </Section>
-
-                    {/* Land and Location */}
-
-                    <Section
-                        title="Terreno e localização"
-                        description="Informação sobre o lote, documentação e infra-estruturas."
-                        icon={<MapPin size={19} />}
-                    >
-                        <Field
-                            label="Endereço"
-                            value={briefing.location_address}
-                        />
-
-                        <Field
-                            label="Bairro"
-                            value={briefing.location_neighborhood}
-                        />
-
-                        <Field
-                            label="Município"
-                            value={briefing.location_municipality}
-                        />
-
-                        <Field
-                            label="Cidade"
-                            value={briefing.location_city}
-                        />
-
-                        <Field
-                            label="Província"
-                            value={briefing.location_province}
-                        />
-
-                        <Field
-                            label="Ponto de referência"
-                            value={briefing.location_reference}
-                        />
-
-                        <Field
-                            label="Já é proprietário?"
-                            value={briefing.land_ownership}
-                        />
-
-                        <Field
-                            label="Tipo de terreno"
-                            value={briefing.land_type}
-                        />
-
-                        <Field
-                            label="Área aproximada"
-                            value={
-                                briefing.land_area !== null
-                                    ? `${briefing.land_area} m²`
-                                    : null
-                            }
-                        />
-
-                        <Field
-                            label="Comprimento"
-                            value={
-                                briefing.land_length !== null
-                                    ? `${briefing.land_length} m`
-                                    : null
-                            }
-                        />
-
-                        <Field
-                            label="Largura"
-                            value={
-                                briefing.land_width !== null
-                                    ? `${briefing.land_width} m`
-                                    : null
-                            }
-                        />
-
-                        <Field
-                            label="Construções existentes"
-                            value={briefing.existing_buildings}
-                        />
-
-                        <Field
-                            label="Árvores no terreno"
-                            value={briefing.has_trees}
-                        />
-
-                        <Field
-                            label="Infra-estruturas existentes"
-                            value={briefing.infrastructure}
-                            fullWidth
-                        />
-                    </Section>
-
-                    {/* Family and Lifestyle */}
+                        title="Terreno"
+                        items={[
+                            { label: "Endereço", value: briefing.location_address, wide: true },
+                            { label: "Bairro", value: briefing.location_neighborhood },
+                            { label: "Município", value: briefing.location_municipality },
+                            { label: "Cidade", value: briefing.location_city },
+                            { label: "Província", value: briefing.location_province },
+                            { label: "Ponto de referência", value: briefing.location_reference },
+                            { label: "Já é proprietário?", value: briefing.land_ownership },
+                            { label: "Tipo de terreno", value: briefing.land_type },
+                            { label: "Área aproximada", value: withUnit(briefing.land_area, "m²") },
+                            { label: "Comprimento", value: withUnit(briefing.land_length, "m") },
+                            { label: "Largura", value: withUnit(briefing.land_width, "m") },
+                            { label: "Construções existentes", value: briefing.existing_buildings },
+                            { label: "Árvores no terreno", value: briefing.has_trees },
+                            { label: "Infra-estruturas", value: briefing.infrastructure, wide: true },
+                        ]}
+                    />
 
                     <Section
                         title="Família e estilo de vida"
-                        description="Necessidades actuais, composição familiar e planos futuros."
-                        icon={<Users size={19} />}
-                    >
-                        <Field
-                            label="Número de moradores"
-                            value={briefing.residents_count}
-                        />
-
-                        <Field
-                            label="Trabalhadores domésticos"
-                            value={briefing.domestic_workers}
-                        />
-
-                        <Field
-                            label="Número de trabalhadores"
-                            value={briefing.domestic_workers_count}
-                        />
-
-                        <Field
-                            label="Idades e perfis dos moradores"
-                            value={briefing.resident_profiles}
-                            fullWidth
-                        />
-
-                        <Field
-                            label="Crescimento familiar nos próximos 10 anos"
-                            value={briefing.family_growth}
-                        />
-
-                        <Field
-                            label="Trabalha em casa"
-                            value={briefing.works_from_home}
-                        />
-
-                        <Field
-                            label="Frequência de visitas e eventos"
-                            value={briefing.visitors_frequency}
-                        />
-
-                        <Field
-                            label="Animais de estimação"
-                            value={briefing.pets}
-                        />
-
-                        <Field
-                            label="O que mais incomoda na casa actual"
-                            value={briefing.current_home_dislikes}
-                            fullWidth
-                        />
-
-                        <Field
-                            label="O que mais gosta na casa actual"
-                            value={briefing.current_home_likes}
-                            fullWidth
-                        />
-                    </Section>
-
-                    {/* Architectural Program */}
+                        items={[
+                            { label: "Moradores", value: briefing.residents_count },
+                            { label: "Trabalhadores domésticos", value: briefing.domestic_workers },
+                            { label: "Número de trabalhadores", value: briefing.domestic_workers_count },
+                            { label: "Animais de estimação", value: briefing.pets },
+                            { label: "Idades e perfis", value: briefing.resident_profiles, wide: true },
+                            { label: "Crescimento familiar (10 anos)", value: briefing.family_growth },
+                            { label: "Trabalha em casa", value: briefing.works_from_home },
+                            { label: "Visitas e eventos", value: briefing.visitors_frequency },
+                            { label: "O que incomoda na casa actual", value: briefing.current_home_dislikes, wide: true },
+                            { label: "O que mais gosta na casa actual", value: briefing.current_home_likes, wide: true },
+                        ]}
+                    />
 
                     <Section
-                        title="Programa arquitectónico"
-                        description="Compartimentos, organização e espaços pretendidos."
-                        icon={<ClipboardList size={19} />}
-                    >
-                        <Field
-                            label="Número de quartos"
-                            value={briefing.bedrooms_count}
-                        />
-
-                        <Field
-                            label="Número de suites"
-                            value={briefing.suites_count}
-                        />
-
-                        <Field
-                            label="Número de viaturas"
-                            value={briefing.cars_count}
-                        />
-
-                        <Field
-                            label="Número de pisos"
-                            value={briefing.floor_count}
-                        />
-
-                        <Field
-                            label="Preferência de cozinha"
-                            value={briefing.kitchen_layout}
-                        />
-
-                        <Field
-                            label="Espaços desejados"
-                            value={briefing.desired_spaces}
-                            fullWidth
-                        />
-
-                        <Field
-                            label="Espaços indispensáveis adicionais"
-                            value={briefing.essential_space}
-                            fullWidth
-                        />
-                    </Section>
-
-                    {/* Architectural Preferences */}
+                        title="Programa"
+                        items={[
+                            { label: "Quartos", value: briefing.bedrooms_count },
+                            { label: "Suites", value: briefing.suites_count },
+                            { label: "Viaturas", value: briefing.cars_count },
+                            { label: "Pisos", value: briefing.floor_count },
+                            { label: "Cozinha", value: briefing.kitchen_layout },
+                            { label: "Espaços desejados", value: briefing.desired_spaces, wide: true },
+                            { label: "Espaço indispensável adicional", value: briefing.essential_space, wide: true },
+                        ]}
+                    />
 
                     <Section
-                        title="Estilo e preferências"
-                        description="Referências estéticas, materiais, iluminação e privacidade."
-                        icon={<CheckCircle2 size={19} />}
+                        title="Estilo"
+                        items={[
+                            { label: "Estilo arquitectónico", value: briefing.architectural_style, wide: true },
+                            { label: "Cores e materiais", value: briefing.colour_material_preferences, wide: true },
+                        ]}
                     >
-                        <Field
-                            label="Estilo arquitectónico"
-                            value={briefing.architectural_style}
-                            fullWidth
-                        />
+                        {hasRatings && (
+                            <dl className="mt-5 grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
+                                <Rating
+                                    label="Luz natural e ligação ao exterior"
+                                    value={briefing.natural_light_rating}
+                                />
+                                <Rating
+                                    label="Privacidade"
+                                    value={briefing.privacy_rating}
+                                />
+                            </dl>
+                        )}
+                    </Section>
 
-                        <Field
-                            label="Cores e materiais preferidos ou a evitar"
-                            value={briefing.colour_material_preferences}
-                            fullWidth
-                        />
-
-                        <RatingField
-                            label="Importância da luz natural e ligação ao exterior"
-                            value={briefing.natural_light_rating}
-                        />
-
-                        <RatingField
-                            label="Importância da privacidade"
-                            value={briefing.privacy_rating}
-                        />
-
-                        <Field
-                            label="Observações adicionais do cliente"
-                            value={briefing.other_information}
-                            fullWidth
-                        />
-
+                    <Section
+                        title="Notas do cliente"
+                        items={[
+                            { label: "Observações", value: briefing.other_information, wide: true },
+                        ]}
+                    >
                         {referenceLinks.length > 0 && (
-                            <div className="sm:col-span-2">
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                            <div className="mt-5">
+                                <p className="text-sm text-slate-500">
                                     Links de referência
                                 </p>
 
-                                <ul className="mt-2 space-y-2">
+                                <ul className="mt-2 space-y-1.5">
                                     {referenceLinks.map((url, index) => (
                                         <li key={`${url}-${index}`}>
                                             {isSafeExternalUrl(url) ? (
@@ -715,18 +634,18 @@ export default function BriefingSummary({
                                                     href={url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="inline-flex max-w-full items-center gap-2 break-all text-sm text-[#002950] hover:text-[#BD9655]"
+                                                    className="inline-flex max-w-full items-center gap-1.5 break-all text-sm text-[#002950] underline decoration-slate-300 underline-offset-4 transition hover:decoration-[#BD9655]"
                                                 >
+                                                    {url}
                                                     <ArrowUpRight
-                                                        size={15}
+                                                        size={14}
                                                         className="shrink-0"
                                                     />
-                                                    {url}
                                                 </a>
                                             ) : (
-                                                <p className="break-all text-sm text-slate-600">
+                                                <span className="break-all text-sm text-slate-600">
                                                     {url}
-                                                </p>
+                                                </span>
                                             )}
                                         </li>
                                     ))}
@@ -735,186 +654,274 @@ export default function BriefingSummary({
                         )}
                     </Section>
 
-                    {/* Attachments */}
-
-                    <Section
-                        title="Anexos do cliente"
-                        description="Fotografias do terreno, documentos e imagens de inspiração."
-                        icon={<FileText size={19} />}
-                    >
+                    <Section title="Anexos">
                         {attachments.length === 0 ? (
-                            <div className="sm:col-span-2">
-                                <p className="text-sm text-slate-500">
-                                    Não foram enviados anexos.
-                                </p>
-                            </div>
+                            <p className="mt-3 text-sm text-slate-500">
+                                O cliente não enviou anexos.
+                            </p>
                         ) : (
-                            attachments.map((attachment) => (
-                                <div
-                                    key={attachment.id}
-                                    className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 p-3"
-                                >
-                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#002950]/5 text-[#BD9655]">
-                                        <FileText size={19} />
-                                    </span>
+                            <ul className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                                {attachments.map((attachment) => (
+                                    <li
+                                        key={attachment.id}
+                                        className="flex items-center gap-3 px-4 py-3"
+                                    >
+                                        <FileText
+                                            size={18}
+                                            className="shrink-0 text-slate-400"
+                                        />
 
-                                    <div className="min-w-0 flex-1">
-                                        <p className="break-words text-sm font-medium text-slate-700">
-                                            {attachment.original_name}
-                                        </p>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm font-medium text-slate-900">
+                                                {attachment.original_name}
+                                            </p>
+                                            <p className="text-xs text-slate-500">
+                                                {formatFileSize(attachment.file_size)}
+                                            </p>
+                                        </div>
 
-                                        <p className="mt-1 text-xs text-slate-400">
-                                            {formatFileSize(attachment.file_size)}
-                                        </p>
-                                    </div>
-
-                                    {attachment.signed_url && (
-                                        <a
-                                            href={attachment.signed_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            aria-label={`Abrir ${attachment.original_name}`}
-                                            title="Abrir anexo"
-                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#002950] transition hover:bg-slate-100"
-                                        >
-                                            <Download size={17} />
-                                        </a>
-                                    )}
-                                </div>
-                            ))
+                                        {attachment.signed_url && (
+                                            <a
+                                                href={attachment.signed_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                aria-label={`Abrir ${attachment.original_name}`}
+                                                title="Abrir anexo"
+                                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-[#002950]"
+                                            >
+                                                <Download size={16} />
+                                            </a>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
                         )}
                     </Section>
                 </div>
 
-                {/* ---------------------------------------------------------------- */}
-                {/* Sidebar                                                          */}
-                {/* ---------------------------------------------------------------- */}
+                {/* ------------------------------ Sidebar ----------------------------- */}
+                <aside className="space-y-4 md:sticky md:top-6">
+                    {/* Próximo passo */}
+                    {actions && NEXT_STEP[briefing.status ?? "pending"] && (
+                        <NextStep
+                            briefingId={briefing.id}
+                            step={NEXT_STEP[briefing.status ?? "pending"]}
+                            actions={actions}
+                        />
+                    )}
 
-                <aside className="space-y-5 xl:sticky xl:top-6">
-                    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-                        <div className="flex items-center gap-2">
-                            <MessageSquareText
-                                size={19}
-                                className="text-[#BD9655]"
-                            />
+                    {/* Resumo rápido */}
+                    {quickFacts.length > 0 && (
+                        <SideCard title="Resumo">
+                            <ul className="grid grid-cols-2 gap-2">
+                                {quickFacts.map(({ icon: Icon, label, value }) => (
+                                    <li
+                                        key={label}
+                                        className="rounded-xl bg-slate-50 px-3 py-2.5"
+                                    >
+                                        <Icon
+                                            size={15}
+                                            className="text-[#BD9655]"
+                                            aria-hidden
+                                        />
+                                        <p className="mt-2 text-lg font-semibold leading-none text-[#002950]">
+                                            {display(value)}
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {label}
+                                        </p>
+                                    </li>
+                                ))}
+                            </ul>
+                        </SideCard>
+                    )}
 
-                            <h2 className="font-semibold text-[#002950]">
-                                Revisão interna
-                            </h2>
-                        </div>
-
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Registe as conclusões da avaliação e acompanhe os próximos passos.
-                        </p>
-
-                        <div className="mt-5 space-y-4">
+                    {/* Revisão interna */}
+                    <SideCard title="Revisão interna">
+                        <dl className="space-y-4">
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                                    Estado actual
-                                </p>
-
-                                <p className="mt-1.5 text-sm font-medium text-slate-700">
-                                    {statusLabel}
-                                </p>
+                                <dt className="text-sm text-slate-500">Estado</dt>
+                                <dd className="mt-1 flex items-center gap-2 text-[15px] font-medium text-slate-900">
+                                    <span
+                                        className={`h-2 w-2 rounded-full ${status.dot}`}
+                                    />
+                                    {status.label}
+                                </dd>
                             </div>
 
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                                    Última revisão
-                                </p>
-
-                                <p className="mt-1.5 text-sm text-slate-700">
-                                    {briefing.reviewed_at
-                                        ? formatDate(briefing.reviewed_at)
-                                        : "Ainda não revisto"}
-                                </p>
+                                <dt className="text-sm text-slate-500">
+                                    Revisão
+                                </dt>
+                                <dd className="mt-1.5">
+                                    {briefing.reviewed_by ? (
+                                        <div className="flex items-center gap-3">
+                                            <span
+                                                aria-hidden
+                                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#002950] text-xs font-semibold text-white"
+                                            >
+                                                {reviewerName
+                                                    ? initials(reviewerName)
+                                                    : "?"}
+                                            </span>
+                                            <div className="min-w-0">
+                                                <p className="truncate text-[15px] font-medium text-slate-900">
+                                                    {reviewerName ??
+                                                        "Membro da equipa"}
+                                                </p>
+                                                <p className="text-xs text-slate-500">
+                                                    {reviewedAt
+                                                        ? `a ${reviewedAt}`
+                                                        : "Data não registada"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-[15px] text-slate-500">
+                                            Ainda não revisto
+                                        </p>
+                                    )}
+                                </dd>
                             </div>
 
+                            {updatedAt && (
+                                <div>
+                                    <dt className="text-sm text-slate-500">
+                                        Última actualização
+                                    </dt>
+                                    <dd className="mt-1 text-[15px] text-slate-900">
+                                        {updatedAt}
+                                    </dd>
+                                </div>
+                            )}
+
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                                <dt className="text-sm text-slate-500">
                                     Notas internas
-                                </p>
-
-                                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                                    {briefing.internal_notes ||
-                                        "Ainda não existem notas internas."}
-                                </p>
+                                </dt>
+                                <dd className="mt-1.5">
+                                    {actions ? (
+                                        <form
+                                            action={actions.saveNotes}
+                                            className="space-y-2"
+                                        >
+                                            <input
+                                                type="hidden"
+                                                name="id"
+                                                value={briefing.id}
+                                            />
+                                            <textarea
+                                                name="internal_notes"
+                                                rows={5}
+                                                defaultValue={
+                                                    briefing.internal_notes ?? ""
+                                                }
+                                                placeholder="Visita ao terreno, conversa com o cliente, dúvidas..."
+                                                className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#BD9655] focus-visible:outline-2 focus-visible:outline-[#BD9655]/30"
+                                            />
+                                            <button
+                                                type="submit"
+                                                className={`${buttonBase} bg-slate-100 text-[#002950] hover:bg-slate-200`}
+                                            >
+                                                Guardar notas
+                                            </button>
+                                        </form>
+                                    ) : (
+                                        <p className="whitespace-pre-wrap rounded-xl bg-slate-50 px-3 py-2.5 text-sm leading-6 text-slate-800">
+                                            {briefing.internal_notes || (
+                                                <span className="text-slate-400">
+                                                    Sem notas.
+                                                </span>
+                                            )}
+                                        </p>
+                                    )}
+                                </dd>
                             </div>
 
                             {briefing.rejection_reason && (
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                                    <dt className="text-sm text-red-700">
                                         Motivo de rejeição
-                                    </p>
-
-                                    <p className="mt-1.5 text-sm leading-6 text-slate-600">
+                                    </dt>
+                                    <dd className="mt-1.5 whitespace-pre-wrap rounded-xl bg-red-50 px-3 py-2.5 text-sm leading-6 text-red-900">
                                         {briefing.rejection_reason}
-                                    </p>
+                                    </dd>
                                 </div>
                             )}
-                        </div>
+                        </dl>
+                    </SideCard>
 
-                        <div className="mt-5 border-t border-slate-100 pt-4">
-                            <p className="text-xs leading-5 text-slate-400">
-                                A edição do estado e das notas deve ser ligada a uma Server Action com validação de permissões.
-                            </p>
-                        </div>
-                    </section>
+                    {/* Projecto convertido */}
+                    {briefing.converted_project_id && (
+                        <Link
+                            href={`/management/projects/${briefing.converted_project_id}`}
+                            className="flex items-center gap-3 rounded-2xl border border-[#BD9655]/30 bg-[#BD9655]/5 p-4 transition hover:border-[#BD9655]/60"
+                        >
+                            <FolderKanban
+                                size={20}
+                                className="shrink-0 text-[#BD9655]"
+                            />
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-medium text-[#002950]">
+                                    Ver projecto
+                                </span>
+                                <span className="block text-xs text-slate-500">
+                                    Este briefing já foi convertido.
+                                </span>
+                            </span>
+                            <ArrowUpRight size={16} className="text-slate-400" />
+                        </Link>
+                    )}
 
-                    {/* Contact */}
-
-                    <section className="rounded-2xl border border-[#BD9655]/25 bg-[#BD9655]/5 p-5">
-                        <h3 className="font-semibold text-[#002950]">
-                            Contactar o cliente
-                        </h3>
-
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                            Utilize o contacto fornecido para esclarecer dúvidas sobre o terreno e o programa arquitectónico.
-                        </p>
+                    {/* Contacto */}
+                    <SideCard title="Contacto">
+                        <dl className="space-y-4">
+                            {briefing.preferred_contact && (
+                                <div>
+                                    <dt className="text-sm text-slate-500">
+                                        Prefere ser contactado por
+                                    </dt>
+                                    <dd className="mt-1 text-[15px] text-slate-900">
+                                        {briefing.preferred_contact}
+                                    </dd>
+                                </div>
+                            )}
+                        </dl>
 
                         <div className="mt-4 flex flex-col gap-2">
                             {briefing.contact_phone && (
                                 <a
                                     href={`tel:${briefing.contact_phone}`}
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#002950] px-4 text-sm font-medium text-white transition hover:bg-[#003968]"
+                                    className={`${buttonBase} justify-center bg-[#002950] text-white hover:bg-[#003968]`}
                                 >
-                                    <Phone size={16} />
-                                    Ligar ao cliente
+                                    <Phone size={15} />
+                                    Ligar
                                 </a>
                             )}
 
                             {briefing.contact_email && (
                                 <a
                                     href={`mailto:${briefing.contact_email}`}
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-[#002950] transition hover:bg-slate-50"
+                                    className={`${buttonBase} justify-center bg-slate-100 text-[#002950] hover:bg-slate-200`}
                                 >
-                                    <Mail size={16} />
+                                    <Mail size={15} />
                                     Enviar email
                                 </a>
                             )}
 
-                            {briefing.map_link &&
-                                isSafeExternalUrl(briefing.map_link) && (
-                                    <a
-                                        href={briefing.map_link}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-[#002950] transition hover:bg-slate-50"
-                                    >
-                                        <MapPin size={16} />
-                                        Abrir mapa
-                                    </a>
-                                )}
+                            {mapLink && (
+                                <a
+                                    href={mapLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`${buttonBase} justify-center bg-slate-100 text-[#002950] hover:bg-slate-200`}
+                                >
+                                    <MapPin size={15} />
+                                    Abrir mapa
+                                </a>
+                            )}
                         </div>
-                    </section>
-
-                    <Link
-                        href="/management/project-briefs"
-                        className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:border-[#BD9655]/50 hover:text-[#002950]"
-                    >
-                        <ClipboardList size={16} />
-                        Todos os briefings
-                    </Link>
+                    </SideCard>
                 </aside>
             </div>
         </div>

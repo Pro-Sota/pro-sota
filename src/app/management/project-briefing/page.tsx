@@ -152,7 +152,7 @@ export default async function ProjectBriefsPage({
                     <div className="border-b border-slate-100 p-4 sm:p-5">
                         <form
                             method="GET"
-                            action="/management/project-briefs"
+                            action="/management/project-briefing"
                             className="flex flex-col gap-3 lg:flex-row lg:items-center"
                         >
                             <div className="relative min-w-0 flex-1">
@@ -199,7 +199,7 @@ export default async function ProjectBriefsPage({
 
                             {(query || selectedStatus) && (
                                 <Link
-                                    href="/management/project-briefs"
+                                    href="/management/project-briefing"
                                     className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm text-slate-600 transition hover:bg-slate-50"
                                 >
                                     Limpar
@@ -246,7 +246,7 @@ export default async function ProjectBriefsPage({
 
                             {(query || selectedStatus) && (
                                 <Link
-                                    href="/management/project-briefs"
+                                    href="/management/project-briefing"
                                     className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-[#002950] px-4 text-sm font-medium text-white transition hover:bg-[#003968]"
                                 >
                                     Ver todos os briefings
@@ -334,7 +334,7 @@ export default async function ProjectBriefsPage({
 
                                                 <td className="px-5 py-4 text-right">
                                                     <Link
-                                                        href={`/management/project-briefs/${briefing.id}`}
+                                                        href={`/management/project-briefing/${briefing.id}`}
                                                         aria-label={`Ver briefing de ${
                                                             briefing.full_name ??
                                                             "cliente"
@@ -356,7 +356,7 @@ export default async function ProjectBriefsPage({
                                 {briefings.map((briefing) => (
                                     <Link
                                         key={briefing.id}
-                                        href={`/management/project-briefs/${briefing.id}`}
+                                        href={`/management/project-briefing/${briefing.id}`}
                                         className="block p-4 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#BD9655]"
                                     >
                                         <div className="flex items-start justify-between gap-3">

@@ -1,5 +1,6 @@
 import { createClient } from "@/app/lib/supabase/server";
 import { cookies } from "next/headers";
+import { formatDate } from "./project_overview";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -43,7 +44,7 @@ export type CalendarEvent = {
 
     project?: {
         project_id: string;
-        project_name: string;
+        title: string;
         start_date: string | null;
         end_date: string | null;
     } | null;
@@ -846,4 +847,144 @@ export async function getCalendarEventParticipantIds(
     eventId: string,
 ): Promise<string[]> {
     return (await getCalendarEventParticipants(eventId)).participant_ids;
+}
+
+
+export type CalendarRangeSource = "project" | "task" | "submission";
+
+export type CalendarRangeRecord = {
+    id: string;
+    title: string;
+    type: CalendarRangeSource;
+    source: CalendarRangeSource;
+    sourceId: string;
+    startDate: string;
+    endDate: string;
+    projectId?: string;
+    description?: string;
+};
+
+export async function getCalendarRangeEvents(): Promise<CalendarRangeRecord[]> {
+    const supabase = await createClient(await cookies());
+
+    const [projectsResult, tasksResult, submissionsResult] =
+        await Promise.all([
+            supabase
+                .from("projects")
+                .select(`
+                    project_id,
+                    title,
+                    start_date,
+                    end_date
+                `)
+                .not("start_date", "is", null)
+                .order("start_date", { ascending: true }),
+
+            supabase
+                .from("tasks")
+                .select(`
+                    task_id,
+                    project_id,
+                    title,
+                    description,
+                    start_date,
+                    due_date
+                `)
+                .or("start_date.not.is.null,due_date.not.is.null")
+                .order("start_date", { ascending: true }),
+
+            supabase
+                .from("submissions")
+                .select(`
+                    submission_id,
+                    project_id,
+                    title,
+                    description,
+                    status,
+                    type,
+                    submitted_at,
+                    due_date
+                `)
+                .order("submitted_at", { ascending: true }),
+        ]);
+
+    if (projectsResult.error) {
+        throw new Error(
+            `Failed to fetch calendar projects: ${projectsResult.error.message}`,
+        );
+    }
+
+    if (tasksResult.error) {
+        throw new Error(
+            `Failed to fetch calendar tasks: ${tasksResult.error.message}`,
+        );
+    }
+
+    if (submissionsResult.error) {
+        throw new Error(
+            `Failed to fetch calendar submissions: ${submissionsResult.error.message}`,
+        );
+    }
+
+    const projects: CalendarRangeRecord[] = (
+        projectsResult.data ?? []
+    )
+        .filter((project) => project.start_date || project.end_date)
+        .map((project) => {
+            const startDate = project.start_date ?? project.end_date!;
+            const endDate = project.end_date ?? project.start_date!;
+
+            return {
+                id: `project-${project.project_id}`,
+                title: project.title,
+                type: "project",
+                source: "project",
+                sourceId: project.project_id,
+                startDate,
+                endDate,
+                projectId: project.project_id,
+            };
+        });
+
+    const tasks: CalendarRangeRecord[] = (tasksResult.data ?? [])
+        .map((task): CalendarRangeRecord | null => {
+            const startDate = task.start_date ?? task.due_date;
+            const endDate = task.due_date ?? task.start_date;
+
+            if (!startDate || !endDate) return null;
+
+            return {
+                id: `task-${task.task_id}`,
+                title: task.title,
+                type: "task",
+                source: "task",
+                sourceId: task.task_id,
+                startDate,
+                endDate,
+                projectId: task.project_id ?? undefined,
+                description: task.description ?? undefined,
+            };
+        })
+        .filter((task): task is CalendarRangeRecord => task !== null);
+
+    const submissions: CalendarRangeRecord[] = (
+        submissionsResult.data ?? []
+    ).map((submission) => {
+        const startDate = formatDate(submission.submitted_at);
+        const endDate = submission.due_date ?? startDate;
+
+        return {
+            id: `submission-${submission.submission_id}`,
+            title: submission.title,
+            type: "submission",
+            source: "submission",
+            sourceId: submission.submission_id,
+            startDate,
+            endDate,
+            projectId: submission.project_id,
+            description: submission.description ?? undefined,
+        };
+    });
+
+    return [...projects, ...tasks, ...submissions];
 }

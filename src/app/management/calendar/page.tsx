@@ -1,15 +1,15 @@
+
 import { getCalendarContacts } from "@/services/calendar_contacts";
-import { getCalendarEvents } from "@/services/calendar";
+import {
+    getCalendarEvents,
+    getCalendarRangeEvents,
+} from "@/services/calendar";
 import { requireUser } from "@/app/lib/supabase/auth";
 
 import CalendarPageInit from "./calendar";
 
 const TIME_ZONE = "Africa/Luanda";
 
-/**
- * Format a database date without shifting DATE values
- * through UTC conversion.
- */
 function formatDate(date: string) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return date;
@@ -55,16 +55,21 @@ function formatTime(date: string) {
 }
 
 export default async function CalendarPage() {
-    const [dbEvents, contacts, userInfo] = await Promise.all([
-        getCalendarEvents(),
-        getCalendarContacts(),
-        requireUser(),
-    ]);
+    const [dbEvents, rangeEvents, contacts, userInfo] =
+        await Promise.all([
+            getCalendarEvents(),
+            getCalendarRangeEvents(),
+            getCalendarContacts(),
+            requireUser(),
+        ]);
 
+    // Existing calendar events: meetings, visits, deadlines,
+    // and any project/task events already generated in calendar_events.
     const events = dbEvents.map((event) => {
         const date = formatDate(event.start_at);
 
         const isTaskEvent = Boolean(event.task_id && event.task);
+
         const isProjectEvent =
             Boolean(event.project_id && event.project) &&
             (event.event_type === "project" ||
@@ -73,7 +78,6 @@ export default async function CalendarPage() {
         let startDate = date;
         let endDate = date;
 
-        // Task: use the task's actual start and due dates.
         if (isTaskEvent && event.task) {
             startDate = event.task.start_date
                 ? formatDate(event.task.start_date)
@@ -82,11 +86,7 @@ export default async function CalendarPage() {
             endDate = event.task.due_date
                 ? formatDate(event.task.due_date)
                 : startDate;
-        }
-
-        // Project or generated project deadline:
-        // use the project's actual start and end dates.
-        else if (isProjectEvent && event.project) {
+        } else if (isProjectEvent && event.project) {
             startDate = event.project.start_date
                 ? formatDate(event.project.start_date)
                 : date;
@@ -100,7 +100,6 @@ export default async function CalendarPage() {
             id: event.event_id,
             title: event.title,
             date,
-
             startDate,
             endDate,
 
@@ -140,9 +139,23 @@ export default async function CalendarPage() {
         };
     });
 
+    // Independent project/task/submission ranges.
+    // Normalize dates before passing them to the client.
+    const normalizedRangeEvents = rangeEvents.map((event) => {
+        const startDate = formatDate(event.startDate);
+
+        return {
+            ...event,
+            date: startDate,
+            startDate,
+            endDate: formatDate(event.endDate),
+        };
+    });
+
     return (
         <CalendarPageInit
             events={events}
+            rangeEvents={normalizedRangeEvents}
             participants={contacts.participants}
             clients={contacts.clients}
             suppliers={contacts.suppliers}

@@ -128,12 +128,18 @@ const menuItems: SidebarItem[] = [
     href: "/management/project-briefing",
     icon: FileText,
     permission: "project_briefing.view",
+    access: {
+      departments: ["architecture"],
+    },
   },
   {
     name: "Submissões",
     href: "/management/submissions",
     icon: SquareCheck,
     permission: "submissions.view",
+    access: {
+      adminOnly: true,
+    },
   },
   {
     name: "Tarefas",

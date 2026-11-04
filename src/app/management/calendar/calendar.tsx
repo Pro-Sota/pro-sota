@@ -1,3 +1,4 @@
+
 "use client";
 
 import { CalendarDays, Plus } from "lucide-react";
@@ -17,9 +18,7 @@ import WeeklySummary from "./components/weekly_summary";
 
 import { useCalendar } from "./hooks/use_calendar";
 
-import type {
-  CalendarEvent,
-} from "./types";
+import type { CalendarEvent } from "./types";
 
 import CreateMeetingModal from "@/app/management/calendar/components/create_meeting_modal";
 import EditMeetingModal, {
@@ -42,49 +41,57 @@ type CalendarPageInitProps = Parameters<typeof useCalendar>[0] &
     Parameters<typeof CreateMeetingModal>[0],
     "participants" | "clients" | "suppliers"
   > & {
+    rangeEvents?: CalendarEvent[];
+
     userInfo?: {
       user?: { id?: string | null } | null;
       userRole?: string | number | null;
     } | null;
   };
 
+const RANGE_SOURCES = ["project", "task", "submission"];
+
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
+function getSource(event: CalendarEvent) {
+  return event.source || event.type;
+}
+
 function toEventDetails(
-    event: CalendarEvent,
+  event: CalendarEvent,
 ): CalendarEventDetails {
-    const source = event as CalendarEventWithCreator & {
-        start_at?: string;
-        end_at?: string;
-        startDate?: string;
-        endDate?: string;
-    };
+  const source = event as CalendarEventWithCreator & {
+    start_at?: string;
+    end_at?: string;
+    startDate?: string;
+    endDate?: string;
+  };
 
-    const startDate = source.startDate || event.date;
-    const endDate = source.endDate || startDate;
+  const startDate = source.startDate || event.date;
+  const endDate = source.endDate || startDate;
 
-    const startAt =
-        source.start_at ||
-        `${startDate}T${event.time || "00:00"}:00+01:00`;
+  const startAt =
+    source.start_at ||
+    `${startDate}T${event.time || "00:00"}:00+01:00`;
 
-    const endAt =
-        source.end_at ||
-        `${endDate}T${event.time || "00:00"}:00+01:00`;
+  const endAt =
+    source.end_at ||
+    `${endDate}T${event.time || "00:00"}:00+01:00`;
 
-    return {
-        event_id: source.event_id ?? event.id,
-        created_by: source.created_by ?? null,
-        title: event.title,
-        event_type: event.type,
-        start_at: startAt,
-        end_at: endAt,
-        location: event.location ?? null,
-        description: event.description ?? null,
-        all_day: !event.time,
-        participant_ids: source.participant_ids ?? [],
-    };
+  return {
+    event_id: source.event_id ?? event.id,
+    created_by: source.created_by ?? null,
+    title: event.title,
+    event_type: event.type,
+    start_at: startAt,
+    end_at: endAt,
+    location: event.location ?? null,
+    description: event.description ?? null,
+    all_day: !event.time,
+    participant_ids: source.participant_ids ?? [],
+  };
 }
 
 /** Maps the details shown in the view modal to what the edit modal expects. */
@@ -108,6 +115,7 @@ function toEditableEvent(
 
 export default function CalendarPageInit({
   events,
+  rangeEvents = [],
   participants,
   clients,
   suppliers,
@@ -115,12 +123,12 @@ export default function CalendarPageInit({
 }: CalendarPageInitProps) {
   const calendar = useCalendar({
     events,
+    rangeEvents,
   });
 
   const [isCreateEventOpen, setIsCreateEventOpen] =
     useState(false);
 
-  // Single source of truth for the event being viewed / edited.
   const [selectedEvent, setSelectedEvent] =
     useState<CalendarEventDetails | null>(null);
 
@@ -131,6 +139,30 @@ export default function CalendarPageInit({
     useState(false);
 
   /* ---------------------------------------------------------------------- */
+  /* Gantt range events                                                     */
+  /* ---------------------------------------------------------------------- */
+
+  const visibleRangeEvents = useMemo(() => {
+    const unique = new Map<string, CalendarEvent>();
+
+    // Include range events already present in the normal calendar data.
+    for (const event of calendar.filteredEvents) {
+      if (RANGE_SOURCES.includes(getSource(event))) {
+        unique.set(event.id, event);
+      }
+    }
+
+    // Include independently fetched projects, tasks and submissions.
+    for (const event of rangeEvents) {
+      if (RANGE_SOURCES.includes(getSource(event))) {
+        unique.set(event.id, event);
+      }
+    }
+
+    return [...unique.values()];
+  }, [calendar.filteredEvents, rangeEvents]);
+
+  /* ---------------------------------------------------------------------- */
   /* Derived data for the edit modal                                        */
   /* ---------------------------------------------------------------------- */
 
@@ -139,13 +171,19 @@ export default function CalendarPageInit({
     [selectedEvent],
   );
 
-  // Pre-select the team members already invited to the event.
   const initialAttendees = useMemo<SelectedAttendee[]>(() => {
     const ids = new Set(selectedEvent?.participant_ids ?? []);
 
     return participants
-      .filter((person: { profile_id: string; }) => ids.has(person.profile_id))
-      .map((person: { profile_id: any; first_name: any; last_name: any; email: any; }) => ({
+      .filter((person: { profile_id: string }) =>
+        ids.has(person.profile_id),
+      )
+      .map((person: {
+        profile_id: string;
+        first_name: string | null;
+        last_name: string | null;
+        email: string | null;
+      }) => ({
         key: `profile:${person.profile_id}`,
         id: person.profile_id,
         name:
@@ -199,8 +237,11 @@ export default function CalendarPageInit({
   /* ---------------------------------------------------------------------- */
 
   const currentUserId = userInfo?.user?.id ?? null;
+
   const currentUserRoleId =
-    userInfo?.userRole == null ? null : String(userInfo.userRole);
+    userInfo?.userRole == null
+      ? null
+      : String(userInfo.userRole);
 
   /* ---------------------------------------------------------------------- */
   /* Render                                                                 */
@@ -239,34 +280,24 @@ export default function CalendarPageInit({
           <CalendarStats
             monthCount={calendar.monthEvents.length}
             todayCount={calendar.todayEvents.length}
-            nextSevenDaysCount={
-              calendar.nextSevenDaysEvents.length
-            }
-            upcomingDeadlinesCount={
-              calendar.upcomingDeadlines.length
-            }
+            nextSevenDaysCount={calendar.nextSevenDaysEvents.length}
+            upcomingDeadlinesCount={calendar.upcomingDeadlines.length}
           />
         </div>
 
         <div className="grid min-w-0 items-start gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <section className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-neutral-200/80 bg-white sm:rounded-2xl">
-            {/* Toolbar: wraps instead of scrolling */}
             <div className="min-w-0 border-b border-neutral-200/80 px-2 py-2.5 sm:px-5 sm:py-4 lg:px-6 lg:py-5">
               <CalendarToolbar
                 monthLabel={calendar.monthLabel}
                 search={calendar.search}
                 onSearchChange={calendar.setSearch}
-                onPreviousMonth={() =>
-                  calendar.changeMonth(-1)
-                }
-                onNextMonth={() =>
-                  calendar.changeMonth(1)
-                }
+                onPreviousMonth={() => calendar.changeMonth(-1)}
+                onNextMonth={() => calendar.changeMonth(1)}
                 onToday={calendar.goToday}
               />
             </div>
 
-            {/* Filters: wraps instead of scrolling */}
             <div className="min-w-0 border-b border-neutral-200/80 px-2 py-2.5 sm:px-5 sm:py-4 lg:px-6">
               <CalendarFilters
                 activeFilter={calendar.activeFilter}
@@ -274,7 +305,6 @@ export default function CalendarPageInit({
               />
             </div>
 
-            {/* Grid: fills the available width, no horizontal scroll */}
             <div className="w-full min-w-0 p-1 sm:p-4 lg:p-6">
               <CalendarGrid
                 calendarDays={calendar.calendarDays}
@@ -282,6 +312,7 @@ export default function CalendarPageInit({
                 todayKey={calendar.todayKey}
                 selectedDate={calendar.selectedDate}
                 eventsByDate={calendar.eventsByDate}
+                rangeEvents={visibleRangeEvents}
                 onSelectDate={calendar.setSelectedDate}
                 onSelectEvent={handleSelectEvent}
               />
@@ -289,14 +320,11 @@ export default function CalendarPageInit({
           </section>
 
           <aside className="grid min-w-0 gap-4 sm:grid-cols-2 sm:gap-6 xl:flex xl:flex-col">
-            {/* Full width on tablets so the agenda stays readable */}
             <div className="min-w-0 sm:col-span-2 xl:col-auto">
               <SelectedDayAgenda
                 selectedDate={calendar.selectedDate}
                 selectedEvents={calendar.selectedEvents}
-                onClear={() =>
-                  calendar.setSelectedDate(null)
-                }
+                onClear={() => calendar.setSelectedDate(null)}
                 onAddEvent={openEventModal}
                 onSelectEvent={handleSelectEvent}
               />
