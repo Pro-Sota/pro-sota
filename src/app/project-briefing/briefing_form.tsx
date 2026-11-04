@@ -1,41 +1,162 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import type { ChangeEvent, FormEvent, ReactNode } from "react";
+
+import "leaflet/dist/leaflet.css";
 import { submitProjectBrief } from "@/actions/project_briefing";
 
+/* -------------------------------------------------------------------------- */
+/* Configuration                                                              */
+/* -------------------------------------------------------------------------- */
+
 const STEPS = [
-  { title: "Dados pessoais", description: "Como podemos entrar em contacto consigo?" },
-  { title: "Terreno e localização", description: "Conte-nos sobre o terreno onde pretende construir." },
-  { title: "Família e estilo de vida", description: "Queremos compreender como irá viver a casa." },
-  { title: "Programa arquitectónico", description: "Defina os espaços essenciais para a sua casa." },
-  { title: "Estética e preferências", description: "Partilhe as referências e preferências do projecto." },
+  {
+    title: "Dados pessoais",
+    description: "Como podemos entrar em contacto consigo?",
+  },
+  {
+    title: "Terreno e localização",
+    description: "Conte-nos sobre o terreno onde pretende construir.",
+  },
+  {
+    title: "Família e estilo de vida",
+    description: "Queremos compreender como irá viver a casa.",
+  },
+  {
+    title: "Programa arquitectónico",
+    description: "Defina os espaços essenciais para a sua casa.",
+  },
+  {
+    title: "Estética e preferências",
+    description: "Partilhe as referências e preferências do projecto.",
+  },
 ];
 
-const INFRASTRUCTURES = ["Rede eléctrica", "Água canalizada", "Esgoto", "Estrada asfaltada", "Internet", "Nenhuma"];
+const INFRASTRUCTURES = [
+  "Rede eléctrica",
+  "Água canalizada",
+  "Esgoto",
+  "Estrada asfaltada",
+  "Internet",
+  "Nenhuma",
+];
 
 const SPACES = [
-  "Sala de estar", "Sala de jantar", "Cozinha", "Cozinha de apoio/exterior", "Escritório",
-  "Lavandaria", "Despensa", "Quarto da empregada", "Varanda", "Terraço", "Piscina", "Jardim",
-  "Churrasqueira/área gourmet", "Ginásio", "Garagem", "Outro",
+  "Sala de estar",
+  "Sala de jantar",
+  "Cozinha",
+  "Cozinha de apoio/exterior",
+  "Escritório",
+  "Lavandaria",
+  "Despensa",
+  "Quarto da empregada",
+  "Varanda",
+  "Terraço",
+  "Piscina",
+  "Jardim",
+  "Churrasqueira/área gourmet",
+  "Ginásio",
+  "Garagem",
+  "Outro",
 ];
 
-const STYLES = ["Contemporâneo", "Minimalista", "Rústico", "Tropical", "Industrial", "Clássico", "Outro"];
+const ARCHITECTURAL_STYLE_OPTIONS = [
+  {
+    name: "Contemporâneo",
+    description:
+      "Linhas actuais, volumes marcantes e grandes vãos envidraçados.",
+    image: "/images/briefing_images/contemporary.jpg",
+    position: "center 55%",
+  },
+  {
+    name: "Minimalista",
+    description:
+      "Formas simples, poucos elementos e uma paleta depurada.",
+    image: "/images/briefing_images/minimalist.jpg",
+    position: "center",
+  },
+  {
+    name: "Rústico",
+    description:
+      "Materiais naturais, madeira, pedra e texturas acolhedoras.",
+    image: "/images/briefing_images/rustic.jpg",
+    position: "center",
+  },
+  {
+    name: "Tropical",
+    description:
+      "Espaços ventilados, sombra e integração com a vegetação.",
+    image: "/images/briefing_images/tropical.jpg",
+    position: "center",
+  },
+  {
+    name: "Industrial",
+    description:
+      "Betão, metal, estruturas aparentes e acabamentos robustos.",
+    image: "/images/briefing_images/industrial.jpg",
+    position: "center",
+  },
+  {
+    name: "Clássico",
+    description:
+      "Simetria, proporções tradicionais e detalhes elegantes.",
+    image: "/images/briefing_images/classic.png",
+    position: "center",
+  },
+];
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+];
+
 const ACCEPT = ALLOWED_TYPES.join(",");
+
 const MAX_FILES = 5;
 const MAX_FILE_MB = 8;
+const MAX_FILE_SIZE = MAX_FILE_MB * 1024 * 1024;
 
-const MIN_BUDGET = 1_000_000;
-const MAX_BUDGET = 1_000_000_000;
+const INITIAL_BUDGET_CEILING = 100_000_000;
+const BUDGET_SLIDER_STEP = 1_000_000;
 
-type BriefValues = { [key: string]: string | string[] };
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
+
+type BriefValues = Record<string, string | string[]>;
+
+type FieldProps = {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  htmlFor?: string;
+  children: ReactNode;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Initial values                                                             */
+/* -------------------------------------------------------------------------- */
 
 const initialValues: BriefValues = {
   full_name: "",
   contact_phone: "",
   contact_email: "",
-  budget: "",
+
+  budget: "50000000",
+  budget_min: "0",
+  budget_max: "50000000",
+
   decision_makers: "",
   preferred_contact: "",
 
@@ -45,7 +166,8 @@ const initialValues: BriefValues = {
   location_reference: "",
   location_city: "",
   location_province: "",
-  map_link: "",
+  location_latitude: "",
+  location_longitude: "",
 
   land_ownership: "",
   land_area: "",
@@ -83,7 +205,9 @@ const initialValues: BriefValues = {
   other_information: "",
 };
 
-/* ---------- Shared class strings (Tailwind scans these as plain strings) ---------- */
+/* -------------------------------------------------------------------------- */
+/* Shared styles                                                              */
+/* -------------------------------------------------------------------------- */
 
 const focusRing =
   "focus-within:border-[#BD9655] focus-within:ring-[3px] focus-within:ring-[#BD9655]/25";
@@ -92,37 +216,64 @@ const focusOutline =
   "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#BD9655]";
 
 const inputCls =
-  "w-full min-h-[45px] rounded border border-[#cfd2cf] bg-white px-[13px] py-[11px] text-sm text-[#263746] outline-none " +
-  "transition-colors placeholder:text-[#8e9395] focus:border-[#BD9655] focus:ring-[3px] focus:ring-[#BD9655]/20 " +
-  "motion-reduce:transition-none";
+  "w-full min-h-[45px] rounded border border-[#cfd2cf] bg-white px-[13px] py-[11px] text-sm text-[#263746] outline-none transition-colors placeholder:text-[#8e9395] focus:border-[#BD9655] focus:ring-[3px] focus:ring-[#BD9655]/20 motion-reduce:transition-none";
 
 const textareaCls = `${inputCls} min-h-[100px] resize-y leading-relaxed`;
+
 const fileInputCls = `${inputCls} p-[9px]`;
 
 const optionBase =
   `flex min-h-[42px] cursor-pointer items-center gap-2 rounded border px-[13px] py-[9px] text-[13px] transition-colors motion-reduce:transition-none ${focusRing}`;
 
 const optionOn = "border-[#BD9655] bg-[#fbf8f2] text-[#002950]";
+
 const optionOff = "border-[#d3d5d1] text-[#4d565d]";
 
 const btnBase =
   `inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-3 rounded px-4 text-[13px] font-bold no-underline transition-colors sm:min-h-[46px] sm:px-[21px] motion-reduce:transition-none ${focusOutline}`;
 
 const btnPrimary =
-  `${btnBase} border border-[#002950] bg-[#002950] text-white hover:bg-[#06406f] disabled:cursor-wait disabled:opacity-65`;
+  `${btnBase} border border-[#002950] bg-[#002950] text-white hover:bg-[#06406f] disabled:cursor-not-allowed disabled:opacity-60`;
 
 const btnSecondary =
-  `${btnBase} border border-[#d6d8d6] bg-white text-[#35424d]`;
+  `${btnBase} border border-[#d6d8d6] bg-white text-[#35424d] hover:bg-[#f7f7f5]`;
 
 const twoCol = "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-[14px]";
+
 const hintCls = "-mt-[3px] mb-px text-xs leading-normal text-[#6f757a]";
-const brandCls = `text-[22px] font-extrabold tracking-[2px] text-[#002950] no-underline ${focusOutline}`;
+
+const brandCls =
+  `text-[22px] font-extrabold tracking-[2px] text-[#002950] no-underline ${focusOutline}`;
+
 const eyebrowCls = "text-[11px] font-bold tracking-[1.7px]";
 
 const pageCls =
   "min-h-screen bg-[#F7F7F5] px-[14px] pb-[25px] font-[Arial,Helvetica,sans-serif] text-[#202a34] sm:px-6 sm:pb-10";
 
-/* ---------- Field primitives ---------- */
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function formatBudget(value: number) {
+  return `${new Intl.NumberFormat("pt-PT", {
+    maximumFractionDigits: 0,
+  }).format(value)} Kz`;
+}
+
+function isValidCoordinate(latitude: number, longitude: number) {
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Field                                                                      */
+/* -------------------------------------------------------------------------- */
 
 function Field({
   label,
@@ -130,42 +281,27 @@ function Field({
   hint,
   htmlFor,
   children,
-}: {
-  label: string;
-  required?: boolean;
-  hint?: string;
-  htmlFor?: string;
-  children: React.ReactNode;
-}) {
+}: FieldProps) {
   const labelId = useId();
-
-  const text = (
-    <>
-      {label}
-      {required && (
-        <span aria-hidden="true" className="text-[#8b6a2f]">
-          {" "}*
-        </span>
-      )}
-    </>
-  );
-
-  const labelCls = "text-sm font-bold leading-normal text-[#263746]";
 
   return (
     <div
       className="flex min-w-0 flex-col gap-[9px]"
-      {...(htmlFor ? {} : { role: "group", "aria-labelledby": labelId })}
+      role="group"
+      aria-labelledby={labelId}
     >
-      {htmlFor ? (
-        <label className={labelCls} htmlFor={htmlFor}>
-          {text}
-        </label>
-      ) : (
-        <div className={labelCls} id={labelId}>
-          {text}
-        </div>
-      )}
+      <div
+        className="text-sm font-bold leading-normal text-[#263746]"
+        id={labelId}
+      >
+        {label}
+
+        {required && (
+          <span aria-hidden="true" className="text-[#8b6a2f]">
+            {" "}*
+          </span>
+        )}
+      </div>
 
       {hint && <p className={hintCls}>{hint}</p>}
 
@@ -173,6 +309,10 @@ function Field({
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Text input                                                                 */
+/* -------------------------------------------------------------------------- */
 
 function TextInput({
   name,
@@ -207,14 +347,18 @@ function TextInput({
       min={min}
       max={max}
       step={step}
-      inputMode={type === "number" ? "numeric" : undefined}
+      inputMode={type === "number" ? "decimal" : undefined}
       placeholder={placeholder}
       required={required}
       aria-label={ariaLabel}
-      onChange={(e) => onChange(name, e.target.value)}
+      onChange={(event) => onChange(name, event.target.value)}
     />
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Textarea                                                                   */
+/* -------------------------------------------------------------------------- */
 
 function TextArea({
   name,
@@ -237,10 +381,14 @@ function TextArea({
       rows={rows}
       value={value}
       placeholder={placeholder}
-      onChange={(e) => onChange(name, e.target.value)}
+      onChange={(event) => onChange(name, event.target.value)}
     />
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Radio options                                                              */
+/* -------------------------------------------------------------------------- */
 
 function RadioOptions({
   name,
@@ -259,7 +407,9 @@ function RadioOptions({
     <div className="flex flex-wrap gap-[9px]">
       {options.map((option) => (
         <label
-          className={`${optionBase} ${value === option ? optionOn : optionOff}`}
+          className={`${optionBase} ${
+            value === option ? optionOn : optionOff
+          }`}
           key={option}
         >
           <input
@@ -271,12 +421,17 @@ function RadioOptions({
             className="m-0 accent-[#002950]"
             onChange={() => onChange(name, option)}
           />
+
           <span>{option}</span>
         </label>
       ))}
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Checkbox options                                                           */
+/* -------------------------------------------------------------------------- */
 
 function CheckboxOptions({
   name,
@@ -291,31 +446,152 @@ function CheckboxOptions({
 }) {
   return (
     <div className="flex flex-wrap gap-[9px]">
-      {options.map((option) => (
-        <label
-          className={`${optionBase} ${value.includes(option) ? optionOn : optionOff}`}
-          key={option}
-        >
-          <input
-            type="checkbox"
-            value={option}
-            checked={value.includes(option)}
-            className="m-0 accent-[#002950]"
-            onChange={(e) =>
-              onChange(
-                name,
-                e.target.checked
-                  ? [...value, option]
-                  : value.filter((item) => item !== option)
-              )
-            }
-          />
-          <span>{option}</span>
-        </label>
-      ))}
+      {options.map((option) => {
+        const checked = value.includes(option);
+
+        return (
+          <label
+            className={`${optionBase} ${
+              checked ? optionOn : optionOff
+            }`}
+            key={option}
+          >
+            <input
+              type="checkbox"
+              name={name}
+              value={option}
+              checked={checked}
+              className="m-0 accent-[#002950]"
+              onChange={(event) => {
+                onChange(
+                  name,
+                  event.target.checked
+                    ? [...value, option]
+                    : value.filter((item) => item !== option)
+                );
+              }}
+            />
+
+            <span>{option}</span>
+          </label>
+        );
+      })}
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Architectural styles                                                       */
+/* -------------------------------------------------------------------------- */
+
+function ArchitecturalStyleOptions({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (name: string, value: string[]) => void;
+}) {
+  function toggle(style: string, checked: boolean) {
+    onChange(
+      "architectural_style",
+      checked
+        ? [...value, style]
+        : value.filter((item) => item !== style)
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {ARCHITECTURAL_STYLE_OPTIONS.map((style) => {
+        const selected = value.includes(style.name);
+
+        return (
+          <label
+            key={style.name}
+            className={`group relative block cursor-pointer overflow-hidden rounded-lg border text-left transition-all motion-reduce:transition-none ${
+              selected
+                ? "border-[#BD9655] bg-[#fbf8f2] ring-2 ring-[#BD9655]/25"
+                : "border-[#d3d5d1] bg-white hover:border-[#b8a17d]"
+            }`}
+          >
+            <input
+              type="checkbox"
+              name="architectural_style"
+              value={style.name}
+              checked={selected}
+              onChange={(event) =>
+                toggle(style.name, event.target.checked)
+              }
+              className="peer sr-only"
+            />
+
+            <div
+              role="img"
+              aria-label={`Exemplo de arquitectura ${style.name.toLowerCase()}`}
+              className="relative h-[250px] bg-[#e8e7e2] bg-cover bg-center sm:h-[150px]"
+              style={{
+                backgroundImage: `url("${style.image}")`,
+                backgroundPosition: style.position,
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/5" />
+
+              <span
+                className={`absolute left-3 top-3 grid h-6 w-6 place-items-center rounded border text-xs font-bold transition-colors ${
+                  selected
+                    ? "border-[#BD9655] bg-[#BD9655] text-white"
+                    : "border-white/90 bg-white text-transparent"
+                }`}
+                aria-hidden="true"
+              >
+                ✓
+              </span>
+
+              {selected && (
+                <span className="absolute right-3 top-3 rounded bg-[#002950] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                  Seleccionado
+                </span>
+              )}
+            </div>
+
+            <div className="p-3.5">
+              <span className="block text-sm font-bold text-[#002950]">
+                {style.name}
+              </span>
+
+              <span className="mt-1 block text-xs leading-relaxed text-[#6f757a]">
+                {style.description}
+              </span>
+            </div>
+          </label>
+        );
+      })}
+
+      <label
+        className={`${optionBase} ${
+          value.includes("Outro") ? optionOn : optionOff
+        } min-h-[54px] self-start`}
+      >
+        <input
+          type="checkbox"
+          name="architectural_style"
+          value="Outro"
+          checked={value.includes("Outro")}
+          onChange={(event) =>
+            toggle("Outro", event.target.checked)
+          }
+          className="m-0 accent-[#002950]"
+        />
+
+        <span>Outro estilo</span>
+      </label>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Rating                                                                     */
+/* -------------------------------------------------------------------------- */
 
 function Rating({
   name,
@@ -335,11 +611,11 @@ function Rating({
   return (
     <div className="max-w-[440px]">
       <div className="grid grid-cols-5 gap-[9px]">
-        {["1", "2", "3", "4", "5"].map((n) => (
+        {["1", "2", "3", "4", "5"].map((number) => (
           <label
-            key={n}
+            key={number}
             className={`relative grid h-[45px] cursor-pointer place-items-center rounded border font-semibold transition-colors motion-reduce:transition-none ${focusRing} ${
-              value === n
+              value === number
                 ? "border-[#BD9655] bg-[#fbf8f2] text-[#002950] ring-1 ring-inset ring-[#BD9655]"
                 : "border-[#d3d5d1] text-[#5e666c]"
             }`}
@@ -347,13 +623,14 @@ function Rating({
             <input
               type="radio"
               name={name}
-              value={n}
-              checked={value === n}
+              value={number}
+              checked={value === number}
               required={required}
               className="absolute inset-0 m-0 cursor-pointer opacity-0"
-              onChange={() => onChange(name, n)}
+              onChange={() => onChange(name, number)}
             />
-            {n}
+
+            {number}
           </label>
         ))}
       </div>
@@ -366,7 +643,9 @@ function Rating({
   );
 }
 
-/* ---------- File upload (shared between steps 2 and 5) ---------- */
+/* -------------------------------------------------------------------------- */
+/* File uploader                                                              */
+/* -------------------------------------------------------------------------- */
 
 function FileUploader({
   files,
@@ -379,28 +658,38 @@ function FileUploader({
 }) {
   const [problem, setProblem] = useState("");
 
-  function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
-    const picked = Array.from(e.target.files ?? []);
+  function handlePick(event: ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(event.target.files ?? []);
 
-    e.target.value = "";
+    // Allows selecting the same file again after removing it.
+    event.target.value = "";
 
     const issues: string[] = [];
     const next = [...files];
 
     for (const file of picked) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        issues.push(`"${file.name}" não é JPG, PNG, WEBP ou PDF.`);
+        issues.push(
+          `"${file.name}" não é JPG, PNG, WEBP ou PDF.`
+        );
         continue;
       }
 
-      if (file.size > MAX_FILE_MB * 1024 * 1024) {
-        issues.push(`"${file.name}" excede ${MAX_FILE_MB} MB.`);
+      if (file.size > MAX_FILE_SIZE) {
+        issues.push(
+          `"${file.name}" excede o limite de ${MAX_FILE_MB} MB.`
+        );
         continue;
       }
 
-      if (next.some((f) => f.name === file.name && f.size === file.size)) {
-        continue;
-      }
+      const duplicate = next.some(
+        (existing) =>
+          existing.name === file.name &&
+          existing.size === file.size &&
+          existing.lastModified === file.lastModified
+      );
+
+      if (duplicate) continue;
 
       if (next.length >= MAX_FILES) {
         issues.push(`Máximo de ${MAX_FILES} ficheiros.`);
@@ -414,6 +703,11 @@ function FileUploader({
     onChange(next);
   }
 
+  function removeFile(index: number) {
+    setProblem("");
+    onChange(files.filter((_, fileIndex) => fileIndex !== index));
+  }
+
   return (
     <>
       <input
@@ -423,35 +717,46 @@ function FileUploader({
         accept={ACCEPT}
         onChange={handlePick}
         aria-label="Anexar ficheiros"
+        disabled={files.length >= MAX_FILES}
       />
 
       <p className={hintCls}>{note}</p>
 
+      {files.length >= MAX_FILES && (
+        <p className="text-xs text-[#8b6a2f]">
+          Atingiu o limite de ficheiros. Remova um ficheiro para adicionar outro.
+        </p>
+      )}
+
       {problem && (
-        <p className="m-0 text-xs leading-normal text-[#8d2f25]" role="alert">
+        <p
+          className="m-0 text-xs leading-normal text-[#8d2f25]"
+          role="alert"
+        >
           {problem}
         </p>
       )}
 
       {files.length > 0 && (
-        <ul className="m-0 flex list-none flex-col gap-[7px] p-0">
-          {files.map((f, i) => (
+        <ul className="m-0 flex list-none flex-col gap-[9px] p-0">
+          {files.map((file, index) => (
             <li
-              key={`${f.name}-${f.size}-${i}`}
-              className="flex justify-between gap-3 text-xs text-[#505960]"
+              key={`${file.name}-${file.size}-${file.lastModified}`}
+              className="flex items-center justify-between gap-3 rounded border border-[#ecebe7] bg-[#fafaf8] px-3 py-2.5 text-xs text-[#505960]"
             >
-              <span>
-                {f.name}{" "}
-                <small>({(f.size / 1024 / 1024).toFixed(1)} MB)</small>
+              <span className="min-w-0 break-all">
+                {file.name}
+
+                <small className="ml-1 text-[#8e9395]">
+                  ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                </small>
               </span>
 
               <button
                 type="button"
-                className={`cursor-pointer border-0 bg-transparent text-[#8b5d27] underline ${focusOutline}`}
-                onClick={() => {
-                  setProblem("");
-                  onChange(files.filter((_, idx) => idx !== i));
-                }}
+                className={`shrink-0 cursor-pointer border-0 bg-transparent text-[#8b5d27] underline ${focusOutline}`}
+                onClick={() => removeFile(index)}
+                aria-label={`Remover ${file.name}`}
               >
                 Remover
               </button>
@@ -463,18 +768,480 @@ function FileUploader({
   );
 }
 
-/* ---------- Main form ---------- */
+/* -------------------------------------------------------------------------- */
+/* Interactive Leaflet map                                                    */
+/* -------------------------------------------------------------------------- */
+
+function LandLocationMap({
+  latitude,
+  longitude,
+  onChange,
+}: {
+  latitude: string;
+  longitude: string;
+  onChange: (name: string, value: string) => void;
+}) {
+  const mapElement = useRef<HTMLDivElement>(null);
+
+  const mapInstance = useRef<
+    import("leaflet").Map | null
+  >(null);
+
+  const markerInstance = useRef<
+    import("leaflet").Marker | null
+  >(null);
+
+  const onChangeRef = useRef(onChange);
+
+  const coordinatesRef = useRef({
+    latitude,
+    longitude,
+  });
+
+  // Keep callbacks and coordinates current without recreating the map.
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    coordinatesRef.current = {
+      latitude,
+      longitude,
+    };
+
+    if (!markerInstance.current) return;
+
+    if (!latitude.trim() || !longitude.trim()) return;
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    if (!isValidCoordinate(lat, lng)) return;
+
+    markerInstance.current.setLatLng([lat, lng]);
+
+    mapInstance.current?.setView(
+      [lat, lng],
+      Math.max(mapInstance.current.getZoom(), 15)
+    );
+  }, [latitude, longitude]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function initialiseMap() {
+      if (!mapElement.current || mapInstance.current) return;
+
+      try {
+        const L = await import("leaflet");
+
+        if (cancelled || !mapElement.current) return;
+
+        const current = coordinatesRef.current;
+
+        const hasCoordinates =
+          current.latitude.trim() !== "" &&
+          current.longitude.trim() !== "";
+
+        let initialLat = -8.839;
+        let initialLng = 13.289;
+
+        if (hasCoordinates) {
+          const lat = Number(current.latitude);
+          const lng = Number(current.longitude);
+
+          if (isValidCoordinate(lat, lng)) {
+            initialLat = lat;
+            initialLng = lng;
+          }
+        }
+
+        const map = L.map(mapElement.current, {
+          scrollWheelZoom: true,
+          zoomControl: true,
+        }).setView(
+          [initialLat, initialLng],
+          hasCoordinates ? 15 : 11
+        );
+
+        L.tileLayer(
+          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            maxZoom: 19,
+          }
+        ).addTo(map);
+
+        const marker = L.marker(
+          [initialLat, initialLng],
+          {
+            draggable: true,
+          }
+        ).addTo(map);
+
+        const publishCoordinates = (
+          lat: number,
+          lng: number
+        ) => {
+          if (!isValidCoordinate(lat, lng)) return;
+
+          onChangeRef.current(
+            "location_latitude",
+            lat.toFixed(7)
+          );
+
+          onChangeRef.current(
+            "location_longitude",
+            lng.toFixed(7)
+          );
+        };
+
+        marker.on("dragend", () => {
+          const point = marker.getLatLng();
+
+          publishCoordinates(point.lat, point.lng);
+        });
+
+        map.on("click", (event) => {
+          marker.setLatLng(event.latlng);
+
+          publishCoordinates(
+            event.latlng.lat,
+            event.latlng.lng
+          );
+        });
+
+        if (cancelled) {
+          map.remove();
+          return;
+        }
+
+        mapInstance.current = map;
+        markerInstance.current = marker;
+
+        map.whenReady(() => {
+          map.invalidateSize();
+        });
+      } catch (error) {
+        console.error("Erro ao inicializar o mapa:", error);
+      }
+    }
+
+    initialiseMap();
+
+    return () => {
+      cancelled = true;
+
+      mapInstance.current?.remove();
+
+      mapInstance.current = null;
+      markerInstance.current = null;
+    };
+  }, []);
+
+  return (
+    <div className="overflow-hidden rounded border border-[#cfd2cf]">
+      <div
+        ref={mapElement}
+        className="z-0 h-[300px] w-full sm:h-[360px]"
+        role="application"
+        aria-label="Mapa interactivo para seleccionar a localização do terreno"
+      />
+
+      <div className="grid grid-cols-1 gap-3 bg-[#fafaf8] p-3 sm:grid-cols-2">
+        <div>
+          <span className="block text-[10px] font-bold uppercase tracking-wide text-[#737a7e]">
+            Latitude
+          </span>
+
+          <span className="text-sm font-semibold tabular-nums text-[#002950]">
+            {latitude || "Não seleccionada"}
+          </span>
+        </div>
+
+        <div>
+          <span className="block text-[10px] font-bold uppercase tracking-wide text-[#737a7e]">
+            Longitude
+          </span>
+
+          <span className="text-sm font-semibold tabular-nums text-[#002950]">
+            {longitude || "Não seleccionada"}
+          </span>
+        </div>
+      </div>
+
+      <p className="border-t border-[#ecebe7] bg-[#fafaf8] px-3 pb-3 text-[11px] text-[#737a7e]">
+        Clique no mapa ou arraste o marcador para indicar a localização exacta.
+      </p>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dual-handle budget range                                                   */
+/* -------------------------------------------------------------------------- */
+
+function BudgetRange({
+  values,
+  update,
+}: {
+  values: BriefValues;
+  update: (name: keyof BriefValues, value: string) => void;
+}) {
+  const [activeHandle, setActiveHandle] = useState<"min" | "max">("max");
+
+  const [sliderMax, setSliderMax] = useState(
+    INITIAL_BUDGET_CEILING
+  );
+
+  const minValue = Math.max(
+    0,
+    Number(values.budget_min) || 0
+  );
+
+  const maxValue = Math.max(
+    minValue,
+    Number(values.budget_max) || 0
+  );
+
+  // Recalculate the ceiling if the component is remounted.
+  const effectiveMax = Math.max(
+    sliderMax,
+    INITIAL_BUDGET_CEILING,
+    Math.ceil(maxValue / BUDGET_SLIDER_STEP) *
+      BUDGET_SLIDER_STEP
+  );
+
+  const minPercent = Math.min(
+    100,
+    (minValue / effectiveMax) * 100
+  );
+
+  const maxPercent = Math.min(
+    100,
+    (maxValue / effectiveMax) * 100
+  );
+
+  function updateMinimum(value: number) {
+    const nextValue = Math.min(
+      Math.max(0, value),
+      maxValue
+    );
+
+    update("budget_min", String(nextValue));
+  }
+
+  function updateMaximum(value: number) {
+    const nextValue = Math.max(
+      minValue,
+      value
+    );
+
+    update("budget_max", String(nextValue));
+    update("budget", String(nextValue));
+
+    if (nextValue >= effectiveMax) {
+      setSliderMax((current) => {
+        return Math.max(
+          current * 2,
+          nextValue + BUDGET_SLIDER_STEP
+        );
+      });
+    }
+  }
+
+  return (
+    <div className="w-full rounded-2xl border border-[#E9E9E6] bg-white p-5 sm:p-7">
+      <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[#002950]">
+            Defina o seu orçamento
+          </p>
+
+          <p className="mt-1 text-sm text-gray-500">
+            Seleccione o intervalo que prevê investir na construção.
+          </p>
+        </div>
+
+        <span className="w-fit rounded-full bg-[#F7F7F5] px-3 py-1.5 text-xs font-medium text-gray-500">
+          Intervalo de investimento
+        </span>
+      </div>
+
+      <div className="mb-8 grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-[#E9E9E6] bg-[#FAFAF9] p-4">
+          <p className="text-xs font-medium text-gray-400">
+            Orçamento mínimo
+          </p>
+
+          <p className="mt-2 text-base font-semibold text-[#002950] sm:text-lg">
+            {formatBudget(minValue)}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#E9E9E6] bg-[#FAFAF9] p-4">
+          <p className="text-xs font-medium text-gray-400">
+            Orçamento máximo
+          </p>
+
+          <p className="mt-2 text-base font-semibold text-[#002950] sm:text-lg">
+            {formatBudget(maxValue)}
+          </p>
+        </div>
+      </div>
+
+      <div className="relative px-2 pb-3 pt-5">
+        <div className="relative h-2 rounded-full bg-[#EAEAE7]">
+          <div
+            className="absolute top-0 h-full rounded-full bg-[#BD9655]"
+            style={{
+              left: `${minPercent}%`,
+              width: `${Math.max(
+                0,
+                maxPercent - minPercent
+              )}%`,
+            }}
+          />
+
+          <input
+            aria-label="Orçamento mínimo"
+            aria-valuetext={formatBudget(minValue)}
+            type="range"
+            min={0}
+            max={effectiveMax}
+            step={BUDGET_SLIDER_STEP}
+            value={Math.min(minValue, effectiveMax)}
+            onPointerDown={() => setActiveHandle("min")}
+            onFocus={() => setActiveHandle("min")}
+            onChange={(event) =>
+              updateMinimum(Number(event.target.value))
+            }
+            className={`budget-range-input ${
+              activeHandle === "min" ? "is-active" : ""
+            }`}
+          />
+
+          <input
+            aria-label="Orçamento máximo"
+            aria-valuetext={formatBudget(maxValue)}
+            type="range"
+            min={0}
+            max={effectiveMax}
+            step={BUDGET_SLIDER_STEP}
+            value={Math.min(maxValue, effectiveMax)}
+            onPointerDown={() => setActiveHandle("max")}
+            onFocus={() => setActiveHandle("max")}
+            onChange={(event) =>
+              updateMaximum(Number(event.target.value))
+            }
+            className={`budget-range-input ${
+              activeHandle === "max" ? "is-active" : ""
+            }`}
+          />
+        </div>
+
+        <div className="mt-5 flex justify-between text-xs text-gray-400">
+          <span>0 Kz</span>
+          <span>{formatBudget(effectiveMax)}</span>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .budget-range-input {
+          appearance: none;
+          -webkit-appearance: none;
+          position: absolute;
+          inset: -9px 0 auto;
+          width: 100%;
+          height: 20px;
+          margin: 0;
+          background: transparent;
+          pointer-events: none;
+          cursor: grab;
+          outline: none;
+        }
+
+        .budget-range-input:active {
+          cursor: grabbing;
+        }
+
+        .budget-range-input.is-active {
+          z-index: 3;
+        }
+
+        .budget-range-input::-webkit-slider-runnable-track {
+          height: 8px;
+          background: transparent;
+        }
+
+        .budget-range-input::-moz-range-track {
+          height: 8px;
+          background: transparent;
+        }
+
+        .budget-range-input::-webkit-slider-thumb {
+          appearance: none;
+          -webkit-appearance: none;
+          width: 22px;
+          height: 22px;
+          margin-top: -7px;
+          border: 4px solid white;
+          border-radius: 50%;
+          background: #002950;
+          box-shadow: 0 1px 5px rgb(0 0 0 / 18%);
+          pointer-events: auto;
+          cursor: grab;
+        }
+
+        .budget-range-input::-moz-range-thumb {
+          width: 14px;
+          height: 14px;
+          border: 4px solid white;
+          border-radius: 50%;
+          background: #002950;
+          box-shadow: 0 1px 5px rgb(0 0 0 / 18%);
+          pointer-events: auto;
+          cursor: grab;
+        }
+
+        .budget-range-input:focus-visible::-webkit-slider-thumb {
+          outline: 3px solid rgb(189 150 85 / 30%);
+          outline-offset: 2px;
+        }
+
+        .budget-range-input:focus-visible::-moz-range-thumb {
+          outline: 3px solid rgb(189 150 85 / 30%);
+          outline-offset: 2px;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Main form                                                                  */
+/* -------------------------------------------------------------------------- */
 
 export default function ProjectBriefForm() {
   const [step, setStep] = useState(0);
-  const [values, setValues] = useState<BriefValues>(initialValues);
+
+  const [values, setValues] = useState<BriefValues>(() => ({
+    ...initialValues,
+    infrastructure: [],
+    desired_spaces: [],
+    architectural_style: [],
+  }));
+
   const [files, setFiles] = useState<File[]>([]);
+
   const [error, setError] = useState("");
+
   const [success, setSuccess] = useState(false);
+
   const [pending, startTransition] = useTransition();
 
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const firstRender = useRef(true);
 
   const isLast = step === STEPS.length - 1;
 
@@ -483,48 +1250,84 @@ export default function ProjectBriefForm() {
     [step]
   );
 
-  const str = (name: string) => String(values[name] ?? "");
+  const str = useCallback(
+    (name: string) => String(values[name] ?? ""),
+    [values]
+  );
 
-  const arr = (name: string) =>
-    Array.isArray(values[name]) ? (values[name] as string[]) : [];
+  const arr = useCallback(
+    (name: string) =>
+      Array.isArray(values[name])
+        ? (values[name] as string[])
+        : [],
+    [values]
+  );
 
-  const update = (name: string, value: string | string[]) =>
-    setValues((current) => {
-      const next = { ...current, [name]: value };
-
-      if (name === "domestic_workers" && value !== "Sim") {
-        next.domestic_workers_count = "";
-      }
-
-      return next;
-    });
-
-  // Move focus to the step heading when the step changes.
-  useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
-    }
-
-    headingRef.current?.focus();
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [step]);
-
-  /** Validates fields that native HTML validation cannot cover. */
-  function validateStep(): string {
-    if (step === 0) {
-      const rawBudget = str("budget").trim();
-
-      if (rawBudget !== "") {
-        const budget = Number(rawBudget);
+  const update = useCallback(
+    (name: string, value: string | string[]) => {
+      setValues((current) => {
+        const next = {
+          ...current,
+          [name]: value,
+        };
 
         if (
-          !Number.isFinite(budget) ||
-          budget < MIN_BUDGET ||
-          budget > MAX_BUDGET
+          name === "domestic_workers" &&
+          value !== "Sim"
         ) {
-          return "O orçamento deve estar entre 1.000.000 Kz e 1.000.000.000 Kz.";
+          next.domestic_workers_count = "";
         }
+
+        if (
+          name === "desired_spaces" &&
+          Array.isArray(value) &&
+          !value.includes("Garagem")
+        ) {
+          next.cars_count = "";
+        }
+
+        if (
+          name === "budget_max" &&
+          typeof value === "string"
+        ) {
+          next.budget = value;
+        }
+
+        return next;
+      });
+    },
+    []
+  );
+
+  /* ------------------------------------------------------------------------ */
+  /* Navigation                                                               */
+  /* ------------------------------------------------------------------------ */
+
+  useEffect(() => {
+    headingRef.current?.focus();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, [step]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Validation                                                               */
+  /* ------------------------------------------------------------------------ */
+
+  function validateStep(): string {
+    if (step === 0) {
+      const budgetMin = Number(str("budget_min"));
+      const budgetMax = Number(str("budget_max"));
+
+      if (
+        !Number.isFinite(budgetMin) ||
+        !Number.isFinite(budgetMax) ||
+        budgetMin < 0 ||
+        budgetMax < budgetMin
+      ) {
+        return "Indique um intervalo de orçamento válido.";
       }
     }
 
@@ -535,30 +1338,88 @@ export default function ProjectBriefForm() {
         "location_municipality",
         "location_city",
         "location_reference",
-        "map_link",
-      ].some((k) => str(k).trim() !== "");
+      ].some((key) => str(key).trim() !== "");
 
-      if (!hasLocation) {
-        return "Indique pelo menos o endereço, o bairro, o município ou um link do mapa.";
+      const lat = str("location_latitude");
+      const lng = str("location_longitude");
+
+      const hasLatitude = lat.trim() !== "";
+      const hasLongitude = lng.trim() !== "";
+
+      if (hasLatitude !== hasLongitude) {
+        return "Seleccione uma localização válida no mapa.";
+      }
+
+      if (hasLatitude && hasLongitude) {
+        if (!isValidCoordinate(Number(lat), Number(lng))) {
+          return "As coordenadas seleccionadas não são válidas.";
+        }
+      }
+
+      if (!hasLocation && !hasLatitude) {
+        return "Indique pelo menos o endereço, o bairro, o município ou seleccione a localização no mapa.";
+      }
+
+      if (
+        Number(str("land_area")) < 0 ||
+        Number(str("land_length")) < 0 ||
+        Number(str("land_width")) < 0
+      ) {
+        return "As dimensões do terreno não podem ser negativas.";
+      }
+    }
+
+    if (step === 2) {
+      if (
+        Number(str("residents_count")) < 1 ||
+        !Number.isInteger(Number(str("residents_count")))
+      ) {
+        return "Indique um número válido de moradores.";
+      }
+
+      if (
+        str("domestic_workers") === "Sim" &&
+        str("domestic_workers_count") !== "" &&
+        Number(str("domestic_workers_count")) < 1
+      ) {
+        return "Indique um número válido de trabalhadores.";
       }
     }
 
     if (step === 3) {
-      if (Number(str("suites_count")) > Number(str("bedrooms_count"))) {
+      const bedrooms = Number(str("bedrooms_count"));
+      const suites = Number(str("suites_count"));
+
+      if (suites > bedrooms) {
         return "O número de suítes não pode ser superior ao número de quartos.";
       }
 
       if (arr("desired_spaces").length === 0) {
         return "Seleccione pelo menos um espaço.";
       }
+
+      if (
+        arr("desired_spaces").includes("Garagem") &&
+        str("cars_count") !== "" &&
+        Number(str("cars_count")) < 1
+      ) {
+        return "Indique um número válido de carros.";
+      }
     }
 
-    if (step === 4 && arr("architectural_style").length === 0) {
+    if (
+      step === 4 &&
+      arr("architectural_style").length === 0
+    ) {
       return "Seleccione pelo menos um estilo arquitectónico.";
     }
 
     return "";
   }
+
+  /* ------------------------------------------------------------------------ */
+  /* Step navigation                                                          */
+  /* ------------------------------------------------------------------------ */
 
   function goNext() {
     setError("");
@@ -578,67 +1439,84 @@ export default function ProjectBriefForm() {
       return;
     }
 
-    setStep((current) => Math.min(current + 1, STEPS.length - 1));
+    setStep((current) =>
+      Math.min(current + 1, STEPS.length - 1)
+    );
   }
 
   function goBack(target: number) {
     setError("");
-    setStep(target);
+
+    setStep(Math.max(0, Math.min(target, step - 1)));
   }
 
-function submit(formData: FormData) {
+  /* ------------------------------------------------------------------------ */
+  /* Submission                                                               */
+  /* ------------------------------------------------------------------------ */
+
+  function submit(formData: FormData) {
     setError("");
 
+    // Rebuild the payload using the complete state.
+    // This is important because previous steps are unmounted.
     Object.entries(values).forEach(([key, value]) => {
-        formData.delete(key);
+      formData.delete(key);
 
-        if (Array.isArray(value)) {
-            value.forEach((item) => formData.append(key, item));
-            return;
-        }
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          formData.append(key, item);
+        });
 
-        // Do not submit an empty optional budget.
-        if (key === "budget" && !value.trim()) {
-            return;
-        }
+        return;
+      }
 
-        formData.set(key, value);
+      formData.set(key, value);
     });
 
-    // Append uploaded files.
+    // Remove any stale attachment values.
+    formData.delete("attachments");
+
     files.forEach((file) => {
-        formData.append("attachments", file);
+      formData.append("attachments", file);
     });
 
     startTransition(async () => {
-        try {
-            const result = await submitProjectBrief(formData);
+      try {
+        const result = await submitProjectBrief(formData);
 
-            if (!result.success) {
-                setError(
-                    result.error ||
-                    "Não foi possível enviar o formulário. Tente novamente."
-                );
-                return;
-            }
+        if (!result.success) {
+          setError(
+            result.error ||
+              "Não foi possível enviar o formulário. Tente novamente."
+          );
 
-            setSuccess(true);
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth",
-            });
-        } catch {
-            setError(
-                "Ocorreu um erro de ligação. Verifique a internet e tente novamente."
-            );
+          return;
         }
+
+        setSuccess(true);
+
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      } catch (submissionError) {
+        console.error(
+          "Erro ao submeter o brief:",
+          submissionError
+        );
+
+        setError(
+          "Ocorreu um erro de ligação. Verifique a internet e tente novamente."
+        );
+      }
     });
-}
+  }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-    // Pressing Enter on an earlier step must advance, never submit the brief.
+    if (pending) return;
+
     if (!isLast) {
       goNext();
       return;
@@ -651,620 +1529,701 @@ function submit(formData: FormData) {
       return;
     }
 
-    submit(new FormData(e.currentTarget));
+    submit(new FormData(event.currentTarget));
   }
+
+  /* ------------------------------------------------------------------------ */
+  /* Step 1 — Personal details                                                */
+  /* ------------------------------------------------------------------------ */
+
+  function renderPersonalDetails() {
+    return (
+      <>
+        <Field label="1. Nome completo" required>
+          <TextInput
+            name="full_name"
+            value={str("full_name")}
+            onChange={update}
+            placeholder="O seu nome completo"
+            required
+          />
+        </Field>
+
+        <div className={twoCol}>
+          <Field label="2. Contacto telefónico" required>
+            <TextInput
+              name="contact_phone"
+              value={str("contact_phone")}
+              onChange={update}
+              type="tel"
+              placeholder="+244 ..."
+              required
+            />
+          </Field>
+
+          <Field label="E-mail" required>
+            <TextInput
+              name="contact_email"
+              value={str("contact_email")}
+              onChange={update}
+              type="email"
+              placeholder="nome@exemplo.com"
+              required
+            />
+          </Field>
+        </div>
+
+        <Field
+          label="3. Qual é a estimativa do orçamento?"
+          hint="Defina o intervalo que prevê investir na construção. O valor mínimo pode começar em zero e não existe um limite máximo fixo."
+        >
+          <BudgetRange
+            values={values}
+            update={(name, value) => update(name, value)}
+          />
+
+          <input
+            type="hidden"
+            name="budget_min"
+            value={str("budget_min")}
+          />
+
+          <input
+            type="hidden"
+            name="budget_max"
+            value={str("budget_max")}
+          />
+        </Field>
+
+        <Field
+          label="4. Quem toma as decisões sobre o projecto?"
+          required
+        >
+          <RadioOptions
+            required
+            name="decision_makers"
+            value={str("decision_makers")}
+            onChange={update}
+            options={[
+              "Apenas eu",
+              "Eu e o cônjuge",
+              "Família",
+              "Sócios",
+            ]}
+          />
+        </Field>
+
+        <Field
+          label="5. Qual é a melhor forma de contacto?"
+          required
+        >
+          <RadioOptions
+            required
+            name="preferred_contact"
+            value={str("preferred_contact")}
+            onChange={update}
+            options={[
+              "Chamada",
+              "WhatsApp",
+              "E-mail",
+              "Presencial",
+            ]}
+          />
+        </Field>
+      </>
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Step 2 — Land and location                                               */
+  /* ------------------------------------------------------------------------ */
+
+  function renderLandDetails() {
+    return (
+      <>
+        <Field
+          label="6. Localização do terreno"
+          required
+          hint="Preencha os campos que conhece e marque no mapa a localização exacta do terreno."
+        >
+          <TextInput
+            name="location_address"
+            value={str("location_address")}
+            onChange={update}
+            placeholder="Endereço"
+            ariaLabel="Endereço"
+          />
+
+          <div className={twoCol}>
+            <TextInput
+              name="location_neighborhood"
+              value={str("location_neighborhood")}
+              onChange={update}
+              placeholder="Bairro"
+              ariaLabel="Bairro"
+            />
+
+            <TextInput
+              name="location_municipality"
+              value={str("location_municipality")}
+              onChange={update}
+              placeholder="Município"
+              ariaLabel="Município"
+            />
+          </div>
+
+          <div className={twoCol}>
+            <TextInput
+              name="location_city"
+              value={str("location_city")}
+              onChange={update}
+              placeholder="Cidade"
+              ariaLabel="Cidade"
+            />
+
+            <TextInput
+              name="location_province"
+              value={str("location_province")}
+              onChange={update}
+              placeholder="Província"
+              ariaLabel="Província"
+            />
+          </div>
+
+          <TextInput
+            name="location_reference"
+            value={str("location_reference")}
+            onChange={update}
+            placeholder="Ponto de referência"
+            ariaLabel="Ponto de referência"
+          />
+
+          <div className="pt-1">
+            <p className="mb-2 text-xs font-semibold text-[#46515a]">
+              Seleccione a localização no mapa
+            </p>
+
+            <LandLocationMap
+              latitude={str("location_latitude")}
+              longitude={str("location_longitude")}
+              onChange={update}
+            />
+
+            <input
+              type="hidden"
+              name="location_latitude"
+              value={str("location_latitude")}
+            />
+
+            <input
+              type="hidden"
+              name="location_longitude"
+              value={str("location_longitude")}
+            />
+          </div>
+        </Field>
+
+        <Field label="7. Já é proprietário do terreno?" required>
+          <RadioOptions
+            required
+            name="land_ownership"
+            value={str("land_ownership")}
+            onChange={update}
+            options={[
+              "Sim, com documentação",
+              "Sim, sem documentação regularizada",
+              "Ainda não",
+            ]}
+          />
+        </Field>
+
+        <Field
+          label="8. Área aproximada do terreno (m²)"
+          hint="Indique a área total, se souber."
+        >
+          <TextInput
+            name="land_area"
+            value={str("land_area")}
+            onChange={update}
+            type="number"
+            min={0}
+            placeholder="Área em m²"
+          />
+
+          <div className={twoCol}>
+            <TextInput
+              name="land_length"
+              value={str("land_length")}
+              onChange={update}
+              type="number"
+              min={0}
+              placeholder="Comprimento (m)"
+              ariaLabel="Comprimento em metros"
+            />
+
+            <TextInput
+              name="land_width"
+              value={str("land_width")}
+              onChange={update}
+              type="number"
+              min={0}
+              placeholder="Largura (m)"
+              ariaLabel="Largura em metros"
+            />
+          </div>
+        </Field>
+
+        <Field label="9. Que tipo de terreno é?" required>
+          <RadioOptions
+            required
+            name="land_type"
+            value={str("land_type")}
+            onChange={update}
+            options={[
+              "Plano",
+              "Em declive",
+              "Aterrado",
+              "Não sei",
+            ]}
+          />
+        </Field>
+
+        <Field
+          label="10. Existem construções no terreno?"
+          required
+        >
+          <RadioOptions
+            required
+            name="existing_buildings"
+            value={str("existing_buildings")}
+            onChange={update}
+            options={["Sim", "Não"]}
+          />
+        </Field>
+
+        <Field label="11. Existem árvores no terreno?" required>
+          <RadioOptions
+            required
+            name="has_trees"
+            value={str("has_trees")}
+            onChange={update}
+            options={["Sim", "Não"]}
+          />
+        </Field>
+
+        <Field
+          label="12. Que infra-estruturas existem?"
+          hint="Pode seleccionar mais do que uma opção."
+        >
+          <CheckboxOptions
+            name="infrastructure"
+            value={arr("infrastructure")}
+            onChange={update}
+            options={INFRASTRUCTURES}
+          />
+        </Field>
+
+        <Field
+          label="13. Fotografias do terreno"
+          hint="Pode anexar fotografias, plantas ou documentos."
+        >
+          <FileUploader
+            files={files}
+            onChange={setFiles}
+            note={`JPG, PNG, WEBP ou PDF. Máximo de ${MAX_FILES} ficheiros, ${MAX_FILE_MB} MB cada.`}
+          />
+        </Field>
+      </>
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Step 3 — Family and lifestyle                                            */
+  /* ------------------------------------------------------------------------ */
+
+  function renderLifestyle() {
+    return (
+      <>
+        <Field
+          label="14. Quantas pessoas vão morar na casa?"
+          required
+        >
+          <TextInput
+            name="residents_count"
+            value={str("residents_count")}
+            onChange={update}
+            type="number"
+            min={1}
+            step={1}
+            placeholder="Número de pessoas"
+            required
+          />
+        </Field>
+
+        <Field label="15. Terá trabalhadores em casa?" required>
+          <RadioOptions
+            required
+            name="domestic_workers"
+            value={str("domestic_workers")}
+            onChange={update}
+            options={["Sim", "Não"]}
+          />
+        </Field>
+
+        {str("domestic_workers") === "Sim" && (
+          <Field label="Quantos trabalhadores?">
+            <TextInput
+              name="domestic_workers_count"
+              value={str("domestic_workers_count")}
+              onChange={update}
+              type="number"
+              min={1}
+              step={1}
+              placeholder="Número de trabalhadores"
+            />
+          </Field>
+        )}
+
+        <Field
+          label="16. Idades e perfis dos moradores"
+          hint="Por exemplo: crianças, idosos ou pessoas com mobilidade reduzida."
+        >
+          <TextArea
+            name="resident_profiles"
+            value={str("resident_profiles")}
+            onChange={update}
+            placeholder="Descreva os perfis e necessidades dos moradores..."
+          />
+        </Field>
+
+        <Field
+          label="17. Prevê crescimento da família nos próximos 10 anos?"
+          required
+        >
+          <RadioOptions
+            required
+            name="family_growth"
+            value={str("family_growth")}
+            onChange={update}
+            options={["Sim", "Não", "Talvez"]}
+          />
+        </Field>
+
+        <Field label="18. Trabalha em casa?" required>
+          <RadioOptions
+            required
+            name="works_from_home"
+            value={str("works_from_home")}
+            onChange={update}
+            options={[
+              "Sim",
+              "Não",
+              "Frequentemente",
+            ]}
+          />
+        </Field>
+
+        <Field
+          label="19. Recebe visitas ou organiza eventos em casa?"
+          required
+        >
+          <RadioOptions
+            required
+            name="visitors_frequency"
+            value={str("visitors_frequency")}
+            onChange={update}
+            options={[
+              "Sim, muito frequentemente",
+              "Sim, frequentemente",
+              "Sim, algumas vezes",
+              "Sim, raramente",
+              "Não recebo visitas",
+            ]}
+          />
+        </Field>
+
+        <Field label="20. Tem animais de estimação? Quais?">
+          <TextArea
+            name="pets"
+            value={str("pets")}
+            onChange={update}
+            placeholder="Indique os animais e as suas necessidades..."
+            rows={2}
+          />
+        </Field>
+
+        <Field label="21. O que mais o incomoda na casa onde vive hoje?">
+          <TextArea
+            name="current_home_dislikes"
+            value={str("current_home_dislikes")}
+            onChange={update}
+            placeholder="O que gostaria de melhorar?"
+          />
+        </Field>
+
+        <Field label="22. O que mais gosta na casa onde vive hoje?">
+          <TextArea
+            name="current_home_likes"
+            value={str("current_home_likes")}
+            onChange={update}
+            placeholder="O que gostaria de manter ou repetir?"
+          />
+        </Field>
+      </>
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Step 4 — Architectural programme                                         */
+  /* ------------------------------------------------------------------------ */
+
+  function renderArchitecturalProgramme() {
+    return (
+      <>
+        <div className={twoCol}>
+          <Field label="23. Número de quartos" required>
+            <TextInput
+              name="bedrooms_count"
+              value={str("bedrooms_count")}
+              onChange={update}
+              type="number"
+              min={1}
+              step={1}
+              placeholder="N.º de quartos"
+              required
+            />
+          </Field>
+
+          <Field label="Quantas suítes?" required>
+            <TextInput
+              name="suites_count"
+              value={str("suites_count")}
+              onChange={update}
+              type="number"
+              min={0}
+              step={1}
+              placeholder="N.º de suítes"
+              required
+            />
+          </Field>
+        </div>
+
+        <Field
+          label="24. Que espaços deseja incluir?"
+          required
+          hint="Seleccione todos os espaços pretendidos."
+        >
+          <CheckboxOptions
+            name="desired_spaces"
+            value={arr("desired_spaces")}
+            onChange={update}
+            options={SPACES}
+          />
+        </Field>
+
+        {arr("desired_spaces").includes("Garagem") && (
+          <Field label="25. Quantos carros pretende acomodar na garagem?">
+            <TextInput
+              name="cars_count"
+              value={str("cars_count")}
+              onChange={update}
+              type="number"
+              min={1}
+              step={1}
+              placeholder="Número de carros"
+            />
+          </Field>
+        )}
+
+        <Field
+          label="26. Qual é a sua preferência para a cozinha?"
+          required
+        >
+          <RadioOptions
+            required
+            name="kitchen_layout"
+            value={str("kitchen_layout")}
+            onChange={update}
+            options={[
+              "Aberta para a sala",
+              "Fechada",
+              "Semi-aberta",
+            ]}
+          />
+        </Field>
+
+        <Field label="27. Quantos pisos deseja?" required>
+          <RadioOptions
+            required
+            name="floor_count"
+            value={str("floor_count")}
+            onChange={update}
+            options={[
+              "Rés-do-chão",
+              "1 andar",
+              "Outro",
+            ]}
+          />
+        </Field>
+
+        <Field label="28. Há algum espaço indispensável que não foi listado?">
+          <TextArea
+            name="essential_space"
+            value={str("essential_space")}
+            onChange={update}
+            placeholder="Descreva outros espaços ou necessidades..."
+          />
+        </Field>
+      </>
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Step 5 — Aesthetics and preferences                                      */
+  /* ------------------------------------------------------------------------ */
+
+  function renderPreferences() {
+    return (
+      <>
+        <Field
+          label="29. Que estilos arquitectónicos lhe agradam?"
+          required
+          hint="Pode seleccionar mais do que um."
+        >
+          <ArchitecturalStyleOptions
+            value={arr("architectural_style")}
+            onChange={update}
+          />
+        </Field>
+
+        <Field label="30. Cores e materiais de que gosta ou não gosta">
+          <TextArea
+            name="colour_material_preferences"
+            value={str("colour_material_preferences")}
+            onChange={update}
+            placeholder="Cores, revestimentos, materiais, acabamentos..."
+          />
+        </Field>
+
+        <Field
+          label="31. Quanto valoriza a luz natural e a ligação com o exterior?"
+          required
+        >
+          <Rating
+            required
+            name="natural_light_rating"
+            value={str("natural_light_rating")}
+            onChange={update}
+            low="1 · Pouco"
+            high="5 · Muito"
+          />
+        </Field>
+
+        <Field
+          label="32. Quanto valoriza a privacidade em relação à rua e aos vizinhos?"
+          required
+        >
+          <Rating
+            required
+            name="privacy_rating"
+            value={str("privacy_rating")}
+            onChange={update}
+            low="1 · Pouco"
+            high="5 · Muito"
+          />
+        </Field>
+
+        <Field
+          label="33. Imagens ou links de referência"
+          hint="Pode indicar links do Pinterest, Instagram ou outras referências. Também pode anexar imagens e PDFs."
+        >
+          <TextArea
+            name="reference_links"
+            value={str("reference_links")}
+            onChange={update}
+            placeholder="Cole aqui os links de referência..."
+            rows={3}
+          />
+
+          <FileUploader
+            files={files}
+            onChange={setFiles}
+            note={`Máximo de ${MAX_FILES} ficheiros no total (incluindo os da etapa 2), ${MAX_FILE_MB} MB cada.`}
+          />
+        </Field>
+
+        <Field label="34. Há algo importante que não perguntámos?">
+          <TextArea
+            name="other_information"
+            value={str("other_information")}
+            onChange={update}
+            placeholder="Partilhe qualquer outra informação importante..."
+          />
+        </Field>
+
+        <label className="flex items-start gap-2.5 text-xs leading-relaxed text-[#62696e]">
+          <input
+            type="checkbox"
+            name="privacy_consent"
+            value="true"
+            required
+            className="mt-[3px] accent-[#002950]"
+          />
+
+          <span>
+            Autorizo a PRO SOTA a utilizar estas informações para
+            analisar e dar seguimento ao meu pedido de projecto.
+          </span>
+        </label>
+
+        {/* Honeypot anti-spam field */}
+        <div
+          className="absolute left-[-10000px] h-px w-px overflow-hidden"
+          aria-hidden="true"
+        >
+          <label>
+            Deixe este campo vazio
+
+            <input
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+            />
+          </label>
+        </div>
+      </>
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Render current step                                                      */
+  /* ------------------------------------------------------------------------ */
 
   function renderStep() {
     switch (step) {
       case 0:
-        return (
-          <>
-            <Field label="1. Nome completo" required htmlFor="full_name">
-              <TextInput
-                name="full_name"
-                value={str("full_name")}
-                onChange={update}
-                placeholder="O seu nome completo"
-                required
-              />
-            </Field>
-
-            <div className={twoCol}>
-              <Field label="2. Contacto telefónico" required htmlFor="contact_phone">
-                <TextInput
-                  name="contact_phone"
-                  value={str("contact_phone")}
-                  onChange={update}
-                  type="tel"
-                  placeholder="+244 ..."
-                  required
-                />
-              </Field>
-
-              <Field label="E-mail" required htmlFor="contact_email">
-                <TextInput
-                  name="contact_email"
-                  value={str("contact_email")}
-                  onChange={update}
-                  type="email"
-                  placeholder="nome@exemplo.com"
-                  required
-                />
-              </Field>
-            </div>
-
-            <Field
-              label="3. Qual é a estimativa do orçamento?"
-              hint="Indique o valor aproximado que prevê investir na construção. Se ainda não tiver uma estimativa, pode deixar em branco."
-              htmlFor="budget"
-            >
-              <div className="relative">
-                <TextInput
-                  name="budget"
-                  value={str("budget")}
-                  onChange={update}
-                  type="number"
-                  min={MIN_BUDGET}
-                  max={MAX_BUDGET}
-                  step={1}
-                  placeholder="Ex.: 25 000 000"
-                />
-
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#6f757a]">
-                  Kz
-                </span>
-              </div>
-
-              <p className={hintCls}>
-                Entre 1.000.000 Kz e 1.000.000.000 Kz.
-              </p>
-            </Field>
-
-            <Field label="4. Quem toma as decisões sobre o projecto?" required>
-              <RadioOptions
-                required
-                name="decision_makers"
-                value={str("decision_makers")}
-                onChange={update}
-                options={["Apenas eu", "Eu e o cônjuge", "Família", "Sócios"]}
-              />
-            </Field>
-
-            <Field label="5. Qual é a melhor forma de contacto?" required>
-              <RadioOptions
-                required
-                name="preferred_contact"
-                value={str("preferred_contact")}
-                onChange={update}
-                options={["Chamada", "WhatsApp", "E-mail", "Presencial"]}
-              />
-            </Field>
-          </>
-        );
+        return renderPersonalDetails();
 
       case 1:
-        return (
-          <>
-            <Field
-              label="6. Localização do terreno"
-              required
-              hint="Preencha os campos que conhece. Pode acrescentar um link do mapa."
-            >
-              <TextInput
-                name="location_address"
-                value={str("location_address")}
-                onChange={update}
-                placeholder="Endereço"
-                ariaLabel="Endereço"
-              />
-
-              <div className={twoCol}>
-                <TextInput
-                  name="location_neighborhood"
-                  value={str("location_neighborhood")}
-                  onChange={update}
-                  placeholder="Bairro"
-                  ariaLabel="Bairro"
-                />
-
-                <TextInput
-                  name="location_municipality"
-                  value={str("location_municipality")}
-                  onChange={update}
-                  placeholder="Município"
-                  ariaLabel="Município"
-                />
-              </div>
-
-              <div className={twoCol}>
-                <TextInput
-                  name="location_city"
-                  value={str("location_city")}
-                  onChange={update}
-                  placeholder="Cidade"
-                  ariaLabel="Cidade"
-                />
-
-                <TextInput
-                  name="location_province"
-                  value={str("location_province")}
-                  onChange={update}
-                  placeholder="Província"
-                  ariaLabel="Província"
-                />
-              </div>
-
-              <TextInput
-                name="location_reference"
-                value={str("location_reference")}
-                onChange={update}
-                placeholder="Ponto de referência"
-                ariaLabel="Ponto de referência"
-              />
-
-              <TextInput
-                name="map_link"
-                value={str("map_link")}
-                onChange={update}
-                type="url"
-                placeholder="Link do Google Maps (opcional)"
-                ariaLabel="Link do Google Maps"
-              />
-            </Field>
-
-            <Field label="7. Já é proprietário do terreno?" required>
-              <RadioOptions
-                required
-                name="land_ownership"
-                value={str("land_ownership")}
-                onChange={update}
-                options={[
-                  "Sim, com documentação",
-                  "Sim, sem documentação regularizada",
-                  "Ainda não",
-                ]}
-              />
-            </Field>
-
-            <Field
-              label="8. Área aproximada do terreno (m²)"
-              hint="Indique a área total, se souber."
-              htmlFor="land_area"
-            >
-              <TextInput
-                name="land_area"
-                value={str("land_area")}
-                onChange={update}
-                type="number"
-                min={0}
-                placeholder="Área em m²"
-              />
-
-              <div className={twoCol}>
-                <TextInput
-                  name="land_length"
-                  value={str("land_length")}
-                  onChange={update}
-                  type="number"
-                  min={0}
-                  placeholder="Comprimento (m)"
-                  ariaLabel="Comprimento em metros"
-                />
-
-                <TextInput
-                  name="land_width"
-                  value={str("land_width")}
-                  onChange={update}
-                  type="number"
-                  min={0}
-                  placeholder="Largura (m)"
-                  ariaLabel="Largura em metros"
-                />
-              </div>
-            </Field>
-
-            <Field label="9. Que tipo de terreno é?" required>
-              <RadioOptions
-                required
-                name="land_type"
-                value={str("land_type")}
-                onChange={update}
-                options={["Plano", "Em declive", "Aterrado", "Não sei"]}
-              />
-            </Field>
-
-            <Field label="10. Existem construções no terreno?" required>
-              <RadioOptions
-                required
-                name="existing_buildings"
-                value={str("existing_buildings")}
-                onChange={update}
-                options={["Sim", "Não"]}
-              />
-            </Field>
-
-            <Field label="11. Existem árvores no terreno?" required>
-              <RadioOptions
-                required
-                name="has_trees"
-                value={str("has_trees")}
-                onChange={update}
-                options={["Sim", "Não"]}
-              />
-            </Field>
-
-            <Field
-              label="12. Que infra-estruturas existem?"
-              hint="Pode seleccionar mais do que uma opção."
-            >
-              <CheckboxOptions
-                name="infrastructure"
-                value={arr("infrastructure")}
-                onChange={update}
-                options={INFRASTRUCTURES}
-              />
-            </Field>
-
-            <Field
-              label="13. Fotografias do terreno"
-              hint="Pode anexar fotografias, plantas ou documentos."
-            >
-              <FileUploader
-                files={files}
-                onChange={setFiles}
-                note={`JPG, PNG, WEBP ou PDF. Máximo de ${MAX_FILES} ficheiros, ${MAX_FILE_MB} MB cada.`}
-              />
-            </Field>
-          </>
-        );
+        return renderLandDetails();
 
       case 2:
-        return (
-          <>
-            <Field
-              label="14. Quantas pessoas vão morar na casa?"
-              required
-              htmlFor="residents_count"
-            >
-              <TextInput
-                name="residents_count"
-                value={str("residents_count")}
-                onChange={update}
-                type="number"
-                min={1}
-                placeholder="Número de pessoas"
-                required
-              />
-            </Field>
-
-            <Field label="15. Terá trabalhadores em casa?" required>
-              <RadioOptions
-                required
-                name="domestic_workers"
-                value={str("domestic_workers")}
-                onChange={update}
-                options={["Sim", "Não"]}
-              />
-            </Field>
-
-            {str("domestic_workers") === "Sim" && (
-              <Field label="Quantos trabalhadores?" htmlFor="domestic_workers_count">
-                <TextInput
-                  name="domestic_workers_count"
-                  value={str("domestic_workers_count")}
-                  onChange={update}
-                  type="number"
-                  min={1}
-                  placeholder="Número de trabalhadores"
-                />
-              </Field>
-            )}
-
-            <Field
-              label="16. Idades e perfis dos moradores"
-              hint="Por exemplo: crianças, idosos ou pessoas com mobilidade reduzida."
-              htmlFor="resident_profiles"
-            >
-              <TextArea
-                name="resident_profiles"
-                value={str("resident_profiles")}
-                onChange={update}
-                placeholder="Descreva os perfis e necessidades dos moradores..."
-              />
-            </Field>
-
-            <Field
-              label="17. Prevê crescimento da família nos próximos 10 anos?"
-              required
-            >
-              <RadioOptions
-                required
-                name="family_growth"
-                value={str("family_growth")}
-                onChange={update}
-                options={["Sim", "Não", "Talvez"]}
-              />
-            </Field>
-
-            <Field label="18. Trabalha em casa?" required>
-              <RadioOptions
-                required
-                name="works_from_home"
-                value={str("works_from_home")}
-                onChange={update}
-                options={["Sim", "Não", "Frequentemente"]}
-              />
-            </Field>
-
-            <Field
-              label="19. Recebe visitas ou organiza eventos em casa?"
-              required
-            >
-              <RadioOptions
-                required
-                name="visitors_frequency"
-                value={str("visitors_frequency")}
-                onChange={update}
-                options={[
-                  "Sim, muito frequentemente",
-                  "Sim, frequentemente",
-                  "Sim, algumas vezes",
-                  "Sim, raramente",
-                  "Não recebo visitas",
-                ]}
-              />
-            </Field>
-
-            <Field label="20. Tem animais de estimação? Quais?" htmlFor="pets">
-              <TextArea
-                name="pets"
-                value={str("pets")}
-                onChange={update}
-                placeholder="Indique os animais e as suas necessidades..."
-                rows={2}
-              />
-            </Field>
-
-            <Field
-              label="21. O que mais o incomoda na casa onde vive hoje?"
-              htmlFor="current_home_dislikes"
-            >
-              <TextArea
-                name="current_home_dislikes"
-                value={str("current_home_dislikes")}
-                onChange={update}
-                placeholder="O que gostaria de melhorar?"
-              />
-            </Field>
-
-            <Field
-              label="22. O que mais gosta na casa onde vive hoje?"
-              htmlFor="current_home_likes"
-            >
-              <TextArea
-                name="current_home_likes"
-                value={str("current_home_likes")}
-                onChange={update}
-                placeholder="O que gostaria de manter ou repetir?"
-              />
-            </Field>
-          </>
-        );
+        return renderLifestyle();
 
       case 3:
-        return (
-          <>
-            <div className={twoCol}>
-              <Field
-                label="23. Número de quartos"
-                required
-                htmlFor="bedrooms_count"
-              >
-                <TextInput
-                  name="bedrooms_count"
-                  value={str("bedrooms_count")}
-                  onChange={update}
-                  type="number"
-                  min={1}
-                  placeholder="N.º de quartos"
-                  required
-                />
-              </Field>
+        return renderArchitecturalProgramme();
 
-              <Field
-                label="Quantas suítes?"
-                required
-                htmlFor="suites_count"
-              >
-                <TextInput
-                  name="suites_count"
-                  value={str("suites_count")}
-                  onChange={update}
-                  type="number"
-                  min={0}
-                  placeholder="N.º de suítes"
-                  required
-                />
-              </Field>
-            </div>
-
-            <Field
-              label="24. Que espaços deseja incluir?"
-              required
-              hint="Seleccione todos os espaços pretendidos."
-            >
-              <CheckboxOptions
-                name="desired_spaces"
-                value={arr("desired_spaces")}
-                onChange={update}
-                options={SPACES}
-              />
-            </Field>
-
-            {arr("desired_spaces").includes("Garagem") && (
-              <Field
-                label="25. Quantos carros pretende acomodar na garagem?"
-                htmlFor="cars_count"
-              >
-                <TextInput
-                  name="cars_count"
-                  value={str("cars_count")}
-                  onChange={update}
-                  type="number"
-                  min={1}
-                  placeholder="Número de carros"
-                />
-              </Field>
-            )}
-
-            <Field label="26. Qual é a sua preferência para a cozinha?" required>
-              <RadioOptions
-                required
-                name="kitchen_layout"
-                value={str("kitchen_layout")}
-                onChange={update}
-                options={["Aberta para a sala", "Fechada", "Semi-aberta"]}
-              />
-            </Field>
-
-            <Field label="27. Quantos pisos deseja?" required>
-              <RadioOptions
-                required
-                name="floor_count"
-                value={str("floor_count")}
-                onChange={update}
-                options={["Rés-do-chão", "1 andar", "Outro"]}
-              />
-            </Field>
-
-            <Field
-              label="28. Há algum espaço indispensável que não foi listado?"
-              htmlFor="essential_space"
-            >
-              <TextArea
-                name="essential_space"
-                value={str("essential_space")}
-                onChange={update}
-                placeholder="Descreva outros espaços ou necessidades..."
-              />
-            </Field>
-          </>
-        );
+      case 4:
+        return renderPreferences();
 
       default:
-        return (
-          <>
-            <Field
-              label="29. Que estilos arquitectónicos lhe agradam?"
-              required
-              hint="Pode seleccionar mais do que um."
-            >
-              <CheckboxOptions
-                name="architectural_style"
-                value={arr("architectural_style")}
-                onChange={update}
-                options={STYLES}
-              />
-            </Field>
-
-            <Field
-              label="30. Cores e materiais de que gosta ou não gosta"
-              htmlFor="colour_material_preferences"
-            >
-              <TextArea
-                name="colour_material_preferences"
-                value={str("colour_material_preferences")}
-                onChange={update}
-                placeholder="Cores, revestimentos, materiais, acabamentos..."
-              />
-            </Field>
-
-            <Field
-              label="31. Quanto valoriza a luz natural e a ligação com o exterior?"
-              required
-            >
-              <Rating
-                required
-                name="natural_light_rating"
-                value={str("natural_light_rating")}
-                onChange={update}
-                low="1 · Pouco"
-                high="5 · Muito"
-              />
-            </Field>
-
-            <Field
-              label="32. Quanto valoriza a privacidade em relação à rua e aos vizinhos?"
-              required
-            >
-              <Rating
-                required
-                name="privacy_rating"
-                value={str("privacy_rating")}
-                onChange={update}
-                low="1 · Pouco"
-                high="5 · Muito"
-              />
-            </Field>
-
-            <Field
-              label="33. Imagens ou links de referência"
-              hint="Pode indicar links do Pinterest, Instagram ou outras referências. Também pode anexar imagens e PDFs."
-              htmlFor="reference_links"
-            >
-              <TextArea
-                name="reference_links"
-                value={str("reference_links")}
-                onChange={update}
-                placeholder="Cole aqui os links de referência..."
-                rows={3}
-              />
-
-              <FileUploader
-                files={files}
-                onChange={setFiles}
-                note={`Máximo de ${MAX_FILES} ficheiros no total (incluindo os da etapa 2), ${MAX_FILE_MB} MB cada.`}
-              />
-            </Field>
-
-            <Field
-              label="34. Há algo importante que não perguntámos?"
-              htmlFor="other_information"
-            >
-              <TextArea
-                name="other_information"
-                value={str("other_information")}
-                onChange={update}
-                placeholder="Partilhe qualquer outra informação importante..."
-              />
-            </Field>
-
-            <label className="flex items-start gap-2.5 text-xs leading-relaxed text-[#62696e]">
-              <input
-                type="checkbox"
-                name="privacy_consent"
-                required
-                className="mt-[3px] accent-[#002950]"
-              />
-
-              <span>
-                Autorizo a PRO SOTA a utilizar estas informações para analisar e dar seguimento ao meu pedido de projecto.
-              </span>
-            </label>
-
-            <div
-              className="absolute left-[-10000px] h-px w-px overflow-hidden"
-              aria-hidden="true"
-            >
-              <label>
-                Deixe este campo vazio
-                <input name="website" tabIndex={-1} autoComplete="off" />
-              </label>
-            </div>
-          </>
-        );
+        return null;
     }
   }
+
+  /* ------------------------------------------------------------------------ */
+  /* Success screen                                                           */
+  /* ------------------------------------------------------------------------ */
 
   if (success) {
     return (
@@ -1285,12 +2244,14 @@ function submit(formData: FormData) {
             BRIEF RESIDENCIAL
           </p>
 
-          <h1 className="mb-4 mt-2.5 text-[clamp(30px,4vw,42px)] text-[#002950]">
+          <h1 className="mb-4 mt-2.5 text-[clamp(30px,4vw,42px)] font-semibold text-[#002950]">
             Obrigado pela sua confiança.
           </h1>
 
           <p className="mx-auto mb-[25px] max-w-[470px] text-[15px] leading-[1.75] text-[#636b70]">
-            Recebemos as informações do seu projecto. A nossa equipa irá analisar o brief e entrará em contacto consigo através do meio indicado.
+            Recebemos as informações do seu projecto. A nossa
+            equipa irá analisar o brief e entrará em contacto
+            consigo através do meio indicado.
           </p>
 
           <a className={btnPrimary} href="/">
@@ -1301,9 +2262,15 @@ function submit(formData: FormData) {
     );
   }
 
+  /* ------------------------------------------------------------------------ */
+  /* Main page                                                                */
+  /* ------------------------------------------------------------------------ */
+
   return (
     <main className={pageCls}>
       <div className="mx-auto max-w-[980px]">
+
+        {/* Header */}
         <header className="flex h-[68px] items-center justify-between border-b border-[#e7e5df] sm:h-[82px]">
           <a
             className={brandCls}
@@ -1313,11 +2280,14 @@ function submit(formData: FormData) {
             PRO <span className="text-[#BD9655]">SOTA</span>
           </a>
 
-          <span className={`${eyebrowCls} text-[9px] tracking-[1px] text-[#6b6f72] sm:text-[11px] sm:tracking-[1.7px]`}>
+          <span
+            className={`${eyebrowCls} text-[9px] tracking-[1px] text-[#6b6f72] sm:text-[11px] sm:tracking-[1.7px]`}
+          >
             ANGOLA · DESDE 1997
           </span>
         </header>
 
+        {/* Introduction */}
         <section className="max-w-[680px] pb-[25px] pt-[38px] sm:pb-8 sm:pt-[52px]">
           <p className={`${eyebrowCls} mb-[13px] text-[#8b6a2f]`}>
             ARQUITECTURA
@@ -1328,11 +2298,16 @@ function submit(formData: FormData) {
           </h1>
 
           <p className="max-w-[640px] text-base leading-[1.75] text-[#62696e]">
-            Este brief ajuda-nos a compreender o seu terreno, a sua família e a forma como imagina viver. Reserve alguns minutos para responder às perguntas.
+            Este brief ajuda-nos a compreender o seu terreno, a
+            sua família e a forma como imagina viver. Reserve
+            alguns minutos para responder às perguntas.
           </p>
         </section>
 
+        {/* Form card */}
         <section className="rounded-lg border border-[#e9e7e1] bg-white px-[17px] py-[22px] shadow-[0_8px_32px_rgba(0,41,80,0.035)] sm:p-[clamp(22px,4vw,42px)]">
+
+          {/* Step heading */}
           <div className="flex items-start justify-between gap-5">
             <div>
               <span className={`${eyebrowCls} text-[#6b6f72]`}>
@@ -1357,19 +2332,24 @@ function submit(formData: FormData) {
             </span>
           </div>
 
+          {/* Progress bar */}
           <div
             className="my-[25px] h-1 overflow-hidden rounded-lg bg-[#ecebe7]"
             role="progressbar"
+            aria-label="Progresso do formulário"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={progress}
           >
             <div
               className="h-full bg-[#BD9655] transition-[width] duration-300 motion-reduce:transition-none"
-              style={{ width: `${progress}%` }}
+              style={{
+                width: `${progress}%`,
+              }}
             />
           </div>
 
+          {/* Step navigation */}
           <nav
             className="mb-7 grid grid-cols-5 gap-[3px] sm:mb-[34px] sm:gap-2"
             aria-label="Etapas do formulário"
@@ -1382,9 +2362,12 @@ function submit(formData: FormData) {
                 <button
                   type="button"
                   key={item.title}
-                  onClick={() => done && goBack(index)}
-                  disabled={index > step}
+                  onClick={() => {
+                    if (done) goBack(index);
+                  }}
+                  disabled={index > step || pending}
                   aria-current={active ? "step" : undefined}
+                  aria-label={`Etapa ${index + 1}: ${item.title}`}
                   className={`flex flex-col items-center gap-2 border-0 bg-transparent p-0 disabled:cursor-default ${
                     done ? "cursor-pointer" : ""
                   } ${
@@ -1411,23 +2394,32 @@ function submit(formData: FormData) {
             })}
           </nav>
 
-          <form id="project-brief-form" onSubmit={handleSubmit}>
+          {/* Form */}
+          <form
+            id="project-brief-form"
+            onSubmit={handleSubmit}
+            noValidate={false}
+          >
             <div className="flex flex-col gap-[25px]">
               {renderStep()}
             </div>
 
+            {/* Errors */}
             {error && (
               <div
-                className="mt-[18px] rounded border border-[#e7b8b2] bg-[#fff2f0] px-3.5 py-3 text-[13px] text-[#8d2f25]"
+                className="mt-[18px] rounded border border-[#e7b8b2] bg-[#fff2f0] px-3.5 py-3 text-[13px] leading-relaxed text-[#8d2f25]"
                 role="alert"
+                aria-live="assertive"
               >
                 {error}
               </div>
             )}
 
+            {/* Navigation buttons */}
             <div className="mt-[34px] flex flex-col items-start justify-between gap-4 border-t border-[#ecebe7] pt-[22px] sm:flex-row sm:items-center">
               <span className="text-[11px] text-[#6f757a]">
-                <span className="text-[#8b6a2f]">*</span> Campos obrigatórios
+                <span className="text-[#8b6a2f]">*</span>{" "}
+                Campos obrigatórios
               </span>
 
               <div className="flex w-full items-center justify-end gap-2.5 sm:w-auto">
@@ -1436,6 +2428,7 @@ function submit(formData: FormData) {
                     className={btnSecondary}
                     type="button"
                     onClick={() => goBack(step - 1)}
+                    disabled={pending}
                   >
                     Anterior
                   </button>
@@ -1447,14 +2440,27 @@ function submit(formData: FormData) {
                     type="submit"
                     disabled={pending}
                   >
-                    {pending ? "A enviar..." : "Enviar brief"}
-                    <span aria-hidden="true">→</span>
+                    {pending ? (
+                      <>
+                        <span
+                          className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+                          aria-hidden="true"
+                        />
+                        A enviar...
+                      </>
+                    ) : (
+                      <>
+                        Enviar brief
+                        <span aria-hidden="true">→</span>
+                      </>
+                    )}
                   </button>
                 ) : (
                   <button
                     className={btnPrimary}
                     type="button"
                     onClick={goNext}
+                    disabled={pending}
                   >
                     Continuar
                     <span aria-hidden="true">→</span>
@@ -1465,12 +2471,15 @@ function submit(formData: FormData) {
           </form>
         </section>
 
+        {/* Footer */}
         <footer className="flex flex-col justify-between gap-3 pt-[25px] text-[11px] text-[#6f757a] sm:flex-row">
           <span className="font-extrabold tracking-[1.5px] text-[#002950]">
             PRO SOTA
           </span>
 
-          <span>Arquitectura · Engenharia · Construção</span>
+          <span>
+            Arquitectura · Engenharia · Construção
+          </span>
         </footer>
       </div>
     </main>
