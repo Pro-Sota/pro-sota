@@ -160,7 +160,7 @@ export function LocationSection({
         <Field label="Província" for="state_province" required>
           <Input
             name="state_province"
-            value={form.state_province || ""}
+            value={form.province || ""}
             onChange={handleInputChange}
             placeholder="Ex: Luanda"
           />

@@ -1,193 +1,456 @@
+
 "use server";
 
-import "server-only";
-import { createClient } from "@supabase/supabase-js";
+import {
+    createProjectBrief,
+    getProjectBriefs,
+    getProjectBriefStats,
+    getProjectBrief,
+    getProjectBriefAttachments,
+    deleteProjectBriefAttachment,
+    updateProjectBrief,
+    updateProjectBriefStatus,
+    updateProjectBriefNotes,
+    convertProjectBrief,
+    deleteProjectBrief,
+} from "@/services/project_breifing";
 
-const BUCKET = "project-brief-attachments";
-const MAX_FILES = 5;
-const MAX_FILE_SIZE = 8 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+import type {
+    CreateProjectBriefInput,
+    ProjectBriefFilters,
+    UpdateProjectBriefInput,
+    ProjectBriefStatus,
+} from "@/services/project_breifing";
 
-export type ProjectBriefActionResult = {
+import { revalidatePath } from "next/cache";
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
+
+export type ActionResult<T = void> = {
     success: boolean;
     error?: string;
+    data?: T;
 };
 
-function text(formData: FormData, key: string): string {
+/* -------------------------------------------------------------------------- */
+/* Constants                                                                  */
+/* -------------------------------------------------------------------------- */
+
+const MIN_BUDGET = 1_000_000;
+const MAX_BUDGET = 1_000_000_000;
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+async function execute<T>(
+    operation: () => Promise<T>,
+    shouldRevalidate = false,
+): Promise<ActionResult<T>> {
+    try {
+        const data = await operation();
+
+        if (shouldRevalidate) {
+            revalidatePath("/management/project-briefing");
+        }
+
+        return {
+            success: true,
+            data,
+        };
+    } catch (error) {
+        console.error("Project Brief Action:", error);
+
+        return {
+            success: false,
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Não foi possível concluir a operação.",
+        };
+    }
+}
+
+function revalidateBrief(id: string) {
+    revalidatePath("/management/project-briefing");
+    revalidatePath(`/management/project-briefing/${id}`);
+}
+
+/* -------------------------------------------------------------------------- */
+/* FormData Helpers                                                           */
+/* -------------------------------------------------------------------------- */
+
+function getString(formData: FormData, key: string): string {
     const value = formData.get(key);
+
     return typeof value === "string" ? value.trim() : "";
 }
 
-function values(formData: FormData, key: string): string[] {
-    return formData.getAll(key).filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean);
+function getNullableString(
+    formData: FormData,
+    key: string,
+): string | null {
+    return getString(formData, key) || null;
 }
 
-function validEmail(value: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+function getNumber(
+    formData: FormData,
+    key: string,
+): number | null {
+    const value = getString(formData, key);
+
+    if (!value) {
+        return null;
+    }
+
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed)) {
+        throw new Error(`O campo "${key}" contém um valor inválido.`);
+    }
+
+    return parsed;
 }
 
-export async function submitProjectBrief(formData: FormData): Promise<ProjectBriefActionResult> {
-    try {
-        // Honeypot: silently reject automated submissions.
-        if (text(formData, "website")) {
-            return { success: true };
+function getStringArray(
+    formData: FormData,
+    key: string,
+): string[] {
+    return formData
+        .getAll(key)
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean);
+}
+
+/* -------------------------------------------------------------------------- */
+/* FormData Parser                                                            */
+/* -------------------------------------------------------------------------- */
+
+function parseProjectBriefFormData(
+    formData: FormData,
+): CreateProjectBriefInput {
+    const rawBudget = getString(formData, "budget");
+
+    let budget: number | null = null;
+
+    if (rawBudget) {
+        budget = Number(rawBudget);
+
+        if (
+            !Number.isFinite(budget) ||
+            budget < MIN_BUDGET ||
+            budget > MAX_BUDGET
+        ) {
+            throw new Error(
+                "O orçamento deve estar entre 1.000.000 Kz e 1.000.000.000 Kz.",
+            );
+        }
+    }
+
+    return {
+        /* Personal information */
+        full_name: getString(formData, "full_name"),
+        contact_phone: getString(formData, "contact_phone"),
+        contact_email: getString(formData, "contact_email"),
+        budget,
+        decision_makers: getNullableString(formData, "decision_makers"),
+        preferred_contact: getNullableString(formData, "preferred_contact"),
+
+        /* Location */
+        location_address: getNullableString(formData, "location_address"),
+        location_neighborhood: getNullableString(
+            formData,
+            "location_neighborhood",
+        ),
+        location_municipality: getNullableString(
+            formData,
+            "location_municipality",
+        ),
+        location_reference: getNullableString(
+            formData,
+            "location_reference",
+        ),
+        location_city: getNullableString(formData, "location_city"),
+        location_province: getNullableString(formData, "location_province"),
+        map_link: getNullableString(formData, "map_link"),
+
+        /* Land */
+        land_ownership: getNullableString(formData, "land_ownership"),
+        land_area: getNumber(formData, "land_area"),
+        land_length: getNumber(formData, "land_length"),
+        land_width: getNumber(formData, "land_width"),
+        land_type: getNullableString(formData, "land_type"),
+        existing_buildings: getNullableString(
+            formData,
+            "existing_buildings",
+        ),
+        has_trees: getNullableString(formData, "has_trees"),
+        infrastructure: getStringArray(formData, "infrastructure"),
+
+        /* Household */
+        residents_count: getNumber(formData, "residents_count"),
+        domestic_workers: getNullableString(
+            formData,
+            "domestic_workers",
+        ),
+        domestic_workers_count: getNumber(
+            formData,
+            "domestic_workers_count",
+        ),
+        resident_profiles: getNullableString(
+            formData,
+            "resident_profiles",
+        ),
+        family_growth: getNullableString(formData, "family_growth"),
+        works_from_home: getNullableString(
+            formData,
+            "works_from_home",
+        ),
+        visitors_frequency: getNullableString(
+            formData,
+            "visitors_frequency",
+        ),
+        pets: getNullableString(formData, "pets"),
+
+        current_home_dislikes: getNullableString(
+            formData,
+            "current_home_dislikes",
+        ),
+        current_home_likes: getNullableString(
+            formData,
+            "current_home_likes",
+        ),
+
+        /* Architectural programme */
+        bedrooms_count: getNumber(formData, "bedrooms_count"),
+        suites_count: getNumber(formData, "suites_count"),
+        desired_spaces: getStringArray(formData, "desired_spaces"),
+        cars_count: getNumber(formData, "cars_count"),
+        kitchen_layout: getNullableString(formData, "kitchen_layout"),
+        floor_count: getNullableString(formData, "floor_count"),
+        essential_space: getNullableString(formData, "essential_space"),
+
+        /* Aesthetic preferences */
+        architectural_style: getStringArray(
+            formData,
+            "architectural_style",
+        ),
+        colour_material_preferences: getNullableString(
+            formData,
+            "colour_material_preferences",
+        ),
+        natural_light_rating: getNumber(
+            formData,
+            "natural_light_rating",
+        ),
+        privacy_rating: getNumber(formData, "privacy_rating"),
+
+        reference_links: getNullableString(formData, "reference_links"),
+        other_information: getNullableString(
+            formData,
+            "other_information",
+        ),
+    };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Public Submission                                                          */
+/* -------------------------------------------------------------------------- */
+
+export async function submitProjectBrief(
+    formData: FormData,
+): Promise<ActionResult<{ id: string }>> {
+    return execute(async () => {
+        const consent = getString(formData, "privacy_consent");
+
+        if (!["true", "on", "1"].includes(consent)) {
+            throw new Error(
+                "É necessário aceitar a política de privacidade para continuar.",
+            );
         }
 
-        const fullName = text(formData, "full_name");
-        const phone = text(formData, "contact_phone");
-        const email = text(formData, "contact_email");
-        const consent = formData.get("privacy_consent") === "on";
-        const requiredFields = [
-            "decision_makers", "preferred_contact", "land_ownership", "land_type",
-            "existing_buildings", "has_trees", "residents_count", "domestic_workers",
-            "family_growth", "works_from_home", "visitors_frequency", "bedrooms_count",
-            "suites_count", "kitchen_layout", "floor_count", "natural_light_rating", "privacy_rating",
-        ];
-        if (requiredFields.some((key) => !text(formData, key))) {
-            return { success: false, error: "Preencha todos os campos obrigatórios antes de enviar." };
-        }
-        if (values(formData, "desired_spaces").length === 0) {
-            return { success: false, error: "Seleccione pelo menos um espaço desejado." };
-        }
-        if (values(formData, "architectural_style").length === 0) {
-            return { success: false, error: "Seleccione pelo menos um estilo arquitectónico." };
-        }
-        if (text(formData, "map_link") && text(formData, "map_link")) {
-            return { success: false, error: "O link do mapa deve começar por http:// ou https://." };
-        }
-        if (fullName.length < 3 || fullName.length > 160) {
-            return { success: false, error: "Indique o seu nome completo." };
-        }
-        if (phone.length < 6 || phone.length > 40) {
-            return { success: false, error: "Indique um contacto telefónico válido." };
-        }
-        if (!validEmail(email) || email.length > 254) {
-            return { success: false, error: "Indique um endereço de e-mail válido." };
-        }
-        if (!consent) {
-            return { success: false, error: "É necessário autorizar a utilização dos dados para dar seguimento ao pedido." };
+        if (getString(formData, "website")) {
+            throw new Error("Não foi possível submeter o formulário.");
         }
 
-        const files = formData.getAll("attachments").filter((value): value is File => value instanceof File && value.size > 0);
-        if (files.length > MAX_FILES) {
-            return { success: false, error: "Pode anexar no máximo 5 ficheiros." };
-        }
-        if (files.some((file) => file.size > MAX_FILE_SIZE || !ALLOWED_TYPES.has(file.type))) {
-            return { success: false, error: "Os anexos devem ser imagens JPG, PNG, WEBP ou documentos PDF, até 8 MB cada." };
-        }
+        const input = parseProjectBriefFormData(formData);
 
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        if (!supabaseUrl || !serviceRoleKey) {
-            console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
-            return { success: false, error: "O serviço de submissão não está configurado. Contacte a equipa da PRO SOTA." };
-        }
-        // Service-role client is server-only. Never expose SUPABASE_SERVICE_ROLE_KEY to the browser.
-        const supabase = createClient(supabaseUrl, serviceRoleKey, {
-            auth: { persistSession: false, autoRefreshToken: false },
-        });
+        const files = formData
+            .getAll("attachments")
+            .filter(
+                (value): value is File =>
+                    typeof File !== "undefined" &&
+                    value instanceof File &&
+                    value.size > 0,
+            );
 
-        const payload = {
-            full_name: fullName,
-            contact_phone: phone,
-            contact_email: email,
-            decision_makers: text(formData, "decision_makers") || null,
-            preferred_contact: text(formData, "preferred_contact") || null,
-            location_address: text(formData, "location_address") || null,
-            location_neighborhood: text(formData, "location_neighborhood") || null,
-            location_municipality: text(formData, "location_municipality") || null,
-            location_reference: text(formData, "location_reference") || null,
-            location_city: text(formData, "location_city") || null,
-            location_province: text(formData, "location_province") || null,
-            map_link: text(formData, "map_link") || null,
-            land_ownership: text(formData, "land_ownership") || null,
-            land_area: numberOrNull(text(formData, "land_area")),
-            land_length: numberOrNull(text(formData, "land_length")),
-            land_width: numberOrNull(text(formData, "land_width")),
-            land_type: text(formData, "land_type") || null,
-            existing_buildings: text(formData, "existing_buildings") || null,
-            has_trees: text(formData, "has_trees") || null,
-            infrastructure: values(formData, "infrastructure"),
-            residents_count: numberOrNull(text(formData, "residents_count")),
-            domestic_workers: text(formData, "domestic_workers") || null,
-            domestic_workers_count: numberOrNull(text(formData, "domestic_workers_count")),
-            resident_profiles: text(formData, "resident_profiles") || null,
-            family_growth: text(formData, "family_growth") || null,
-            works_from_home: text(formData, "works_from_home") || null,
-            visitors_frequency: text(formData, "visitors_frequency") || null,
-            pets: text(formData, "pets") || null,
-            current_home_dislikes: text(formData, "current_home_dislikes") || null,
-            current_home_likes: text(formData, "current_home_likes") || null,
-            bedrooms_count: numberOrNull(text(formData, "bedrooms_count")),
-            suites_count: numberOrNull(text(formData, "suites_count")),
-            desired_spaces: values(formData, "desired_spaces"),
-            cars_count: numberOrNull(text(formData, "cars_count")),
-            kitchen_layout: text(formData, "kitchen_layout") || null,
-            floor_count: text(formData, "floor_count") || null,
-            essential_space: text(formData, "essential_space") || null,
-            architectural_style: values(formData, "architectural_style"),
-            colour_material_preferences: text(formData, "colour_material_preferences") || null,
-            natural_light_rating: numberOrNull(text(formData, "natural_light_rating")),
-            privacy_rating: numberOrNull(text(formData, "privacy_rating")),
-            reference_links: text(formData, "reference_links") || null,
-            other_information: text(formData, "other_information") || null,
-            status: "pending",
-            attachments: [] as Array<{ path: string; name: string; type: string; size: number }>,
+        const brief = await createProjectBrief(input, files);
+
+        return { id: brief.id };
+    });
+}
+
+/*
+ * Compatibility action for callers that already provide a typed object.
+ * The public form should use submitProjectBrief(FormData).
+ */
+export async function submitProjectBriefAction(
+    formData: FormData,
+): Promise<ActionResult<{ id: string }>> {
+    return execute(async () => {
+        const input = parseProjectBriefFormData(formData);
+        const files = formData
+            .getAll("attachments")
+            .filter(
+                (value): value is File =>
+                    typeof File !== "undefined" &&
+                    value instanceof File &&
+                    value.size > 0,
+            );
+
+        const brief = await createProjectBrief(input, files);
+
+        return {
+            id: brief.id,
         };
+    });
+}
 
-        const { data: inserted, error: insertError } = await supabase
-            .from("project_briefs")
-            .insert(payload)
-            .select("id")
-            .single();
+/* -------------------------------------------------------------------------- */
+/* List                                                                       */
+/* -------------------------------------------------------------------------- */
 
-        if (insertError || !inserted) {
-            console.error("Project brief insert failed:", insertError?.message);
-            return { success: false, error: "Não foi possível registar o brief neste momento. Tente novamente mais tarde." };
-        }
+export async function getProjectBriefsAction(
+    filters: ProjectBriefFilters = {},
+) {
+    return execute(() => getProjectBriefs(filters));
+}
 
-        const uploaded: string[] = [];
-        const metadata: Array<{ path: string; name: string; type: string; size: number }> = [];
+/* -------------------------------------------------------------------------- */
+/* Statistics                                                                 */
+/* -------------------------------------------------------------------------- */
 
-        for (const file of files) {
-            const safeName = file.name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100) || "anexo";
-            const path = `${inserted.id}/${crypto.randomUUID()}-${safeName}`;
-            const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-                contentType: file.type,
-                upsert: false,
-            });
+export async function getProjectBriefStatsAction() {
+    return execute(() => getProjectBriefStats());
+}
 
-            if (uploadError) {
-                await Promise.all(uploaded.map((uploadedPath) => supabase.storage.from(BUCKET).remove([uploadedPath])));
-                await supabase.from("project_briefs").delete().eq("id", inserted.id);
-                console.error("Project brief attachment upload failed:", uploadError.message);
-                return { success: false, error: "Não foi possível carregar os anexos. Verifique os ficheiros e tente novamente." };
-            }
+/* -------------------------------------------------------------------------- */
+/* Detail                                                                     */
+/* -------------------------------------------------------------------------- */
 
-            uploaded.push(path);
-            metadata.push({ path, name: safeName, type: file.type, size: file.size });
-        }
+export async function getProjectBriefAction(id: string) {
+    return execute(() => getProjectBrief(id));
+}
 
-        if (metadata.length) {
-            const { error: updateError } = await supabase.from("project_briefs")
-                .update({ attachments: metadata }).eq("id", inserted.id);
-            if (updateError) {
-                await Promise.all(uploaded.map((uploadedPath) => supabase.storage.from(BUCKET).remove([uploadedPath])));
-                await supabase.from("project_briefs").delete().eq("id", inserted.id);
-                console.error("Project brief attachment metadata failed:", updateError.message);
-                return { success: false, error: "Não foi possível finalizar o envio dos anexos. Tente novamente." };
-            }
-        }
+/* -------------------------------------------------------------------------- */
+/* Attachments                                                                */
+/* -------------------------------------------------------------------------- */
 
-        return { success: true };
-    } catch (error) {
-        console.error("Project brief submission failed:", error);
-        return { success: false, error: "Ocorreu um erro inesperado. Tente novamente mais tarde." };
-    }
+export async function getProjectBriefAttachmentsAction(
+    briefId: string,
+) {
+    return execute(() => getProjectBriefAttachments(briefId));
+}
 
-    function numberOrNull(value: string): number | null {
-        if (!value) return null;
-        const parsed = Number(value);
-        return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-    }
+export async function deleteProjectBriefAttachmentAction(
+    id: string,
+) {
+    return execute(async () => {
+        const result = await deleteProjectBriefAttachment(id);
+
+        revalidatePath("/management/project-briefing");
+
+        return result;
+    });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Update                                                                     */
+/* -------------------------------------------------------------------------- */
+
+export async function updateProjectBriefAction(
+    id: string,
+    input: UpdateProjectBriefInput,
+) {
+    return execute(async () => {
+        const result = await updateProjectBrief(id, input);
+
+        revalidateBrief(id);
+
+        return result;
+    });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Status                                                                     */
+/* -------------------------------------------------------------------------- */
+
+export async function updateProjectBriefStatusAction(
+    id: string,
+    status: ProjectBriefStatus,
+    rejectionReason?: string,
+) {
+    return execute(async () => {
+        const result = await updateProjectBriefStatus(
+            id,
+            status,
+            rejectionReason,
+        );
+
+        revalidateBrief(id);
+
+        return result;
+    });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Internal Notes                                                             */
+/* -------------------------------------------------------------------------- */
+
+export async function updateProjectBriefNotesAction(
+    id: string,
+    notes: string,
+) {
+    return execute(async () => {
+        const result = await updateProjectBriefNotes(id, notes);
+
+        revalidateBrief(id);
+
+        return result;
+    });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Convert                                                                    */
+/* -------------------------------------------------------------------------- */
+
+export async function convertProjectBriefAction(
+    id: string,
+    projectId: string,
+) {
+    return execute(async () => {
+        const result = await convertProjectBrief(id, projectId);
+
+        revalidateBrief(id);
+        revalidatePath(`/management/projects/${projectId}`);
+
+        return result;
+    });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Delete                                                                     */
+/* -------------------------------------------------------------------------- */
+
+export async function deleteProjectBriefAction(id: string) {
+    return execute(async () => {
+        const result = await deleteProjectBrief(id);
+
+        revalidatePath("/management/project-briefing");
+
+        return result;
+    });
 }

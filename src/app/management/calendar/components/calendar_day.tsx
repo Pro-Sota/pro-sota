@@ -20,6 +20,65 @@ function getDateKey(date: Date) {
     return `${year}-${month}-${day}`;
 }
 
+function getEventStart(event: CalendarEvent) {
+    return event.startDate || event.date;
+}
+
+function getEventEnd(event: CalendarEvent) {
+    return event.endDate || event.startDate || event.date;
+}
+
+function getEventSegmentClass(
+    event: CalendarEvent,
+    dateKey: string,
+) {
+    const start = getEventStart(event);
+    const end = getEventEnd(event);
+
+    const isStart = dateKey === start;
+    const isEnd = dateKey === end;
+    const isRange = start !== end;
+
+    if (!isRange) {
+        return "rounded-md";
+    }
+
+    if (isStart) {
+        return "rounded-l-md rounded-r-none";
+    }
+
+    if (isEnd) {
+        return "rounded-l-none rounded-r-md";
+    }
+
+    return "rounded-none";
+}
+
+function getEventStyle(event: CalendarEvent) {
+    switch (event.source) {
+        case "project":
+            return "bg-[#002950]/[0.10] text-[#002950]";
+
+        case "task":
+            return "bg-[#BD9655]/20 text-[#78551F]";
+
+        case "submission":
+            return "bg-emerald-100 text-emerald-800";
+
+        case "deadline":
+            return "bg-red-100 text-red-800";
+
+        case "meeting":
+            return "bg-blue-100 text-blue-800";
+
+        case "site_visit":
+            return "bg-violet-100 text-violet-800";
+
+        default:
+            return "bg-[#002950]/[0.06] text-[#002950]";
+    }
+}
+
 export default function CalendarDay({
     date,
     currentDate,
@@ -49,7 +108,7 @@ export default function CalendarDay({
         <div
             onClick={() => onSelectDate(dateKey)}
             className={[
-                "min-h-[105px] cursor-pointer border-r border-b border-black/[0.06] p-2 transition-colors focus-within:bg-[#002950]/[0.03]",
+                "min-h-[105px] min-w-0 cursor-pointer border-r border-b border-black/[0.06] p-2 transition-colors focus-within:bg-[#002950]/[0.03]",
                 isSelected
                     ? "bg-[#002950]/[0.025]"
                     : !isCurrentMonth
@@ -57,9 +116,6 @@ export default function CalendarDay({
                         : "bg-white hover:bg-black/[0.02]",
             ].join(" ")}
         >
-            {/* Date number: no onClick, the click bubbles up to the cell.
-                Still a button so keyboard users can focus it and press Enter. */}
-
             <button
                 type="button"
                 onClick={(event) => {
@@ -90,32 +146,41 @@ export default function CalendarDay({
             </button>
 
             <div className="space-y-1">
-                {visibleEvents.map((event) => (
-                    <button
-                        key={event.id}
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectDate(dateKey);
-                            onSelectEvent?.(event);
-                        }}
-                        className={[
-                            "block w-full truncate rounded-md px-1.5 py-1 text-left text-[11px]",
-                            isCurrentMonth
-                                ? "bg-[#002950]/[0.06] text-[#002950] hover:bg-[#002950]/[0.10]"
-                                : "bg-black/[0.03] text-black/30",
-                        ].join(" ")}
-                        title={event.title}
-                    >
-                        {event.time && (
-                            <span className="mr-1 font-medium">
-                                {event.time}
-                            </span>
-                        )}
+                {visibleEvents.map((event) => {
+                    const isRange =
+                        getEventStart(event) !== getEventEnd(event);
 
-                        <span>{event.title}</span>
-                    </button>
-                ))}
+                    return (
+                        <button
+                            key={event.id}
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectDate(dateKey);
+                                onSelectEvent?.(event);
+                            }}
+                            className={[
+                                "block w-full min-w-0 truncate px-1.5 py-1 text-left text-[11px] transition-colors",
+                                getEventSegmentClass(event, dateKey),
+                                getEventStyle(event),
+                                !isCurrentMonth
+                                    ? "opacity-40"
+                                    : "hover:brightness-95",
+                                isRange ? "-mx-2 w-[calc(100%+1rem)] px-3" : "",
+                            ].join(" ")}
+                            title={`${event.title} · ${getEventStart(event)} a ${getEventEnd(event)}`}
+                            aria-label={`${event.title}, ${getEventStart(event)} a ${getEventEnd(event)}`}
+                        >
+                            {event.time && (
+                                <span className="mr-1 font-medium">
+                                    {event.time}
+                                </span>
+                            )}
+
+                            <span>{event.title}</span>
+                        </button>
+                    );
+                })}
 
                 {remainingCount > 0 && (
                     <button

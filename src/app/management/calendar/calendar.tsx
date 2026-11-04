@@ -19,7 +19,6 @@ import { useCalendar } from "./hooks/use_calendar";
 
 import type {
   CalendarEvent,
-  CalendarPageInitProps,
 } from "./types";
 
 import CreateMeetingModal from "@/app/management/calendar/components/create_meeting_modal";
@@ -38,37 +37,54 @@ type CalendarEventWithCreator = CalendarEvent & {
   participant_ids?: string[];
 };
 
+type CalendarPageInitProps = Parameters<typeof useCalendar>[0] &
+  Pick<
+    Parameters<typeof CreateMeetingModal>[0],
+    "participants" | "clients" | "suppliers"
+  > & {
+    userInfo?: {
+      user?: { id?: string | null } | null;
+      userRole?: string | number | null;
+    } | null;
+  };
+
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
 function toEventDetails(
-  event: CalendarEvent,
+    event: CalendarEvent,
 ): CalendarEventDetails {
-  const source = event as CalendarEventWithCreator;
-  const allDay = !event.time;
+    const source = event as CalendarEventWithCreator & {
+        start_at?: string;
+        end_at?: string;
+        startDate?: string;
+        endDate?: string;
+    };
 
-  const startAt = new Date(
-    `${event.date}T${event.time ?? "00:00"}:00+01:00`,
-  );
+    const startDate = source.startDate || event.date;
+    const endDate = source.endDate || startDate;
 
-  const endAt = new Date(
-    startAt.getTime() +
-      (allDay ? 24 : 1) * 60 * 60 * 1000,
-  );
+    const startAt =
+        source.start_at ||
+        `${startDate}T${event.time || "00:00"}:00+01:00`;
 
-  return {
-    event_id: source.event_id ?? event.id,
-    created_by: source.created_by ?? null,
-    title: event.title,
-    event_type: event.type,
-    start_at: startAt.toISOString(),
-    end_at: endAt.toISOString(),
-    location: event.location ?? null,
-    description: event.description ?? null,
-    all_day: allDay,
-    participant_ids: source.participant_ids ?? [],
-  };
+    const endAt =
+        source.end_at ||
+        `${endDate}T${event.time || "00:00"}:00+01:00`;
+
+    return {
+        event_id: source.event_id ?? event.id,
+        created_by: source.created_by ?? null,
+        title: event.title,
+        event_type: event.type,
+        start_at: startAt,
+        end_at: endAt,
+        location: event.location ?? null,
+        description: event.description ?? null,
+        all_day: !event.time,
+        participant_ids: source.participant_ids ?? [],
+    };
 }
 
 /** Maps the details shown in the view modal to what the edit modal expects. */
@@ -99,10 +115,6 @@ export default function CalendarPageInit({
 }: CalendarPageInitProps) {
   const calendar = useCalendar({
     events,
-    participants,
-    clients,
-    suppliers,
-    userInfo,
   });
 
   const [isCreateEventOpen, setIsCreateEventOpen] =
@@ -132,8 +144,8 @@ export default function CalendarPageInit({
     const ids = new Set(selectedEvent?.participant_ids ?? []);
 
     return participants
-      .filter((person) => ids.has(person.profile_id))
-      .map((person) => ({
+      .filter((person: { profile_id: string; }) => ids.has(person.profile_id))
+      .map((person: { profile_id: any; first_name: any; last_name: any; email: any; }) => ({
         key: `profile:${person.profile_id}`,
         id: person.profile_id,
         name:
@@ -186,8 +198,9 @@ export default function CalendarPageInit({
   /* Current user                                                           */
   /* ---------------------------------------------------------------------- */
 
-  const currentUserId = userInfo?.user.id ?? null;
-  const currentUserRoleId = userInfo?.userRole ?? null;
+  const currentUserId = userInfo?.user?.id ?? null;
+  const currentUserRoleId =
+    userInfo?.userRole == null ? null : String(userInfo.userRole);
 
   /* ---------------------------------------------------------------------- */
   /* Render                                                                 */

@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 
 import type {
     CalendarEvent,
-    CalendarPageInitProps,
     EventType,
 } from "../types";
 
@@ -20,6 +19,34 @@ function parseDateKey(value: string) {
     const [year, month, day] = value.split("-").map(Number);
 
     return new Date(year, month - 1, day);
+}
+
+function getEventStartDate(event: CalendarEvent) {
+    return event.startDate || event.date;
+}
+
+function getEventEndDate(event: CalendarEvent) {
+    return event.endDate || event.startDate || event.date;
+}
+
+function isEventOnDate(event: CalendarEvent, dateKey: string) {
+    return (
+        dateKey >= getEventStartDate(event) &&
+        dateKey <= getEventEndDate(event)
+    );
+}
+
+function getDatesBetween(startDate: string, endDate: string) {
+    const dates: string[] = [];
+    const current = parseDateKey(startDate);
+    const end = parseDateKey(endDate);
+
+    while (current <= end) {
+        dates.push(getDateKey(current));
+        current.setDate(current.getDate() + 1);
+    }
+
+    return dates;
 }
 
 function addDays(date: Date, amount: number) {
@@ -94,7 +121,7 @@ function matchesSearch(
 
 export function useCalendar({
     events,
-}: CalendarPageInitProps) {
+}: { events: CalendarEvent[] }) {
     const [currentDate, setCurrentDate] = useState(
         () => new Date(),
     );
@@ -173,18 +200,20 @@ export function useCalendar({
     ]);
 
     const eventsByDate = useMemo(() => {
-        const result = new Map<
-            string,
-            CalendarEvent[]
-        >();
+        const result = new Map<string, CalendarEvent[]>();
 
         for (const event of filteredEvents) {
-            const existing = result.get(event.date);
+            const startDate = getEventStartDate(event);
+            const endDate = getEventEndDate(event);
 
-            if (existing) {
-                existing.push(event);
-            } else {
-                result.set(event.date, [event]);
+            for (const dateKey of getDatesBetween(startDate, endDate)) {
+                const existing = result.get(dateKey);
+
+                if (existing) {
+                    existing.push(event);
+                } else {
+                    result.set(dateKey, [event]);
+                }
             }
         }
 
@@ -202,73 +231,68 @@ export function useCalendar({
         selectedDate,
     ]);
 
-    const monthEvents = useMemo(() => {
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-
-        return filteredEvents.filter((event) => {
-            const date = parseDateKey(event.date);
-
-            return (
-                date.getFullYear() === year &&
-                date.getMonth() === month
-            );
-        });
-    }, [
-        currentDate,
-        filteredEvents,
-    ]);
-
-    const todayEvents = useMemo(() => {
-        return filteredEvents.filter(
-            (event) => event.date === todayKey,
-        );
-    }, [
-        filteredEvents,
-        todayKey,
-    ]);
-
-    const nextSevenDaysKey = useMemo(
-        () => getDateKey(addDays(today, 6)),
-        [today],
+  const monthEvents = useMemo(() => {
+    const monthStart = getDateKey(
+        new Date(
+            currentDate.getFullYear(),
+            currentDate.getMonth(),
+            1,
+        ),
     );
 
-    const nextSevenDaysEvents = useMemo(() => {
-        return filteredEvents.filter(
-            (event) =>
-                event.date >= todayKey &&
-                event.date <= nextSevenDaysKey,
-        );
-    }, [
-        filteredEvents,
-        todayKey,
-        nextSevenDaysKey,
-    ]);
+    const monthEnd = getDateKey(
+        new Date(
+            currentDate.getFullYear(),
+            currentDate.getMonth() + 1,
+            0,
+        ),
+    );
 
-    const upcomingDeadlines = useMemo(() => {
-        return filteredEvents.filter(
-            (event) =>
-                event.type === "deadline" &&
-                event.date >= todayKey &&
-                event.date <= nextSevenDaysKey,
+    return filteredEvents.filter((event: CalendarEvent) => {
+        return (
+            getEventStartDate(event) <= monthEnd &&
+            getEventEndDate(event) >= monthStart
         );
-    }, [
-        filteredEvents,
-        todayKey,
-        nextSevenDaysKey,
-    ]);
+    });
+}, [currentDate, filteredEvents]);
 
-    const upcomingEvents = useMemo(() => {
-        return filteredEvents
-            .filter(
-                (event) => event.date >= todayKey,
-            )
-            .sort(compareEvents)
-            .slice(0, 5);
-    }, [
-        filteredEvents,
-        todayKey,
-    ]);
+const todayEvents = useMemo(() => {
+    return filteredEvents.filter((event: CalendarEvent) =>
+        isEventOnDate(event, todayKey),
+    );
+}, [filteredEvents, todayKey]);
+
+    const nextSevenDaysKey = useMemo(
+    () => getDateKey(addDays(today, 6)),
+    [today],
+);
+
+const nextSevenDaysEvents = useMemo(() => {
+    return filteredEvents.filter((event: CalendarEvent) => {
+        return (
+            getEventStartDate(event) <= nextSevenDaysKey &&
+            getEventEndDate(event) >= todayKey
+        );
+    });
+}, [filteredEvents, todayKey, nextSevenDaysKey]);
+
+const upcomingDeadlines = useMemo(() => {
+    return filteredEvents.filter((event: CalendarEvent) => {
+        if (event.type !== "deadline") return false;
+
+        return (
+            getEventStartDate(event) <= nextSevenDaysKey &&
+            getEventEndDate(event) >= todayKey
+        );
+    });
+}, [filteredEvents, todayKey, nextSevenDaysKey]);
+
+const upcomingEvents = useMemo(() => {
+    return filteredEvents
+        .filter((event: CalendarEvent) => getEventEndDate(event) >= todayKey)
+        .sort(compareEvents)
+        .slice(0, 5);
+}, [filteredEvents, todayKey]);
 
     const weekStart = useMemo(
         () => startOfWeek(today),
@@ -290,22 +314,18 @@ export function useCalendar({
         [weekEnd],
     );
 
-    const thisWeekEvents = useMemo(() => {
-        return filteredEvents.filter(
-            (event) =>
-                event.date >= weekStartKey &&
-                event.date <= weekEndKey,
+  const thisWeekEvents = useMemo(() => {
+    return filteredEvents.filter((event: CalendarEvent) => {
+        return (
+            getEventStartDate(event) <= weekEndKey &&
+            getEventEndDate(event) >= weekStartKey
         );
-    }, [
-        filteredEvents,
-        weekStartKey,
-        weekEndKey,
-    ]);
-
+    });
+}, [filteredEvents, weekStartKey, weekEndKey]);
     const weekProjectCount = useMemo(() => {
         return new Set(
             thisWeekEvents
-                .map((event) => event.projectId)
+                .map((event: CalendarEvent) => event.projectId)
                 .filter(Boolean),
         ).size;
     }, [thisWeekEvents]);

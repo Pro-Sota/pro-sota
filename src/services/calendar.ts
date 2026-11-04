@@ -44,13 +44,16 @@ export type CalendarEvent = {
     project?: {
         project_id: string;
         project_name: string;
+        start_date: string | null;
+        end_date: string | null;
     } | null;
 
     task?: {
         task_id: string;
         title: string;
+        start_date: string | null;
+        due_date: string | null;
     } | null;
-
     client?: {
         client_id: string;
         name: string;
@@ -225,6 +228,7 @@ async function getCurrentCalendarAccess(supabase: SupabaseServerClient) {
  * client / profile / participant data is fetched separately so a
  * relationship problem cannot break the whole calendar.
  */
+
 export async function getCalendarEvents(options?: {
     startAt?: string;
     endAt?: string;
@@ -237,22 +241,46 @@ export async function getCalendarEvents(options?: {
         await getCurrentCalendarAccess(supabase);
 
     let participantEventIds: string[] = [];
+    let memberProjectIds: string[] = [];
 
     if (!isAdmin) {
-        const { data: participations, error: participantError } =
-            await supabase
+        const [
+            participationsResult,
+            membershipsResult,
+        ] = await Promise.all([
+            supabase
                 .from("calendar_event_participants")
                 .select("event_id")
-                .eq("profile_id", profileId);
+                .eq("profile_id", profileId),
 
-        if (participantError) {
+            supabase
+                .from("project_members")
+                .select("project_id")
+                .eq("profile_id", profileId),
+        ]);
+
+        if (participationsResult.error) {
             throw new Error(
-                `Erro ao carregar participações: ${participantError.message}`,
+                `Erro ao carregar participações: ${participationsResult.error.message}`,
+            );
+        }
+
+        if (membershipsResult.error) {
+            throw new Error(
+                `Erro ao carregar projectos atribuídos: ${membershipsResult.error.message}`,
             );
         }
 
         participantEventIds = uniqueIds(
-            (participations ?? []).map((item) => item.event_id),
+            (participationsResult.data ?? []).map(
+                (item) => item.event_id,
+            ),
+        );
+
+        memberProjectIds = uniqueIds(
+            (membershipsResult.data ?? []).map(
+                (item) => item.project_id,
+            ),
         );
     }
 
@@ -262,6 +290,7 @@ export async function getCalendarEvents(options?: {
             .select(EVENT_COLUMNS)
             .order("start_at", { ascending: true });
 
+        // Date filters
         if (options?.startAt) {
             query = query.gte("start_at", options.startAt);
         }
@@ -270,28 +299,42 @@ export async function getCalendarEvents(options?: {
             query = query.lte("start_at", options.endAt);
         }
 
+        // Event type filter
         if (options?.eventType) {
             query = query.eq("event_type", options.eventType);
         }
 
+        // Project filter
         if (options?.projectId) {
             query = query.eq("project_id", options.projectId);
         }
 
-        // Non-admins see events they created or were invited to as team
-        // members. Clients and suppliers are not app users.
+        /**
+         * Non-admin visibility:
+         *
+         * 1. Events created by the current user.
+         * 2. Events where the current user is a participant.
+         * 3. Events associated with projects where the user
+         *    is a member through project_members.
+         */
         if (!isAdmin) {
-            if (participantEventIds.length > 0) {
-                const eventIds = participantEventIds
-                    .map((id) => `"${id}"`)
-                    .join(",");
+            const conditions = [
+                `created_by.eq.${profileId}`,
+            ];
 
-                query = query.or(
-                    `created_by.eq.${profileId},event_id.in.(${eventIds})`,
+            if (participantEventIds.length > 0) {
+                conditions.push(
+                    `event_id.in.(${participantEventIds.join(",")})`,
                 );
-            } else {
-                query = query.eq("created_by", profileId);
             }
+
+            if (memberProjectIds.length > 0) {
+                conditions.push(
+                    `project_id.in.(${memberProjectIds.join(",")})`,
+                );
+            }
+
+            query = query.or(conditions.join(","));
         }
 
         const { data: events, error } = await query;
@@ -309,16 +352,30 @@ export async function getCalendarEvents(options?: {
             );
         }
 
-        if (!events || events.length === 0) {
+        if (!events?.length) {
             return [];
         }
 
-        const projectIds = uniqueIds(events.map((e) => e.project_id));
-        const taskIds = uniqueIds(events.map((e) => e.task_id));
-        const clientIds = uniqueIds(events.map((e) => e.client_id));
-        const profileIds = uniqueIds(events.map((e) => e.created_by));
-        const eventIdList = events.map((e) => e.event_id);
+        // Collect relationship IDs
+        const projectIds = uniqueIds(
+            events.map((event) => event.project_id),
+        );
 
+        const taskIds = uniqueIds(
+            events.map((event) => event.task_id),
+        );
+
+        const clientIds = uniqueIds(
+            events.map((event) => event.client_id),
+        );
+
+        const creatorIds = uniqueIds(
+            events.map((event) => event.created_by),
+        );
+
+        const eventIds = events.map((event) => event.event_id);
+
+        // Fetch related data
         const [
             projectsResult,
             tasksResult,
@@ -329,14 +386,24 @@ export async function getCalendarEvents(options?: {
             projectIds.length > 0
                 ? supabase
                     .from("projects")
-                    .select("project_id, project_name")
+                    .select(`
+                        project_id,
+                        project_name:title,
+                        start_date,
+                        end_date
+                    `)
                     .in("project_id", projectIds)
                 : Promise.resolve({ data: [], error: null }),
 
             taskIds.length > 0
                 ? supabase
                     .from("tasks")
-                    .select("task_id, title")
+                    .select(`
+                        task_id,
+                        title,
+                        start_date,
+                        due_date
+                    `)
                     .in("task_id", taskIds)
                 : Promise.resolve({ data: [], error: null }),
 
@@ -347,33 +414,46 @@ export async function getCalendarEvents(options?: {
                     .in("client_id", clientIds)
                 : Promise.resolve({ data: [], error: null }),
 
-            profileIds.length > 0
+            creatorIds.length > 0
                 ? supabase
                     .from("profiles")
                     .select("profile_id, first_name, last_name")
-                    .in("profile_id", profileIds)
+                    .in("profile_id", creatorIds)
                 : Promise.resolve({ data: [], error: null }),
 
             supabase
                 .from("calendar_event_participants")
                 .select("event_id, profile_id, client_id, supplier_id")
-                .in("event_id", eventIdList),
+                .in("event_id", eventIds),
         ]);
 
+        // Log relationship errors without breaking the main query
         if (projectsResult.error) {
-            console.error("Calendar projects error:", projectsResult.error);
+            console.error(
+                "Calendar projects error:",
+                projectsResult.error,
+            );
         }
 
         if (tasksResult.error) {
-            console.error("Calendar tasks error:", tasksResult.error);
+            console.error(
+                "Calendar tasks error:",
+                tasksResult.error,
+            );
         }
 
         if (clientsResult.error) {
-            console.error("Calendar clients error:", clientsResult.error);
+            console.error(
+                "Calendar clients error:",
+                clientsResult.error,
+            );
         }
 
         if (profilesResult.error) {
-            console.error("Calendar profiles error:", profilesResult.error);
+            console.error(
+                "Calendar profiles error:",
+                profilesResult.error,
+            );
         }
 
         if (participantsResult.error) {
@@ -383,20 +463,36 @@ export async function getCalendarEvents(options?: {
             );
         }
 
+        // Build relationship maps
         const projectMap = new Map(
-            (projectsResult.data ?? []).map((p) => [p.project_id, p]),
-        );
-        const taskMap = new Map(
-            (tasksResult.data ?? []).map((t) => [t.task_id, t]),
-        );
-        const clientMap = new Map(
-            (clientsResult.data ?? []).map((c) => [c.client_id, c]),
-        );
-        const profileMap = new Map(
-            (profilesResult.data ?? []).map((p) => [p.profile_id, p]),
+            (projectsResult.data ?? []).map((project) => [
+                project.project_id,
+                project,
+            ]),
         );
 
-        // Participants grouped per event.
+        const taskMap = new Map(
+            (tasksResult.data ?? []).map((task) => [
+                task.task_id,
+                task,
+            ]),
+        );
+
+        const clientMap = new Map(
+            (clientsResult.data ?? []).map((client) => [
+                client.client_id,
+                client,
+            ]),
+        );
+
+        const profileMap = new Map(
+            (profilesResult.data ?? []).map((profile) => [
+                profile.profile_id,
+                profile,
+            ]),
+        );
+
+        // Group participants by event
         const participantsByEvent = new Map<
             string,
             CalendarEventParticipantIds
@@ -409,54 +505,72 @@ export async function getCalendarEvents(options?: {
                 supplier_ids: [],
             };
 
-            if (row.profile_id) entry.participant_ids.push(row.profile_id);
-            if (row.client_id) entry.client_ids.push(row.client_id);
-            if (row.supplier_id) entry.supplier_ids.push(row.supplier_id);
+            if (row.profile_id) {
+                entry.participant_ids.push(row.profile_id);
+            }
+
+            if (row.client_id) {
+                entry.client_ids.push(row.client_id);
+            }
+
+            if (row.supplier_id) {
+                entry.supplier_ids.push(row.supplier_id);
+            }
 
             participantsByEvent.set(row.event_id, entry);
         }
 
+        // Return enriched calendar events
         return events.map((event) => {
-            const participants = participantsByEvent.get(event.event_id);
+            const participants = participantsByEvent.get(
+                event.event_id,
+            );
 
             return {
                 ...event,
 
                 event_type: event.event_type as EventType,
 
-                project: normalizeRelation(
-                    event.project_id
-                        ? projectMap.get(event.project_id)
-                        : null,
-                ),
+                project: event.project_id
+                    ? projectMap.get(event.project_id) ?? null
+                    : null,
 
-                task: normalizeRelation(
-                    event.task_id ? taskMap.get(event.task_id) : null,
-                ),
+                task: event.task_id
+                    ? taskMap.get(event.task_id) ?? null
+                    : null,
 
-                client: normalizeRelation(
-                    event.client_id ? clientMap.get(event.client_id) : null,
-                ),
+                client: event.client_id
+                    ? clientMap.get(event.client_id) ?? null
+                    : null,
 
-                creator: normalizeRelation(
-                    event.created_by
-                        ? profileMap.get(event.created_by)
-                        : null,
-                ),
+                creator: event.created_by
+                    ? profileMap.get(event.created_by) ?? null
+                    : null,
 
-                participant_ids: participants?.participant_ids ?? [],
-                client_ids: participants?.client_ids ?? [],
-                supplier_ids: participants?.supplier_ids ?? [],
+                participant_ids:
+                    participants?.participant_ids ?? [],
+
+                client_ids:
+                    participants?.client_ids ?? [],
+
+                supplier_ids:
+                    participants?.supplier_ids ?? [],
             };
         });
     } catch (error) {
-        console.error("getCalendarEvents error:", getErrorMessage(error));
+        console.error(
+            "getCalendarEvents error:",
+            getErrorMessage(error),
+        );
 
         throw error instanceof Error
             ? error
-            : new Error("Erro ao carregar eventos do calendário.");
+            : new Error(
+                "Erro ao carregar eventos do calendário.",
+            );
     }
 }
+
 
 /**
  * Get a single calendar event.
