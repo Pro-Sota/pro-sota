@@ -21,12 +21,26 @@ function parseDateKey(value: string) {
     return new Date(year, month - 1, day);
 }
 
+function normalizeDate(value?: string | null) {
+    return value?.slice(0, 10) ?? "";
+}
+
 function getEventStartDate(event: CalendarEvent) {
-    return event.startDate || event.date;
+    return normalizeDate(
+        event.startDate ||
+        event.start_at ||
+        event.date,
+    );
 }
 
 function getEventEndDate(event: CalendarEvent) {
-    return event.endDate || event.startDate || event.date;
+    return normalizeDate(
+        event.endDate ||
+        event.end_at ||
+        event.startDate ||
+        event.start_at ||
+        event.date,
+    );
 }
 
 function isEventOnDate(event: CalendarEvent, dateKey: string) {

@@ -123,15 +123,16 @@ const menuItems: SidebarItem[] = [
     icon: FolderKanban,
     permission: "projects.view",
   },
-  {
-    name: "Briefings",
-    href: "/management/project-briefing",
-    icon: FileText,
-    permission: "project_briefing.view",
-    access: {
-      departments: ["architecture"],
-    },
+{
+  name: "Briefings",
+  href: "/management/project-briefing",
+  icon: FileText,
+  permission: "project_briefing.view",
+  access: {
+    departments: ["architecture"],
+    grantedDepartments: ["architecture"],
   },
+},
   {
     name: "Submissões",
     href: "/management/submissions",
