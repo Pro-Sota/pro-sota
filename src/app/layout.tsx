@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import {
-  Geist,
-  Geist_Mono,
   Roboto,
   Roboto_Mono,
-  DM_Sans,
-  DM_Mono,
   Inter,
 } from "next/font/google";
 import "./globals.css";
