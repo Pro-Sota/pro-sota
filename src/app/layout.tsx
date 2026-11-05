@@ -45,8 +45,25 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pro-Sota",
-  description: "",
+  title: {
+    default: "PRO SOTA | Arquitectura, Engenharia e Construção",
+    template: "%s | PRO SOTA",
+  },
+  description:
+    "Desde 1997, damos forma às ideias e construímos o futuro.",
+  icons: {
+    icon: "/images/logo-vertical.png",
+    apple: "/images/logo-vertical.png",
+  },
+  openGraph: {
+    title: "PRO SOTA",
+    description: "Arquitectura, Engenharia e Construção em Angola.",
+    images: ["/images/logo-vertical.png"],
+  },
+  twitter: {
+    card: "summary",
+    images: ["/images/logo-vertical.png"],
+  },
 };
 
 export default function RootLayout({

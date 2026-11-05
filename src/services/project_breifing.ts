@@ -84,6 +84,10 @@ export type ProjectBrief = {
 
     reference_links: string | null;
     other_information: string | null;
+    architectural_style_other: string | null;
+    service_scope: string;
+    project_priorities: string[];
+    construction_start: string;
 
     reviewed_by: string | null;
     reviewed_at: string | null;

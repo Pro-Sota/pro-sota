@@ -179,7 +179,7 @@ export default function HomeClient({
               <div>
                 <div className="mb-7 flex items-center gap-3">
                   <span className="h-px w-10 bg-gold" />
-
+s
                   <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-mute">
                     O nosso trabalho
                   </span>
@@ -193,10 +193,10 @@ export default function HomeClient({
               </div>
 
               <Link
-                href="/portfolio"
+                href="/projects"
                 className="group inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-navy underline decoration-gold decoration-2 underline-offset-8 transition-colors hover:text-gold"
               >
-                Ver portefólio completo
+                Ver projectos completos
                 <span className="transition-transform group-hover:translate-x-1">
                   ↗
                 </span>
@@ -218,7 +218,7 @@ export default function HomeClient({
               </p>
 
               <p className="font-medium uppercase tracking-wider">
-                PRO SOTA · Portefólio
+                PRO SOTA · Projectos
               </p>
             </div>
           </div>

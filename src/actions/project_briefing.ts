@@ -41,6 +41,35 @@ export type ActionResult<T = void> = {
 const MIN_BUDGET = 1_000_000;
 const MAX_BUDGET = 1_000_000_000;
 
+const PROJECT_PRIORITIES = [
+    "Conforto e funcionalidade",
+    "Controlo do orçamento",
+    "Eficiência energética",
+    "Privacidade e segurança",
+    "Rapidez de execução",
+    "Valorização do imóvel",
+    "Sustentabilidade",
+    "Integração com o exterior",
+    "Flexibilidade para o futuro",
+] as const;
+
+const SERVICE_SCOPE_OPTIONS = [
+    "Apenas arquitectura",
+    "Arquitectura e engenharia",
+    "Projecto completo (arquitectura, especialidades e fiscalização)",
+    "Projecto e construção (solução chave-na-mão)",
+    "Ainda não tenho a certeza",
+] as const;
+
+const CONSTRUCTION_START_OPTIONS = [
+    "O mais breve possível",
+    "Dentro de 1 a 3 meses",
+    "Dentro de 3 a 6 meses",
+    "Dentro de 6 a 12 meses",
+    "Daqui a mais de 12 meses",
+    "Ainda não definido",
+] as const;
+
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -150,6 +179,58 @@ function parseProjectBriefFormData(
         }
     }
 
+    /* ---------------------------------------------------------------------- */
+    /* Scope and planning validation                                          */
+    /* ---------------------------------------------------------------------- */
+
+    const serviceScope = getString(formData, "service_scope");
+
+    if (
+        !SERVICE_SCOPE_OPTIONS.includes(
+            serviceScope as (typeof SERVICE_SCOPE_OPTIONS)[number],
+        )
+    ) {
+        throw new Error(
+            "Seleccione o âmbito dos serviços pretendidos.",
+        );
+    }
+
+    const constructionStart = getString(
+        formData,
+        "construction_start",
+    );
+
+    if (
+        !CONSTRUCTION_START_OPTIONS.includes(
+            constructionStart as (typeof CONSTRUCTION_START_OPTIONS)[number],
+        )
+    ) {
+        throw new Error(
+            "Seleccione quando pretende iniciar a construção.",
+        );
+    }
+
+    const projectPriorities = getStringArray(
+        formData,
+        "project_priorities",
+    );
+
+    const validPriorities = projectPriorities.every((priority) =>
+        PROJECT_PRIORITIES.includes(
+            priority as (typeof PROJECT_PRIORITIES)[number],
+        ),
+    );
+
+    if (
+        projectPriorities.length !== 3 ||
+        new Set(projectPriorities).size !== 3 ||
+        !validPriorities
+    ) {
+        throw new Error(
+            "Seleccione exactamente três prioridades para o projecto.",
+        );
+    }
+
     return {
         /* Personal information */
         full_name: getString(formData, "full_name"),
@@ -176,6 +257,10 @@ function parseProjectBriefFormData(
         location_city: getNullableString(formData, "location_city"),
         location_province: getNullableString(formData, "location_province"),
         map_link: getNullableString(formData, "map_link"),
+        architectural_style_other: getNullableString(
+            formData,
+            "architectural_style_other",
+        ),
 
         /* Land */
         land_ownership: getNullableString(formData, "land_ownership"),
@@ -214,7 +299,6 @@ function parseProjectBriefFormData(
             "visitors_frequency",
         ),
         pets: getNullableString(formData, "pets"),
-
         current_home_dislikes: getNullableString(
             formData,
             "current_home_dislikes",
@@ -233,6 +317,11 @@ function parseProjectBriefFormData(
         floor_count: getNullableString(formData, "floor_count"),
         essential_space: getNullableString(formData, "essential_space"),
 
+        /* Scope and planning */
+        service_scope: serviceScope,
+        project_priorities: projectPriorities,
+        construction_start: constructionStart,
+
         /* Aesthetic preferences */
         architectural_style: getStringArray(
             formData,
@@ -247,7 +336,6 @@ function parseProjectBriefFormData(
             "natural_light_rating",
         ),
         privacy_rating: getNumber(formData, "privacy_rating"),
-
         reference_links: getNullableString(formData, "reference_links"),
         other_information: getNullableString(
             formData,
@@ -255,7 +343,6 @@ function parseProjectBriefFormData(
         ),
     };
 }
-
 /* -------------------------------------------------------------------------- */
 /* Public Submission                                                          */
 /* -------------------------------------------------------------------------- */

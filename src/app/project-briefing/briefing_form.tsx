@@ -10,9 +10,11 @@ import {
   useTransition,
 } from "react";
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
+import Image from "next/image";
 
 import "leaflet/dist/leaflet.css";
 import { submitProjectBrief } from "@/actions/project_briefing";
+import Link from "next/link";
 
 /* -------------------------------------------------------------------------- */
 /* Configuration                                                              */
@@ -25,7 +27,7 @@ const STEPS = [
   },
   {
     title: "Terreno e localização",
-    description: "Conte-nos sobre o terreno onde pretende construir.",
+    description: "Vamos conhecer o terreno e as suas características.",
   },
   {
     title: "Família e estilo de vida",
@@ -33,11 +35,19 @@ const STEPS = [
   },
   {
     title: "Programa arquitectónico",
-    description: "Defina os espaços essenciais para a sua casa.",
+    description: "Defina os espaços e as características da habitação.",
+  },
+  {
+    title: "Âmbito e planeamento",
+    description: "Defina os serviços, prioridades e prazo pretendido.",
+  },
+  {
+    title: "Orçamento e investimento",
+    description: "Qual é o investimento previsto para concretizar o projecto?",
   },
   {
     title: "Estética e preferências",
-    description: "Partilhe as referências e preferências do projecto.",
+    description: "Partilhe os estilos, materiais e referências de que gosta.",
   },
 ];
 
@@ -67,6 +77,35 @@ const SPACES = [
   "Ginásio",
   "Garagem",
   "Outro",
+];
+
+const PROJECT_PRIORITIES = [
+  "Conforto e funcionalidade",
+  "Controlo do orçamento",
+  "Eficiência energética",
+  "Privacidade e segurança",
+  "Rapidez de execução",
+  "Valorização do imóvel",
+  "Sustentabilidade",
+  "Integração com o exterior",
+  "Flexibilidade para o futuro",
+];
+
+const SERVICE_SCOPE_OPTIONS = [
+  "Apenas arquitectura",
+  "Arquitectura e engenharia",
+  "Projecto completo (arquitectura, especialidades e fiscalização)",
+  "Projecto e construção (solução chave-na-mão)",
+  "Ainda não tenho a certeza",
+];
+
+const CONSTRUCTION_START_OPTIONS = [
+  "O mais breve possível",
+  "Dentro de 1 a 3 meses",
+  "Dentro de 3 a 6 meses",
+  "Dentro de 6 a 12 meses",
+  "Daqui a mais de 12 meses",
+  "Ainda não definido",
 ];
 
 const ARCHITECTURAL_STYLE_OPTIONS = [
@@ -127,8 +166,8 @@ const MAX_FILES = 5;
 const MAX_FILE_MB = 8;
 const MAX_FILE_SIZE = MAX_FILE_MB * 1024 * 1024;
 
-const INITIAL_BUDGET_CEILING = 100_000_000;
-const BUDGET_SLIDER_STEP = 1_000_000;
+const INITIAL_BUDGET_CEILING = 5_000_000;
+const BUDGET_SLIDER_STEP = 500;
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -196,6 +235,11 @@ const initialValues: BriefValues = {
   kitchen_layout: "",
   floor_count: "",
   essential_space: "",
+
+  service_scope: "",
+  project_priorities: [],
+  construction_start: "",
+  architectural_style_other: "",
 
   architectural_style: [],
   colour_material_preferences: "",
@@ -407,9 +451,8 @@ function RadioOptions({
     <div className="flex flex-wrap gap-[9px]">
       {options.map((option) => (
         <label
-          className={`${optionBase} ${
-            value === option ? optionOn : optionOff
-          }`}
+          className={`${optionBase} ${value === option ? optionOn : optionOff
+            }`}
           key={option}
         >
           <input
@@ -451,9 +494,8 @@ function CheckboxOptions({
 
         return (
           <label
-            className={`${optionBase} ${
-              checked ? optionOn : optionOff
-            }`}
+            className={`${optionBase} ${checked ? optionOn : optionOff
+              }`}
             key={option}
           >
             <input
@@ -487,9 +529,13 @@ function CheckboxOptions({
 function ArchitecturalStyleOptions({
   value,
   onChange,
+  otherValue,
+  onOtherValueChange,
 }: {
   value: string[];
   onChange: (name: string, value: string[]) => void;
+  otherValue: string;
+  onOtherValueChange: (name: string, value: string) => void;
 }) {
   function toggle(style: string, checked: boolean) {
     onChange(
@@ -498,85 +544,91 @@ function ArchitecturalStyleOptions({
         ? [...value, style]
         : value.filter((item) => item !== style)
     );
+
+    if (style === "Outro" && !checked) {
+      onOtherValueChange("architectural_style_other", "");
+    }
   }
 
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {ARCHITECTURAL_STYLE_OPTIONS.map((style) => {
-        const selected = value.includes(style.name);
+  const otherSelected = value.includes("Outro");
 
-        return (
-          <label
-            key={style.name}
-            className={`group relative block cursor-pointer overflow-hidden rounded-lg border text-left transition-all motion-reduce:transition-none ${
-              selected
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {ARCHITECTURAL_STYLE_OPTIONS.map((style) => {
+          const selected = value.includes(style.name);
+
+          return (
+            <label
+              key={style.name}
+              className={`group relative block cursor-pointer overflow-hidden rounded-lg border text-left transition-all motion-reduce:transition-none ${selected
                 ? "border-[#BD9655] bg-[#fbf8f2] ring-2 ring-[#BD9655]/25"
                 : "border-[#d3d5d1] bg-white hover:border-[#b8a17d]"
-            }`}
-          >
-            <input
-              type="checkbox"
-              name="architectural_style"
-              value={style.name}
-              checked={selected}
-              onChange={(event) =>
-                toggle(style.name, event.target.checked)
-              }
-              className="peer sr-only"
-            />
-
-            <div
-              role="img"
-              aria-label={`Exemplo de arquitectura ${style.name.toLowerCase()}`}
-              className="relative h-[250px] bg-[#e8e7e2] bg-cover bg-center sm:h-[150px]"
-              style={{
-                backgroundImage: `url("${style.image}")`,
-                backgroundPosition: style.position,
-              }}
+                }`}
             >
-              <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/5" />
+              <input
+                type="checkbox"
+                name="architectural_style"
+                value={style.name}
+                checked={selected}
+                onChange={(event) =>
+                  toggle(style.name, event.target.checked)
+                }
+                className="peer sr-only"
+              />
 
-              <span
-                className={`absolute left-3 top-3 grid h-6 w-6 place-items-center rounded border text-xs font-bold transition-colors ${
-                  selected
+              <div
+                role="img"
+                aria-label={`Exemplo de arquitectura ${style.name.toLowerCase()}`}
+                className="relative h-[250px] bg-[#e8e7e2] bg-cover bg-center sm:h-[150px]"
+                style={{
+                  backgroundImage: `url("${style.image}")`,
+                  backgroundPosition: style.position,
+                }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/5" />
+
+                <span
+                  className={`absolute left-3 top-3 grid h-6 w-6 place-items-center rounded border text-xs font-bold transition-colors ${selected
                     ? "border-[#BD9655] bg-[#BD9655] text-white"
                     : "border-white/90 bg-white text-transparent"
-                }`}
-                aria-hidden="true"
-              >
-                ✓
-              </span>
-
-              {selected && (
-                <span className="absolute right-3 top-3 rounded bg-[#002950] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-                  Seleccionado
+                    }`}
+                  aria-hidden="true"
+                >
+                  ✓
                 </span>
-              )}
-            </div>
 
-            <div className="p-3.5">
-              <span className="block text-sm font-bold text-[#002950]">
-                {style.name}
-              </span>
+                {selected && (
+                  <span className="absolute right-3 top-3 rounded bg-[#002950] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                    Seleccionado
+                  </span>
+                )}
+              </div>
 
-              <span className="mt-1 block text-xs leading-relaxed text-[#6f757a]">
-                {style.description}
-              </span>
-            </div>
-          </label>
-        );
-      })}
+              <div className="p-3.5">
+                <span className="block text-sm font-bold text-[#002950]">
+                  {style.name}
+                </span>
 
+                <span className="mt-1 block text-xs leading-relaxed text-[#6f757a]">
+                  {style.description}
+                </span>
+              </div>
+            </label>
+          );
+        })}
+      </div>
+
+      {/* Other style option */}
       <label
-        className={`${optionBase} ${
-          value.includes("Outro") ? optionOn : optionOff
-        } min-h-[54px] self-start`}
+        className={`${optionBase} ${otherSelected ? optionOn : optionOff
+          } min-h-[54px] w-fit`}
       >
         <input
           type="checkbox"
           name="architectural_style"
           value="Outro"
-          checked={value.includes("Outro")}
+          checked={otherSelected}
           onChange={(event) =>
             toggle("Outro", event.target.checked)
           }
@@ -585,10 +637,28 @@ function ArchitecturalStyleOptions({
 
         <span>Outro estilo</span>
       </label>
+
+      {/* Conditional input */}
+      {otherSelected && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+          <Field
+            label="Especifique o estilo arquitectónico"
+            required
+            hint="Descreva o estilo que tem em mente."
+          >
+            <TextInput
+              name="architectural_style_other"
+              value={otherValue}
+              onChange={onOtherValueChange}
+              placeholder="Ex.: Mediterrânico, escandinavo, colonial..."
+              required
+            />
+          </Field>
+        </div>
+      )}
     </div>
   );
 }
-
 /* -------------------------------------------------------------------------- */
 /* Rating                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -614,11 +684,10 @@ function Rating({
         {["1", "2", "3", "4", "5"].map((number) => (
           <label
             key={number}
-            className={`relative grid h-[45px] cursor-pointer place-items-center rounded border font-semibold transition-colors motion-reduce:transition-none ${focusRing} ${
-              value === number
-                ? "border-[#BD9655] bg-[#fbf8f2] text-[#002950] ring-1 ring-inset ring-[#BD9655]"
-                : "border-[#d3d5d1] text-[#5e666c]"
-            }`}
+            className={`relative grid h-[45px] cursor-pointer place-items-center rounded border font-semibold transition-colors motion-reduce:transition-none ${focusRing} ${value === number
+              ? "border-[#BD9655] bg-[#fbf8f2] text-[#002950] ring-1 ring-inset ring-[#BD9655]"
+              : "border-[#d3d5d1] text-[#5e666c]"
+              }`}
           >
             <input
               type="radio"
@@ -982,6 +1051,7 @@ function LandLocationMap({
 /* Dual-handle budget range                                                   */
 /* -------------------------------------------------------------------------- */
 
+
 function BudgetRange({
   values,
   update,
@@ -991,26 +1061,37 @@ function BudgetRange({
 }) {
   const [activeHandle, setActiveHandle] = useState<"min" | "max">("max");
 
-  const [sliderMax, setSliderMax] = useState(
-    INITIAL_BUDGET_CEILING
-  );
-
   const minValue = Math.max(
     0,
     Number(values.budget_min) || 0
   );
 
-  const maxValue = Math.max(
-    minValue,
+  const rawMax = Math.max(
+    0,
     Number(values.budget_max) || 0
   );
 
-  // Recalculate the ceiling if the component is remounted.
+  const maxValue = Math.max(minValue, rawMax);
+
+  /*
+   * Dynamic slider range.
+   *
+   * Always provides additional room beyond the selected
+   * maximum, allowing the user to continue increasing it.
+   *
+   * There is no fixed maximum budget.
+   */
   const effectiveMax = Math.max(
-    sliderMax,
-    INITIAL_BUDGET_CEILING,
-    Math.ceil(maxValue / BUDGET_SLIDER_STEP) *
-      BUDGET_SLIDER_STEP
+    INITIAL_BUDGET_CEILING * 2,
+    Math.ceil(
+      (Math.max(maxValue, 1) * 2) / 1000
+    ) * 1000
+  );
+
+  // Adjust the slider precision according to its range.
+  const sliderStep = Math.max(
+    1,
+    Math.round(effectiveMax / 1000)
   );
 
   const minPercent = Math.min(
@@ -1024,30 +1105,59 @@ function BudgetRange({
   );
 
   function updateMinimum(value: number) {
-    const nextValue = Math.min(
-      Math.max(0, value),
-      maxValue
+    const nextValue = Math.max(
+      0,
+      Math.min(value, Number.MAX_SAFE_INTEGER)
     );
 
     update("budget_min", String(nextValue));
+
+    // Keep the maximum above or equal to the minimum.
+    if (nextValue > maxValue) {
+      update("budget_max", String(nextValue));
+    }
   }
 
   function updateMaximum(value: number) {
     const nextValue = Math.max(
-      minValue,
-      value
+      0,
+      Math.min(value, Number.MAX_SAFE_INTEGER)
     );
 
     update("budget_max", String(nextValue));
-    update("budget", String(nextValue));
 
-    if (nextValue >= effectiveMax) {
-      setSliderMax((current) => {
-        return Math.max(
-          current * 2,
-          nextValue + BUDGET_SLIDER_STEP
-        );
-      });
+    // Keep the minimum below or equal to the maximum.
+    if (nextValue < minValue) {
+      update("budget_min", String(nextValue));
+    }
+
+    // The slider automatically expands on the next render.
+  }
+
+  function handleMinimumInput(value: string) {
+    if (value === "") {
+      update("budget_min", "");
+      return;
+    }
+
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      updateMinimum(parsed);
+    }
+  }
+
+  function handleMaximumInput(value: string) {
+    if (value === "") {
+      update("budget_max", "");
+      update("budget", "");
+      return;
+    }
+
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      updateMaximum(parsed);
     }
   }
 
@@ -1069,30 +1179,71 @@ function BudgetRange({
         </span>
       </div>
 
+      {/* Budget inputs */}
       <div className="mb-8 grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-[#E9E9E6] bg-[#FAFAF9] p-4">
-          <p className="text-xs font-medium text-gray-400">
+        {/* Minimum */}
+        <div className="rounded-xl border border-[#E9E9E6] bg-[#FAFAF9] p-4 transition-colors focus-within:border-[#BD9655]">
+          <label
+            htmlFor="budget-min"
+            className="text-xs font-medium text-gray-400"
+          >
             Orçamento mínimo
-          </p>
+          </label>
 
-          <p className="mt-2 text-base font-semibold text-[#002950] sm:text-lg">
-            {formatBudget(minValue)}
-          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              id="budget-min"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              value={String(values.budget_min ?? "")}
+              onChange={(event) =>
+                handleMinimumInput(event.target.value)
+              }
+              className="w-full min-w-0 bg-transparent text-base font-semibold text-[#002950] outline-none sm:text-lg"
+            />
+
+            <span className="shrink-0 text-xs font-medium text-gray-400">
+              Kz
+            </span>
+          </div>
         </div>
 
-        <div className="rounded-xl border border-[#E9E9E6] bg-[#FAFAF9] p-4">
-          <p className="text-xs font-medium text-gray-400">
+        {/* Maximum */}
+        <div className="rounded-xl border border-[#E9E9E6] bg-[#FAFAF9] p-4 transition-colors focus-within:border-[#BD9655]">
+          <label
+            htmlFor="budget-max"
+            className="text-xs font-medium text-gray-400"
+          >
             Orçamento máximo
-          </p>
+          </label>
 
-          <p className="mt-2 text-base font-semibold text-[#002950] sm:text-lg">
-            {formatBudget(maxValue)}
-          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              id="budget-max"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              value={String(values.budget_max ?? "")}
+              onChange={(event) =>
+                handleMaximumInput(event.target.value)
+              }
+              className="w-full min-w-0 bg-transparent text-base font-semibold text-[#002950] outline-none sm:text-lg"
+            />
+
+            <span className="shrink-0 text-xs font-medium text-gray-400">
+              Kz
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* Dual range slider */}
       <div className="relative px-2 pb-3 pt-5">
         <div className="relative h-2 rounded-full bg-[#EAEAE7]">
+          {/* Selected range */}
           <div
             className="absolute top-0 h-full rounded-full bg-[#BD9655]"
             style={{
@@ -1104,45 +1255,47 @@ function BudgetRange({
             }}
           />
 
+          {/* Minimum handle */}
           <input
             aria-label="Orçamento mínimo"
             aria-valuetext={formatBudget(minValue)}
             type="range"
             min={0}
-            max={effectiveMax}
-            step={BUDGET_SLIDER_STEP}
+            max={Math.max(maxValue, 1)}
+            step={sliderStep}
             value={Math.min(minValue, effectiveMax)}
             onPointerDown={() => setActiveHandle("min")}
             onFocus={() => setActiveHandle("min")}
             onChange={(event) =>
               updateMinimum(Number(event.target.value))
             }
-            className={`budget-range-input ${
-              activeHandle === "min" ? "is-active" : ""
-            }`}
+            className={`budget-range-input ${activeHandle === "min" ? "is-active" : ""
+              }`}
           />
 
+          {/* Maximum handle */}
           <input
             aria-label="Orçamento máximo"
             aria-valuetext={formatBudget(maxValue)}
             type="range"
-            min={0}
+            min={minValue}
             max={effectiveMax}
-            step={BUDGET_SLIDER_STEP}
+            step={sliderStep}
             value={Math.min(maxValue, effectiveMax)}
             onPointerDown={() => setActiveHandle("max")}
             onFocus={() => setActiveHandle("max")}
             onChange={(event) =>
               updateMaximum(Number(event.target.value))
             }
-            className={`budget-range-input ${
-              activeHandle === "max" ? "is-active" : ""
-            }`}
+            className={`budget-range-input ${activeHandle === "max" ? "is-active" : ""
+              }`}
           />
         </div>
 
+        {/* Dynamic scale */}
         <div className="mt-5 flex justify-between text-xs text-gray-400">
           <span>0 Kz</span>
+
           <span>{formatBudget(effectiveMax)}</span>
         </div>
       </div>
@@ -1218,6 +1371,7 @@ function BudgetRange({
     </div>
   );
 }
+
 
 /* -------------------------------------------------------------------------- */
 /* Main form                                                                  */
@@ -1317,11 +1471,13 @@ export default function ProjectBriefForm() {
   /* ------------------------------------------------------------------------ */
 
   function validateStep(): string {
-    if (step === 0) {
+    if (step === 5) {
       const budgetMin = Number(str("budget_min"));
       const budgetMax = Number(str("budget_max"));
 
       if (
+        str("budget_min").trim() === "" ||
+        str("budget_max").trim() === "" ||
         !Number.isFinite(budgetMin) ||
         !Number.isFinite(budgetMax) ||
         budgetMin < 0 ||
@@ -1406,12 +1562,25 @@ export default function ProjectBriefForm() {
         return "Indique um número válido de carros.";
       }
     }
+    if (step === 4) {
+      if (arr("project_priorities").length !== 3) {
+        return "Seleccione exactamente três prioridades para o projecto.";
+      }
+    }
 
     if (
-      step === 4 &&
+      step === 6 &&
       arr("architectural_style").length === 0
     ) {
       return "Seleccione pelo menos um estilo arquitectónico.";
+    }
+
+    if (
+      step === 6 &&
+      arr("architectural_style").includes("Outro") &&
+      !str("architectural_style_other").trim()
+    ) {
+      return "Especifique o estilo arquitectónico seleccionado.";
     }
 
     return "";
@@ -1487,7 +1656,7 @@ export default function ProjectBriefForm() {
         if (!result.success) {
           setError(
             result.error ||
-              "Não foi possível enviar o formulário. Tente novamente."
+            "Não foi possível enviar o formulário. Tente novamente."
           );
 
           return;
@@ -1561,7 +1730,7 @@ export default function ProjectBriefForm() {
             />
           </Field>
 
-          <Field label="E-mail" required>
+          <Field label="3. Endereço de e-mail" required>
             <TextInput
               name="contact_email"
               value={str("contact_email")}
@@ -1572,28 +1741,6 @@ export default function ProjectBriefForm() {
             />
           </Field>
         </div>
-
-        <Field
-          label="3. Qual é a estimativa do orçamento?"
-          hint="Defina o intervalo que prevê investir na construção. O valor mínimo pode começar em zero e não existe um limite máximo fixo."
-        >
-          <BudgetRange
-            values={values}
-            update={(name, value) => update(name, value)}
-          />
-
-          <input
-            type="hidden"
-            name="budget_min"
-            value={str("budget_min")}
-          />
-
-          <input
-            type="hidden"
-            name="budget_max"
-            value={str("budget_max")}
-          />
-        </Field>
 
         <Field
           label="4. Quem toma as decisões sobre o projecto?"
@@ -1994,7 +2141,7 @@ export default function ProjectBriefForm() {
             />
           </Field>
 
-          <Field label="Quantas suítes?" required>
+          <Field label="24. Quantas suítes pretende?" required>
             <TextInput
               name="suites_count"
               value={str("suites_count")}
@@ -2009,7 +2156,7 @@ export default function ProjectBriefForm() {
         </div>
 
         <Field
-          label="24. Que espaços deseja incluir?"
+          label="25. Que espaços deseja incluir?"
           required
           hint="Seleccione todos os espaços pretendidos."
         >
@@ -2022,7 +2169,7 @@ export default function ProjectBriefForm() {
         </Field>
 
         {arr("desired_spaces").includes("Garagem") && (
-          <Field label="25. Quantos carros pretende acomodar na garagem?">
+          <Field label="26. Quantos carros pretende acomodar na garagem?">
             <TextInput
               name="cars_count"
               value={str("cars_count")}
@@ -2036,7 +2183,7 @@ export default function ProjectBriefForm() {
         )}
 
         <Field
-          label="26. Qual é a sua preferência para a cozinha?"
+          label="27. Qual é a sua preferência para a cozinha?"
           required
         >
           <RadioOptions
@@ -2052,7 +2199,7 @@ export default function ProjectBriefForm() {
           />
         </Field>
 
-        <Field label="27. Quantos pisos deseja?" required>
+        <Field label="28. Quantos pisos deseja?" required>
           <RadioOptions
             required
             name="floor_count"
@@ -2066,7 +2213,7 @@ export default function ProjectBriefForm() {
           />
         </Field>
 
-        <Field label="28. Há algum espaço indispensável que não foi listado?">
+        <Field label="29. Há algum espaço indispensável que não foi listado?">
           <TextArea
             name="essential_space"
             value={str("essential_space")}
@@ -2086,17 +2233,19 @@ export default function ProjectBriefForm() {
     return (
       <>
         <Field
-          label="29. Que estilos arquitectónicos lhe agradam?"
+          label="34. Que estilos arquitectónicos lhe agradam?"
           required
-          hint="Pode seleccionar mais do que um."
+          hint="Pode seleccionar mais do que um estilo. Se escolher Outro, poderá especificá-lo."
         >
           <ArchitecturalStyleOptions
             value={arr("architectural_style")}
             onChange={update}
+            otherValue={str("architectural_style_other")}
+            onOtherValueChange={update}
           />
         </Field>
 
-        <Field label="30. Cores e materiais de que gosta ou não gosta">
+        <Field label="35. Cores e materiais de que gosta ou não gosta">
           <TextArea
             name="colour_material_preferences"
             value={str("colour_material_preferences")}
@@ -2106,7 +2255,7 @@ export default function ProjectBriefForm() {
         </Field>
 
         <Field
-          label="31. Quanto valoriza a luz natural e a ligação com o exterior?"
+          label="36. Quanto valoriza a luz natural e a ligação com o exterior?"
           required
         >
           <Rating
@@ -2120,7 +2269,7 @@ export default function ProjectBriefForm() {
         </Field>
 
         <Field
-          label="32. Quanto valoriza a privacidade em relação à rua e aos vizinhos?"
+          label="37. Quanto valoriza a privacidade em relação à rua e aos vizinhos?"
           required
         >
           <Rating
@@ -2134,7 +2283,7 @@ export default function ProjectBriefForm() {
         </Field>
 
         <Field
-          label="33. Imagens ou links de referência"
+          label="38. Imagens ou links de referência"
           hint="Pode indicar links do Pinterest, Instagram ou outras referências. Também pode anexar imagens e PDFs."
         >
           <TextArea
@@ -2148,11 +2297,11 @@ export default function ProjectBriefForm() {
           <FileUploader
             files={files}
             onChange={setFiles}
-            note={`Máximo de ${MAX_FILES} ficheiros no total (incluindo os da etapa 2), ${MAX_FILE_MB} MB cada.`}
+            note={`Máximo de ${MAX_FILES} ficheiros no total, ${MAX_FILE_MB} MB cada.`}
           />
         </Field>
 
-        <Field label="34. Há algo importante que não perguntámos?">
+        <Field label="39. Há algo importante que não perguntámos?">
           <TextArea
             name="other_information"
             value={str("other_information")}
@@ -2195,6 +2344,111 @@ export default function ProjectBriefForm() {
     );
   }
 
+  function renderInvestment() {
+    return (
+      <>
+        <Field
+          label="33. Qual é o orçamento previsto para o projecto?"
+          required
+          hint="Defina o intervalo de investimento que considera adequado. Pode ajustar o valor mínimo e máximo."
+        >
+          <BudgetRange
+            values={values}
+            update={(name, value) => update(name, value)}
+          />
+
+          <input
+            type="hidden"
+            name="budget_min"
+            value={str("budget_min")}
+          />
+
+          <input
+            type="hidden"
+            name="budget_max"
+            value={str("budget_max")}
+          />
+
+          <input
+            type="hidden"
+            name="budget"
+            value={str("budget")}
+          />
+        </Field>
+      </>
+    );
+  }
+
+  function renderScopeAndPlanning() {
+    return (
+      <>
+        <Field
+          label="30. Que serviços pretende contratar?"
+          required
+          hint="Seleccione o âmbito de intervenção que melhor corresponde às suas necessidades."
+        >
+          <RadioOptions
+            required
+            name="service_scope"
+            value={str("service_scope")}
+            onChange={update}
+            options={SERVICE_SCOPE_OPTIONS}
+          />
+        </Field>
+
+        <Field
+          label="31. Quais são as três prioridades mais importantes para o seu projecto?"
+          required
+          hint={`Seleccione exactamente três prioridades. ${arr("project_priorities").length}/3 seleccionadas.`}
+        >
+          <CheckboxOptions
+            name="project_priorities"
+            value={arr("project_priorities")}
+            options={PROJECT_PRIORITIES}
+            onChange={(name, selected) => {
+              if (selected.length <= 3) {
+                update(name, selected);
+                setError("");
+              } else {
+                setError(
+                  "Seleccione apenas três prioridades para o projecto."
+                );
+              }
+            }}
+          />
+
+          <div className="mt-3 flex items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#ecebe7]">
+              <div
+                className="h-full rounded-full bg-[#BD9655] transition-all"
+                style={{
+                  width: `${(arr("project_priorities").length / 3) * 100}%`,
+                }}
+              />
+            </div>
+
+            <span className="text-xs font-semibold tabular-nums text-[#002950]">
+              {arr("project_priorities").length}/3
+            </span>
+          </div>
+        </Field>
+
+        <Field
+          label="32. Quando pretende iniciar a construção?"
+          required
+        >
+          <RadioOptions
+            required
+            name="construction_start"
+            value={str("construction_start")}
+            onChange={update}
+            options={CONSTRUCTION_START_OPTIONS}
+          />
+        </Field>
+      </>
+    );
+  }
+
   /* ------------------------------------------------------------------------ */
   /* Render current step                                                      */
   /* ------------------------------------------------------------------------ */
@@ -2214,6 +2468,12 @@ export default function ProjectBriefForm() {
         return renderArchitecturalProgramme();
 
       case 4:
+        return renderScopeAndPlanning();
+
+      case 5:
+        return renderInvestment();
+
+      case 6:
         return renderPreferences();
 
       default:
@@ -2272,19 +2532,19 @@ export default function ProjectBriefForm() {
 
         {/* Header */}
         <header className="flex h-[68px] items-center justify-between border-b border-[#e7e5df] sm:h-[82px]">
-          <a
-            className={brandCls}
-            href="/"
-            aria-label="PRO SOTA — página inicial"
+          <Link
+            href="/management"
+            aria-label="Ir para a visão geral"
           >
-            PRO <span className="text-[#BD9655]">SOTA</span>
-          </a>
-
-          <span
-            className={`${eyebrowCls} text-[9px] tracking-[1px] text-[#6b6f72] sm:text-[11px] sm:tracking-[1.7px]`}
-          >
-            ANGOLA · DESDE 1997
-          </span>
+            <Image
+              src="/images/logo.png"
+              alt="Pro-Sota"
+              width={150}
+              height={60}
+              priority
+              className="h-auto max-w-full object-contain"
+            />
+          </Link>
         </header>
 
         {/* Introduction */}
@@ -2351,7 +2611,7 @@ export default function ProjectBriefForm() {
 
           {/* Step navigation */}
           <nav
-            className="mb-7 grid grid-cols-5 gap-[3px] sm:mb-[34px] sm:gap-2"
+            className="mb-7 grid grid-cols-4 gap-2 sm:mb-[34px] sm:grid-cols-7 sm:gap-2"
             aria-label="Etapas do formulário"
           >
             {STEPS.map((item, index) => {
@@ -2368,20 +2628,17 @@ export default function ProjectBriefForm() {
                   disabled={index > step || pending}
                   aria-current={active ? "step" : undefined}
                   aria-label={`Etapa ${index + 1}: ${item.title}`}
-                  className={`flex flex-col items-center gap-2 border-0 bg-transparent p-0 disabled:cursor-default ${
-                    done ? "cursor-pointer" : ""
-                  } ${
-                    active
+                  className={`flex flex-col items-center gap-2 border-0 bg-transparent p-0 disabled:cursor-default ${done ? "cursor-pointer" : ""
+                    } ${active
                       ? "font-bold text-[#002950]"
                       : "text-[#6f7376]"
-                  } ${focusOutline}`}
+                    } ${focusOutline}`}
                 >
                   <span
-                    className={`grid h-[27px] w-[27px] place-items-center rounded-full border text-xs sm:h-[30px] sm:w-[30px] ${
-                      active || done
-                        ? "border-[#002950] bg-[#002950] text-white"
-                        : "border-[#d9d9d4] bg-white"
-                    }`}
+                    className={`grid h-[27px] w-[27px] place-items-center rounded-full border text-xs sm:h-[30px] sm:w-[30px] ${active || done
+                      ? "border-[#002950] bg-[#002950] text-white"
+                      : "border-[#d9d9d4] bg-white"
+                      }`}
                   >
                     {done ? "✓" : index + 1}
                   </span>
