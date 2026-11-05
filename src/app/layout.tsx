@@ -12,18 +12,12 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { cn } from "@/lib/utils/utils";
 import { ToastProvider } from "./components/toast/toast_provider";
+import "./admin.css";
+import "./styles.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 const roboto = Roboto({
   variable: "--font-roboto",
   subsets: ["latin"],
@@ -33,24 +27,13 @@ const robotoMono = Roboto_Mono({
   subsets: ["latin"],
 });
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-});
-
-const dmMono = DM_Mono({
-  variable: "--font-dm-mono",
-  weight: "400",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: {
     default: "PRO SOTA | Arquitectura, Engenharia e Construção",
     template: "%s | PRO SOTA",
   },
   description:
-    "Desde 1997, damos forma às ideias e construímos o futuro.",
+    "PRO SOTA é uma empresa de Arquitectura, Engenharia e Construção em Angola. Oferecemos serviços de design, construção e gestão de projectos.",
   icons: {
     icon: "/images/logo-vertical.png",
     apple: "/images/logo-vertical.png",
