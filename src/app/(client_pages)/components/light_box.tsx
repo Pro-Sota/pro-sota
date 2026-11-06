@@ -1,6 +1,7 @@
 
 "use client";
 
+import { getStorageImageUrl } from "@/app/lib/supabase/storage";
 import Image from "next/image";
 import {
   useEffect,
@@ -33,13 +34,16 @@ export default function Lightbox({
   // Important: handle null before accessing project properties.
   if (!project) return null;
 
+
   const images = Array.isArray(project.images)
     ? project.images.filter(
-        (image) =>
-          typeof image === "string" &&
-          image.trim().length > 0
-      )
-    : [];
+      (image) =>
+        typeof image === "string" &&
+        image.trim().length > 0
+    ).map((image) =>
+      getStorageImageUrl(image, "portfolio")
+    ) : [];
+
 
   const currentImage = images[activeImage];
 
@@ -397,10 +401,9 @@ export default function Lightbox({
                   focus-visible:outline
                   focus-visible:outline-2
                   focus-visible:outline-[#BD9655]
-                  ${
-                    activeImage === index
-                      ? "w-8 bg-[#BD9655]"
-                      : "w-3 bg-white/25 hover:bg-white/60"
+                  ${activeImage === index
+                    ? "w-8 bg-[#BD9655]"
+                    : "w-3 bg-white/25 hover:bg-white/60"
                   }
                 `}
               />

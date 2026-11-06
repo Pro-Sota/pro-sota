@@ -23,25 +23,42 @@ const robotoMono = Roboto_Mono({
   subsets: ["latin"],
 });
 
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.prosota.ao"),
+
   title: {
     default: "PRO SOTA | Arquitectura, Engenharia e Construção",
     template: "%s | PRO SOTA",
   },
+
   description:
-    "PRO SOTA é uma empresa de Arquitectura, Engenharia e Construção em Angola. Oferecemos serviços de design, construção e gestão de projectos.",
-  icons: {
-    icon: "/images/logo-vertical.png",
-    apple: "/images/logo-vertical.png",
-  },
+    "A PRO SOTA é uma empresa angolana de arquitectura, engenharia, construção e fiscalização, com experiência desde 1997.",
+
   openGraph: {
-    title: "PRO SOTA",
-    description: "Arquitectura, Engenharia e Construção em Angola.",
-    images: ["/images/logo-vertical.png"],
+    type: "website",
+    locale: "pt_AO",
+    siteName: "PRO SOTA",
+    title: "PRO SOTA | Damos forma às ideias. Construímos o futuro.",
+    description:
+      "Arquitectura, Engenharia, Construção e Fiscalização em Angola.",
+    url: "https://www.prosota.ao",
+    images: [
+      {
+        url: "/images/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "PRO SOTA — Arquitectura, Engenharia e Construção",
+      },
+    ],
   },
+
   twitter: {
-    card: "summary",
-    images: ["/images/logo-vertical.png"],
+    card: "summary_large_image",
+    title: "PRO SOTA",
+    description:
+      "Damos forma às ideias. Construímos o futuro.",
+    images: ["/images/og-image.jpg"],
   },
 };
 

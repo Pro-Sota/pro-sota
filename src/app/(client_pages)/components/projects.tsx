@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-
+import { getStorageImageUrl } from "@/app/lib/supabase/storage";
 import Lightbox from "./light_box";
 import ProjectCover from "./project_cover";
 
@@ -48,12 +48,18 @@ export default function ProjectsShowcase({
   const [selectedProjectId, setSelectedProjectId] =
     useState<string | null>(null);
 
-  const safeProjects = Array.isArray(projects)
-    ? projects
-        .filter(isValidProject)
-        .slice(0, 4)
-    : [];
+const safeProjects = Array.isArray(projects)
+  ? projects
+      .filter(isValidProject)
+      .sort((a, b) => {
+        const yearA = Number(a.year) || 0;
+        const yearB = Number(b.year) || 0;
 
+        return yearB - yearA;
+      })
+      .slice(0, 4)
+  : [];
+  
   const selectedProject =
     safeProjects.find(
       (project) => project.id === selectedProjectId
@@ -80,6 +86,15 @@ export default function ProjectsShowcase({
     );
   }
 
+  console.log(
+    "PROJECT IMAGE DEBUG:",
+    safeProjects.map((project) => ({
+      name: project.name,
+      images: project.images,
+      firstImage: project.images?.[0],
+    }))
+  );
+
   return (
     <>
       <section
@@ -88,7 +103,10 @@ export default function ProjectsShowcase({
       >
         <div className="grid grid-cols-1 gap-x-6 gap-y-14 md:grid-cols-2 lg:gap-x-10 lg:gap-y-20">
           {safeProjects.map((project, index) => {
-            const images = getProjectImages(project.images);
+            const images = getProjectImages(project.images).map((image) =>
+              getStorageImageUrl(image, "portfolio")
+            );
+
             const cover = images[0];
 
             const meta = [
@@ -113,10 +131,9 @@ export default function ProjectsShowcase({
                   focus-visible:outline-offset-4
                   focus-visible:outline-[#f0eee9]
                   disabled:cursor-default
-                  ${
-                    index % 2 === 1
-                      ? "md:mt-24"
-                      : ""
+                  ${index % 2 === 1
+                    ? "md:mt-24"
+                    : ""
                   }
                 `}
               >
