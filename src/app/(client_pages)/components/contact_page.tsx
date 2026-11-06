@@ -8,6 +8,8 @@ import type {
 } from "react";
 
 import { submitContact } from "@/actions/contact_submission";
+import CustomSelect from "@/app/components/custom_select";
+import { useToast } from "@/app/components/toast/use_toast";
 
 export default function Contact() {
   const [status, setStatus] = useState("");
@@ -15,6 +17,8 @@ export default function Contact() {
   const [imageName, setImageName] = useState("");
 
   const imageInput = useRef<HTMLInputElement>(null);
+
+  const toast = useToast();
 
   // Actualiza o nome da imagem seleccionada.
   function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
@@ -71,9 +75,8 @@ export default function Contact() {
           result.error || "Não foi possível enviar o pedido."
         );
       }
-
-      setStatus(
-        "Pedido recebido. Entraremos em contacto consigo em breve."
+      toast.success(
+          "Pedido enviado com sucesso! Entraremos em contacto consigo em breve.",
       );
 
       form.reset();
@@ -154,7 +157,7 @@ export default function Contact() {
 
               <label>
                 Tipo de serviço *
-                <select
+                <CustomSelect
                   name="service"
                   required
                   defaultValue=""
@@ -178,12 +181,12 @@ export default function Contact() {
                   <option value="Outro">
                     Outro
                   </option>
-                </select>
+                </CustomSelect>
               </label>
 
               <label>
                 Urgência (opcional)
-                <select
+                <CustomSelect
                   name="urgency"
                   defaultValue=""
                   disabled={busy}
@@ -200,7 +203,7 @@ export default function Contact() {
                   <option value="1 a 3 meses">
                     1 a 3 meses
                   </option>
-                </select>
+                </CustomSelect>
               </label>
 
               <div className="contact-form__upload">

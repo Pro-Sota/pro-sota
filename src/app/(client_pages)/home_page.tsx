@@ -17,15 +17,8 @@ import "../admin.css";
 import WhyUs from "./components/why_us";
 import Services from "./components/services";
 import ServicesSection from "./components/service_component";
+import ProjectsShowcase from "./components/projects";
 
-type Project = {
-  id: string;
-  name: string;
-  category: string;
-  year: string | number;
-  images?: string[];
-  [k: string]: unknown;
-};
 
 // Reuses whatever type Lightbox expects, so no `as never` is needed.
 type LightboxProject = React.ComponentProps<typeof Lightbox>["project"];
@@ -81,11 +74,14 @@ export function SectionHeader({
   );
 }
 
-export default function HomeClient({ projects }: { projects: Project[] }) {
+export default function HomeClient({ projects }: { projects: any[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   const featured = projects.slice(0, FEATURED_COUNT);
   const openProject = projects.find((p) => p.id === openId) ?? null;
+
+            {console.log("projects", featured)}
+
 
   return (
     <>
@@ -130,8 +126,7 @@ export default function HomeClient({ projects }: { projects: Project[] }) {
               </Link>
             </div>
 
-            <Projects projects={featured} onOpen={setOpenId} />
-
+            <ProjectsShowcase projects={featured} />
             <div className="mt-12 flex flex-col justify-between gap-4 border-t border-navy/15 pt-6 text-xs text-[#5F656A] sm:flex-row">
               <p>Uma selecção de projectos que reflecte a nossa experiência.</p>
               <p className="font-medium uppercase tracking-wider">

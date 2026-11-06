@@ -1,7 +1,8 @@
 
 import "server-only";
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/app/lib/supabase/server";
+import { cookies } from "next/headers";
 
 export type ContactResult = {
   success: boolean;
@@ -27,23 +28,16 @@ const ALLOWED_URGENCIES = [
 
 const STORAGE_BUCKET = "contact-attachments";
 
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUCCESS_MESSAGE =
+  "Pedido recebido. Entraremos em contacto consigo em breve.";
 
-  if (!url || !serviceKey) {
-    throw new Error("Configuração do servidor incompleta.");
-  }
+/* -------------------------------------------------------------------------- */
+/* Image Validation                                                           */
+/* -------------------------------------------------------------------------- */
 
-  return createClient(url, serviceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
-
-async function validateImage(file: File): Promise<string | null> {
+async function validateImage(
+  file: File
+): Promise<string | null> {
   if (file.size > MAX_IMAGE_SIZE) {
     return "A imagem deve ter até 3 MB.";
   }
@@ -93,25 +87,30 @@ async function validateImage(file: File): Promise<string | null> {
     : "O conteúdo da imagem não corresponde ao formato indicado.";
 }
 
+/* -------------------------------------------------------------------------- */
+/* Contact Submission                                                         */
+/* -------------------------------------------------------------------------- */
+
 export async function createContactSubmission(
   formData: FormData
 ): Promise<ContactResult> {
   let uploadedPath: string | null = null;
 
-  const supabase = getSupabaseAdmin();
-
   try {
-    const getValue = (key: string) =>
+    const getValue = (key: string): string =>
       String(formData.get(key) ?? "").trim();
 
     // Honeypot protection.
     if (getValue("website")) {
       return {
         success: true,
-        message:
-          "Pedido recebido. Entraremos em contacto consigo em breve.",
+        message: SUCCESS_MESSAGE,
       };
     }
+
+    /* ---------------------------------------------------------------------- */
+    /* Validate Form Fields                                                    */
+    /* ---------------------------------------------------------------------- */
 
     const name = getValue("name");
     const email = getValue("email");
@@ -120,7 +119,6 @@ export async function createContactSubmission(
     const urgency = getValue("urgency");
     const message = getValue("message");
 
-    // Field validation.
     if (name.length < 2 || name.length > 120) {
       throw new Error("Introduza um nome válido.");
     }
@@ -143,7 +141,10 @@ export async function createContactSubmission(
       throw new Error("Seleccione um tipo de serviço válido.");
     }
 
-    if (urgency && !ALLOWED_URGENCIES.includes(urgency)) {
+    if (
+      urgency &&
+      !ALLOWED_URGENCIES.includes(urgency)
+    ) {
       throw new Error("Seleccione uma urgência válida.");
     }
 
@@ -153,82 +154,105 @@ export async function createContactSubmission(
       );
     }
 
+    /* ---------------------------------------------------------------------- */
+    /* Validate Image                                                          */
+    /* ---------------------------------------------------------------------- */
+
     const file = formData.get("image");
 
     if (file !== null && !(file instanceof File)) {
       throw new Error("Ficheiro inválido.");
     }
 
-    // Validate and upload optional image.
     if (file instanceof File && file.size > 0) {
       const imageError = await validateImage(file);
 
       if (imageError) {
         throw new Error(imageError);
       }
+    }
 
-      const extension =
-        file.type === "image/jpeg"
-          ? "jpg"
-          : file.type.split("/")[1];
+    /* ---------------------------------------------------------------------- */
+    /* Authenticated Supabase Server Client                                    */
+    /* ---------------------------------------------------------------------- */
 
-      const fileName = `${crypto.randomUUID()}.${extension}`;
+    const supabase = await createClient(await cookies());
 
-      uploadedPath = `contact/${fileName}`;
+    /* ---------------------------------------------------------------------- */
+    /* Upload Image                                                            */
+    /* ---------------------------------------------------------------------- */
+
+    if (file instanceof File && file.size > 0) {
+      const extensions: Record<string, string> = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+      };
+
+      const extension = extensions[file.type];
+
+      if (!extension) {
+        throw new Error("Formato de imagem não suportado.");
+      }
+
+      uploadedPath =
+        `contact/${crypto.randomUUID()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from(STORAGE_BUCKET)
         .upload(uploadedPath, file, {
           contentType: file.type,
+          cacheControl: "3600",
           upsert: false,
         });
 
       if (uploadError) {
-        throw new Error("Não foi possível guardar a imagem.");
+        console.error("[CONTACT STORAGE UPLOAD ERROR]", {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          bucket: STORAGE_BUCKET,
+          path: uploadedPath,
+        });
+
+        throw new Error(
+          "Não foi possível guardar a imagem. Tente novamente."
+        );
       }
-    }
-
-    // Register the contact request as a new lead.
-    const { error: insertError } = await supabase
-      .from("leads")
-      .insert({
-        name,
-        email: email || null,
-        phone,
-        project_type: service,
-        description: message || null,
-        urgency: urgency || null,
-        image_path: uploadedPath,
-        source: "website",
-        status: "new",
-        created_by: null,
-      });
-
-    if (insertError) {
-      console.error("Contact submission error:", insertError);
-      throw new Error(
-        "Não foi possível registar o pedido. Tente novamente."
-      );
     }
 
     return {
       success: true,
-      message:
-        "Pedido recebido. Entraremos em contacto consigo em breve.",
+      message: SUCCESS_MESSAGE,
     };
-  } catch (error) {
-    // Roll back the uploaded image if database insertion fails.
-    if (uploadedPath) {
-      const { error: cleanupError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .remove([uploadedPath]);
 
-      if (cleanupError) {
-        console.error("Contact image cleanup error:", cleanupError);
+  } catch (error) {
+    /* ---------------------------------------------------------------------- */
+    /* Rollback Uploaded Image                                                 */
+    /* ---------------------------------------------------------------------- */
+
+    if (uploadedPath) {
+      try {
+        const supabase = await createClient(await cookies());
+
+        const { error: cleanupError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .remove([uploadedPath]);
+
+        if (cleanupError) {
+          console.error(
+            "[CONTACT IMAGE CLEANUP ERROR]",
+            cleanupError
+          );
+        }
+      } catch (cleanupError) {
+        console.error(
+          "[CONTACT IMAGE CLEANUP EXCEPTION]",
+          cleanupError
+        );
       }
     }
 
-    console.error("Create contact submission:", error);
+    console.error("[CREATE CONTACT SUBMISSION ERROR]", error);
 
     return {
       success: false,

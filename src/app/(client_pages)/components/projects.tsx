@@ -1,52 +1,155 @@
+
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
-type P = { id: string; name: string; category: string; year: string | number; images?: string[] };
+import Lightbox from "./light_box";
+import ProjectCover from "./project_cover";
 
-/* Index of projects: a list you read like a drawing register.
-   On desktop, the cover follows the cursor; on mobile, a thumbnail sits in each row. */
-export default function Projects({ projects, onOpen }: { projects: P[]; onOpen: (id: string) => void }) {
-  const [hover, setHover] = useState<P | null>(null);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const cover = hover?.images?.[0];
+import type { LightboxProject } from "./light_box";
+
+export type DisplayProject = LightboxProject & {
+  category: string;
+  categories: string[];
+  summary: string;
+  description: string;
+  featured: boolean;
+};
+
+interface ProjectsShowcaseProps {
+  projects: DisplayProject[];
+}
+
+function getProjectImages(images: unknown): string[] {
+  if (!Array.isArray(images)) return [];
+
+  return images.filter(
+    (image): image is string =>
+      typeof image === "string" &&
+      image.trim().length > 0
+  );
+}
+
+function isValidProject(
+  project: DisplayProject | null | undefined
+): project is DisplayProject {
+  return Boolean(
+    project &&
+    typeof project.id === "string" &&
+    project.id.trim() &&
+    typeof project.name === "string" &&
+    project.name.trim()
+  );
+}
+
+export default function ProjectsShowcase({
+  projects,
+}: ProjectsShowcaseProps) {
+  const [selectedProjectId, setSelectedProjectId] =
+    useState<string | null>(null);
+
+  const safeProjects = Array.isArray(projects)
+    ? projects
+        .filter(isValidProject)
+        .slice(0, 4)
+    : [];
+
+  const selectedProject =
+    safeProjects.find(
+      (project) => project.id === selectedProjectId
+    ) ?? null;
+
+  const closeLightbox = useCallback(() => {
+    setSelectedProjectId(null);
+  }, []);
+
+  const openLightbox = useCallback((projectId: string) => {
+    setSelectedProjectId(projectId);
+  }, []);
+
+  if (safeProjects.length === 0) {
+    return (
+      <section
+        id="projects"
+        className="bg-[#101010] px-6 py-32 text-[#f0eee9] md:px-12 lg:px-20"
+      >
+        <p className="text-sm text-white/50">
+          Ainda não há projectos publicados.
+        </p>
+      </section>
+    );
+  }
 
   return (
-    <div onMouseLeave={() => setHover(null)} onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}>
-      <ul className="border-t border-ink">
-        {projects.map((p) => (
-          <li key={p.id} className="border-b border-line">
-            <button
-              type="button"
-              onClick={() => onOpen(p.id)}
-              onMouseEnter={() => setHover(p)}
-              onFocus={() => setHover(p)}
-              onBlur={() => setHover(null)}
-              aria-label={`Ver projecto ${p.name}`}
-              className="group grid w-full grid-cols-[1fr_auto] items-center gap-4 py-5 text-left transition-[padding] duration-300 hover:pl-3 focus-visible:outline-2 focus-visible:outline-gold md:grid-cols-[1fr_200px_80px]"
-            >
-              <span className="flex items-center gap-4">
-                {p.images?.[0] && (
-                  <img src={p.images[0]} alt="" loading="lazy" className="size-14 rounded object-cover md:hidden" />
-                )}
-                <span className="text-xl font-medium tracking-tight md:text-3xl">{p.name}</span>
-              </span>
-              <span className="hidden text-sm text-mute md:block">{p.category}</span>
-              <span className="text-sm tabular-nums text-mute md:text-right">{p.year}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+    <>
+      <section
+        id="projects"
+        className="bg-[#101010] px-6 py-16 text-[#f0eee9] md:px-12 md:py-24 lg:px-20"
+      >
+        <div className="grid grid-cols-1 gap-x-6 gap-y-14 md:grid-cols-2 lg:gap-x-10 lg:gap-y-20">
+          {safeProjects.map((project, index) => {
+            const images = getProjectImages(project.images);
+            const cover = images[0];
 
-      {cover && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed left-0 top-0 z-50 hidden h-60 w-80 overflow-hidden shadow-2xl md:block"
-          style={{ transform: `translate(${pos.x + 24}px, ${pos.y - 120}px)` }}
-        >
-          <img src={cover} alt="" className="size-full object-cover" />
+            const meta = [
+              project.location,
+              project.year,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+
+            return (
+              <button
+                key={project.id}
+                type="button"
+                onClick={() => openLightbox(project.id)}
+                aria-label={`Ver imagens do projecto ${project.name}`}
+                aria-haspopup="dialog"
+                disabled={images.length === 0}
+                className={`
+                  group block w-full text-left
+                  focus-visible:outline
+                  focus-visible:outline-2
+                  focus-visible:outline-offset-4
+                  focus-visible:outline-[#f0eee9]
+                  disabled:cursor-default
+                  ${
+                    index % 2 === 1
+                      ? "md:mt-24"
+                      : ""
+                  }
+                `}
+              >
+                <ProjectCover
+                  src={cover}
+                  alt={project.name}
+                  priority={index === 0}
+                />
+
+                <div className="pt-4">
+                  <h3 className="text-xl font-light tracking-tight md:text-2xl">
+                    {project.name}
+                  </h3>
+
+                  {meta && (
+                    <p className="mt-1 text-sm text-white/45">
+                      {meta}
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
+      </section>
+
+      {selectedProject && (
+        <Lightbox
+          key={selectedProject.id}
+          project={selectedProject}
+          onClose={closeLightbox}
+        />
       )}
-    </div>
+    </>
   );
 }

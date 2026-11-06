@@ -18,14 +18,14 @@ import Contact from "../components/contact_page";
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 
-type PortfolioProject = {
+export type PortfolioProject = {
   id: string;
   name: string;
   slug: string;
   category: string;
   location: string | null;
   year: number | null;
-  summary?: string | null;
+  summary: string | null;
   description: string | null;
   cover_image: string | null;
   gallery: string[];
@@ -40,6 +40,7 @@ type DisplayProject = {
   id: string;
   name: string;
   category: string;
+  categories: string[];
   year: string;
   location: string;
   summary: string;
@@ -77,6 +78,13 @@ const RESIDENTIAL_CATEGORIES = [
   "residencial unifamiliar",
 ];
 
+const CORE_CATEGORIES = [
+  "Arquitectura",
+  "Engenharia",
+  "Construção",
+  "Fiscalização",
+];
+
 const normalizeCategory = (category: string) =>
   category
     .trim()
@@ -84,18 +92,63 @@ const normalizeCategory = (category: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
+/**
+ * Supports both individual categories and projects
+ * containing multiple categories.
+ *
+ * Examples:
+ * "Arquitectura"
+ * "Arquitectura, Engenharia"
+ * "Arquitectura; Engenharia; Construção"
+ */
+const parseCategories = (category: string): string[] => {
+  if (!category?.trim()) return [];
+
+  return [
+    ...new Set(
+      category
+        .split(/[,;|]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
+};
+
+const isResidential = (categories: string[]) =>
+  categories.some((category) =>
+    RESIDENTIAL_CATEGORIES.includes(
+      normalizeCategory(category),
+    ),
+  );
+
+const isIntegrated = (categories: string[]) => {
+  const normalized = categories.map(normalizeCategory);
+
+  return CORE_CATEGORIES.every((category) =>
+    normalized.includes(normalizeCategory(category)),
+  );
+};
+
 const matchesCategory = (
-  projectCategory: string,
+  projectCategories: string[],
   activeCategory: string,
 ) => {
-  const projectKey = normalizeCategory(projectCategory);
-  const activeKey = normalizeCategory(activeCategory);
+  const active = normalizeCategory(activeCategory);
 
-  if (activeKey === "residencial") {
-    return RESIDENTIAL_CATEGORIES.includes(projectKey);
+  if (active === "todos") return true;
+
+  if (active === "multidisciplinar") {
+    return isIntegrated(projectCategories);
   }
 
-  return projectKey === activeKey;
+  if (active === "residencial") {
+    return isResidential(projectCategories);
+  }
+
+  return projectCategories.some(
+    (category) =>
+      normalizeCategory(category) === active,
+  );
 };
 
 /* -------------------------------------------------------------------------- */
@@ -133,18 +186,31 @@ const LAYOUTS = [
 /* Component                                                                  */
 /* -------------------------------------------------------------------------- */
 
-export default function PortfolioClient({
-  projects,
+export default function ProjectsPage({
+  projects: initialProjects,
   projectId,
 }: PortfolioClientProps) {
-  const [activeCategory, setActiveCategory] = useState("Todos");
+  const projects = Array.isArray(initialProjects)
+    ? initialProjects
+    : [];
+
+  const [activeCategory, setActiveCategory] =
+    useState("Todos");
+
   const [selectedProject, setSelectedProject] =
     useState<DisplayProject | null>(null);
-  const [isContactOpen, setIsContactOpen] = useState(false);
 
-  const contactTriggerRef = useRef<HTMLButtonElement>(null);
-  const contactDialogRef = useRef<HTMLDivElement>(null);
-  const contactCloseRef = useRef<HTMLButtonElement>(null);
+  const [isContactOpen, setIsContactOpen] =
+    useState(false);
+
+  const contactTriggerRef =
+    useRef<HTMLButtonElement>(null);
+
+  const contactDialogRef =
+    useRef<HTMLDivElement>(null);
+
+  const contactCloseRef =
+    useRef<HTMLButtonElement>(null);
 
   /* ------------------------------------------------------------------------ */
   /* Prepare projects                                                         */
@@ -152,32 +218,48 @@ export default function PortfolioClient({
 
   const displayProjects = useMemo<DisplayProject[]>(() => {
     return projects
-      .filter((project) => project.status === "published")
+      .filter(Boolean)
       .sort((a, b) => {
         if (a.featured !== b.featured) {
           return a.featured ? -1 : 1;
         }
 
-        return a.display_order - b.display_order;
+        return (
+          (a.display_order ?? 0) -
+          (b.display_order ?? 0)
+        );
       })
       .map((project) => {
+        const categories = parseCategories(
+          project.category ?? "",
+        );
+
         const images = [
           project.cover_image,
           ...(project.gallery ?? []),
-        ].filter((image): image is string =>
-          Boolean(image?.trim()),
+        ].filter(
+          (image): image is string =>
+            typeof image === "string" &&
+            Boolean(image.trim()),
         );
 
         return {
           id: project.slug || project.id,
           name: project.name,
           category: project.category,
-          year: project.year ? String(project.year) : "",
+          categories,
+          year: project.year
+            ? String(project.year)
+            : "",
           location: project.location ?? "",
           summary:
-            project.summary ?? project.description ?? "",
+            project.summary ??
+            project.description ??
+            "",
           description:
-            project.description ?? project.summary ?? "",
+            project.description ??
+            project.summary ??
+            "",
           images: [...new Set(images)],
           featured: project.featured,
         };
@@ -185,50 +267,65 @@ export default function PortfolioClient({
   }, [projects]);
 
   /* ------------------------------------------------------------------------ */
-  /* Categories                                                               */
+  /* Dynamic categories                                                       */
   /* ------------------------------------------------------------------------ */
 
   const categories = useMemo(() => {
-    const availableCategories = new Set(
-      displayProjects
-        .map((project) => project.category.trim())
-        .filter(Boolean),
-    );
+    const available = new Map<string, string>();
 
-    const hasResidentialProjects = [...availableCategories].some(
-      (category) =>
-        RESIDENTIAL_CATEGORIES.includes(
-          normalizeCategory(category),
-        ),
-    );
+    displayProjects.forEach((project) => {
+      project.categories.forEach((category) => {
+        const key = normalizeCategory(category);
 
-    const orderedCategories = CATEGORIES.filter((category) => {
-      if (category === "Residencial") {
-        return hasResidentialProjects;
-      }
-
-      return [...availableCategories].some(
-        (available) =>
-          normalizeCategory(available) ===
-          normalizeCategory(category),
-      );
+        if (key && !available.has(key)) {
+          available.set(key, category);
+        }
+      });
     });
 
-    const additionalCategories = [...availableCategories].filter(
+    const availableCategories = [
+      ...available.values(),
+    ];
+
+    const hasResidential = displayProjects.some(
+      (project) => isResidential(project.categories),
+    );
+
+    const hasIntegrated = displayProjects.some(
+      (project) => isIntegrated(project.categories),
+    );
+
+    const ordered = CATEGORIES.filter((category) => {
+      if (category === "Residencial") {
+        return hasResidential;
+      }
+
+      return available.has(normalizeCategory(category));
+    });
+
+    const additional = availableCategories.filter(
       (category) =>
         !CATEGORIES.some(
           (known) =>
             normalizeCategory(known) ===
             normalizeCategory(category),
+        ) &&
+        !RESIDENTIAL_CATEGORIES.includes(
+          normalizeCategory(category),
         ),
     );
 
     return [
       "Todos",
-      ...orderedCategories,
-      ...additionalCategories,
+      ...ordered,
+      ...(hasIntegrated ? ["Multidisciplinar"] : []),
+      ...additional,
     ];
   }, [displayProjects]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Filtering                                                                */
+  /* ------------------------------------------------------------------------ */
 
   const filteredProjects = useMemo(() => {
     if (activeCategory === "Todos") {
@@ -236,7 +333,10 @@ export default function PortfolioClient({
     }
 
     return displayProjects.filter((project) =>
-      matchesCategory(project.category, activeCategory),
+      matchesCategory(
+        project.categories,
+        activeCategory,
+      ),
     );
   }, [displayProjects, activeCategory]);
 
@@ -247,14 +347,17 @@ export default function PortfolioClient({
       }
 
       return displayProjects.filter((project) =>
-        matchesCategory(project.category, category),
+        matchesCategory(
+          project.categories,
+          category,
+        ),
       ).length;
     },
     [displayProjects],
   );
 
   /* ------------------------------------------------------------------------ */
-  /* Project gallery and URL navigation                                       */
+  /* Gallery navigation                                                       */
   /* ------------------------------------------------------------------------ */
 
   const openGallery = useCallback(
@@ -267,41 +370,47 @@ export default function PortfolioClient({
 
       setSelectedProject(project);
 
+      const url = `/projects/${encodeURIComponent(id)}`;
+
       window.history.pushState(
         {
           ...(window.history.state ?? {}),
           portfolioGallery: true,
         },
         "",
-        `/projectos/${encodeURIComponent(id)}`,
+        url,
       );
     },
     [displayProjects],
   );
 
   const closeGallery = useCallback(() => {
-    setSelectedProject(null);
-
     if (window.history.state?.portfolioGallery) {
       window.history.back();
-    } else {
-      window.history.replaceState(
-        null,
-        "",
-        "/projectos",
-      );
+      return;
     }
+
+    setSelectedProject(null);
+
+    window.history.replaceState(
+      null,
+      "",
+      "/projects",
+    );
   }, []);
 
-  // Support browser back and forward navigation.
+  /* ------------------------------------------------------------------------ */
+  /* Browser navigation                                                       */
+  /* ------------------------------------------------------------------------ */
+
   useEffect(() => {
     const handlePopState = () => {
       const pathname = window.location.pathname;
-      const projectPrefix = "/projectos/";
+      const prefix = "/projects/";
 
-      if (pathname.startsWith(projectPrefix)) {
+      if (pathname.startsWith(prefix)) {
         const slug = decodeURIComponent(
-          pathname.slice(projectPrefix.length),
+          pathname.slice(prefix.length),
         );
 
         const project = displayProjects.find(
@@ -317,11 +426,17 @@ export default function PortfolioClient({
     window.addEventListener("popstate", handlePopState);
 
     return () => {
-      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener(
+        "popstate",
+        handlePopState,
+      );
     };
   }, [displayProjects]);
 
-  // Open a project when entering through its direct URL.
+  /* ------------------------------------------------------------------------ */
+  /* Direct project URL                                                       */
+  /* ------------------------------------------------------------------------ */
+
   useEffect(() => {
     if (!projectId) return;
 
@@ -329,16 +444,18 @@ export default function PortfolioClient({
       (item) => item.id === projectId,
     );
 
-    if (project) {
-      setSelectedProject(project);
-    }
+    setSelectedProject(project ?? null);
   }, [projectId, displayProjects]);
 
-  // Manage gallery scrolling and keyboard dismissal.
+  /* ------------------------------------------------------------------------ */
+  /* Gallery scroll and keyboard                                               */
+  /* ------------------------------------------------------------------------ */
+
   useEffect(() => {
     if (!selectedProject) return;
 
-    const previousOverflow = document.body.style.overflow;
+    const previousOverflow =
+      document.body.style.overflow;
 
     document.body.style.overflow = "hidden";
 
@@ -353,7 +470,10 @@ export default function PortfolioClient({
     return () => {
       document.body.style.overflow = previousOverflow;
 
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown,
+      );
     };
   }, [selectedProject, closeGallery]);
 
@@ -372,11 +492,12 @@ export default function PortfolioClient({
   useEffect(() => {
     if (!isContactOpen) return;
 
-    const previousOverflow = document.body.style.overflow;
+    const previousOverflow =
+      document.body.style.overflow;
 
     document.body.style.overflow = "hidden";
 
-    requestAnimationFrame(() => {
+    const frame = window.requestAnimationFrame(() => {
       contactCloseRef.current?.focus();
     });
 
@@ -392,37 +513,41 @@ export default function PortfolioClient({
 
       if (!dialog) return;
 
-      const focusableElements = dialog.querySelectorAll<HTMLElement>(
+      const elements = dialog.querySelectorAll<HTMLElement>(
         'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
       );
 
-      const firstElement = focusableElements[0];
-      const lastElement =
-        focusableElements[focusableElements.length - 1];
+      const first = elements[0];
+      const last = elements[elements.length - 1];
 
-      if (!firstElement || !lastElement) return;
+      if (!first || !last) return;
 
       if (
         event.shiftKey &&
-        document.activeElement === firstElement
+        document.activeElement === first
       ) {
         event.preventDefault();
-        lastElement.focus();
+        last.focus();
       } else if (
         !event.shiftKey &&
-        document.activeElement === lastElement
+        document.activeElement === last
       ) {
         event.preventDefault();
-        firstElement.focus();
+        first.focus();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
+      window.cancelAnimationFrame(frame);
+
       document.body.style.overflow = previousOverflow;
 
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown,
+      );
 
       contactTriggerRef.current?.focus();
     };
@@ -437,111 +562,165 @@ export default function PortfolioClient({
       <Nav />
 
       {/* ------------------------------------------------------------------ */}
-      {/* INTRODUCTION + FILTERS                                             */}
+      {/* HERO                                                               */}
       {/* ------------------------------------------------------------------ */}
 
       <section
         id="portfolio-projects"
-        className="mx-auto w-full max-w-[1600px] px-6 pb-20 pt-32 md:px-12 md:pb-28 md:pt-40 lg:px-16"
+        className="relative overflow-hidden bg-navy px-6 pb-16 pt-32 text-white md:px-12 md:pb-20 md:pt-40 lg:px-16"
       >
-        {/* Editorial introduction */}
-        <div className="max-w-4xl">
-          <p className="mb-5 text-[10px] font-semibold uppercase tracking-[0.24em] text-gold-deep">
-            PRO SOTA <span className="mx-2 text-navy/30">/</span>
-            Portfólio
-          </p>
+        {/* Decorative background */}
 
-          <h1 className="text-[clamp(3rem,6vw,5.5rem)] font-semibold leading-[0.95] tracking-[-0.055em]">
-            Projectos
-          </h1>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-40 -top-40 size-[500px] rounded-full border border-white/[0.07] md:size-[700px]"
+        />
 
-          <p className="mt-6 max-w-2xl text-base leading-7 text-gray-400 md:text-lg md:leading-8">
-            Uma selecção de projectos que reflectem a nossa
-            experiência, visão e compromisso com a arquitectura,
-            engenharia e construção.
-          </p>
-        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-20 -top-20 size-[400px] rounded-full border border-gold/20 md:size-[600px]"
+        />
 
-        {/* Category filters */}
-        <div className="mt-12 border-b border-navy/15 md:mt-16">
-          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-            <div
-              role="group"
-              aria-label="Filtrar projectos por categoria"
-              className="-mx-6 flex gap-7 overflow-x-auto px-6 md:mx-0 md:flex-wrap md:gap-x-8 md:gap-y-1 md:overflow-visible md:px-0"
-            >
-              {categories.map((category) => {
-                const isActive = activeCategory === category;
-                const count = getCategoryCount(category);
+        <div className="relative mx-auto w-full max-w-[1600px]">
+          <div className="max-w-4xl">
+            <p className="mb-5 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-gold">
+              PRO SOTA
+              <span className="h-px w-8 bg-gold/60" />
+              Portfólio
+            </p>
 
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => setActiveCategory(category)}
-                    aria-pressed={isActive}
-                    className={`group -mb-px flex shrink-0 items-center gap-2 border-b-2 py-4 text-sm font-medium transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${
-                      isActive
-                        ? "border-gold text-navy"
-                        : "border-transparent text-navy/50 hover:text-navy"
-                    }`}
-                  >
-                    {category}
+            <h1 className="text-[clamp(2.75rem,5.5vw,4.75rem)] font-semibold leading-[0.95] tracking-[-0.055em]">
+              Projectos
+              <span className="text-gold">.</span>
+            </h1>
 
-                    <span
-                      className={`text-[10px] tabular-nums transition-colors ${
-                        isActive
-                          ? "text-gold-deep"
-                          : "text-navy/35 group-hover:text-navy/60"
-                      }`}
-                    >
-                      {String(count).padStart(2, "0")}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <p
-              className="shrink-0 pb-4 text-xs text-gray-400"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              A mostrar{" "}
-              <span className="font-semibold text-navy">
-                {filteredProjects.length}
-              </span>{" "}
-              {filteredProjects.length === 1
-                ? "projecto"
-                : "projectos"}
+            <p className="mt-7 max-w-2xl text-base leading-7 text-white/65 md:text-lg md:leading-8">
+              Uma selecção de projectos que reflectem a
+              nossa experiência, visão e compromisso com a
+              arquitectura, engenharia e construção.
             </p>
           </div>
+
+          {/* Hero bottom information */}
+
+          <div className="mt-14 flex items-center justify-between border-t border-white/15 pt-6 md:mt-20">
+            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/45">
+              Angola · Desde 1997
+            </span>
+
+            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-gold">
+              Explorar portfólio
+            </span>
+          </div>
         </div>
+      </section>
 
-        {/* ---------------------------------------------------------------- */}
-        {/* PROJECT GRID                                                     */}
-        {/* ---------------------------------------------------------------- */}
+      {/* ------------------------------------------------------------------ */}
+      {/* CATEGORY FILTERS                                                   */}
+      {/* ------------------------------------------------------------------ */}
 
+      <section className="bg-paper">
+        <div className="mx-auto w-full max-w-[1600px] px-6 md:px-12 lg:px-16">
+          <div className="border-b border-navy/15">
+            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+              <div
+                role="group"
+                aria-label="Filtrar projectos por categoria"
+                className="-mx-6 flex gap-7 overflow-x-auto px-6 md:mx-0 md:flex-wrap md:gap-x-8 md:gap-y-1 md:overflow-visible md:px-0"
+              >
+                {categories.map((category) => {
+                  const isActive =
+                    activeCategory === category;
+
+                  const count =
+                    getCategoryCount(category);
+
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() =>
+                        setActiveCategory(category)
+                      }
+                      aria-pressed={isActive}
+                      className={`group -mb-px flex shrink-0 items-center gap-2 border-b-2 py-5 text-sm font-medium transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${isActive
+                          ? "border-gold text-navy"
+                          : "border-transparent text-navy/50 hover:text-navy"
+                        }`}
+                    >
+                      {category}
+
+                      <span
+                        className={`text-[10px] tabular-nums transition-colors ${isActive
+                            ? "text-gold-deep"
+                            : "text-navy/35 group-hover:text-navy/60"
+                          }`}
+                      >
+                        {String(count).padStart(2, "0")}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p
+                className="shrink-0 pb-5 text-xs text-gray-400"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                A mostrar{" "}
+                <span className="font-semibold text-navy">
+                  {filteredProjects.length}
+                </span>{" "}
+                {filteredProjects.length === 1
+                  ? "projecto"
+                  : "projectos"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* PROJECT GRID                                                       */}
+      {/* ------------------------------------------------------------------ */}
+
+      
+      {/* ------------------------------------------------------------------ */}
+      {/* PROJECT GRID                                                       */}
+      {/* ------------------------------------------------------------------ */}
+
+      <section className="mx-auto w-full max-w-[1600px] px-6 pb-24 pt-14 md:px-12 md:pb-32 md:pt-20 lg:px-16">
         {filteredProjects.length > 0 ? (
-          <div className="mt-12 grid grid-cols-1 gap-x-6 gap-y-14 md:mt-16 md:grid-cols-12 md:gap-y-24 lg:gap-x-10">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 sm:gap-y-16 lg:gap-x-8 lg:gap-y-20 xl:grid-cols-12">
+
             {filteredProjects.map((project, index) => {
-              const layout = LAYOUTS[index % LAYOUTS.length];
+              const isFeatured = index === 0;
               const cover = project.images[0];
 
               return (
                 <article
                   key={project.id}
-                  className={`min-w-0 ${layout.wrapper}`}
+                  className={`group min-w-0 ${
+                    isFeatured
+                      ? "sm:col-span-2 xl:col-span-8"
+                      : "xl:col-span-4"
+                  }`}
                 >
                   <button
                     type="button"
                     onClick={() => openGallery(project.id)}
-                    className="group block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
                     aria-label={`Ver projecto ${project.name}`}
+                    className="block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
                   >
-                    {/* Image */}
+                    {/* PROJECT IMAGE */}
+
                     <div
-                      className={`relative isolate overflow-hidden bg-stone/40 ${layout.image}`}
+                      className={`relative isolate overflow-hidden bg-stone/40 ${
+                        isFeatured
+                          ? "aspect-[16/10] sm:aspect-[16/9]"
+                          : "aspect-[4/3]"
+                      }`}
                     >
                       {cover ? (
                         <img
@@ -550,36 +729,46 @@ export default function PortfolioClient({
                           loading={index === 0 ? "eager" : "lazy"}
                           fetchPriority={index === 0 ? "high" : "auto"}
                           decoding="async"
-                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.035]"
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-sm font-semibold tracking-[0.2em] text-navy/30">
+                          <span className="text-sm font-semibold tracking-[0.25em] text-navy/30">
                             PRO SOTA
                           </span>
                         </div>
                       )}
 
                       {/* Image overlay */}
+
                       <div
-                        aria-hidden
-                        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/60 via-transparent to-transparent opacity-60 transition-opacity duration-500 group-hover:opacity-90"
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/60 via-transparent to-transparent opacity-50 transition-opacity duration-500 group-hover:opacity-80"
                       />
 
+                      {/* Featured label */}
+
+                      {isFeatured && (
+                        <div className="absolute left-5 top-5 sm:left-7 sm:top-7">
+                          <span className="border border-white/40 bg-navy/30 px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm">
+                            Projecto em destaque
+                          </span>
+                        </div>
+                      )}
+
                       {/* Category */}
-                      <div className="absolute bottom-5 left-5 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.12em] text-white sm:bottom-7 sm:left-7">
-                        <span
-                          aria-hidden
-                          className="h-px w-7 bg-gold"
-                        />
+
+                      <div className="absolute bottom-5 left-5 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white sm:bottom-7 sm:left-7">
+                        <span className="h-px w-7 bg-gold" />
                         {project.category}
                       </div>
 
-                      {/* View indicator */}
-                      <div className="absolute right-5 top-5 flex size-10 translate-y-2 items-center justify-center rounded-full bg-white/95 text-navy opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 sm:right-7 sm:top-7">
+                      {/* View icon */}
+
+                      <div className="absolute right-5 top-5 flex size-11 translate-y-2 items-center justify-center rounded-full bg-white text-navy opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 sm:right-7 sm:top-7">
                         <svg
-                          width="18"
-                          height="18"
+                          width="19"
+                          height="19"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -593,29 +782,43 @@ export default function PortfolioClient({
                       </div>
                     </div>
 
-                    {/* Project information */}
-                    <div className="mt-5 min-w-0">
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-400">
+                    {/* PROJECT INFORMATION */}
+
+                    <div className="mt-5">
+                      {/* Metadata */}
+
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-deep">
                           {project.category}
                         </span>
 
-                        <span className="text-xs tabular-nums text-gray-400">
-                          {[project.location, project.year]
+                        <span className="text-[11px] font-medium tracking-wide text-gray-400">
+                          {[
+                            project.location,
+                            project.year,
+                          ]
                             .filter(Boolean)
                             .join(" · ")}
                         </span>
                       </div>
 
+                      {/* Title and arrow */}
+
                       <div className="flex items-start justify-between gap-4">
-                        <h2 className="text-xl font-semibold leading-snug tracking-[-0.025em] transition-colors duration-300 group-hover:text-gold-deep sm:text-2xl">
+                        <h2
+                          className={`font-semibold leading-tight tracking-[-0.035em] text-navy transition-colors duration-300 group-hover:text-gold-deep ${
+                            isFeatured
+                              ? "text-2xl sm:text-3xl lg:text-4xl"
+                              : "text-xl sm:text-2xl"
+                          }`}
+                        >
                           {project.name}
                         </h2>
 
-                        <span className="mt-1 shrink-0 text-navy/35 transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-gold">
+                        <span className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full border border-navy/10 text-navy/40 transition-all duration-300 group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:border-gold group-hover:text-gold">
                           <svg
-                            width="20"
-                            height="20"
+                            width="16"
+                            height="16"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -629,8 +832,16 @@ export default function PortfolioClient({
                         </span>
                       </div>
 
+                      {/* Description */}
+
                       {project.summary && (
-                        <p className="mt-3 line-clamp-2 max-w-xl text-sm leading-6 text-gray-400">
+                        <p
+                          className={`mt-3 max-w-2xl text-sm leading-6 text-gray-400 ${
+                            isFeatured
+                              ? "sm:text-base sm:leading-7"
+                              : "line-clamp-2"
+                          }`}
+                        >
                           {project.summary}
                         </p>
                       )}
@@ -641,7 +852,6 @@ export default function PortfolioClient({
             })}
           </div>
         ) : (
-          /* Empty state */
           <div className="flex min-h-72 flex-col items-center justify-center py-20 text-center">
             <span className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-gold-deep">
               PRO SOTA
@@ -652,7 +862,7 @@ export default function PortfolioClient({
             </h2>
 
             <p className="mt-3 max-w-md text-sm leading-6 text-gray-400">
-              Não existem projectos publicados nesta categoria.
+              Não existem projectos nesta categoria.
               Experimente seleccionar outra categoria.
             </p>
 
@@ -666,6 +876,7 @@ export default function PortfolioClient({
           </div>
         )}
       </section>
+
 
       {/* ------------------------------------------------------------------ */}
       {/* CONTACT CTA                                                        */}
@@ -686,9 +897,9 @@ export default function PortfolioClient({
               </h2>
 
               <p className="mt-6 max-w-xl text-base leading-7 text-gray-600">
-                Da concepção arquitectónica à execução, estamos
-                preparados para transformar a sua ideia num
-                projecto concreto.
+                Da concepção arquitectónica à execução,
+                estamos preparados para transformar a sua
+                ideia num projecto concreto.
               </p>
             </div>
 
