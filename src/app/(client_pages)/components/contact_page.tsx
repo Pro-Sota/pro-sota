@@ -1,17 +1,13 @@
 
 "use client";
 
-/*
- * Formulário público enviado como JSON para /api/contact.
- * A imagem opcional é convertida numa data URL.
- * A validação definitiva pertence à API.
- */
-
 import { useRef, useState } from "react";
 import type {
   ChangeEvent,
   FormEvent,
 } from "react";
+
+import { submitContact } from "@/actions/contact_submission";
 
 export default function Contact() {
   const [status, setStatus] = useState("");
@@ -20,76 +16,60 @@ export default function Contact() {
 
   const imageInput = useRef<HTMLInputElement>(null);
 
-  // Converte a imagem seleccionada numa data URL.
-  function readImage(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          resolve(reader.result);
-        } else {
-          reject(new Error("Não foi possível processar a imagem."));
-        }
-      };
-
-      reader.onerror = () => {
-        reject(new Error("Erro ao ler a imagem seleccionada."));
-      };
-
-      reader.readAsDataURL(file);
-    });
-  }
-
   // Actualiza o nome da imagem seleccionada.
   function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
-    setImageName(event.target.files?.[0]?.name || "");
+    const file = event.target.files?.[0];
+
+    setImageName(file?.name || "");
+    setStatus("");
+
+    if (!file) return;
+
+    const allowedTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setStatus("Seleccione uma imagem PNG, JPEG ou WebP.");
+      event.target.value = "";
+      setImageName("");
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      setStatus("A imagem deve ter até 3 MB.");
+      event.target.value = "";
+      setImageName("");
+    }
   }
 
-  // Recolhe os campos, prepara a imagem e envia o pedido.
+  // Envia os dados directamente para a Server Action.
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (busy) return;
+
+    const form = event.currentTarget;
+    const file = imageInput.current?.files?.[0];
 
     setBusy(true);
     setStatus("");
 
-    const form = event.currentTarget;
-
     try {
-      const formData = new FormData(form);
-
-      const payload: Record<string, string> = {};
-
-      formData.forEach((value, key) => {
-        if (key !== "image" && typeof value === "string") {
-          payload[key] = value;
-        }
-      });
-
-      const file = formData.get("image");
-
-      if (file instanceof File && file.size > 0) {
-        if (file.size > 3_000_000) {
-          setStatus("A imagem deve ter até 3 MB.");
-          return;
-        }
-
-        payload.imageName = file.name;
-        payload.image = await readImage(file);
+      if (file && file.size > 3 * 1024 * 1024) {
+        throw new Error("A imagem deve ter até 3 MB.");
       }
 
-      const response = await fetch("/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const formData = new FormData(form);
 
-      const result: { error?: string } = await response.json();
+      const result = await submitContact(formData);
 
-      if (!response.ok) {
-        throw new Error(result.error || "Não foi possível enviar o pedido.");
+      if (!result.success) {
+        throw new Error(
+          result.error || "Não foi possível enviar o pedido."
+        );
       }
 
       setStatus(
@@ -98,6 +78,10 @@ export default function Contact() {
 
       form.reset();
       setImageName("");
+
+      if (imageInput.current) {
+        imageInput.current.value = "";
+      }
     } catch (error) {
       setStatus(
         error instanceof Error
@@ -126,7 +110,10 @@ export default function Contact() {
         </h2>
 
         <div className="contact__content">
-          <form className="contact-form" onSubmit={handleSubmit}>
+          <form
+            className="contact-form"
+            onSubmit={handleSubmit}
+          >
             <h3>Peça um orçamento</h3>
 
             <div className="contact-form__grid">
@@ -134,8 +121,11 @@ export default function Contact() {
                 Nome *
                 <input
                   name="name"
+                  type="text"
                   required
                   maxLength={120}
+                  autoComplete="name"
+                  disabled={busy}
                 />
               </label>
 
@@ -145,6 +135,8 @@ export default function Contact() {
                   name="email"
                   type="email"
                   maxLength={200}
+                  autoComplete="email"
+                  disabled={busy}
                 />
               </label>
 
@@ -155,6 +147,8 @@ export default function Contact() {
                   type="tel"
                   required
                   maxLength={50}
+                  autoComplete="tel"
+                  disabled={busy}
                 />
               </label>
 
@@ -164,29 +158,51 @@ export default function Contact() {
                   name="service"
                   required
                   defaultValue=""
+                  disabled={busy}
                 >
                   <option value="" disabled>
                     Seleccione
                   </option>
-                  <option>Arquitectura</option>
-                  <option>Engenharia</option>
-                  <option>Construção</option>
-                  <option>Fiscalização e consultoria</option>
-                  <option>Outro</option>
+                  <option value="Arquitectura">
+                    Arquitectura
+                  </option>
+                  <option value="Engenharia">
+                    Engenharia
+                  </option>
+                  <option value="Construção">
+                    Construção
+                  </option>
+                  <option value="Fiscalização e consultoria">
+                    Fiscalização e consultoria
+                  </option>
+                  <option value="Outro">
+                    Outro
+                  </option>
                 </select>
               </label>
 
               <label>
                 Urgência (opcional)
-                <select name="urgency" defaultValue="">
-                  <option value="">Sem prazo definido</option>
-                  <option>Imediata</option>
-                  <option>Até 1 mês</option>
-                  <option>1 a 3 meses</option>
+                <select
+                  name="urgency"
+                  defaultValue=""
+                  disabled={busy}
+                >
+                  <option value="">
+                    Sem prazo definido
+                  </option>
+                  <option value="Imediata">
+                    Imediata
+                  </option>
+                  <option value="Até 1 mês">
+                    Até 1 mês
+                  </option>
+                  <option value="1 a 3 meses">
+                    1 a 3 meses
+                  </option>
                 </select>
               </label>
 
-              {/* Campo nativo oculto; o botão apresenta o nome do ficheiro. */}
               <div className="contact-form__upload">
                 <span>Imagem opcional</span>
 
@@ -196,6 +212,7 @@ export default function Contact() {
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   hidden
+                  disabled={busy}
                   onChange={handleImageChange}
                 />
 
@@ -207,6 +224,7 @@ export default function Contact() {
                       ? `Alterar imagem: ${imageName}`
                       : "Escolher imagem opcional"
                   }
+                  disabled={busy}
                   onClick={() => imageInput.current?.click()}
                 >
                   {imageName || "Escolher imagem"}
@@ -220,6 +238,7 @@ export default function Contact() {
                 name="message"
                 rows={2}
                 maxLength={4000}
+                disabled={busy}
               />
             </label>
 
