@@ -14,6 +14,9 @@ import { services } from "./components/servicesData";
 import "../globals.css";
 import "../styles.css";
 import "../admin.css";
+import WhyUs from "./components/why_us";
+import Services from "./components/services";
+import ServicesSection from "./components/service_component";
 
 type Project = {
   id: string;
@@ -36,7 +39,7 @@ const NAV_LINKS = [
 ];
 
 const ROUTES = {
-  services: "/servicos",
+  services: "/services",
   projects: "/projects", // consider renaming to /projectos to match /servicos
 };
 
@@ -45,7 +48,7 @@ const YEAR = new Date().getFullYear();
 
 const wrap = "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
 
-function SectionHeader({
+export function SectionHeader({
   eyebrow,
   children,
   tone = "light",
@@ -98,86 +101,8 @@ export default function HomeClient({ projects }: { projects: Project[] }) {
       <main id="main">
         <Hero />
         <About />
-
-        {/* SERVICES */}
-        <section
-          id="servicos"
-          className="scroll-mt-24 bg-ink py-24 text-white md:py-32 lg:py-36"
-        >
-          <div className={wrap}>
-            <div className="flex flex-wrap items-end justify-between gap-8">
-              <SectionHeader eyebrow="O que fazemos" tone="dark">
-                Os nossos
-                <br />
-                <span className="text-gold">serviços.</span>
-              </SectionHeader>
-
-              <p className="max-w-sm text-sm leading-7 text-white/70 md:text-base">
-                Soluções integradas para acompanhar todas as etapas do seu
-                projecto, da concepção à execução.
-              </p>
-            </div>
-
-            <div className="mt-16 border-t border-white/20">
-              {services.map((service, index) => (
-                <details
-                  key={service.key}
-                  name="servicos"
-                  open={index === 0}
-                  className="group border-b border-white/15"
-                >
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-8 focus-visible:outline-2 focus-visible:outline-gold [&::-webkit-details-marker]:hidden">
-                    <div className="flex items-center gap-6 md:gap-12">
-                      <span className="text-xs font-medium text-gold">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <span className="text-xl font-medium tracking-tight transition-colors duration-300 group-hover:text-gold md:text-4xl">
-                        {service.title}
-                      </span>
-                    </div>
-
-                    <span
-                      aria-hidden="true"
-                      className="flex size-10 shrink-0 items-center justify-center rounded-full border border-white/30 text-xl transition duration-300 group-open:rotate-45 group-open:border-gold group-open:text-gold"
-                    >
-                      +
-                    </span>
-                  </summary>
-
-                  <div className="grid gap-10 pb-10 pl-9 md:grid-cols-2 md:pl-20">
-                    <p className="max-w-md text-sm leading-7 text-white/70 md:text-base">
-                      {service.intro ?? service.label}
-                    </p>
-
-                    <ul className="space-y-3">
-                      {service.items.map(([title]) => (
-                        <li
-                          key={title}
-                          className="flex items-center gap-3 border-b border-white/10 pb-3 text-sm text-white/85"
-                        >
-                          <span
-                            className="h-px w-4 shrink-0 bg-gold"
-                            aria-hidden="true"
-                          />
-                          {title}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </details>
-              ))}
-            </div>
-
-            <Link
-              href={ROUTES.services}
-              className="mt-10 inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-wider underline decoration-gold decoration-2 underline-offset-8 transition-colors hover:text-gold"
-            >
-              Explorar todos os serviços
-              <span aria-hidden="true">↗</span>
-            </Link>
-          </div>
-        </section>
-
+        <WhyUs /> 
+        <ServicesSection services={services} Routes={ROUTES} />
         {/* PORTFOLIO */}
         <section
           id="projectos"
