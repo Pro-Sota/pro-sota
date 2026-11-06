@@ -644,16 +644,16 @@ export default function ProjectsPage({
                       }
                       aria-pressed={isActive}
                       className={`group -mb-px flex shrink-0 items-center gap-2 border-b-2 py-5 text-sm font-medium transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${isActive
-                          ? "border-gold text-navy"
-                          : "border-transparent text-navy/50 hover:text-navy"
+                        ? "border-gold text-navy"
+                        : "border-transparent text-navy/50 hover:text-navy"
                         }`}
                     >
                       {category}
 
                       <span
                         className={`text-[10px] tabular-nums transition-colors ${isActive
-                            ? "text-gold-deep"
-                            : "text-navy/35 group-hover:text-navy/60"
+                          ? "text-gold-deep"
+                          : "text-navy/35 group-hover:text-navy/60"
                           }`}
                       >
                         {String(count).padStart(2, "0")}
@@ -685,7 +685,7 @@ export default function ProjectsPage({
       {/* PROJECT GRID                                                       */}
       {/* ------------------------------------------------------------------ */}
 
-      
+
       {/* ------------------------------------------------------------------ */}
       {/* PROJECT GRID                                                       */}
       {/* ------------------------------------------------------------------ */}
@@ -701,11 +701,10 @@ export default function ProjectsPage({
               return (
                 <article
                   key={project.id}
-                  className={`group min-w-0 ${
-                    isFeatured
+                  className={`group min-w-0 ${isFeatured
                       ? "sm:col-span-2 xl:col-span-8"
                       : "xl:col-span-4"
-                  }`}
+                    }`}
                 >
                   <button
                     type="button"
@@ -716,11 +715,10 @@ export default function ProjectsPage({
                     {/* PROJECT IMAGE */}
 
                     <div
-                      className={`relative isolate overflow-hidden bg-stone/40 ${
-                        isFeatured
+                      className={`relative isolate overflow-hidden bg-stone/40 ${isFeatured
                           ? "aspect-[16/10] sm:aspect-[16/9]"
                           : "aspect-[4/3]"
-                      }`}
+                        }`}
                     >
                       {cover ? (
                         <img
@@ -806,11 +804,10 @@ export default function ProjectsPage({
 
                       <div className="flex items-start justify-between gap-4">
                         <h2
-                          className={`font-semibold leading-tight tracking-[-0.035em] text-navy transition-colors duration-300 group-hover:text-gold-deep ${
-                            isFeatured
+                          className={`font-semibold leading-tight tracking-[-0.035em] text-navy transition-colors duration-300 group-hover:text-gold-deep ${isFeatured
                               ? "text-2xl sm:text-3xl lg:text-4xl"
                               : "text-xl sm:text-2xl"
-                          }`}
+                            }`}
                         >
                           {project.name}
                         </h2>
@@ -836,11 +833,10 @@ export default function ProjectsPage({
 
                       {project.summary && (
                         <p
-                          className={`mt-3 max-w-2xl text-sm leading-6 text-gray-400 ${
-                            isFeatured
+                          className={`mt-3 max-w-2xl text-sm leading-6 text-gray-400 ${isFeatured
                               ? "sm:text-base sm:leading-7"
                               : "line-clamp-2"
-                          }`}
+                            }`}
                         >
                           {project.summary}
                         </p>
@@ -882,7 +878,7 @@ export default function ProjectsPage({
       {/* CONTACT CTA                                                        */}
       {/* ------------------------------------------------------------------ */}
 
-      <section className="bg-white">
+      {/*  <section className="bg-white">
         <div className="mx-auto w-full max-w-[1600px] px-6 py-20 md:px-12 md:py-28 lg:px-16">
           <div className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
             <div className="max-w-3xl">
@@ -928,7 +924,7 @@ export default function ProjectsPage({
             </button>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ------------------------------------------------------------------ */}
       {/* FOOTER                                                             */}
@@ -950,7 +946,7 @@ export default function ProjectsPage({
       {/* ------------------------------------------------------------------ */}
       {/* CONTACT MODAL                                                      */}
       {/* ------------------------------------------------------------------ */}
-
+      {/* 
       {isContactOpen && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-ink/80 p-4 backdrop-blur-sm"
@@ -991,8 +987,8 @@ export default function ProjectsPage({
 
             <Contact />
           </div>
-        </div>
-      )}
+        </div> }*/
+      }
     </main>
   );
 }
