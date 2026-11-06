@@ -1,8 +1,9 @@
 
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { getStorageImageUrl } from "@/app/lib/supabase/storage";
+
 import Lightbox from "./light_box";
 import ProjectCover from "./project_cover";
 
@@ -25,8 +26,7 @@ function getProjectImages(images: unknown): string[] {
 
   return images.filter(
     (image): image is string =>
-      typeof image === "string" &&
-      image.trim().length > 0
+      typeof image === "string" && image.trim().length > 0
   );
 }
 
@@ -35,10 +35,10 @@ function isValidProject(
 ): project is DisplayProject {
   return Boolean(
     project &&
-    typeof project.id === "string" &&
-    project.id.trim() &&
-    typeof project.name === "string" &&
-    project.name.trim()
+      typeof project.id === "string" &&
+      project.id.trim() &&
+      typeof project.name === "string" &&
+      project.name.trim()
   );
 }
 
@@ -48,8 +48,10 @@ export default function ProjectsShowcase({
   const [selectedProjectId, setSelectedProjectId] =
     useState<string | null>(null);
 
-const safeProjects = Array.isArray(projects)
-  ? projects
+  const safeProjects = useMemo(() => {
+    if (!Array.isArray(projects)) return [];
+
+    return projects
       .filter(isValidProject)
       .sort((a, b) => {
         const yearA = Number(a.year) || 0;
@@ -57,11 +59,25 @@ const safeProjects = Array.isArray(projects)
 
         return yearB - yearA;
       })
-      .slice(0, 4)
-  : [];
-  
+      .slice(0, 4);
+  }, [projects]);
+
+  const projectsWithImages = useMemo(
+    () =>
+      safeProjects.map((project) => ({
+        ...project,
+        images: getProjectImages(project.images)
+          .map((image) => getStorageImageUrl(image, "portfolio"))
+          .filter(
+            (image): image is string =>
+              typeof image === "string" && image.trim().length > 0
+          ),
+      })),
+    [safeProjects]
+  );
+
   const selectedProject =
-    safeProjects.find(
+    projectsWithImages.find(
       (project) => project.id === selectedProjectId
     ) ?? null;
 
@@ -73,41 +89,49 @@ const safeProjects = Array.isArray(projects)
     setSelectedProjectId(projectId);
   }, []);
 
-  if (safeProjects.length === 0) {
+  if (projectsWithImages.length === 0) {
     return (
       <section
         id="projects"
-        className="bg-[#101010] px-6 py-32 text-[#f0eee9] md:px-12 lg:px-20"
+        className="bg-[#F7F7F5] px-6 py-20 text-[#002950] md:px-12 lg:px-20"
       >
-        <p className="text-sm text-white/50">
+        <p className="text-sm text-[#002950]/50">
           Ainda não há projectos publicados.
         </p>
       </section>
     );
   }
 
-  console.log(
-    "PROJECT IMAGE DEBUG:",
-    safeProjects.map((project) => ({
-      name: project.name,
-      images: project.images,
-      firstImage: project.images?.[0],
-    }))
-  );
-
   return (
     <>
       <section
         id="projects"
-        className="bg-[#101010] px-6 py-16 text-[#f0eee9] md:px-12 md:py-24 lg:px-20"
+        className="
+          bg-[#F7F7F5]
+          px-5 py-12
+          text-[#002950]
+          sm:px-8
+          md:px-12 md:py-16
+          lg:px-20 lg:py-20
+        "
       >
-        <div className="grid grid-cols-1 gap-x-6 gap-y-14 md:grid-cols-2 lg:gap-x-10 lg:gap-y-20">
-          {safeProjects.map((project, index) => {
-            const images = getProjectImages(project.images).map((image) =>
-              getStorageImageUrl(image, "portfolio")
-            );
-
-            const cover = images[0];
+        <div
+          className="
+            mx-auto
+            grid
+            max-w-[1440px]
+            grid-cols-1
+            gap-x-6
+            gap-y-10
+            sm:grid-cols-2
+            sm:gap-x-5
+            sm:gap-y-12
+            lg:gap-x-8
+            lg:gap-y-14
+          "
+        >
+          {projectsWithImages.map((project, index) => {
+            const cover = project.images[0];
 
             const meta = [
               project.location,
@@ -123,33 +147,42 @@ const safeProjects = Array.isArray(projects)
                 onClick={() => openLightbox(project.id)}
                 aria-label={`Ver imagens do projecto ${project.name}`}
                 aria-haspopup="dialog"
-                disabled={images.length === 0}
-                className={`
+                disabled={!cover}
+                className="
                   group block w-full text-left
                   focus-visible:outline
                   focus-visible:outline-2
                   focus-visible:outline-offset-4
-                  focus-visible:outline-[#f0eee9]
+                  focus-visible:outline-[#BD9655]
                   disabled:cursor-default
-                  ${index % 2 === 1
-                    ? "md:mt-24"
-                    : ""
-                  }
-                `}
+                "
               >
-                <ProjectCover
-                  src={cover}
-                  alt={project.name}
-                  priority={index === 0}
-                />
+                <div className="overflow-hidden">
+                  <ProjectCover
+                    src={cover}
+                    alt={project.name}
+                    priority={index === 0}
+                  />
+                </div>
 
-                <div className="pt-4">
-                  <h3 className="text-xl font-light tracking-tight md:text-2xl">
+                <div className="pt-3">
+                  <h3
+                    className="
+                      text-lg
+                      font-light
+                      tracking-tight
+                      text-[#002950]
+                      transition-colors
+                      duration-300
+                      group-hover:text-[#BD9655]
+                      md:text-xl
+                    "
+                  >
                     {project.name}
                   </h3>
 
                   {meta && (
-                    <p className="mt-1 text-sm text-white/45">
+                    <p className="mt-1 text-xs text-[#002950]/55 md:text-sm">
                       {meta}
                     </p>
                   )}
