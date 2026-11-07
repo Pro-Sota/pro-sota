@@ -4,6 +4,12 @@ import type { Metadata } from "next";
 import ProjectsPage from "./project_showcase";
 import { getPublishedPortfolioProjects } from "@/services/portfolio";
 
+type Props = {
+  params: Promise<{
+    slug: string;
+  }>;
+};
+
 export const metadata: Metadata = {
   title: "Portfólio de Projectos de Arquitectura e Engenharia",
   description:
@@ -12,6 +18,45 @@ export const metadata: Metadata = {
     canonical: "/projects",
   },
 };
+
+export async function generateMetadata({
+  params,
+}: Props): Promise<Metadata> {
+  const { slug } = await params;
+
+  const project = await getPortfolioProject(slug);
+
+  if (!project || project.status !== "published") {
+    return {
+      title: "Projecto não encontrado",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  return {
+    title: `${project.name} | Portfólio PRO SOTA`,
+
+    description:
+      project.summary ||
+      `Conheça o projecto ${project.name}, desenvolvido pela PRO SOTA em Angola.`,
+
+    alternates: {
+      canonical: `/projects/${project.slug}`,
+    },
+
+    openGraph: {
+      title: `${project.name} | PRO SOTA`,
+      description: project.summary,
+      type: "article",
+      images: project.cover_image
+        ? [project.cover_image]
+        : ["/images/og-image.jpg"],
+    },
+  };
+}
 
 /**
  * Converts a Supabase Storage path into its public URL.
@@ -34,6 +79,7 @@ function getPortfolioImageUrl(path: string | null): string | null {
 
   return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/portfolio/${encodedPath}`;
 }
+
 
 export default async function PortfolioPage() {
   const portfolioProjects = await getPublishedPortfolioProjects();
