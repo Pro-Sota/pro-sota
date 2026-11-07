@@ -5,9 +5,12 @@ import ProjectsPage from "./project_showcase";
 import { getPublishedPortfolioProjects } from "@/services/portfolio";
 
 export const metadata: Metadata = {
-  title: "Portefólio | PRO SOTA",
+  title: "Portfólio de Projectos de Arquitectura e Engenharia",
   description:
-    "Conheça os projectos de arquitectura, engenharia e construção da PRO SOTA.",
+    "Explore os projectos desenvolvidos pela PRO SOTA em Angola e conheça o nosso trabalho nas áreas de arquitectura, engenharia e construção.",
+  alternates: {
+    canonical: "/projects",
+  },
 };
 
 /**
