@@ -11,6 +11,17 @@ import Lightbox from "./components/light_box";
 import Contact from "./components/contact_page";
 import { services } from "./components/servicesData";
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Arquitectura, Engenharia e Construção em Angola",
+  description:
+    "Conheça a PRO SOTA. Empresa angolana de arquitectura, engenharia, construção e fiscalização de obras. Experiência e excelência desde 1997.",
+  alternates: {
+    canonical: "/",
+  },
+};
+
 import "../globals.css";
 import "../styles.css";
 import "../admin.css";
