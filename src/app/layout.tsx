@@ -11,7 +11,7 @@ import { ToastProvider } from "./components/toast/toast_provider";
 import "./admin.css";
 import "./styles.css";
 
-
+import OrganizationSchema from "./components/organization_schema";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -99,6 +99,7 @@ export const metadata: Metadata = {
   },
 };
 
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -118,6 +119,7 @@ export default function RootLayout({
       )}
     >
       <body className="min-h-full flex flex-col overflow-hidden">
+<OrganizationSchema />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
