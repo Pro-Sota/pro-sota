@@ -70,7 +70,7 @@ export const metadata: Metadata = {
       "Arquitectura, Engenharia, Construção e Fiscalização em Angola. Desde 1997.",
     images: [
       {
-        url: "/images/og-image.jpg",
+        url: "/images/logo-vertical.png",
         width: 1200,
         height: 630,
         alt: "PRO SOTA - Arquitectura, Engenharia e Construção",
