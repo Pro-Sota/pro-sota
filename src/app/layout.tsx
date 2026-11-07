@@ -11,6 +11,8 @@ import { ToastProvider } from "./components/toast/toast_provider";
 import "./admin.css";
 import "./styles.css";
 
+
+
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 
@@ -24,41 +26,76 @@ const robotoMono = Roboto_Mono({
 });
 
 
+const SITE_URL = "https://prosota.ao";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.prosota.ao"),
+  metadataBase: new URL(SITE_URL),
 
   title: {
-    default: "PRO SOTA | Arquitectura, Engenharia e Construção",
+    default: "PRO SOTA | Arquitectura, Engenharia e Construção em Angola",
     template: "%s | PRO SOTA",
   },
 
   description:
-    "A PRO SOTA é uma empresa angolana de arquitectura, engenharia, construção e fiscalização, com experiência desde 1997.",
+    "A PRO SOTA é uma empresa angolana de arquitectura, engenharia, construção e fiscalização. Desenvolvemos projectos e soluções integradas desde 1997.",
+
+  applicationName: "PRO SOTA",
+
+  keywords: [
+    "PRO SOTA",
+    "arquitectura em Angola",
+    "empresas de construção em Angola",
+    "engenharia em Luanda",
+    "projectos de arquitectura",
+    "fiscalização de obras",
+    "construção civil em Angola",
+    "consultoria de engenharia",
+  ],
+
+  authors: [{ name: "PRO SOTA" }],
+  creator: "PRO SOTA",
+  publisher: "PRO SOTA",
+
+  alternates: {
+    canonical: "/",
+  },
 
   openGraph: {
     type: "website",
-    locale: "pt_AO",
+    locale: "pt_PT",
+    url: SITE_URL,
     siteName: "PRO SOTA",
     title: "PRO SOTA | Damos forma às ideias. Construímos o futuro.",
     description:
-      "Arquitectura, Engenharia, Construção e Fiscalização em Angola.",
-    url: "https://www.prosota.ao",
+      "Arquitectura, Engenharia, Construção e Fiscalização em Angola. Desde 1997.",
     images: [
       {
         url: "/images/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "PRO SOTA — Arquitectura, Engenharia e Construção",
+        alt: "PRO SOTA - Arquitectura, Engenharia e Construção",
       },
     ],
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "PRO SOTA",
+    title: "PRO SOTA | Arquitectura e Engenharia",
     description:
-      "Damos forma às ideias. Construímos o futuro.",
+      "Damos forma às ideias. Construímos o futuro. Angola · Desde 1997.",
     images: ["/images/og-image.jpg"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
 };
 
