@@ -1,4 +1,3 @@
-"use client";
 
 import Nav from "../components/nav";
 import Link from "next/link";
