@@ -8,7 +8,8 @@ import About from "./components/about";
 import WhyUs from "./components/why_us";
 import ServicesSection from "./components/service_component";
 import ProjectsShowcase from "./components/projects";
-import Contact from "./components/contact_page";
+import Contact from "./components/contact_page"
+import SectionHeader from "./components/section_header"; 
 
 import { services } from "./components/servicesData";
 
@@ -29,6 +30,7 @@ const NAV_LINKS = [
 ];
 
 const ROUTES = {
+  about: "/about" 
   services: "/services",
   projects: "/projects",
 };
@@ -39,32 +41,7 @@ const YEAR = new Date().getFullYear();
 const WRAP =
   "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
 
-function SectionHeader({
-  eyebrow,
-  children,
-}: {
-  eyebrow: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <div className="mb-7 flex items-center gap-3">
-        <span
-          className="h-px w-10 bg-gold"
-          aria-hidden="true"
-        />
 
-        <span className="text-xs font-semibold uppercase tracking-[0.22em] text-mute">
-          {eyebrow}
-        </span>
-      </div>
-
-      <h2 className="text-5xl font-semibold leading-[0.98] tracking-[-0.055em] text-navy md:text-7xl">
-        {children}
-      </h2>
-    </div>
-  );
-}
 
 export default function HomeClient({
   projects,
