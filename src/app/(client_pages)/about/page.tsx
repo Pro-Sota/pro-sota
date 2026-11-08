@@ -1,5 +1,6 @@
 "use client";
 
+import Nav from "../components/nav";
 import Link from "next/link";
 
 const values = [
@@ -60,8 +61,10 @@ export default function AboutPage() {
   return (
     <main className="bg-[#F7F7F5] text-[#002950]">
       {/* HERO */}
-    {/* HERO */}
+  
 <section className="relative flex min-h-[78vh] flex-col justify-end overflow-hidden bg-[#002950] px-6 pb-16 pt-36 text-[#F7F7F5] md:px-12 md:pb-24 lg:px-20">
+<Nav />
+
   <div className="relative z-10 mx-auto w-full max-w-[1600px]">
     <span className="mb-8 block text-xs font-semibold uppercase tracking-[0.3em] text-[#BD9655]">
       PRO SOTA · Angola · Desde 1997
