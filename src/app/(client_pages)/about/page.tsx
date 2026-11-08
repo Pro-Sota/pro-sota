@@ -476,7 +476,7 @@ export default function AboutPage() {
               </p>
 
               <Link
-                href="/#contact"
+                href="/contact"
                 className="group inline-flex items-center gap-5 self-start bg-gold py-3 pl-8 pr-3 text-sm font-semibold text-navy transition-colors hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-paper"
               >
                 Fale connosco
