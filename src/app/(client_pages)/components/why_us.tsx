@@ -8,32 +8,32 @@ const REASONS = [
   [
     "01",
     "Experiência multidisciplinar",
-    "Arquitectos, engenheiros e técnicos com sólida experiência no mercado angolano e português, de remodelações a grandes empreendimentos.",
+    "Integramos conhecimentos de arquitectura, engenharia e construção para desenvolver soluções coerentes, tecnicamente fundamentadas e adaptadas a cada desafio.",
   ],
   [
     "02",
-    "Projectos sob medida",
-    "Cada cliente é único. Equilibramos funcionalidade, estética e viabilidade económica, respeitando sempre os seus sonhos e possibilidades.",
+    "Projectos à medida",
+    "Desenvolvemos soluções que equilibram funcionalidade, estética e viabilidade económica, respeitando as necessidades e os objectivos de cada cliente.",
   ],
   [
     "03",
     "Acompanhamento contínuo",
-    "Comunicação clara em todas as etapas — acompanha o progresso, recebe actualizações frequentes e participa nas decisões importantes.",
+    "Asseguramos coordenação e comunicação ao longo das diferentes fases, mantendo os clientes informados e envolvidos nas decisões relevantes.",
   ],
   [
     "04",
-    "Cumprimento de prazos",
-    "Cronogramas realistas e processos bem definidos, para que o seu projecto avance de forma fluida e segura.",
+    "Gestão e controlo de prazos",
+    "Trabalhamos com planeamento, cronogramas e acompanhamento da execução para garantir maior controlo sobre o desenvolvimento de cada projecto.",
   ],
   [
     "05",
-    "Serviço completo",
-    "Do levantamento topográfico ao projecto de interiores e acompanhamento de obra — tudo num só lugar, sem burocracias.",
+    "Soluções integradas",
+    "Reunimos diferentes especialidades num único processo de trabalho, desde os estudos iniciais ao desenvolvimento dos projectos e acompanhamento da obra.",
   ],
   [
     "06",
     "Inovação com responsabilidade",
-    "Renderizações 3D e software BIM para qualidade visual e técnica, sem perder de vista a sustentabilidade e a viabilidade local.",
+    "Recorremos a ferramentas de visualização 3D e metodologias digitais, procurando soluções tecnicamente eficientes e adequadas à realidade de cada projecto.",
   ],
 ] as const;
 
