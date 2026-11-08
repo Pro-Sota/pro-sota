@@ -14,7 +14,7 @@ export const revalidate = 86400;
 export const metadata: Metadata = {
   title: "Sobre nós",
   description:
-    "Desde 1997, a PRO SOTA desenvolve projectos de arquitectura, engenharia, construção e fiscalização em Angola.",
+    "Conheça a PRO SOTA: empresa multidisciplinar fundada em 1997, com experiência em arquitectura, engenharia, construção e fiscalização.",
   alternates: { canonical: "/about" },
   openGraph: {
     title: "Sobre nós | PRO SOTA",
@@ -66,7 +66,7 @@ const expertise = [
   {
     title: "Arquitectura",
     description:
-      "Concepção arquitectónica, planeamento e desenvolvimento de espaços que equilibram estética, funcionalidade e contexto.",
+      "Desenvolvimento de projectos arquitectónicos, organização de espaços interiores e exteriores, estudo de fachadas e apoio à visualização das soluções através de modelação tridimensional.",
     image: "/images/arquitectura.svg",
     alt: "Desenho de alçado de um edifício moderno com palas verticais e um volume dourado.",
     span: "md:col-span-7",
@@ -74,7 +74,7 @@ const expertise = [
   {
     title: "Engenharia",
     description:
-      "Soluções de engenharia integradas, sustentadas pelo rigor técnico e pela eficiência construtiva.",
+      "Desenvolvimento e coordenação de soluções técnicas, incluindo estruturas e especialidades de instalações, com atenção à segurança, ao desempenho e à eficiência construtiva.",
     image: "/images/engenharia.svg",
     alt: "Desenho de uma ponte atirantada com cabos dourados.",
     span: "md:col-span-5",
@@ -82,7 +82,7 @@ const expertise = [
   {
     title: "Construção",
     description:
-      "Execução e gestão de obras, assegurando qualidade, coordenação e controlo em todas as etapas.",
+      "Construção, remodelação e reabilitação de edifícios, com coordenação dos trabalhos e atenção à qualidade de execução, aos materiais, aos prazos e ao controlo da obra.",
     image: "/images/construcao.svg",
     alt: "Desenho de uma estrutura em betão em construção, com andaimes e grua.",
     span: "md:col-span-5",
@@ -90,7 +90,7 @@ const expertise = [
   {
     title: "Fiscalização e Consultoria",
     description:
-      "Acompanhamento técnico, fiscalização e consultoria para garantir o cumprimento dos requisitos de cada projecto.",
+      "Acompanhamento técnico e fiscalização da execução, com verificação da conformidade com o projecto, registo da evolução da obra e apoio à tomada de decisões técnicas.",
     image: "/images/fiscalizacao.svg",
     alt: "Corte construtivo de um edifício com cotas de nível e uma lupa sobre uma ligação estrutural.",
     span: "md:col-span-7",
@@ -107,7 +107,7 @@ export default function AboutPage() {
   const stats = [
     { value: `${years}+`, label: "Anos de experiência" },
     { value: "11+", label: "Grandes projectos" },
-    { value: "3", label: "Cidades de presença" },
+    { value: "3", label: "Países com projectos" },
     { value: "4", label: "Áreas de especialidade" },
   ];
 
@@ -273,17 +273,19 @@ export default function AboutPage() {
                 </p>
 
                 <p className="mt-8 max-w-xl text-base leading-8 text-navy/70">
-                  A nossa abordagem assenta na integração de diferentes
-                  especialidades, permitindo acompanhar os projectos de forma
-                  abrangente — desde a ideia inicial até à concretização da
-                  obra. Valorizamos o conhecimento técnico, a colaboração e a
-                  capacidade de encontrar soluções adequadas a cada contexto.
+                  Integramos diferentes especialidades para acompanhar cada
+                  projecto de forma coordenada — desde os estudos iniciais e a
+                  concepção até à execução e ao acompanhamento técnico da obra.
+                  Valorizamos o conhecimento técnico, a colaboração e soluções
+                  ajustadas às características de cada contexto.
                 </p>
 
                 <p className="mt-5 max-w-xl text-base leading-8 text-navy/70">
-                  Mais do que construir edifícios e infra-estruturas,
-                  procuramos criar valor duradouro para os nossos clientes,
-                  parceiros e para as comunidades onde trabalhamos.
+                  O nosso percurso reúne projectos e intervenções em
+                  tipologias residenciais, educativas, religiosas, hoteleiras e
+                  de saúde, bem como propostas de desenvolvimento urbano. Esta
+                  diversidade reflecte a capacidade de responder a diferentes
+                  escalas, necessidades e contextos.
                 </p>
               </div>
             </div>
@@ -324,9 +326,10 @@ export default function AboutPage() {
             </h2>
             <p className="mt-8 max-w-lg text-base leading-8 text-paper/70">
               Desenvolver e concretizar projectos de arquitectura, engenharia
-              e construção com qualidade, rigor e responsabilidade, criando
-              soluções que respondem às necessidades dos nossos clientes e
-              contribuem para o desenvolvimento das comunidades.
+              e construção, bem como assegurar serviços de fiscalização e
+              acompanhamento técnico, com qualidade, rigor e responsabilidade.
+              Procuramos responder às necessidades dos clientes e contribuir
+              para o desenvolvimento das comunidades.
             </p>
           </div>
 
@@ -336,10 +339,11 @@ export default function AboutPage() {
               Construir o futuro.
             </h2>
             <p className="mt-8 max-w-lg text-base leading-8 text-navy/85">
-              Ser uma referência de confiança e excelência no sector da
-              arquitectura, engenharia e construção, reconhecida pela
-              capacidade de inovar, integrar competências e transformar
-              positivamente o espaço construído.
+              Ser uma referência de confiança e excelência nas áreas da
+              arquitectura, engenharia, construção e fiscalização, reconhecida
+              pela capacidade de integrar competências, desenvolver soluções
+              adequadas a diferentes contextos e contribuir para a transformação
+              positiva do ambiente construído.
             </p>
           </div>
         </section>
@@ -402,9 +406,10 @@ export default function AboutPage() {
                 </h2>
               </div>
               <p className="max-w-md text-base leading-8 text-navy/65 lg:col-span-4 lg:col-start-9">
-                Reunimos diferentes especialidades numa abordagem integrada,
-                garantindo continuidade, coordenação e qualidade ao longo de
-                todo o ciclo de vida dos projectos.
+                A experiência apresentada no nosso portefólio abrange
+                diferentes tipologias e escalas de intervenção. Articulamos
+                competências para assegurar continuidade, coordenação e rigor
+                nas várias fases de cada projecto.
               </p>
             </div>
 
@@ -475,20 +480,18 @@ export default function AboutPage() {
                 integrada ao seu lado.
               </p>
 
-           
-<Link
-  href="/contact"
-  className="group inline-flex items-center gap-7 self-start border border-gold bg-gold py-2 pl-7 pr-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-navy transition-all duration-300 hover:border-paper hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold motion-reduce:transition-none"
->
-  <span>Fale connosco</span>
-
-  <span
-    aria-hidden="true"
-    className="flex size-11 items-center justify-center bg-navy text-lg text-paper transition-all duration-300 group-hover:bg-gold group-hover:text-navy group-hover:rotate-45 motion-reduce:transition-none"
-  >
-    ↗
-  </span>
-</Link>
+              <Link
+                href="/contact"
+                className="group inline-flex items-center gap-7 self-start border border-gold bg-gold py-2 pl-7 pr-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-navy transition-all duration-300 hover:border-paper hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold motion-reduce:transition-none"
+              >
+                <span>Fale connosco</span>
+                <span
+                  aria-hidden="true"
+                  className="flex size-11 items-center justify-center bg-navy text-lg text-paper transition-all duration-300 group-hover:bg-gold group-hover:text-navy group-hover:rotate-45 motion-reduce:transition-none"
+                >
+                  ↗
+                </span>
+              </Link>
 
             </div>
           </div>
