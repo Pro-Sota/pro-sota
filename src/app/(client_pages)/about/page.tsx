@@ -12,12 +12,12 @@ export const metadata: Metadata = {
   title: "Sobre nós",
   description:
     "Desde 1997, a PRO SOTA desenvolve projectos de arquitectura, engenharia, construção e fiscalização em Angola.",
-  alternates: { canonical: "/sobre" }, // match your real route
+  alternates: { canonical: "/about" },
   openGraph: {
     title: "Sobre nós | PRO SOTA",
     description:
       "Arquitectura, engenharia, construção e fiscalização em Angola, desde 1997.",
-    url: "/sobre",
+    url: "/about",
     siteName: "PRO SOTA",
     locale: "pt_AO",
     type: "website",
