@@ -839,7 +839,7 @@ export default function ProjectsPage({
 
       <section className="mx-auto w-full max-w-[1600px] px-6 pb-24 pt-14 md:px-12 md:pb-32 md:pt-20 lg:px-16">
         {sortedProjects.length > 0 ? (
-          <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 sm:gap-y-16 lg:gap-x-8 lg:gap-y-20 xl:grid-cols-12">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 sm:gap-y-16 lg:gap-x-8 lg:gap-y-20 xl:grid-cols-12">
 
             {sortedProjects.map((project, index) => {
               const isLead = hasLead && index === 0;
@@ -853,20 +853,18 @@ export default function ProjectsPage({
                       : "xl:col-span-4"
                     }`}
                 >
-                  {/* Mobile: the card has 8px of padding on every side.
-                      From sm up the padding is removed (sm:p-0). */}
                   <button
                     type="button"
                     onClick={() => openGallery(project.id)}
                     aria-label={`Ver projecto ${project.name}`}
-                    className="block w-full bg-white p-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold sm:bg-transparent sm:p-0"
+                    className="block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
                   >
                     {/* PROJECT IMAGE */}
 
                     <div
                       className={`relative isolate overflow-hidden bg-stone/40 ${isLead
-                          ? "aspect-[16/10] sm:aspect-[16/9]"
-                          : "aspect-[4/3]"
+                          ? "aspect-[4/5] sm:aspect-[16/9]"
+                          : "aspect-[4/5] sm:aspect-[4/3]"
                         }`}
                     >
                       {cover ? (
@@ -896,7 +894,7 @@ export default function ProjectsPage({
                       {/* Featured label */}
 
                       {project.featured && (
-                        <div className="absolute left-3 top-3 sm:left-7 sm:top-7">
+                        <div className="absolute left-5 top-5 sm:left-7 sm:top-7">
                           <span className="border border-white/40 bg-navy/30 px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm">
                             Projecto em destaque
                           </span>
@@ -905,7 +903,7 @@ export default function ProjectsPage({
 
                       {/* Category */}
 
-                      <div className="absolute bottom-3 left-3 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white sm:bottom-7 sm:left-7">
+                      <div className="absolute bottom-5 left-5 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white sm:bottom-7 sm:left-7">
                         <span className="h-px w-7 bg-gold" />
                         {project.category}
                       </div>
@@ -931,7 +929,7 @@ export default function ProjectsPage({
 
                     {/* PROJECT INFORMATION */}
 
-                    <div className="mt-5 px-2 pb-2 sm:px-0 sm:pb-0">
+                    <div className="mt-5">
                       {/* Metadata */}
 
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -955,7 +953,7 @@ export default function ProjectsPage({
                         <h2
                           className={`font-semibold leading-tight tracking-[-0.035em] text-navy transition-colors duration-300 group-hover:text-gold-deep ${isLead
                               ? "text-2xl sm:text-3xl lg:text-4xl"
-                              : "text-xl sm:text-2xl"
+                              : "text-2xl"
                             }`}
                         >
                           {project.name}
@@ -982,9 +980,9 @@ export default function ProjectsPage({
 
                       {project.summary && (
                         <p
-                          className={`mt-3 max-w-2xl text-sm leading-6 text-gray-400 ${isLead
-                              ? "sm:text-base sm:leading-7"
-                              : "line-clamp-2"
+                          className={`mt-3 max-w-2xl text-gray-400 ${isLead
+                              ? "text-base leading-7"
+                              : "line-clamp-2 text-base leading-7 sm:text-sm sm:leading-6"
                             }`}
                         >
                           {project.summary}
