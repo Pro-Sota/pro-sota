@@ -42,16 +42,11 @@
 }
 
 @media (max-width: 900px) {
-  .services-scroll__visual {
-    position: relative;
-    top: auto;
+  .services-scroll__visual.is-compact {
     height: auto;
-    min-height: 360px;
-  }
-
-  .services-scroll__layout {
-    grid-template-columns: 1fr;
-    gap: 32px;
+    min-height: 0;
+    aspect-ratio: auto;
+    padding: 12px 0;
   }
 }
 
