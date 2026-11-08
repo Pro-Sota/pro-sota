@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
@@ -104,13 +103,13 @@ export default function ProjectsShowcase({
 
   return (
     <>
+      {/* Same gutter as the rest of the site: px-6 / md:px-12 / lg:px-20 */}
       <section
         id="projects"
         className="
           bg-[#F7F7F5]
-          px-5 py-12
+          px-6 py-12
           text-[#002950]
-          sm:px-8
           md:px-12 md:py-16
           lg:px-20 lg:py-20
         "
@@ -165,16 +164,18 @@ export default function ProjectsShowcase({
                   />
                 </div>
 
-                <div className="pt-3">
+                {/* Larger text on phones; original sizes from sm up */}
+                <div className="pt-4 sm:pt-3">
                   <h3
                     className="
-                      text-lg
+                      text-2xl
                       font-light
                       tracking-tight
                       text-[#002950]
                       transition-colors
                       duration-300
                       group-hover:text-[#BD9655]
+                      sm:text-lg
                       md:text-xl
                     "
                   >
@@ -182,7 +183,7 @@ export default function ProjectsShowcase({
                   </h3>
 
                   {meta && (
-                    <p className="mt-1 text-xs text-[#002950]/55 md:text-sm">
+                    <p className="mt-1.5 text-sm text-[#002950]/55 sm:mt-1 sm:text-xs md:text-sm">
                       {meta}
                     </p>
                   )}
