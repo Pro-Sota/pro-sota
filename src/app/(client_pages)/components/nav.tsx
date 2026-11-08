@@ -52,7 +52,7 @@ export default function Nav({ dark = false }: NavProps) {
           Início
         </Link>
 
-        <Link href="/#sobre" onClick={closeMenu}>
+        <Link href="/about" onClick={closeMenu}>
           Sobre
         </Link>
 
