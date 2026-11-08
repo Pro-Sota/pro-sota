@@ -1,6 +1,6 @@
-
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 interface ProjectCoverProps {
@@ -25,17 +25,19 @@ export default function ProjectCover({
     <div className="
       group
       relative
-      aspect-[4/3]
+      aspect-[4/5]
       w-full
       overflow-hidden
       bg-[#222]
+      sm:aspect-[4/3]
     ">
       {showImage ? (
-        <img
+        <Image
           src={validSrc}
           alt={alt || "Projecto PRO SOTA"}
-          loading={priority ? "eager" : "lazy"}
-          fetchPriority={priority ? "high" : "auto"}
+          fill
+          priority={priority}
+          sizes="(min-width: 640px) 50vw, 100vw"
           onError={() => {
             console.error(
               "Project image failed to load:",
@@ -44,8 +46,6 @@ export default function ProjectCover({
             setHasError(true);
           }}
           className="
-            absolute inset-0
-            h-full w-full
             object-cover
             transition-transform duration-500 ease-out
             group-hover:scale-[1.025]
