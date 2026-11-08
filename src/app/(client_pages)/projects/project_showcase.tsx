@@ -8,6 +8,8 @@ import {
   useState,
 } from "react";
 
+import Image from "next/image";
+
 import Nav from "../components/nav";
 import Footer from "../components/footer";
 import Lightbox from "../components/light_box";
@@ -868,13 +870,17 @@ export default function ProjectsPage({
                         }`}
                     >
                       {cover ? (
-                        <img
+                        <Image
                           src={cover}
                           alt={project.name}
-                          loading={index === 0 ? "eager" : "lazy"}
-                          fetchPriority={index === 0 ? "high" : "auto"}
-                          decoding="async"
-                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.035]"
+                          fill
+                          priority={index === 0}
+                          sizes={
+                            isLead
+                              ? "(min-width: 1280px) 66vw, 100vw"
+                              : "(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
+                          }
+                          className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.035]"
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
