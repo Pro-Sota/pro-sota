@@ -60,44 +60,35 @@ export default function AboutPage() {
   return (
     <main className="bg-[#F7F7F5] text-[#002950]">
       {/* HERO */}
-      <section className="relative flex min-h-[78vh] flex-col justify-end overflow-hidden bg-[#002950] px-6 pb-16 pt-36 text-[#F7F7F5] md:px-12 md:pb-24 lg:px-20">
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#002950]/95 via-[#002950]/65 to-[#002950]/20" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#002950]/80 via-transparent to-[#002950]/20" />
-          <img
-            src=""
-            alt="Projecto de arquitectura PRO SOTA"
-            className="h-full w-full object-cover opacity-60"
-          />
-        </div>
+    {/* HERO */}
+<section className="relative flex min-h-[78vh] flex-col justify-end overflow-hidden bg-[#002950] px-6 pb-16 pt-36 text-[#F7F7F5] md:px-12 md:pb-24 lg:px-20">
+  <div className="relative z-10 mx-auto w-full max-w-[1600px]">
+    <span className="mb-8 block text-xs font-semibold uppercase tracking-[0.3em] text-[#BD9655]">
+      PRO SOTA · Angola · Desde 1997
+    </span>
 
-        <div className="relative z-10 mx-auto w-full max-w-[1600px]">
-          <span className="mb-8 block text-xs font-semibold uppercase tracking-[0.3em] text-[#BD9655]">
-            PRO SOTA · Angola · Desde 1997
-          </span>
+    <h1 className="max-w-5xl text-6xl font-semibold uppercase leading-[0.92] tracking-tight md:text-8xl lg:text-[112px]">
+      Construímos
+      <br />
+      com visão.
+    </h1>
 
-          <h1 className="max-w-5xl text-6xl font-semibold uppercase leading-[0.92] tracking-tight md:text-8xl lg:text-[112px]">
-            Construímos
-            <br />
-            com visão.
-          </h1>
+    <div className="mt-10 flex max-w-2xl flex-col gap-8 md:flex-row md:items-end md:justify-between">
+      <p className="max-w-lg text-base leading-7 text-white/75 md:text-lg">
+        Somos uma empresa multidisciplinar que transforma ideias em
+        projectos, projectos em realidade e desafios em oportunidades
+        para construir o futuro.
+      </p>
 
-          <div className="mt-10 flex max-w-2xl flex-col gap-8 md:flex-row md:items-end md:justify-between">
-            <p className="max-w-lg text-base leading-7 text-white/75 md:text-lg">
-              Somos uma empresa multidisciplinar que transforma ideias em
-              projectos, projectos em realidade e desafios em oportunidades
-              para construir o futuro.
-            </p>
-
-            <a
-              href="#nossa-historia"
-              className="w-fit border-b border-[#BD9655] pb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#BD9655] transition-colors hover:text-white"
-            >
-              Conheça-nos <span className="ml-3">↓</span>
-            </a>
-          </div>
-        </div>
-      </section>
+      <a
+        href="#nossa-historia"
+        className="w-fit border-b border-[#BD9655] pb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#BD9655] transition-colors hover:text-white"
+      >
+        Conheça-nos <span className="ml-3">↓</span>
+      </a>
+    </div>
+  </div>
+</section>
 
       {/* INTRODUCTION */}
       <section
