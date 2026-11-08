@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import Nav from "./components/nav";
 import Hero from "./components/hero_section";
+import Footer from "./components/footer";
 import About from "./components/about";
 import WhyUs from "./components/why_us";
 import ServicesSection from "./components/service_component";
@@ -136,47 +137,7 @@ export default function HomeClient({
       </main>
 
       {/* FOOTER */}
-      <footer className="bg-ink text-white">
-        <div className={`${WRAP} py-14`}>
-          <div className="flex flex-col justify-between gap-10 md:flex-row md:items-end">
-            <div>
-              <Link
-                href="/"
-                className="text-3xl font-bold tracking-[0.16em]"
-              >
-                PRO SOTA
-              </Link>
-
-              <p className="mt-3 text-xs tracking-[0.18em] text-white/65">
-                ARQUITECTURA · ENGENHARIA · CONSTRUÇÃO
-              </p>
-            </div>
-
-            <nav
-              aria-label="Navegação do rodapé"
-              className="flex flex-wrap gap-x-8 gap-y-4 text-xs text-white/75"
-            >
-              {NAV_LINKS.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="transition-colors hover:text-gold"
-                >
-                  {link.label}
-                </a>
-              ))}
-            </nav>
-          </div>
-
-          <div className="mt-12 flex flex-col justify-between gap-3 border-t border-white/15 pt-7 text-xs text-white/60 md:flex-row">
-            <p>
-              © {YEAR} PRO SOTA. Todos os direitos reservados.
-            </p>
-
-            <p>Luanda, Angola</p>
-          </div>
-        </div>
-      </footer>
+<Footer />
     </>
   );
 }
