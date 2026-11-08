@@ -1741,154 +1741,34 @@ button:focus-visible {
   margin-top: 14px;
 }
 
-.services-page__hero {
-  padding-bottom: clamp(36px, 5vh, 56px);
-}
-
-.services-page__hero h1 {
-  font-size: clamp(32px, 4.5vw, 56px);
-}
-
-.services-scroll {
-  background: var(--paper);
-  padding: clamp(40px, 6vw, 80px) 0;
-}
-
-.services-scroll__layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(400px, 1fr);
-  gap: clamp(28px, 4vw, 60px);
-  align-items: start;
-}
-
-.services-scroll__step {
-  position: relative;
-  min-height: 72vh;
-  padding: clamp(36px, 6vh, 64px) 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  border-bottom: 1px solid var(--line-light);
-  opacity: .4;
-  transform: translateY(18px);
-  transition: opacity .55s var(--ease), transform .7s var(--ease);
-}
-
-.services-scroll__step:first-child {
-  padding-top: 30px;
-}
-
-.services-scroll__step:last-child {
-  border-bottom: 0;
-}
-
-.services-scroll__step.is-active {
-  opacity: 1;
-  transform: none;
-}
-
-.services-scroll__num {
-  position: absolute;
-  right: 0;
-  top: clamp(44px, 8vh, 90px);
-  font: 800 clamp(54px, 7vw, 92px)/1 var(--f-display);
-  color: rgba(5, 48, 86, .08);
-}
-
-.services-scroll__step h2 {
-  max-width: 19ch;
-  margin: 10px 0 14px;
-  font-size: clamp(28px, 3vw, 42px);
-  line-height: 1.08;
-  text-transform: uppercase;
-  color: var(--navy);
-}
-
-.services-scroll__intro {
-  max-width: 48ch;
-  color: var(--ink-soft);
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.services-scroll__step ul {
-  margin: 20px 0;
-  border-top: 1px solid var(--line-light);
-}
-
-.services-scroll__step li {
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line-light);
-  color: var(--navy);
-  font-size: 14px;
-}
-
-.services-scroll__visual {
-  position: sticky;
-  top: 94px;
-  height: calc(100vh - 124px);
-  min-height: 510px;
-  max-height: 720px;
-  overflow: hidden;
-  background: radial-gradient(100% 90% at 80% 15%, #153e63 0%, transparent 62%), var(--navy-deep);
-  perspective: 1600px;
-}
-
-.services-scroll__scene {
-  position: absolute;
-  inset: 0 0 90px;
-  display: grid;
-  place-items: center;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(50px) scale(.94);
-  transition: opacity .65s var(--ease), transform .9s var(--ease), visibility .65s;
-}
-
-.services-scroll__scene.is-active {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-}
-
-.services-scroll__scene .scene3d__rig {
-  transform: scale(1.08) rotateX(42deg) rotateZ(-38deg);
-}
-
-.services-scroll__scene>span {
-  position: absolute;
-  top: 28px;
-  right: 34px;
-  font: 800 clamp(72px, 9vw, 128px)/1 var(--f-display);
-  color: rgba(243, 239, 230, .06);
-}
-
-.services-scroll__scene>b {
-  position: absolute;
-  left: 30px;
-  bottom: 26px;
-  color: var(--gold-light);
-  font: 700 15px var(--f-display);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-@media(max-width:900px) {
+@media (max-width: 900px) {
   .services-scroll__layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
   }
 
   .services-scroll__visual {
+    position: sticky;
+    top: 82px;
+
     order: -1;
-    top: 76px;
-    height: 42vh;
-    min-height: 300px;
-    max-height: 430px;
+
+    height: 34vh;
+    height: min(34svh, 320px);
+
+    min-height: 220px;
+    max-height: 320px;
+
     z-index: 3;
   }
 
   .services-scroll__scene .scene3d__rig {
-    transform: scale(.75) rotateX(42deg) rotateZ(-38deg);
+    transform: scale(.5) rotateX(42deg) rotateZ(-38deg);
+  }
+
+  .services-scroll__scene > b {
+    bottom: 8px;
+    font-size: 11px;
   }
 
   .services-scroll__step {
@@ -1896,7 +1776,7 @@ button:focus-visible {
   }
 }
 
-@media(max-width:560px) {
+@media (max-width: 560px) {
   .services-scroll {
     padding-top: 18px;
   }
@@ -1906,18 +1786,19 @@ button:focus-visible {
   }
 
   .services-scroll__visual {
-    height: 36vh;
-    min-height: 250px;
+    height: 34svh;
+    min-height: 220px;
+    max-height: 280px;
   }
 
   .services-scroll__scene .scene3d__rig {
-    transform: scale(.58) rotateX(42deg) rotateZ(-38deg);
+    transform: scale(.5) rotateX(42deg) rotateZ(-38deg);
   }
 
-  .services-scroll__scene>b {
+  .services-scroll__scene > b {
     left: 18px;
-    bottom: 16px;
-    font-size: 12px;
+    bottom: 8px;
+    font-size: 11px;
   }
 
   .services-scroll__step {
@@ -1925,95 +1806,6 @@ button:focus-visible {
     padding: 40px 0;
     opacity: 1;
     transform: none;
-  }
-}
-
-.services-scroll__step li h3 {
-  margin: 0 0 4px;
-  font: 700 14px/1.4 var(--f-display);
-}
-
-.services-scroll__step li p {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.services-progress {
-  position: absolute;
-  inset: auto 0 0;
-  z-index: 4;
-  padding: 8px 18px 14px;
-  background: var(--navy-deep);
-  color: var(--cream);
-  text-align: center;
-}
-
-.services-progress__dots {
-  display: flex;
-  justify-content: center;
-  gap: 4px;
-}
-
-.services-progress button {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.services-progress button span {
-  width: 10px;
-  height: 10px;
-  border: 1px solid var(--gold-light);
-  border-radius: 50%;
-  transition: background .2s, transform .2s;
-}
-
-.services-progress button[aria-current="step"] span {
-  background: var(--gold-light);
-  transform: scale(1.4);
-}
-
-.services-progress button:hover span {
-  background: var(--gold-light);
-}
-
-.services-progress button:focus-visible {
-  outline: 2px solid var(--gold-light);
-  outline-offset: -2px;
-  border-radius: 4px;
-}
-
-.services-progress p {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.services-scroll__step:focus-visible {
-  outline: 2px solid var(--gold-dim);
-  outline-offset: 6px;
-}
-
-@media(max-width:900px) {
-  .services-scroll__visual {
-    height: 34vh;
-    min-height: 220px;
-    max-height: 320px;
-  }
-
-  .services-scroll__scene .scene3d__rig {
-    transform: scale(.5) rotateX(42deg) rotateZ(-38deg);
-  }
-
-  .services-scroll__scene>b {
-    bottom: 8px;
-    font-size: 11px;
   }
 }
 
