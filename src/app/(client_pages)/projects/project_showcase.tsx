@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -42,6 +41,7 @@ type DisplayProject = {
   category: string;
   categories: string[];
   year: string;
+  yearValue: number | null;
   location: string;
   summary: string;
   description: string;
@@ -53,6 +53,15 @@ type PortfolioClientProps = {
   projects: PortfolioProject[];
   projectId?: string;
 };
+
+type SortKey =
+  | "featured"
+  | "name-asc"
+  | "name-desc"
+  | "year-desc"
+  | "year-asc"
+  | "location-asc"
+  | "category-asc";
 
 /* -------------------------------------------------------------------------- */
 /* Configuration                                                              */
@@ -83,6 +92,16 @@ const CORE_CATEGORIES = [
   "Engenharia",
   "Construção",
   "Fiscalização",
+];
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "featured", label: "Destaque" },
+  { value: "name-asc", label: "Nome (A–Z)" },
+  { value: "name-desc", label: "Nome (Z–A)" },
+  { value: "year-desc", label: "Ano (mais recente)" },
+  { value: "year-asc", label: "Ano (mais antigo)" },
+  { value: "location-asc", label: "Localização (A–Z)" },
+  { value: "category-asc", label: "Categoria (A–Z)" },
 ];
 
 const normalizeCategory = (category: string) =>
@@ -152,6 +171,75 @@ const matchesCategory = (
 };
 
 /* -------------------------------------------------------------------------- */
+/* Sorting                                                                    */
+/* -------------------------------------------------------------------------- */
+
+// Accent-insensitive, case-insensitive, and "Torre 2" < "Torre 10".
+const collator = new Intl.Collator("pt-PT", {
+  sensitivity: "base",
+  numeric: true,
+});
+
+// Empty values always go last, whatever the direction.
+const compareText = (a: string, b: string) => {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+
+  return collator.compare(a, b);
+};
+
+const compareYear = (
+  a: number | null,
+  b: number | null,
+  direction: 1 | -1,
+) => {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+
+  return (a - b) * direction;
+};
+
+const sortProjects = (
+  list: DisplayProject[],
+  key: SortKey,
+): DisplayProject[] => {
+  // "featured" keeps the order already set by featured + display_order.
+  if (key === "featured") return list;
+
+  return [...list].sort((a, b) => {
+    let result = 0;
+
+    switch (key) {
+      case "name-asc":
+        result = compareText(a.name, b.name);
+        break;
+      case "name-desc":
+        result = compareText(b.name, a.name);
+        break;
+      case "year-desc":
+        result = compareYear(a.yearValue, b.yearValue, -1);
+        break;
+      case "year-asc":
+        result = compareYear(a.yearValue, b.yearValue, 1);
+        break;
+      case "location-asc":
+        result = compareText(a.location, b.location);
+        break;
+      case "category-asc":
+        result = compareText(a.category, b.category);
+        break;
+    }
+
+    // Ties fall back to name so the order is predictable.
+    return result !== 0
+      ? result
+      : compareText(a.name, b.name);
+  });
+};
+
+/* -------------------------------------------------------------------------- */
 /* Editorial layouts                                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -196,6 +284,9 @@ export default function ProjectsPage({
 
   const [activeCategory, setActiveCategory] =
     useState("Todos");
+
+  const [sortKey, setSortKey] =
+    useState<SortKey>("featured");
 
   const [selectedProject, setSelectedProject] =
     useState<DisplayProject | null>(null);
@@ -251,6 +342,7 @@ export default function ProjectsPage({
           year: project.year
             ? String(project.year)
             : "",
+          yearValue: project.year ?? null,
           location: project.location ?? "",
           summary:
             project.summary ??
@@ -324,7 +416,7 @@ export default function ProjectsPage({
   }, [displayProjects]);
 
   /* ------------------------------------------------------------------------ */
-  /* Filtering                                                                */
+  /* Filtering and sorting                                                    */
   /* ------------------------------------------------------------------------ */
 
   const filteredProjects = useMemo(() => {
@@ -339,6 +431,16 @@ export default function ProjectsPage({
       ),
     );
   }, [displayProjects, activeCategory]);
+
+  const sortedProjects = useMemo(
+    () => sortProjects(filteredProjects, sortKey),
+    [filteredProjects, sortKey],
+  );
+
+  // The large lead card only makes sense in the default
+  // "Destaque" order. In any other order every card is equal.
+  const hasLead =
+    sortKey === "featured" && sortedProjects.length > 1;
 
   const getCategoryCount = useCallback(
     (category: string) => {
@@ -616,13 +718,13 @@ export default function ProjectsPage({
       </section>
 
       {/* ------------------------------------------------------------------ */}
-      {/* CATEGORY FILTERS                                                   */}
+      {/* CATEGORY FILTERS + SORT                                            */}
       {/* ------------------------------------------------------------------ */}
 
       <section className="bg-paper">
         <div className="mx-auto w-full max-w-[1600px] px-6 md:px-12 lg:px-16">
           <div className="border-b border-navy/15">
-            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-5">
               <div
                 role="group"
                 aria-label="Filtrar projectos por categoria"
@@ -663,19 +765,69 @@ export default function ProjectsPage({
                 })}
               </div>
 
-              <p
-                className="shrink-0 pb-5 text-xs text-gray-400"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                A mostrar{" "}
-                <span className="font-semibold text-navy">
-                  {filteredProjects.length}
-                </span>{" "}
-                {filteredProjects.length === 1
-                  ? "projecto"
-                  : "projectos"}
-              </p>
+              {/* Count + sort */}
+
+              <div className="flex shrink-0 items-center justify-between gap-4 pb-4 pt-1 md:justify-end md:gap-6 md:pb-4 md:pt-0">
+                <p
+                  className="text-xs text-gray-400"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  A mostrar{" "}
+                  <span className="font-semibold text-navy">
+                    {sortedProjects.length}
+                  </span>{" "}
+                  {sortedProjects.length === 1
+                    ? "projecto"
+                    : "projectos"}
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="portfolio-sort"
+                    className="sr-only text-xs text-gray-400 sm:not-sr-only"
+                  >
+                    Ordenar por
+                  </label>
+
+                  <div className="relative">
+                    <select
+                      id="portfolio-sort"
+                      value={sortKey}
+                      onChange={(event) =>
+                        setSortKey(
+                          event.target.value as SortKey,
+                        )
+                      }
+                      className="appearance-none border border-navy/15 bg-transparent py-2 pl-3 pr-9 text-sm font-medium text-navy transition-colors hover:border-navy/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                    >
+                      {SORT_OPTIONS.map((option) => (
+                        <option
+                          key={option.value}
+                          value={option.value}
+                        >
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-navy/50"
+                      aria-hidden="true"
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -685,37 +837,34 @@ export default function ProjectsPage({
       {/* PROJECT GRID                                                       */}
       {/* ------------------------------------------------------------------ */}
 
-
-      {/* ------------------------------------------------------------------ */}
-      {/* PROJECT GRID                                                       */}
-      {/* ------------------------------------------------------------------ */}
-
       <section className="mx-auto w-full max-w-[1600px] px-6 pb-24 pt-14 md:px-12 md:pb-32 md:pt-20 lg:px-16">
-        {filteredProjects.length > 0 ? (
-          <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 sm:gap-y-16 lg:gap-x-8 lg:gap-y-20 xl:grid-cols-12">
+        {sortedProjects.length > 0 ? (
+          <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 sm:gap-y-16 lg:gap-x-8 lg:gap-y-20 xl:grid-cols-12">
 
-            {filteredProjects.map((project, index) => {
-              const isFeatured = index === 0;
+            {sortedProjects.map((project, index) => {
+              const isLead = hasLead && index === 0;
               const cover = project.images[0];
 
               return (
                 <article
                   key={project.id}
-                  className={`group min-w-0 ${isFeatured
+                  className={`group min-w-0 ${isLead
                       ? "sm:col-span-2 xl:col-span-8"
                       : "xl:col-span-4"
                     }`}
                 >
+                  {/* Mobile: the card has 8px of padding on every side.
+                      From sm up the padding is removed (sm:p-0). */}
                   <button
                     type="button"
                     onClick={() => openGallery(project.id)}
                     aria-label={`Ver projecto ${project.name}`}
-                    className="block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+                    className="block w-full bg-white p-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold sm:bg-transparent sm:p-0"
                   >
                     {/* PROJECT IMAGE */}
 
                     <div
-                      className={`relative isolate overflow-hidden bg-stone/40 ${isFeatured
+                      className={`relative isolate overflow-hidden bg-stone/40 ${isLead
                           ? "aspect-[16/10] sm:aspect-[16/9]"
                           : "aspect-[4/3]"
                         }`}
@@ -746,8 +895,8 @@ export default function ProjectsPage({
 
                       {/* Featured label */}
 
-                      {isFeatured && (
-                        <div className="absolute left-5 top-5 sm:left-7 sm:top-7">
+                      {project.featured && (
+                        <div className="absolute left-3 top-3 sm:left-7 sm:top-7">
                           <span className="border border-white/40 bg-navy/30 px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm">
                             Projecto em destaque
                           </span>
@@ -756,7 +905,7 @@ export default function ProjectsPage({
 
                       {/* Category */}
 
-                      <div className="absolute bottom-5 left-5 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white sm:bottom-7 sm:left-7">
+                      <div className="absolute bottom-3 left-3 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white sm:bottom-7 sm:left-7">
                         <span className="h-px w-7 bg-gold" />
                         {project.category}
                       </div>
@@ -782,7 +931,7 @@ export default function ProjectsPage({
 
                     {/* PROJECT INFORMATION */}
 
-                    <div className="mt-5">
+                    <div className="mt-5 px-2 pb-2 sm:px-0 sm:pb-0">
                       {/* Metadata */}
 
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -804,7 +953,7 @@ export default function ProjectsPage({
 
                       <div className="flex items-start justify-between gap-4">
                         <h2
-                          className={`font-semibold leading-tight tracking-[-0.035em] text-navy transition-colors duration-300 group-hover:text-gold-deep ${isFeatured
+                          className={`font-semibold leading-tight tracking-[-0.035em] text-navy transition-colors duration-300 group-hover:text-gold-deep ${isLead
                               ? "text-2xl sm:text-3xl lg:text-4xl"
                               : "text-xl sm:text-2xl"
                             }`}
@@ -833,7 +982,7 @@ export default function ProjectsPage({
 
                       {project.summary && (
                         <p
-                          className={`mt-3 max-w-2xl text-sm leading-6 text-gray-400 ${isFeatured
+                          className={`mt-3 max-w-2xl text-sm leading-6 text-gray-400 ${isLead
                               ? "sm:text-base sm:leading-7"
                               : "line-clamp-2"
                             }`}
