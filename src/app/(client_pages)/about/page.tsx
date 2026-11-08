@@ -475,18 +475,21 @@ export default function AboutPage() {
                 integrada ao seu lado.
               </p>
 
-              <Link
-                href="/contact"
-                className="group inline-flex items-center gap-5 self-start bg-gold py-3 pl-8 pr-3 text-sm font-semibold text-navy transition-colors hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-paper"
-              >
-                Fale connosco
-                <span
-                  aria-hidden
-                  className="flex size-11 items-center justify-center bg-navy text-lg text-paper transition-transform duration-300 group-hover:rotate-45 motion-reduce:transition-none"
-                >
-                  ↗
-                </span>
-              </Link>
+           
+<Link
+  href="/contact"
+  className="group inline-flex items-center gap-7 self-start border border-gold bg-gold py-2 pl-7 pr-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-navy transition-all duration-300 hover:border-paper hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold motion-reduce:transition-none"
+>
+  <span>Fale connosco</span>
+
+  <span
+    aria-hidden="true"
+    className="flex size-11 items-center justify-center bg-navy text-lg text-paper transition-all duration-300 group-hover:bg-gold group-hover:text-navy group-hover:rotate-45 motion-reduce:transition-none"
+  >
+    ↗
+  </span>
+</Link>
+
             </div>
           </div>
         </section>
