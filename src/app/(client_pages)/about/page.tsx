@@ -65,7 +65,7 @@ export default function AboutPage() {
           <div className="absolute inset-0 bg-gradient-to-r from-[#002950]/95 via-[#002950]/65 to-[#002950]/20" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#002950]/80 via-transparent to-[#002950]/20" />
           <img
-            src="/images/about-hero.jpg"
+            src=""
             alt="Projecto de arquitectura PRO SOTA"
             className="h-full w-full object-cover opacity-60"
           />
