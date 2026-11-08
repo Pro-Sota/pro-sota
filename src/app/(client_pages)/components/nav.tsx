@@ -79,15 +79,14 @@ export default function Nav({ dark = false }: NavProps) {
           );
         })}
 
-        <Link
-          href="/contact"
-          className="nav__cta"
-          onClick={closeMenu}
-          aria-current={pathname === "/contact" ? "page" : undefined}
-        >
-          Pedir Orçamento
-        </Link>
-      </nav>
+     <Link
+  href="/contact"
+  className="nav__cta"
+  onClick={closeMenu}
+  aria-current={pathname === "/contact" ? "page" : undefined}
+>
+  Fale connosco
+</Link>
 
       <button
         type="button"
