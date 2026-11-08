@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -6,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import Nav from "../components/nav";
@@ -29,6 +29,10 @@ import "../../styles.css";
 const SERVICES = services;
 
 const MOBILE_BREAKPOINT = "(max-width: 900px)";
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+/** How long the previous 3D scene stays mounted so its fade-out can finish. */
+const SCENE_EXIT_MS = 600;
 
 const SCROLL_OFFSETS = {
   desktop: 110,
@@ -46,17 +50,181 @@ const SCENE_BY_SERVICE = {
   (typeof SCENES)[keyof typeof SCENES]
 >;
 
+const isServiceKey = (value: string | null): value is ServiceKey =>
+  value !== null && SERVICE_KEYS.includes(value as ServiceKey);
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Subscribes to a media query without causing hydration mismatches.
+ * The server snapshot is `true`, so on the server (and on first paint on
+ * mobile) the 3D scenes are never rendered.
+ */
+function useMediaQuery(query: string, serverValue: boolean) {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mql = window.matchMedia(query);
+      mql.addEventListener("change", onChange);
+      return () => mql.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(query).matches,
+    () => serverValue,
+  );
+}
+
+/** Distance from the top of the viewport that content must clear. */
+function getVisibleTop(visual: HTMLElement | null) {
+  if (!window.matchMedia(MOBILE_BREAKPOINT).matches) {
+    return SCROLL_OFFSETS.desktop;
+  }
+
+  const visualHeight = visual?.getBoundingClientRect().height ?? 0;
+
+  return (
+    SCROLL_OFFSETS.mobileNav +
+    visualHeight +
+    SCROLL_OFFSETS.mobileGap
+  );
+}
+
+/**
+ * Tracks which service is closest to the reading position.
+ * Keeps a Set of every currently-visible step, because the observer callback
+ * only reports the entries that changed, not all visible ones.
+ */
+function useActiveService(
+  stepsRef: { current: (HTMLElement | null)[] },
+  visualRef: { current: HTMLElement | null },
+) {
+  const [active, setActive] = useState<ServiceKey>(
+    SERVICE_KEYS[0],
+  );
+
+  useEffect(() => {
+    if (!("IntersectionObserver" in window)) return;
+
+    let observer: IntersectionObserver | null = null;
+    const visible = new Set<Element>();
+
+    const build = () => {
+      observer?.disconnect();
+      visible.clear();
+
+      const top = getVisibleTop(visualRef.current);
+
+      const bottom = Math.min(
+        window.innerHeight * 0.55,
+        Math.max(0, window.innerHeight - top - 80),
+      );
+
+      const reading =
+        top + (window.innerHeight - top - bottom) / 2;
+
+      observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) visible.add(entry.target);
+            else visible.delete(entry.target);
+          });
+
+          let best: Element | null = null;
+          let bestDistance = Infinity;
+
+          visible.forEach((element) => {
+            const rect = element.getBoundingClientRect();
+            const distance = Math.abs(
+              rect.top + rect.height / 2 - reading,
+            );
+
+            if (distance < bestDistance) {
+              best = element;
+              bestDistance = distance;
+            }
+          });
+
+          const key = (best as Element | null)?.getAttribute(
+            "data-service",
+          ) ?? null;
+
+          if (isServiceKey(key)) {
+            setActive((current) =>
+              current === key ? current : key,
+            );
+          }
+        },
+        {
+          root: null,
+          rootMargin: `-${top}px 0px -${bottom}px 0px`,
+          threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
+        },
+      );
+
+      stepsRef.current.forEach((step) => {
+        if (step) observer?.observe(step);
+      });
+    };
+
+    build();
+
+    // Rebuild when the window OR the sticky visual panel changes size.
+    const resizeObserver =
+      "ResizeObserver" in window
+        ? new ResizeObserver(build)
+        : null;
+
+    if (visualRef.current) {
+      resizeObserver?.observe(visualRef.current);
+    }
+
+    window.addEventListener("resize", build, { passive: true });
+
+    return () => {
+      observer?.disconnect();
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", build);
+    };
+  }, [stepsRef, visualRef]);
+
+  return active;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Component                                                                  */
 /* -------------------------------------------------------------------------- */
 
 export default function ServicesOverview() {
-  const [active, setActive] = useState<ServiceKey>(
-    SERVICE_KEYS[0],
-  );
-
   const stepsRef = useRef<(HTMLElement | null)[]>([]);
   const visualRef = useRef<HTMLElement | null>(null);
+
+  const active = useActiveService(stepsRef, visualRef);
+
+  /** No 3D on mobile. Defaults to `true` on the server. */
+  const isMobile = useMediaQuery(MOBILE_BREAKPOINT, true);
+
+  /* Desktop only: keep the previous scene mounted briefly for its fade-out. */
+  const [mountedScenes, setMountedScenes] = useState<ServiceKey[]>(
+    [active],
+  );
+
+  useEffect(() => {
+    if (isMobile) {
+      setMountedScenes([]);
+      return;
+    }
+
+    setMountedScenes((current) =>
+      current.includes(active) ? current : [...current, active],
+    );
+
+    const timeout = window.setTimeout(
+      () => setMountedScenes([active]),
+      SCENE_EXIT_MS,
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, [active, isMobile]);
 
   const activeIndex = SERVICES.findIndex(
     (service) => service.key === active,
@@ -73,146 +241,64 @@ export default function ServicesOverview() {
   /* Navigation                                                               */
   /* ------------------------------------------------------------------------ */
 
-  const goToService = useCallback((index: number) => {
-    const step = stepsRef.current[index];
+  const goToService = useCallback(
+    (index: number, instant = false) => {
+      const step = stepsRef.current[index];
 
-    if (!step) return;
+      if (!step) return;
 
-    const isMobile = window.matchMedia(
-      MOBILE_BREAKPOINT,
-    ).matches;
+      const offset = getVisibleTop(visualRef.current);
 
-    const visualHeight = isMobile
-      ? visualRef.current?.getBoundingClientRect().height ?? 0
-      : 0;
+      const top =
+        window.scrollY +
+        step.getBoundingClientRect().top -
+        offset;
 
-    const offset = isMobile
-      ? SCROLL_OFFSETS.mobileNav +
-        visualHeight +
-        SCROLL_OFFSETS.mobileGap
-      : SCROLL_OFFSETS.desktop;
+      const reducedMotion =
+        window.matchMedia(REDUCED_MOTION).matches;
 
-    const top =
-      window.scrollY +
-      step.getBoundingClientRect().top -
-      offset;
+      window.scrollTo({
+        top: Math.max(0, top),
+        behavior: instant || reducedMotion ? "auto" : "smooth",
+      });
 
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    window.scrollTo({
-      top: Math.max(0, top),
-      behavior: reducedMotion ? "auto" : "smooth",
-    });
-
-    step.focus({ preventScroll: true });
-  }, []);
+      step.focus({ preventScroll: true });
+    },
+    [],
+  );
 
   /* ------------------------------------------------------------------------ */
-  /* Active service tracking                                                  */
+  /* URL hash <-> active service                                              */
   /* ------------------------------------------------------------------------ */
+
+  // On load, jump to the service named in the hash (if any).
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    const index = SERVICES.findIndex(
+      (service) => service.key === hash,
+    );
+
+    if (index < 0) return;
+
+    const frame = requestAnimationFrame(() =>
+      goToService(index, true),
+    );
+
+    return () => cancelAnimationFrame(frame);
+  }, [goToService]);
+
+  // Keep the hash in sync while scrolling (replaceState: no history spam).
+  // Skips the first run so it never overwrites the incoming hash.
+  const hashReady = useRef(false);
 
   useEffect(() => {
-    if (!("IntersectionObserver" in window)) return;
+    if (!hashReady.current) {
+      hashReady.current = true;
+      return;
+    }
 
-    let observer: IntersectionObserver | null = null;
-
-    const observeServices = () => {
-      observer?.disconnect();
-
-      const isMobile = window.matchMedia(
-        MOBILE_BREAKPOINT,
-      ).matches;
-
-      const visualHeight = isMobile
-        ? visualRef.current?.getBoundingClientRect().height ?? 0
-        : 0;
-
-      const visibleTop = isMobile
-        ? SCROLL_OFFSETS.mobileNav +
-          visualHeight +
-          SCROLL_OFFSETS.mobileGap
-        : SCROLL_OFFSETS.desktop;
-
-      const bottomOffset = Math.min(
-        window.innerHeight * 0.55,
-        Math.max(
-          0,
-          window.innerHeight - visibleTop - 80,
-        ),
-      );
-
-      const readingPosition =
-        visibleTop +
-        (window.innerHeight - visibleTop - bottomOffset) / 2;
-
-      observer = new IntersectionObserver(
-        (entries) => {
-          const visibleEntries = entries
-            .filter((entry) => entry.isIntersecting)
-            .sort((a, b) => {
-              const aDistance = Math.abs(
-                a.boundingClientRect.top +
-                  a.boundingClientRect.height / 2 -
-                  readingPosition,
-              );
-
-              const bDistance = Math.abs(
-                b.boundingClientRect.top +
-                  b.boundingClientRect.height / 2 -
-                  readingPosition,
-              );
-
-              return aDistance - bDistance;
-            });
-
-          const closest = visibleEntries[0];
-
-          if (!closest) return;
-
-          const key = closest.target.getAttribute(
-            "data-service",
-          );
-
-          if (
-            key &&
-            SERVICE_KEYS.includes(key as ServiceKey)
-          ) {
-            setActive((current) =>
-              current === key
-                ? current
-                : (key as ServiceKey),
-            );
-          }
-        },
-        {
-          root: null,
-          rootMargin: `-${visibleTop}px 0px -${bottomOffset}px 0px`,
-          threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
-        },
-      );
-
-      stepsRef.current.forEach((step) => {
-        if (step) observer?.observe(step);
-      });
-    };
-
-    observeServices();
-
-    window.addEventListener("resize", observeServices, {
-      passive: true,
-    });
-
-    return () => {
-      observer?.disconnect();
-
-      window.removeEventListener(
-        "resize",
-        observeServices,
-      );
-    };
-  }, []);
+    history.replaceState(null, "", `#${active}`);
+  }, [active]);
 
   /* ------------------------------------------------------------------------ */
   /* Render                                                                   */
@@ -529,46 +615,64 @@ export default function ServicesOverview() {
 
               <aside
                 ref={visualRef}
-                className="services-scroll__visual relative"
-                aria-label="Visualização e navegação dos serviços"
+                className={
+                  "services-scroll__visual relative" +
+                  (isMobile ? " is-compact" : "")
+                }
+                aria-label="Navegação dos serviços"
               >
-                <div
-                  className="stage__grid"
-                  aria-hidden="true"
-                />
+                {/* 3D stage: desktop only, never mounted on mobile */}
 
-                {/* 3D scenes */}
-
-                {SERVICES.map((service) => {
-                  const sceneKey = service.key as ServiceKey;
-                  const Scene = SCENE_BY_SERVICE[sceneKey];
-                  const isActive = active === service.key;
-
-                  return (
+                {!isMobile && (
+                  <>
                     <div
-                      key={service.key}
-                      className={
-                        "services-scroll__scene" +
-                        (isActive ? " is-active" : "")
-                      }
-                      aria-hidden={!isActive}
-                      inert={!isActive}
-                    >
-                      <span aria-hidden="true">
-                        {service.num}
-                      </span>
+                      className="stage__grid"
+                      aria-hidden="true"
+                    />
 
-                      <div
-                        className="scene3d__rig"
-                        aria-hidden="true"
-                      >
-                        <Scene />
-                      </div>
+                    {SERVICES.map((service) => {
+                      const Scene =
+                        SCENE_BY_SERVICE[service.key as ServiceKey];
+                      const isActive = active === service.key;
 
-                      <b>{service.title}</b>
-                    </div>
-                  );
-                })}
+                      // Only the active scene (plus the one fading out)
+                      // is mounted, so inactive WebGL loops don't run.
+                      const shouldMount =
+                        isActive ||
+                        mountedScenes.includes(
+                          service.key as ServiceKey,
+                        );
+
+                      return (
+                        <div
+                          key={service.key}
+                          className={
+                            "services-scroll__scene" +
+                            (isActive ? " is-active" : "")
+                          }
+                          aria-hidden={!isActive}
+                          // `inert` set via ref works on React 18 and 19.
+                          ref={(node) => {
+                            if (node) node.inert = !isActive;
+                          }}
+                        >
+                          <span aria-hidden="true">
+                            {service.num}
+                          </span>
+
+                          <div
+                            className="scene3d__rig"
+                            aria-hidden="true"
+                          >
+                            {shouldMount && <Scene />}
+                          </div>
+
+                          <b>{service.title}</b>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
 
                 {/* PROGRESS NAVIGATION */}
 
@@ -606,7 +710,7 @@ export default function ServicesOverview() {
                     })}
                   </div>
 
-                  <p aria-live="off">
+                  <p>
                     <span>
                       {String(currentNumber).padStart(2, "0")}
                     </span>
