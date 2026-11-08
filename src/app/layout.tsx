@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
 
   title: {
-    default: "PRO SOTA | Arquitectura, Engenharia e Construção em Angola",
+    default: "PRO SOTA | Arquitectura, Engenharia e Construção",
     template: "%s | PRO SOTA",
   },
 
@@ -83,7 +83,7 @@ export const metadata: Metadata = {
     title: "PRO SOTA | Arquitectura e Engenharia",
     description:
       "Damos forma às ideias. Construímos o futuro. Angola · Desde 1997.",
-    images: ["/images/og-image.jpg"],
+    images: ["/images/logo-horizontal.png"],
   },
 
   robots: {
@@ -107,7 +107,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="pt_AO"
       title="Pro-Sota"
       className={cn(
         "h-full",
