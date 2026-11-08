@@ -30,7 +30,7 @@ const NAV_LINKS = [
 ];
 
 const ROUTES = {
-  about: "/about" 
+  about: "/about",
   services: "/services",
   projects: "/projects",
 };
