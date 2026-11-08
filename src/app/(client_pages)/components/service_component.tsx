@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { SectionHeader } from "../home_page";
-
 
 export default function ServicesSection({ services, Routes }: { services: any[], Routes: any }) {
     const wrap = "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
