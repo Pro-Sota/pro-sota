@@ -1,14 +1,18 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 interface NavProps {
   dark?: boolean;
 }
 
 export default function Nav({ dark = false }: NavProps) {
+  const pathname = usePathname();
+
   const [scrolled, setScrolled] = useState(dark);
   const [open, setOpen] = useState(false);
 
@@ -26,6 +30,13 @@ export default function Nav({ dark = false }: NavProps) {
   function closeMenu() {
     setOpen(false);
   }
+
+  const links = [
+    { label: "Início", href: "/" },
+    { label: "Sobre", href: "/about" },
+    { label: "Serviços", href: "/services" },
+    { label: "Projectos", href: "/projects" },
+  ];
 
   return (
     <header className={`nav${scrolled ? " is-scrolled" : ""}`}>
@@ -45,29 +56,34 @@ export default function Nav({ dark = false }: NavProps) {
       </Link>
 
       <nav
+        id="mobile-navigation"
         className={`nav__links${open ? " is-open" : ""}`}
         aria-label="Navegação principal"
       >
-        <Link href="/" onClick={closeMenu}>
-          Início
-        </Link>
+        {links.map((link) => {
+          const active =
+            link.href === "/"
+              ? pathname === "/"
+              : pathname === link.href ||
+                pathname.startsWith(`${link.href}/`);
 
-        <Link href="/about" onClick={closeMenu}>
-          Sobre
-        </Link>
-
-        <Link href="/services" onClick={closeMenu}>
-          Serviços
-        </Link>
-
-        <Link href="/projects" onClick={closeMenu}>
-          Projectos
-        </Link>
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={closeMenu}
+              aria-current={active ? "page" : undefined}
+            >
+              {link.label}
+            </Link>
+          );
+        })}
 
         <Link
-          href="/#contacto"
+          href="/contact"
           className="nav__cta"
           onClick={closeMenu}
+          aria-current={pathname === "/contact" ? "page" : undefined}
         >
           Pedir Orçamento
         </Link>
