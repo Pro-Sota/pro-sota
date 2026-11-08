@@ -3,10 +3,10 @@ import Link from "next/link";
 
 const navigation = [
   { label: "Início", href: "/" },
-  { label: "Serviços", href: "/servicos" },
-  { label: "Projectos", href: "/projectos" },
-  { label: "Sobre Nós", href: "/sobre-nos" },
-  { label: "Contactos", href: "/contactos" },
+  { label: "Serviços", href: "/services" },
+  { label: "Projectos", href: "/projects" },
+  { label: "Sobre Nós", href: "/about" },
+  { label: "Contactos", href: "/contact" },
 ];
 
 export default function Footer() {
