@@ -1,38 +1,25 @@
+
 "use client";
 
-import { useState, type ReactNode } from "react";
 import Link from "next/link";
 
 import Nav from "./components/nav";
 import Hero from "./components/hero_section";
 import About from "./components/about";
-import Projects from "./components/projects";
-import Lightbox from "./components/light_box";
+import WhyUs from "./components/why_us";
+import ServicesSection from "./components/service_component";
+import ProjectsShowcase from "./components/projects_showcase";
 import Contact from "./components/contact_page";
+
 import { services } from "./components/servicesData";
-
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Arquitectura, Engenharia e Construção",
-  description:
-    "Conheça a PRO SOTA. Empresa angolana de arquitectura, engenharia, construção e fiscalização de obras. Experiência e excelência desde 1997.",
-  alternates: {
-    canonical: "/",
-  },
-};
 
 import "../globals.css";
 import "../styles.css";
 import "../admin.css";
-import WhyUs from "./components/why_us";
-import Services from "./components/services";
-import ServicesSection from "./components/service_component";
-import ProjectsShowcase from "./components/projects";
 
-
-// Reuses whatever type Lightbox expects, so no `as never` is needed.
-type LightboxProject = React.ComponentProps<typeof Lightbox>["project"];
+interface HomeClientProps {
+  projects: any[];
+}
 
 const NAV_LINKS = [
   { label: "Início", href: "#top" },
@@ -44,58 +31,50 @@ const NAV_LINKS = [
 
 const ROUTES = {
   services: "/services",
-  projects: "/projects", // consider renaming to /projectos to match /servicos
+  projects: "/projects",
 };
 
 const FEATURED_COUNT = 8;
 const YEAR = new Date().getFullYear();
 
-const wrap = "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
+const WRAP =
+  "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
 
-export function SectionHeader({
+function SectionHeader({
   eyebrow,
   children,
-  tone = "light",
 }: {
   eyebrow: string;
-  children: ReactNode;
-  tone?: "light" | "dark";
+  children: React.ReactNode;
 }) {
-  const dark = tone === "dark";
   return (
     <div>
       <div className="mb-7 flex items-center gap-3">
-        <span className="h-px w-10 bg-gold" aria-hidden="true" />
         <span
-          className={`text-xs font-semibold uppercase tracking-[0.22em] ${
-            dark ? "text-white/70" : "text-mute"
-          }`}
-        >
+          className="h-px w-10 bg-gold"
+          aria-hidden="true"
+        />
+
+        <span className="text-xs font-semibold uppercase tracking-[0.22em] text-mute">
           {eyebrow}
         </span>
       </div>
-      <h2
-        className={`text-5xl font-semibold leading-[0.98] tracking-[-0.055em] md:text-7xl ${
-          dark ? "" : "text-navy"
-        }`}
-      >
+
+      <h2 className="text-5xl font-semibold leading-[0.98] tracking-[-0.055em] text-navy md:text-7xl">
         {children}
       </h2>
     </div>
   );
 }
 
-export default function HomeClient({ projects }: { projects: any[] }) {
-  const [openId, setOpenId] = useState<string | null>(null);
-
-  const featured = projects.slice(0, FEATURED_COUNT);
-  const openProject = projects.find((p) => p.id === openId) ?? null;
-
-            {console.log("projects", featured)}
-
+export default function HomeClient({
+  projects,
+}: HomeClientProps) {
+  const featuredProjects = projects.slice(0, FEATURED_COUNT);
 
   return (
     <>
+      {/* Skip navigation */}
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:text-navy"
@@ -103,31 +82,51 @@ export default function HomeClient({ projects }: { projects: any[] }) {
         Saltar para o conteúdo
       </a>
 
+      {/* NAVIGATION */}
       <Nav />
 
       <main id="main">
+        {/* 01 — HERO */}
         <Hero />
+
+        {/* 02 — ABOUT */}
         <About />
-        <WhyUs /> 
-        <ServicesSection services={services} Routes={ROUTES} />
-        {/* PORTFOLIO */}
+
+        {/* 03 — SERVICES */}
+        <ServicesSection
+          services={services}
+          Routes={ROUTES}
+        />
+
+        {/* 04 — WHY PRO SOTA */}
+        <WhyUs />
+
+        {/* 05 — SELECTED PROJECTS */}
         <section
           id="projectos"
+          aria-labelledby="projects-heading"
           className="scroll-mt-24 bg-[#F7F7F5] py-24 md:py-32 lg:py-36"
         >
-          <div className={wrap}>
+          <div className={WRAP}>
             <div className="mb-14 flex flex-wrap items-end justify-between gap-8">
-              <SectionHeader eyebrow="O nosso trabalho">
-                Projectos
-                <br className="md:hidden" />
-                <span className="text-gold"> seleccionados.</span>
-              </SectionHeader>
+              <div>
+                <SectionHeader eyebrow="O nosso trabalho">
+                  <span id="projects-heading">
+                    Projectos
+                    <br className="md:hidden" />
+                    <span className="text-gold">
+                      {" "}seleccionados.
+                    </span>
+                  </span>
+                </SectionHeader>
+              </div>
 
               <Link
                 href={ROUTES.projects}
                 className="group inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-navy underline decoration-gold decoration-2 underline-offset-8 transition-colors hover:text-gold"
               >
                 Ver projectos completos
+
                 <span
                   aria-hidden="true"
                   className="transition-transform group-hover:translate-x-1"
@@ -137,9 +136,13 @@ export default function HomeClient({ projects }: { projects: any[] }) {
               </Link>
             </div>
 
-            <ProjectsShowcase projects={featured} />
+            <ProjectsShowcase projects={featuredProjects} />
+
             <div className="mt-12 flex flex-col justify-between gap-4 border-t border-navy/15 pt-6 text-xs text-[#5F656A] sm:flex-row">
-              <p>Uma selecção de projectos que reflecte a nossa experiência.</p>
+              <p>
+                Uma selecção de projectos que reflecte a nossa experiência.
+              </p>
+
               <p className="font-medium uppercase tracking-wider">
                 PRO SOTA · Projectos
               </p>
@@ -147,20 +150,27 @@ export default function HomeClient({ projects }: { projects: any[] }) {
           </div>
         </section>
 
-        {/* CONTACT */}
-        <section id="contacto" className="scroll-mt-24 border-t border-line">
+        {/* 06 — CONTACT */}
+        <section
+          id="contacto"
+          className="scroll-mt-24 border-t border-line"
+        >
           <Contact />
         </section>
       </main>
 
       {/* FOOTER */}
       <footer className="bg-ink text-white">
-        <div className={`${wrap} py-14`}>
+        <div className={`${WRAP} py-14`}>
           <div className="flex flex-col justify-between gap-10 md:flex-row md:items-end">
             <div>
-              <Link href="/" className="text-3xl font-bold tracking-[0.16em]">
+              <Link
+                href="/"
+                className="text-3xl font-bold tracking-[0.16em]"
+              >
                 PRO SOTA
               </Link>
+
               <p className="mt-3 text-xs tracking-[0.18em] text-white/65">
                 ARQUITECTURA · ENGENHARIA · CONSTRUÇÃO
               </p>
@@ -183,16 +193,14 @@ export default function HomeClient({ projects }: { projects: any[] }) {
           </div>
 
           <div className="mt-12 flex flex-col justify-between gap-3 border-t border-white/15 pt-7 text-xs text-white/60 md:flex-row">
-            <p>© {YEAR} PRO SOTA. Todos os direitos reservados.</p>
+            <p>
+              © {YEAR} PRO SOTA. Todos os direitos reservados.
+            </p>
+
             <p>Luanda, Angola</p>
           </div>
         </div>
       </footer>
-
-      <Lightbox
-        project={openProject as LightboxProject}
-        onClose={() => setOpenId(null)}
-      />
     </>
   );
 }
