@@ -103,7 +103,7 @@ export default function ProjectsShowcase({
 
   return (
     <>
-      {/* Same gutter as the rest of the site: px-6 / md:px-12 / lg:px-20 */}
+      {/* Same container as the other pages: max-w-[1600px], px-6 / md:px-12 / lg:px-20 */}
       <section
         id="projects"
         className="
@@ -118,7 +118,8 @@ export default function ProjectsShowcase({
           className="
             mx-auto
             grid
-            max-w-[1440px]
+            w-full
+            max-w-[1600px]
             grid-cols-1
             gap-x-6
             gap-y-10
