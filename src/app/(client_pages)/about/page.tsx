@@ -3,6 +3,25 @@
 import Nav from "../components/nav";
 import Link from "next/link";
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Sobre nós",
+  description:
+    "Desde 1997, a PRO SOTA desenvolve projectos de arquitectura, engenharia, construção e fiscalização em Angola.",
+  alternates: { canonical: "/sobre" }, // match your real route
+  openGraph: {
+    title: "Sobre nós | PRO SOTA",
+    description:
+      "Arquitectura, engenharia, construção e fiscalização em Angola, desde 1997.",
+    url: "/about",
+    siteName: "PRO SOTA",
+    locale: "pt_AO",
+    type: "website",
+    images: [{ url: "/logo-brand.png", width: 1200, height: 630 }],
+  },
+};
+
 const values = [
   {
     number: "01",
