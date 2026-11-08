@@ -64,7 +64,7 @@ const expertise = [
     title: "Arquitectura",
     description:
       "Concepção arquitectónica, planeamento e desenvolvimento de espaços que equilibram estética, funcionalidade e contexto.",
-    image: "/images/about/arquitectura.svg",
+    image: "/images/arquitectura.svg",
     alt: "Desenho de alçado de um edifício moderno com palas verticais e um volume dourado.",
     span: "md:col-span-7",
     ratio: "aspect-[16/11]",
@@ -73,7 +73,7 @@ const expertise = [
     title: "Engenharia",
     description:
       "Soluções de engenharia integradas, sustentadas pelo rigor técnico e pela eficiência construtiva.",
-    image: "/images/about/engenharia.svg",
+    image: "/images/engenharia.svg",
     alt: "Desenho de uma ponte atirantada com cabos dourados.",
     span: "md:col-span-5",
     ratio: "aspect-[4/3]",
@@ -82,7 +82,7 @@ const expertise = [
     title: "Construção",
     description:
       "Execução e gestão de obras, assegurando qualidade, coordenação e controlo em todas as etapas.",
-    image: "/images/about/construcao.svg",
+    image: "/images/construcao.svg",
     alt: "Desenho de uma estrutura em betão em construção, com andaimes e grua.",
     span: "md:col-span-5",
     ratio: "aspect-[4/3]",
@@ -91,7 +91,7 @@ const expertise = [
     title: "Fiscalização e Consultoria",
     description:
       "Acompanhamento técnico, fiscalização e consultoria para garantir o cumprimento dos requisitos de cada projecto.",
-    image: "/images/about/fiscalizacao.svg",
+    image: "/images/fiscalizacao.svg",
     alt: "Corte construtivo de um edifício com cotas de nível e uma lupa sobre uma ligação estrutural.",
     span: "md:col-span-7",
     ratio: "aspect-[16/11]",
@@ -129,7 +129,7 @@ export default function AboutPage() {
       {/* HERO */}
       <section className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-navy text-paper">
         <Image
-          src="/images/about/hero.svg"
+          src="/images/hero.svg"
           alt=""
           fill
           priority
@@ -216,7 +216,7 @@ export default function AboutPage() {
 
             <div className="relative mt-12 aspect-[4/3] overflow-hidden bg-stone">
               <Image
-                src="/images/about/plan.svg"
+                src="/images/plan.svg"
                 alt="Planta de uma habitação com cotas de 24 por 16,5 metros."
                 fill
                 unoptimized
