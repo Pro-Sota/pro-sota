@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -8,7 +7,7 @@ import Hero from "./components/hero_section";
 import About from "./components/about";
 import WhyUs from "./components/why_us";
 import ServicesSection from "./components/service_component";
-import ProjectsShowcase from "./components/projects_showcase";
+import ProjectsShowcase from "./components/projects";
 import Contact from "./components/contact_page";
 
 import { services } from "./components/servicesData";
