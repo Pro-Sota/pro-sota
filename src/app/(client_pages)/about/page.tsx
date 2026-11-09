@@ -77,6 +77,12 @@ const delay = (s: string) => ({ "--d": s }) as CSSProperties;
 const focus =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4";
 
+/* Standard title scales, shared with the services page. */
+const TITLE_H1 =
+  "font-display text-[clamp(2.75rem,6.5vw,5.5rem)] font-medium leading-[0.95] tracking-[-0.03em]";
+const TITLE_H2 =
+  "font-display text-[clamp(2rem,4vw,3.5rem)] font-medium leading-[1] tracking-[-0.02em]";
+
 export default function AboutPage() {
   const years = new Date().getFullYear() - site.founded;
 
@@ -135,7 +141,7 @@ export default function AboutPage() {
 
           <div className={`${pad} mt-auto pt-28 md:pt-36`}>
             <div className={wrap}>
-              <h1 className="font-display text-[clamp(2.5rem,7vw,6.25rem)] font-medium leading-[0.98] tracking-tight">
+              <h1 className={TITLE_H1}>
                 <span className="rise block" style={delay("0.1s")}>Construímos</span>
                 <span className="rise block" style={delay("0.28s")}>com visão.</span>
               </h1>
@@ -251,9 +257,7 @@ export default function AboutPage() {
         <section className="grid md:grid-cols-2">
           <div className={`${pad} bg-navy py-14 text-paper md:py-20`}>
             <p className="text-sm font-medium text-gold">A nossa missão</p>
-            <h2 className="mt-5 font-display text-[clamp(2rem,3.6vw,3.25rem)] font-medium leading-[1.05] tracking-tight">
-              Dar forma às ideias.
-            </h2>
+            <h2 className={`mt-5 ${TITLE_H2}`}>Dar forma às ideias.</h2>
             <p className="mt-5 max-w-lg text-base leading-8 text-paper/80">
               Desenvolver e concretizar projectos de arquitectura, engenharia
               e construção, e assegurar fiscalização e acompanhamento técnico,
@@ -263,9 +267,7 @@ export default function AboutPage() {
           </div>
           <div className={`${pad} bg-gold py-14 text-navy md:py-20`}>
             <p className="text-sm font-medium text-navy/80">A nossa visão</p>
-            <h2 className="mt-5 font-display text-[clamp(2rem,3.6vw,3.25rem)] font-medium leading-[1.05] tracking-tight">
-              Construir o futuro.
-            </h2>
+            <h2 className={`mt-5 ${TITLE_H2}`}>Construir o futuro.</h2>
             <p className="mt-5 max-w-lg text-base leading-8 text-navy/90">
               Ser uma referência de confiança nas áreas da arquitectura,
               engenharia, construção e fiscalização, reconhecida pela
@@ -417,7 +419,7 @@ export default function AboutPage() {
           <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-navy via-navy/70 to-transparent" />
 
           <div className={wrap}>
-            <h2 className="max-w-5xl font-display text-[clamp(2.25rem,5.5vw,4.75rem)] font-medium leading-[1] tracking-tight">
+            <h2 className={`max-w-5xl ${TITLE_H2}`}>
               O próximo projecto começa com uma ideia.
             </h2>
 
@@ -456,7 +458,6 @@ export default function AboutPage() {
           </div>
         </section>
       </main>
-
       <Footer />
     </>
   );

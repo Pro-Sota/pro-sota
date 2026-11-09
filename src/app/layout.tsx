@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
-import {
-  Roboto,
-  Roboto_Mono,
-  Inter,
-} from "next/font/google";
+import { Fraunces, DM_Sans } from "next/font/google";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { cn } from "@/lib/utils/utils";
@@ -13,18 +9,22 @@ import "./styles.css";
 
 import OrganizationSchema from "./components/organization_schema";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+/* Fonts. The CSS variables are mapped to Tailwind's `font-display` and
+   `font-body` in globals.css (see the @theme inline block there). */
 
-
-const roboto = Roboto({
-  variable: "--font-roboto",
+const display = Fraunces({
   subsets: ["latin"],
-});
-const robotoMono = Roboto_Mono({
-  variable: "--font-roboto-mono",
-  subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["opsz"], // optical sizing: sharper at large sizes
+  variable: "--font-display-face",
+  display: "swap",
 });
 
+const body = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-body-face",
+  display: "swap",
+});
 
 const SITE_URL = "https://prosota.ao";
 
@@ -40,6 +40,17 @@ export const metadata: Metadata = {
     "A PRO SOTA é uma empresa angolana de arquitectura, engenharia, construção e fiscalização. Desenvolvemos projectos e soluções integradas desde 1997.",
 
   applicationName: "PRO SOTA",
+
+  icons: {
+    icon: [
+      {
+        url: "/images/favicon.png",
+        type: "image/png",
+      },
+    ],
+    shortcut: "/images/favicon.png",
+    apple: "/images/favicon.png",
+  },
 
   keywords: [
     "PRO SOTA",
@@ -99,7 +110,6 @@ export const metadata: Metadata = {
   },
 };
 
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -107,19 +117,14 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="pt_AO"
-      title="Pro-Sota"
-      className={cn(
-        "h-full",
-        "antialiased",
-        roboto.variable,
-        robotoMono.variable,
-        "font-sans",
-        inter.variable,
-      )}
+      lang="pt-AO"
+      className={cn("h-full", "antialiased", display.variable, body.variable)}
     >
-      <body className="min-h-full flex flex-col overflow-hidden">
-<OrganizationSchema />
+      {/* NOTE: `overflow-hidden` removed from <body>. It blocks page scroll and
+          breaks `sticky`/`fixed` behaviour. If a specific page needs it, set it
+          on that page's own wrapper instead. */}
+      <body className="flex min-h-full flex-col">
+        <OrganizationSchema />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
