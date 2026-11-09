@@ -10,33 +10,61 @@ interface NavProps {
   dark?: boolean;
 }
 
+const links = [
+  { label: "Início", href: "/" },
+  { label: "Sobre", href: "/about" },
+  { label: "Serviços", href: "/services" },
+  { label: "Projectos", href: "/projects" },
+];
+
 export default function Nav({ dark = false }: NavProps) {
   const pathname = usePathname();
 
   const [scrolled, setScrolled] = useState(dark);
   const [open, setOpen] = useState(false);
 
+  // Scroll state
   useEffect(() => {
-    function onScroll() {
-      setScrolled(dark || window.scrollY > 40);
+    if (dark) {
+      setScrolled(true);
+      return;
     }
 
-    window.addEventListener("scroll", onScroll, { passive: true });
+    function onScroll() {
+      setScrolled(window.scrollY > 40);
+    }
+
     onScroll();
 
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("scroll", onScroll, {
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [dark]);
+
+  // Close menu when navigating
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // Prevent background scrolling when menu is open
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
 
   function closeMenu() {
     setOpen(false);
   }
-
-  const links = [
-    { label: "Início", href: "/" },
-    { label: "Sobre", href: "/about" },
-    { label: "Serviços", href: "/services" },
-    { label: "Projectos", href: "/projects" },
-  ];
 
   return (
     <header className={`nav${scrolled ? " is-scrolled" : ""}`}>
@@ -59,6 +87,7 @@ export default function Nav({ dark = false }: NavProps) {
         id="mobile-navigation"
         className={`nav__links${open ? " is-open" : ""}`}
         aria-label="Navegação principal"
+        aria-hidden={!open}
       >
         {links.map((link) => {
           const active =
@@ -73,20 +102,22 @@ export default function Nav({ dark = false }: NavProps) {
               href={link.href}
               onClick={closeMenu}
               aria-current={active ? "page" : undefined}
+              tabIndex={open || typeof window === "undefined" || window.innerWidth > 900 ? 0 : -1}
             >
               {link.label}
             </Link>
           );
         })}
 
-     <Link
-  href="/contact"
-  className="nav__cta"
-  onClick={closeMenu}
-  aria-current={pathname === "/contact" ? "page" : undefined}
->
-  Fale connosco
-</Link>
+        <Link
+          href="/contact"
+          className="nav__cta"
+          onClick={closeMenu}
+          aria-current={pathname === "/contact" ? "page" : undefined}
+        >
+          Fale connosco
+        </Link>
+      </nav>
 
       <button
         type="button"
