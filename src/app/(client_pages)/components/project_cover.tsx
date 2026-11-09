@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -16,33 +17,33 @@ export default function ProjectCover({
 }: ProjectCoverProps) {
   const [hasError, setHasError] = useState(false);
 
-  const validSrc =
-    typeof src === "string" ? src.trim() : "";
-
+  const validSrc = typeof src === "string" ? src.trim() : "";
   const showImage = validSrc.length > 0 && !hasError;
 
   return (
-    <div className="
-      group
-      relative
-      aspect-[4/5]
-      w-full
-      overflow-hidden
-      bg-[#222]
-      sm:aspect-[4/3]
-    ">
+    <div
+      className="
+        group relative
+        aspect-[4/5]
+        w-full
+        overflow-hidden
+        bg-[#222]
+      "
+    >
       {showImage ? (
         <Image
           src={validSrc}
           alt={alt || "Projecto PRO SOTA"}
           fill
           priority={priority}
-          sizes="(min-width: 640px) 50vw, 100vw"
+          sizes="
+            (min-width: 1536px) 22vw,
+            (min-width: 1024px) 23vw,
+            (min-width: 640px) 45vw,
+            100vw
+          "
           onError={() => {
-            console.error(
-              "Project image failed to load:",
-              validSrc
-            );
+            console.error("Project image failed to load:", validSrc);
             setHasError(true);
           }}
           className="

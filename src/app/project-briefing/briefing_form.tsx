@@ -1052,6 +1052,7 @@ function LandLocationMap({
 /* -------------------------------------------------------------------------- */
 
 
+
 function BudgetRange({
   values,
   update,
@@ -1061,77 +1062,50 @@ function BudgetRange({
 }) {
   const [activeHandle, setActiveHandle] = useState<"min" | "max">("max");
 
-  const minValue = Math.max(
-    0,
-    Number(values.budget_min) || 0
-  );
-
-  const rawMax = Math.max(
-    0,
-    Number(values.budget_max) || 0
-  );
-
+  const minValue = Math.max(0, Number(values.budget_min) || 0);
+  const rawMax = Math.max(0, Number(values.budget_max) || 0);
   const maxValue = Math.max(minValue, rawMax);
 
-  /*
-   * Dynamic slider range.
-   *
-   * Always provides additional room beyond the selected
-   * maximum, allowing the user to continue increasing it.
-   *
-   * There is no fixed maximum budget.
-   */
+  // The slider always has room beyond the selected maximum.
   const effectiveMax = Math.max(
     INITIAL_BUDGET_CEILING * 2,
-    Math.ceil(
-      (Math.max(maxValue, 1) * 2) / 1000
-    ) * 1000
+    Math.ceil((Math.max(maxValue, 1) * 2) / 1000) * 1000
   );
 
-  // Adjust the slider precision according to its range.
-  const sliderStep = Math.max(
-    1,
-    Math.round(effectiveMax / 1000)
-  );
+  // Keep precision practical even for large budgets.
+  const sliderStep = Math.max(1, Math.round(effectiveMax / 10000));
 
-  const minPercent = Math.min(
-    100,
-    (minValue / effectiveMax) * 100
-  );
-
-  const maxPercent = Math.min(
-    100,
-    (maxValue / effectiveMax) * 100
-  );
+  const minPercent = Math.min(100, (minValue / effectiveMax) * 100);
+  const maxPercent = Math.min(100, (maxValue / effectiveMax) * 100);
 
   function updateMinimum(value: number) {
     const nextValue = Math.max(
       0,
-      Math.min(value, Number.MAX_SAFE_INTEGER)
+      Math.min(Math.round(value), Number.MAX_SAFE_INTEGER)
     );
 
     update("budget_min", String(nextValue));
 
-    // Keep the maximum above or equal to the minimum.
     if (nextValue > maxValue) {
       update("budget_max", String(nextValue));
+      update("budget", String(nextValue));
     }
   }
 
   function updateMaximum(value: number) {
     const nextValue = Math.max(
       0,
-      Math.min(value, Number.MAX_SAFE_INTEGER)
+      Math.min(Math.round(value), Number.MAX_SAFE_INTEGER)
     );
 
-    update("budget_max", String(nextValue));
+    const adjustedMax = Math.max(nextValue, minValue);
 
-    // Keep the minimum below or equal to the maximum.
+    update("budget_max", String(adjustedMax));
+    update("budget", String(adjustedMax));
+
     if (nextValue < minValue) {
-      update("budget_min", String(nextValue));
+      update("budget_min", String(adjustedMax));
     }
-
-    // The slider automatically expands on the next render.
   }
 
   function handleMinimumInput(value: string) {
@@ -1181,7 +1155,6 @@ function BudgetRange({
 
       {/* Budget inputs */}
       <div className="mb-8 grid grid-cols-2 gap-3">
-        {/* Minimum */}
         <div className="rounded-xl border border-[#E9E9E6] bg-[#FAFAF9] p-4 transition-colors focus-within:border-[#BD9655]">
           <label
             htmlFor="budget-min"
@@ -1198,9 +1171,7 @@ function BudgetRange({
               min={0}
               step={1}
               value={String(values.budget_min ?? "")}
-              onChange={(event) =>
-                handleMinimumInput(event.target.value)
-              }
+              onChange={(event) => handleMinimumInput(event.target.value)}
               className="w-full min-w-0 bg-transparent text-base font-semibold text-[#002950] outline-none sm:text-lg"
             />
 
@@ -1210,7 +1181,6 @@ function BudgetRange({
           </div>
         </div>
 
-        {/* Maximum */}
         <div className="rounded-xl border border-[#E9E9E6] bg-[#FAFAF9] p-4 transition-colors focus-within:border-[#BD9655]">
           <label
             htmlFor="budget-max"
@@ -1227,9 +1197,7 @@ function BudgetRange({
               min={0}
               step={1}
               value={String(values.budget_max ?? "")}
-              onChange={(event) =>
-                handleMaximumInput(event.target.value)
-              }
+              onChange={(event) => handleMaximumInput(event.target.value)}
               className="w-full min-w-0 bg-transparent text-base font-semibold text-[#002950] outline-none sm:text-lg"
             />
 
@@ -1243,15 +1211,11 @@ function BudgetRange({
       {/* Dual range slider */}
       <div className="relative px-2 pb-3 pt-5">
         <div className="relative h-2 rounded-full bg-[#EAEAE7]">
-          {/* Selected range */}
           <div
             className="absolute top-0 h-full rounded-full bg-[#BD9655]"
             style={{
               left: `${minPercent}%`,
-              width: `${Math.max(
-                0,
-                maxPercent - minPercent
-              )}%`,
+              width: `${Math.max(0, maxPercent - minPercent)}%`,
             }}
           />
 
@@ -1261,16 +1225,15 @@ function BudgetRange({
             aria-valuetext={formatBudget(minValue)}
             type="range"
             min={0}
-            max={Math.max(maxValue, 1)}
+            max={effectiveMax}
             step={sliderStep}
             value={Math.min(minValue, effectiveMax)}
             onPointerDown={() => setActiveHandle("min")}
             onFocus={() => setActiveHandle("min")}
-            onChange={(event) =>
-              updateMinimum(Number(event.target.value))
-            }
-            className={`budget-range-input ${activeHandle === "min" ? "is-active" : ""
-              }`}
+            onChange={(event) => updateMinimum(Number(event.target.value))}
+            className={`budget-range-input ${
+              activeHandle === "min" ? "is-active" : ""
+            }`}
           />
 
           {/* Maximum handle */}
@@ -1284,18 +1247,15 @@ function BudgetRange({
             value={Math.min(maxValue, effectiveMax)}
             onPointerDown={() => setActiveHandle("max")}
             onFocus={() => setActiveHandle("max")}
-            onChange={(event) =>
-              updateMaximum(Number(event.target.value))
-            }
-            className={`budget-range-input ${activeHandle === "max" ? "is-active" : ""
-              }`}
+            onChange={(event) => updateMaximum(Number(event.target.value))}
+            className={`budget-range-input ${
+              activeHandle === "max" ? "is-active" : ""
+            }`}
           />
         </div>
 
-        {/* Dynamic scale */}
         <div className="mt-5 flex justify-between text-xs text-gray-400">
           <span>0 Kz</span>
-
           <span>{formatBudget(effectiveMax)}</span>
         </div>
       </div>
@@ -2344,40 +2304,38 @@ export default function ProjectBriefForm() {
     );
   }
 
-  function renderInvestment() {
-    return (
-      <>
-        <Field
-          label="33. Qual é o orçamento previsto para o projecto?"
-          required
-          hint="Defina o intervalo de investimento que considera adequado. Pode ajustar o valor mínimo e máximo."
-        >
-          <BudgetRange
-            values={values}
-            update={(name, value) => update(name, value)}
-          />
+function renderInvestment() {
+  return (
+    <Field
+      label="33. Qual é o orçamento previsto para o projecto?"
+      required
+      hint="Defina o intervalo de investimento que considera adequado. Pode ajustar o valor mínimo e máximo."
+    >
+      <BudgetRange
+        values={values}
+        update={update}
+      />
 
-          <input
-            type="hidden"
-            name="budget_min"
-            value={str("budget_min")}
-          />
+      <input
+        type="hidden"
+        name="budget_min"
+        value={str("budget_min")}
+      />
 
-          <input
-            type="hidden"
-            name="budget_max"
-            value={str("budget_max")}
-          />
+      <input
+        type="hidden"
+        name="budget_max"
+        value={str("budget_max")}
+      />
 
-          <input
-            type="hidden"
-            name="budget"
-            value={str("budget")}
-          />
-        </Field>
-      </>
-    );
-  }
+      <input
+        type="hidden"
+        name="budget"
+        value={str("budget")}
+      />
+    </Field>
+  );
+}
 
   function renderScopeAndPlanning() {
     return (
