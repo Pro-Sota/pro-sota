@@ -47,12 +47,20 @@ function isPermission(value: unknown): value is Permission {
 /* -------------------------------------------------------------------------- */
 
 function normalizeRole(role?: string | null): SystemRole {
-    const normalized = role?.trim().toLowerCase();
+    const normalized = role
+        ?.trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ");
 
     switch (normalized) {
         case "admin":
         case "administrador":
         case "administrator":
+        case "superadmin":
+        case "super admin":
             return "Admin";
 
         case "director":
@@ -66,9 +74,44 @@ function normalizeRole(role?: string | null): SystemRole {
             return "Utilizador";
 
         default:
-            // Unknown roles never receive administrative privileges.
             return "Utilizador";
     }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Department permissions                                                     */
+/* -------------------------------------------------------------------------- */
+
+function normalizeDepartment(
+    department?: string | null,
+): string {
+    return (department ?? "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ");
+}
+
+function getPermissionsForDepartment(
+    department?: string | null,
+): PermissionSet {
+    const normalized = normalizeDepartment(department);
+
+    const departmentPermissions: Permission[] = [];
+
+    switch (normalized) {
+        case "arquitectura":
+        case "arquitetura":
+        case "architecture":
+            departmentPermissions.push(
+                "project_briefing.view",
+            );
+            break;
+    }
+
+    return createPermissionSet(departmentPermissions);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -76,7 +119,6 @@ function normalizeRole(role?: string | null): SystemRole {
 /* -------------------------------------------------------------------------- */
 
 async function getAllPermissions(): Promise<PermissionSet> {
-    // The TypeScript catalogue is the application's source of valid keys.
     return createPermissionSet([...ALL_PERMISSIONS]);
 }
 
@@ -273,21 +315,26 @@ export async function getCurrentUserPermissions(): Promise<{
     let permissions: PermissionSet;
 
     if (role === "Admin") {
-        // Admin always receives the complete application catalogue.
-        // Individual overrides do not restrict Admin.
+        // Admin and Superadmin receive all application permissions.
         permissions = await getAllPermissions();
     } else {
-        const rolePermissions = await getPermissionsForRole(
-            profile.role_id,
-        );
-
-        const overrides = await getUserPermissionOverrides(
-            profile.profile_id,
-        );
-
-        const effectivePermissions = new Set<Permission>(
+        const [
             rolePermissions,
-        );
+            departmentPermissions,
+            overrides,
+        ] = await Promise.all([
+            getPermissionsForRole(profile.role_id),
+            Promise.resolve(
+                getPermissionsForDepartment(profile.department),
+            ),
+            getUserPermissionOverrides(profile.profile_id),
+        ]);
+
+        // Combine role and department permissions.
+        const effectivePermissions = new Set<Permission>([
+            ...rolePermissions,
+            ...departmentPermissions,
+        ]);
 
         // Apply explicit grants.
         for (const override of overrides) {
@@ -299,6 +346,7 @@ export async function getCurrentUserPermissions(): Promise<{
         }
 
         // Apply explicit restrictions last.
+        // A deny always takes precedence.
         for (const override of overrides) {
             if (override.effect === "deny") {
                 effectivePermissions.delete(
@@ -321,7 +369,7 @@ export async function getCurrentUserPermissions(): Promise<{
 }
 
 /* -------------------------------------------------------------------------- */
-/* Require permission                                                         */
+/* Require permission                                                        */
 /* -------------------------------------------------------------------------- */
 
 export async function requirePermission(

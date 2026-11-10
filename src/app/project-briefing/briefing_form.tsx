@@ -2289,27 +2289,29 @@ export default function ProjectBriefForm() {
   if (success) {
     return (
      <main
-  className={`${pageCls} flex min-h-[80vh] items-center justify-center px-5 py-16`}
+  className={`${pageCls} flex min-h-[80vh] w-full items-center justify-center px-5 py-16`}
 >
-  <section className="relative mx-auto w-full max-w-[660px] overflow-hidden rounded-2xl border border-[#e9e7e1] bg-white px-7 py-14 text-center shadow-[0_20px_70px_rgba(0,41,80,0.07)] sm:px-14 sm:py-16">
+  <section className="relative mx-auto flex w-full max-w-[660px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#e9e7e1] bg-white px-7 py-14 text-center shadow-[0_20px_70px_rgba(0,41,80,0.07)] sm:px-14 sm:py-16">
 
     {/* Decorative accent */}
     <div className="absolute left-0 top-0 h-[3px] w-full bg-gradient-to-r from-transparent via-[#BD9655] to-transparent" />
 
     {/* Brand logo */}
-    <div className="mb-12 flex justify-center">
-      <a href="/" aria-label="PRO SOTA - Página inicial">
-        <img
-          src="/images/logo-vertical.png"
-          alt="PRO SOTA"
-          className="h-auto w-[155px] object-contain"
-        />
-      </a>
-    </div>
+    <Link
+      href="/"
+      aria-label="PRO SOTA - Página inicial"
+      className="mb-12 flex w-full justify-center"
+    >
+      <img
+        src="/images/logo-vertical.png"
+        alt="PRO SOTA"
+        className="mx-auto h-auto w-[155px] object-contain"
+      />
+    </Link>
 
     {/* Success indicator */}
     <div
-      className="mx-auto mb-7 flex h-[68px] w-[68px] items-center justify-center rounded-full border border-[#d9e8dc] bg-[#f0f6f1]"
+      className="mb-7 flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-full border border-[#d9e8dc] bg-[#f0f6f1]"
       aria-hidden="true"
     >
       <span className="text-[32px] font-medium text-[#39764c]">
@@ -2317,30 +2319,26 @@ export default function ProjectBriefForm() {
       </span>
     </div>
 
-    {/* Eyebrow */}
-    <p className={`${eyebrowCls} mb-4 tracking-[0.2em] text-[#A17C3D]`}>
-      BRIEF RESIDENCIAL
-    </p>
-
     {/* Heading */}
-    <h1 className="mx-auto mb-5 max-w-[480px] text-[clamp(30px,4.5vw,44px)] font-semibold leading-[1.12] tracking-[-0.035em] text-[#002950]">
+    <h1 className="mb-5 w-full max-w-[480px] text-center text-[clamp(30px,4.5vw,44px)] font-semibold leading-[1.12] tracking-[-0.035em] text-[#002950]">
       Obrigado pela sua confiança.
     </h1>
 
     {/* Description */}
-    <p className="mx-auto mb-9 max-w-[450px] text-[15px] leading-[1.9] text-[#697178]">
+    <p className="mb-9 w-full max-w-[450px] text-center text-[15px] leading-[1.9] text-[#697178]">
       Recebemos as informações do seu projecto. A nossa equipa
       irá analisar cuidadosamente o seu brief e entrará em
       contacto consigo através do meio indicado.
     </p>
 
     {/* Divider */}
-    <div className="mx-auto mb-8 h-px w-12 bg-[#BD9655]" />
+    <div className="mb-8 h-px w-12 shrink-0 bg-[#BD9655]" />
 
     {/* Return button */}
     <Link
       href="/"
-      className="inline-flex min-h-[52px] items-center justify-center gap-3 rounded-md bg-[#002950] px-9 py-4 text-[13px] font-semibold tracking-[0.08em] text-white transition-all duration-300 hover:bg-[#BD9655] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] focus-visible:ring-offset-4"
+      style={{ color: "#FFFFFF", WebkitTextFillColor: "#FFFFFF" }}
+      className="!text-white inline-flex min-h-[52px] items-center justify-center gap-3 rounded-md bg-[#002950] px-9 py-4 text-center text-[13px] font-semibold tracking-[0.08em] transition-all duration-300 hover:!bg-[#BD9655] hover:!text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] focus-visible:ring-offset-4"
     >
       VOLTAR AO INÍCIO
       <span aria-hidden="true">→</span>
