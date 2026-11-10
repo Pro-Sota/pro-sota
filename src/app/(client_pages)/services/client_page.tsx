@@ -526,7 +526,7 @@ export default function ServicesOverview() {
 
   return (
     <>
-      <Nav dark />
+      <Nav />
 
       {/* No ancestor of the sticky <aside> may set overflow (hidden/auto/scroll).
           Keep this <main> and every parent in layout.tsx free of it. */}
