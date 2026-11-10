@@ -9,10 +9,10 @@ import { requirePermission } from "@/app/lib/permissions/server";
 export type ProjectBriefing = {
   id: string;
   full_name: string | null;
-  email: string | null;
-  phone: string | null;
-  municipality: string | null;
-  province: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  location_municipality: string | null;
+  location_province: string | null;
   status: string | null;
   created_at: string;
 };
@@ -70,10 +70,10 @@ export async function getProjectBriefings({
     .select(`
       id,
       full_name,
-      email:contact_email,
-      phone:contact_phone,
-      municipality:location_municipality,
-      province:location_province,
+      contact_email,
+      contact_phone,
+      location_municipality,
+      location_province,
       status,
       created_at
     `)

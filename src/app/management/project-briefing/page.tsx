@@ -1,3 +1,4 @@
+
 import "server-only";
 
 import type { ReactNode } from "react";
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { getProjectBriefings } from "@/services/project_briefing";
+import CustomSelect from "@/app/components/custom_select";
 
 type SearchParams = Promise<{
     q?: string;
@@ -26,6 +28,9 @@ const STATUS_OPTIONS = [
     { value: "rejected", label: "Rejeitado" },
     { value: "converted", label: "Convertido em projecto" },
 ];
+
+const TABLE_COLUMNS =
+    "grid-cols-[1.3fr_1.3fr_1fr_1fr_0.9fr_48px]";
 
 function formatDate(value: string) {
     const date = new Date(value);
@@ -43,7 +48,9 @@ function formatDate(value: string) {
 }
 
 function getStatus(status: string | null) {
-    const value = STATUS_OPTIONS.find((item) => item.value === status);
+    const value = STATUS_OPTIONS.find(
+        (item) => item.value === status
+    );
 
     return (
         value ?? {
@@ -99,6 +106,7 @@ export default async function ProjectBriefsPage({
     return (
         <main className="min-h-screen bg-[#F7F7F5] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-[1500px] space-y-7">
+
                 {/* Page header */}
                 <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
                     <div>
@@ -146,8 +154,9 @@ export default async function ProjectBriefsPage({
                     />
                 </section>
 
-                {/* Briefings table */}
+                {/* Briefings */}
                 <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+
                     {/* Search and filters */}
                     <div className="border-b border-slate-100 p-4 sm:p-5">
                         <form
@@ -172,7 +181,7 @@ export default async function ProjectBriefsPage({
                                 />
                             </div>
 
-                            <select
+                            <CustomSelect
                                 name="status"
                                 defaultValue={selectedStatus}
                                 aria-label="Filtrar por estado"
@@ -188,7 +197,7 @@ export default async function ProjectBriefsPage({
                                         {status.label}
                                     </option>
                                 ))}
-                            </select>
+                            </CustomSelect>
 
                             <button
                                 type="submit"
@@ -257,98 +266,83 @@ export default async function ProjectBriefsPage({
                         <>
                             {/* Desktop table */}
                             <div className="hidden overflow-x-auto md:block">
-                                <table className="w-full min-w-[850px] border-collapse text-left">
-                                    <thead className="sticky top-0 z-10 bg-slate-50">
-                                        <tr className="border-y border-slate-100 text-xs font-medium uppercase tracking-wide text-slate-500">
-                                            <th scope="col" className="px-5 py-3.5">
-                                                Cliente
-                                            </th>
-                                            <th scope="col" className="px-5 py-3.5">
-                                                Contacto
-                                            </th>
-                                            <th scope="col" className="px-5 py-3.5">
-                                                Localização
-                                            </th>
-                                            <th scope="col" className="px-5 py-3.5">
-                                                Data de entrada
-                                            </th>
-                                            <th scope="col" className="px-5 py-3.5">
-                                                Estado
-                                            </th>
-                                            <th scope="col" className="px-5 py-3.5 text-right">
-                                                Detalhes
-                                            </th>
-                                        </tr>
-                                    </thead>
+                                <div
+                                    role="table"
+                                    aria-label="Lista de briefings de projecto"
+                                    className="min-w-[1000px]"
+                                >
+                                    <div
+                                        role="row"
+                                        className={`grid ${TABLE_COLUMNS} items-center border-y border-slate-100 bg-slate-50 px-5 py-3.5 text-xs font-medium uppercase tracking-wide text-slate-500`}
+                                    >
+                                        <div role="columnheader">Cliente</div>
+                                        <div role="columnheader">Contacto</div>
+                                        <div role="columnheader">Localização</div>
+                                        <div role="columnheader">Data de entrada</div>
+                                        <div role="columnheader">Estado</div>
+                                        <div role="columnheader" className="text-right">
+                                            <span className="sr-only">Detalhes</span>
+                                        </div>
+                                    </div>
 
-                                    <tbody className="divide-y divide-slate-100">
+                                    <div role="rowgroup" className="divide-y divide-slate-100">
                                         {briefings.map((briefing) => (
-                                            <tr
+                                            <Link
                                                 key={briefing.id}
-                                                className="transition hover:bg-slate-50/80"
+                                                href={`/management/project-briefing/${briefing.id}`}
+                                                aria-label={`Ver briefing de ${briefing.full_name || "cliente"}`}
+                                                className={`group grid ${TABLE_COLUMNS} items-center px-5 py-4 transition-colors hover:bg-slate-50 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#BD9655]`}
                                             >
-                                                <td className="px-5 py-4">
-                                                    <p className="font-medium text-[#002950]">
-                                                        {briefing.full_name ||
-                                                            "Cliente sem nome"}
+                                                <div role="cell" className="min-w-0 pr-3">
+                                                    <p className="truncate font-medium text-[#002950] group-hover:text-[#BD9655]">
+                                                        {briefing.full_name || "Cliente sem nome"}
                                                     </p>
 
                                                     <p className="mt-1 text-xs text-slate-400">
-                                                        Ref.{" "}
-                                                        {briefing.id
-                                                            .slice(0, 8)
-                                                            .toUpperCase()}
+                                                        Ref. {briefing.id.slice(0, 8).toUpperCase()}
                                                     </p>
-                                                </td>
+                                                </div>
 
-                                                <td className="px-5 py-4">
-                                                    <p className="text-sm text-slate-700">
-                                                        {briefing.email || "—"}
+                                                <div role="cell" className="min-w-0 pr-3">
+                                                    <p className="truncate text-sm text-slate-700">
+                                                        {briefing.contact_email || "—"}
                                                     </p>
 
-                                                    <p className="mt-1 text-xs text-slate-500">
-                                                        {briefing.phone ||
-                                                            "Sem telefone"}
+                                                    <p className="mt-1 truncate text-xs text-slate-500">
+                                                        {briefing.contact_phone || "Sem telefone"}
                                                     </p>
-                                                </td>
+                                                </div>
 
-                                                <td className="px-5 py-4 text-sm text-slate-600">
-                                                    {[
-                                                        briefing.municipality,
-                                                        briefing.province,
-                                                    ]
-                                                        .filter(Boolean)
-                                                        .join(", ") ||
-                                                        "Não indicada"}
-                                                </td>
+                                                <div role="cell" className="min-w-0 pr-3 text-sm text-slate-600">
+                                                    <p className="truncate">
+                                                        {[
+                                                            briefing.location_municipality,
+                                                            briefing.location_province,
+                                                        ].filter(Boolean).join(", ") || "Não indicada"}
+                                                    </p>
+                                                </div>
 
-                                                <td className="px-5 py-4 text-sm text-slate-600">
+                                                <div role="cell" className="text-sm text-slate-600">
                                                     {formatDate(briefing.created_at)}
-                                                </td>
+                                                </div>
 
-                                                <td className="px-5 py-4">
-                                                    <StatusBadge
-                                                        status={briefing.status}
-                                                    />
-                                                </td>
+                                                <div role="cell">
+                                                    <StatusBadge status={briefing.status} />
+                                                </div>
 
-                                                <td className="px-5 py-4 text-right">
-                                                    <Link
-                                                        href={`/management/project-briefing/${briefing.id}`}
-                                                        aria-label={`Ver briefing de ${
-                                                            briefing.full_name ??
-                                                            "cliente"
-                                                        }`}
-                                                        title="Ver briefing"
-                                                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#002950] transition hover:bg-[#002950]/5 focus:outline-none focus:ring-2 focus:ring-[#BD9655]"
-                                                    >
+                                                <div
+                                                    role="cell"
+                                                    className="flex justify-end"
+                                                    aria-hidden="true"
+                                                >
+                                                    <span className="flex h-9 w-9 items-center justify-center rounded-lg text-[#002950] transition group-hover:translate-x-0.5 group-hover:text-[#BD9655]">
                                                         <ArrowRight size={18} />
-                                                    </Link>
-                                                </td>
-                                            </tr>
+                                                    </span>
+                                                </div>
+                                            </Link>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Mobile cards */}
@@ -357,18 +351,18 @@ export default async function ProjectBriefsPage({
                                     <Link
                                         key={briefing.id}
                                         href={`/management/project-briefing/${briefing.id}`}
-                                        className="block p-4 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#BD9655]"
+                                        aria-label={`Ver briefing de ${briefing.full_name || "cliente"}`}
+                                        className="group block p-4 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#BD9655]"
                                     >
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0">
-                                                <p className="truncate font-medium text-[#002950]">
-                                                    {briefing.full_name ||
-                                                        "Cliente sem nome"}
+                                                <p className="truncate font-medium text-[#002950] group-hover:text-[#BD9655]">
+                                                    {briefing.full_name || "Cliente sem nome"}
                                                 </p>
 
                                                 <p className="mt-1 truncate text-sm text-slate-500">
-                                                    {briefing.email ||
-                                                        briefing.phone ||
+                                                    {briefing.contact_email ||
+                                                        briefing.contact_phone ||
                                                         "Sem contacto"}
                                                 </p>
                                             </div>
@@ -376,14 +370,12 @@ export default async function ProjectBriefsPage({
                                             <ArrowRight
                                                 size={18}
                                                 aria-hidden="true"
-                                                className="mt-1 shrink-0 text-[#BD9655]"
+                                                className="mt-1 shrink-0 text-[#BD9655] transition group-hover:translate-x-0.5"
                                             />
                                         </div>
 
                                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                                            <StatusBadge
-                                                status={briefing.status}
-                                            />
+                                            <StatusBadge status={briefing.status} />
 
                                             <span className="text-xs text-slate-500">
                                                 {formatDate(briefing.created_at)}
@@ -392,11 +384,9 @@ export default async function ProjectBriefsPage({
 
                                         <p className="mt-2 text-xs text-slate-500">
                                             {[
-                                                briefing.municipality,
-                                                briefing.province,
-                                            ]
-                                                .filter(Boolean)
-                                                .join(", ") ||
+                                                briefing.location_municipality,
+                                                briefing.location_province,
+                                            ].filter(Boolean).join(", ") ||
                                                 "Localização não indicada"}
                                         </p>
                                     </Link>
