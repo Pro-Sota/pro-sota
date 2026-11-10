@@ -936,7 +936,7 @@ function LandLocationMap({
           "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
           {
             attribution:
-              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+              '&copy; <Link href="https://www.openstreetmap.org/copyright">OpenStreetMap</Link>',
             maxZoom: 19,
           }
         ).addTo(map);
@@ -2288,38 +2288,66 @@ export default function ProjectBriefForm() {
 
   if (success) {
     return (
-      <main className={pageCls}>
-        <section className="mx-auto my-[12vh] max-w-[620px] rounded-lg border border-[#e9e7e1] bg-white p-[clamp(28px,6vw,64px)] text-center">
-          <div className={`mb-10 block ${brandCls}`}>
-            PRO <span className="text-[#BD9655]">SOTA</span>
-          </div>
+     <main
+  className={`${pageCls} flex min-h-[80vh] items-center justify-center px-5 py-16`}
+>
+  <section className="relative mx-auto w-full max-w-[660px] overflow-hidden rounded-2xl border border-[#e9e7e1] bg-white px-7 py-14 text-center shadow-[0_20px_70px_rgba(0,41,80,0.07)] sm:px-14 sm:py-16">
 
-          <div
-            className="mx-auto mb-5 grid h-12 w-12 place-items-center rounded-full bg-[#edf5ef] text-2xl text-[#2f7045]"
-            aria-hidden="true"
-          >
-            ✓
-          </div>
+    {/* Decorative accent */}
+    <div className="absolute left-0 top-0 h-[3px] w-full bg-gradient-to-r from-transparent via-[#BD9655] to-transparent" />
 
-          <p className={`${eyebrowCls} mb-[13px] text-[#8b6a2f]`}>
-            BRIEF RESIDENCIAL
-          </p>
+    {/* Brand logo */}
+    <div className="mb-12 flex justify-center">
+      <a href="/" aria-label="PRO SOTA - Página inicial">
+        <img
+          src="/images/logo-vertical.png"
+          alt="PRO SOTA"
+          className="h-auto w-[155px] object-contain"
+        />
+      </a>
+    </div>
 
-          <h1 className="mb-4 mt-2.5 text-[clamp(30px,4vw,42px)] font-semibold text-[#002950]">
-            Obrigado pela sua confiança.
-          </h1>
+    {/* Success indicator */}
+    <div
+      className="mx-auto mb-7 flex h-[68px] w-[68px] items-center justify-center rounded-full border border-[#d9e8dc] bg-[#f0f6f1]"
+      aria-hidden="true"
+    >
+      <span className="text-[32px] font-medium text-[#39764c]">
+        ✓
+      </span>
+    </div>
 
-          <p className="mx-auto mb-[25px] max-w-[470px] text-[15px] leading-[1.75] text-[#636b70]">
-            Recebemos as informações do seu projecto. A nossa
-            equipa irá analisar o brief e entrará em contacto
-            consigo através do meio indicado.
-          </p>
+    {/* Eyebrow */}
+    <p className={`${eyebrowCls} mb-4 tracking-[0.2em] text-[#A17C3D]`}>
+      BRIEF RESIDENCIAL
+    </p>
 
-          <a className={btnPrimary} href="/">
-            Voltar ao início
-          </a>
-        </section>
-      </main>
+    {/* Heading */}
+    <h1 className="mx-auto mb-5 max-w-[480px] text-[clamp(30px,4.5vw,44px)] font-semibold leading-[1.12] tracking-[-0.035em] text-[#002950]">
+      Obrigado pela sua confiança.
+    </h1>
+
+    {/* Description */}
+    <p className="mx-auto mb-9 max-w-[450px] text-[15px] leading-[1.9] text-[#697178]">
+      Recebemos as informações do seu projecto. A nossa equipa
+      irá analisar cuidadosamente o seu brief e entrará em
+      contacto consigo através do meio indicado.
+    </p>
+
+    {/* Divider */}
+    <div className="mx-auto mb-8 h-px w-12 bg-[#BD9655]" />
+
+    {/* Return button */}
+    <Link
+      href="/"
+      className="inline-flex min-h-[52px] items-center justify-center gap-3 rounded-md bg-[#002950] px-9 py-4 text-[13px] font-semibold tracking-[0.08em] text-white transition-all duration-300 hover:bg-[#BD9655] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] focus-visible:ring-offset-4"
+    >
+      VOLTAR AO INÍCIO
+      <span aria-hidden="true">→</span>
+    </Link>
+
+  </section>
+</main>
     );
   }
 
