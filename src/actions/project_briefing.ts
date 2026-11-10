@@ -13,14 +13,14 @@ import {
     updateProjectBriefNotes,
     convertProjectBrief,
     deleteProjectBrief,
-} from "@/services/project_breifing";
+} from "@/services/project_briefing";
 
 import type {
     CreateProjectBriefInput,
     ProjectBriefFilters,
     UpdateProjectBriefInput,
     ProjectBriefStatus,
-} from "@/services/project_breifing";
+} from "@/services/project_briefing";
 
 import { revalidatePath } from "next/cache";
 
@@ -81,6 +81,7 @@ async function execute<T>(
             success: true,
             data,
         };
+        
     } catch (error) {
         console.error("Project Brief Action:", error);
 

@@ -6,10 +6,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 
-interface NavProps {
-  dark?: boolean;
-}
-
 const links = [
   { label: "Início", href: "/" },
   { label: "Sobre", href: "/about" },
@@ -17,20 +13,19 @@ const links = [
   { label: "Projectos", href: "/projects" },
 ];
 
-export default function Nav({ dark = false }: NavProps) {
+export default function Nav() {
   const pathname = usePathname();
 
-  const [scrolled, setScrolled] = useState(dark);
+  const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (dark) {
-      setScrolled(true);
-      return;
-    }
+  /* -------------------------------------------------------------------------- */
+  /* Scroll state                                                               */
+  /* -------------------------------------------------------------------------- */
 
+  useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 40);
+      setScrolled(window.scrollY > -40 );
     };
 
     handleScroll();
@@ -39,18 +34,31 @@ export default function Nav({ dark = false }: NavProps) {
       passive: true,
     });
 
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [dark]);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  /* -------------------------------------------------------------------------- */
+  /* Close menu on navigation                                                  */
+  /* -------------------------------------------------------------------------- */
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
+  /* -------------------------------------------------------------------------- */
+  /* Mobile menu accessibility                                                 */
+  /* -------------------------------------------------------------------------- */
+
   useEffect(() => {
     if (!open) return;
 
-    const previousOverflow = document.body.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -61,25 +69,31 @@ export default function Nav({ dark = false }: NavProps) {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
 
+  /* -------------------------------------------------------------------------- */
+  /* Render                                                                     */
+  /* -------------------------------------------------------------------------- */
+
   return (
     <header
       className={`
-    fixed inset-x-0 top-0 z-[100] isolate
-    flex items-center justify-between
-    min-h-[76px] px-5 py-3
-    min-[861px]:min-h-[84px]
-    min-[861px]:px-[clamp(20px,5vw,64px)]
-    transition-colors duration-300
-    ${scrolled
-          ? "bg-[#051221]/95 shadow-lg backdrop-blur-xl"
-          : "bg-transparent"
+        fixed inset-x-0 top-0 z-[100] isolate
+        flex items-center justify-between
+        min-h-[76px] px-5 py-3
+        min-[861px]:min-h-[84px]
+        min-[861px]:px-[clamp(20px,5vw,64px)]
+        transition-[background-color,box-shadow] duration-300
+        ${scrolled
+          ? "bg-[#F7F7F5] shadow-[0_4px_20px_rgba(0,41,80,0.06)]"
+          : "bg-transparent shadow-none"
         }
-  `}
+      `}
     >
       {/* Logo */}
       <Link
@@ -90,10 +104,13 @@ export default function Nav({ dark = false }: NavProps) {
           relative z-[130] block shrink-0 overflow-hidden
           h-[52px] w-[180px]
           min-[861px]:h-[60px] min-[861px]:w-[210px]
+          focus-visible:outline-2
+          focus-visible:outline-offset-4
+          focus-visible:outline-[#BD9655]
         "
       >
         <Image
-          src="/images/logo-brand.png"
+          src="/images/logo-horizontal.png"
           alt="PRO SOTA"
           width={210}
           height={70}
@@ -102,7 +119,6 @@ export default function Nav({ dark = false }: NavProps) {
             absolute left-1/2 top-1/2
             h-auto w-[120%] max-w-none
             -translate-x-1/2 -translate-y-1/2
-            [mix-blend-mode:screen]
           "
         />
       </Link>
@@ -111,13 +127,15 @@ export default function Nav({ dark = false }: NavProps) {
       <nav
         id="mobile-navigation"
         aria-label="Navegação principal"
+        aria-hidden={!open ? undefined : undefined}
         className={`
-          fixed left-0 top-0 z-[110]
+          fixed inset-0 z-[110]
           flex h-[100dvh] w-full
           flex-col items-start justify-center gap-8
-          overflow-y-auto bg-[#051221]
+          overflow-y-auto overscroll-contain
+          bg-[#F7F7F5]
           px-10
-          transition-transform duration-500
+          transition-[transform,visibility] duration-500
           ease-[cubic-bezier(.16,.84,.44,1)]
           min-[861px]:static min-[861px]:z-auto
           min-[861px]:h-auto min-[861px]:w-auto
@@ -135,29 +153,23 @@ export default function Nav({ dark = false }: NavProps) {
         `}
       >
         {links.map((link) => {
-          const active =
-            link.href === "/"
-              ? pathname === "/"
-              : pathname === link.href ||
-              pathname.startsWith(`${link.href}/`);
+          const isActive = pathname === link.href;
 
           return (
             <Link
               key={link.href}
               href={link.href}
               onClick={() => setOpen(false)}
-              aria-current={active ? "page" : undefined}
-              style={{
-                color: active ? "#E2C690" : "#FAF8F3",
-                textDecoration: "none",
-              }}
-              className="
-    !no-underline
-    text-[24px] font-semibold tracking-wide
-    transition-colors duration-300
-    hover:!text-[#E2C690]
-    min-[861px]:text-[13.5px]
-  "
+              aria-current={isActive ? "page" : undefined}
+              className={`
+        !no-underline
+        text-[24px] font-semibold
+        transition-colors duration-300
+        ${isActive
+                  ? "text-[#BD9655]"
+                  : "text-[#002950] hover:text-[#BD9655]"
+                }
+      `}
             >
               {link.label}
             </Link>
@@ -168,16 +180,17 @@ export default function Nav({ dark = false }: NavProps) {
           href="/contact"
           onClick={() => setOpen(false)}
           aria-current={pathname === "/contact" ? "page" : undefined}
-          style={{
-            color: "#E2C690",
-          }}
           className="
             inline-flex items-center justify-center
             border border-[#BD9655]
             bg-transparent px-6 py-3
             text-[15px] font-semibold
+            !text-[#002950]
             transition-colors duration-300
             hover:!bg-[#BD9655] hover:!text-[#051221]
+            focus-visible:outline-2
+            focus-visible:outline-offset-4
+            focus-visible:outline-[#BD9655]
             min-[861px]:px-[18px]
             min-[861px]:py-[9px]
             min-[861px]:text-[12.5px]
@@ -196,22 +209,30 @@ export default function Nav({ dark = false }: NavProps) {
         aria-controls="mobile-navigation"
         className="
           relative z-[130]
-          flex flex-col items-center justify-center
-          gap-[5px] p-3
+          flex h-10 w-10 flex-col
+          items-center justify-center
+          gap-[5px] p-2
+          transition-colors duration-300
+          focus-visible:outline-2
+          focus-visible:outline-offset-4
+          focus-visible:outline-[#BD9655]
           min-[861px]:hidden
         "
       >
         <span
           className={`
-            h-[2px] w-6 bg-[#FAF8F3]
-            transition-transform duration-300
-            ${open ? "translate-y-[7px] rotate-45" : ""}
+            h-[2px] w-6 bg-[#002950]
+            transition-all duration-300
+            ${open
+              ? "translate-y-[7px] rotate-45 !bg-[#BD9655]"
+              : ""
+            }
           `}
         />
 
         <span
           className={`
-            h-[2px] w-6 bg-[#FAF8F3]
+            h-[2px] w-6 bg-[#002950]
             transition-opacity duration-300
             ${open ? "opacity-0" : ""}
           `}
@@ -219,9 +240,12 @@ export default function Nav({ dark = false }: NavProps) {
 
         <span
           className={`
-            h-[2px] w-6 bg-[#FAF8F3]
-            transition-transform duration-300
-            ${open ? "-translate-y-[7px] -rotate-45" : ""}
+            h-[2px] w-6 bg-[#002950]
+            transition-all duration-300
+            ${open
+              ? "-translate-y-[7px] -rotate-45 !bg-[#BD9655]"
+              : ""
+            }
           `}
         />
       </button>

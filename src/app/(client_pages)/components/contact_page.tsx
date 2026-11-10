@@ -10,6 +10,7 @@ import type {
 import { submitContact } from "@/actions/contact_submission";
 import CustomSelect from "@/app/components/custom_select";
 import { useToast } from "@/app/components/toast/use_toast";
+import Link from "next/link";
 
 export default function Contact() {
   const [status, setStatus] = useState("");
@@ -262,17 +263,17 @@ export default function Contact() {
         <div className="contact-links">
           <p>Contactos</p>
 
-          <a href="tel:+244947803610">
+          <Link href="tel:+244947803610">
             +244 947 803 610
-          </a>
+          </Link>
 
-          <a href="tel:+244947804186">
+          <Link href="tel:+244947804186">
             +244 947 804 186
-          </a>
+          </Link>
 
-          <a href="mailto:geral@prosota.ao">
+          <Link href="mailto:geral@prosota.ao">
             geral@prosota.ao
-          </a>
+          </Link>
         </div>
       </div>
     </section>

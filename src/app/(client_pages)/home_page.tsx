@@ -10,7 +10,6 @@ import WhyUs from "./components/why_us";
 import ServicesSection from "./components/service_component";
 import ProjectsShowcase from "./components/projects";
 import Contact from "./components/contact_page"
-import SectionHeader from "./components/section_header";
 
 import { services } from "./components/servicesData";
 
@@ -27,6 +26,7 @@ const ROUTES = {
   about: "/about",
   services: "/services",
   projects: "/projects",
+  contact: "/contact",
 };
 
 const FEATURED_COUNT = 8;

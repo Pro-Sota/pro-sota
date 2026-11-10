@@ -1,0 +1,1079 @@
+/* ==========================================================================
+   PRO SOTA — HERO SYSTEM  (v2)
+   Architecture · Engineering · Construction · Supervision
+   ========================================================================== */
+
+.about {
+  background-color: #F7F7F5;
+}
+.ps-hero {
+  /* Colour tokens */
+  --hero-navy: #F7F7F5;
+  --hero-navy-hover: #F7F7F5;
+  --hero-gold: #BD9655;
+  --hero-gold-light: #D7B477;
+  --hero-gold-pale: #E4C58F;
+  --hero-sand: #E8E2D7;
+  --hero-ivory: #F4E6C9;
+  --hero-skin: #D5A879;
+  --hero-grid-line: #D5D0C5;
+  --hero-cream: #F7F7F5;
+  --hero-muted: #5f5e58;          /* ~6:1 on cream (was #77766f, ~4.3:1) */
+  --hero-body: #555e65;
+
+  /* Type tokens — safe fallbacks if next/font variables are missing */
+  --hero-font-display: var(--font-display-face, "Helvetica Neue"), Arial, sans-serif;
+  --hero-font-body: var(--font-body-face, "Helvetica Neue"), Arial, sans-serif;
+  --hero-font-mono: var(--font-mono-face, ui-monospace), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Layout tokens (shared by grid, scroll cue and index so they always align) */
+  --hero-pad: 56px;               /* horizontal gutter */
+  --hero-max: 1440px;             /* max content width */
+  --strip-h: 58px;                /* services ticker height */
+  --scroll-gap: 25px;             /* distance of scroll cue above ticker */
+  --hero-ease: cubic-bezier(.2, .7, .2, 1);
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: min(900px, 100svh);
+  overflow: hidden;
+  background: var(--hero-cream);
+  color: var(--hero-navy);
+}
+
+/* Off-screen pause (toggled by IntersectionObserver in Hero.tsx) */
+.ps-hero[data-paused="true"] *,
+.ps-hero[data-paused="true"] *::before,
+.ps-hero[data-paused="true"] *::after {
+  animation-play-state: paused !important;
+}
+
+/* Visible keyboard focus */
+.ps-hero a:focus-visible {
+  outline: 2px solid var(--hero-navy);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 5px rgba(189, 150, 85, .55);
+}
+
+/* ==========================================================================
+   01. BACKGROUND
+   ========================================================================== */
+
+.ps-hero__grid {
+  position: absolute;
+  z-index: -3;
+  inset: 0;
+  pointer-events: none;
+  opacity: .55;
+  background-image:
+    linear-gradient(rgba(0, 41, 80, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 41, 80, .035) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: linear-gradient(to bottom, transparent, black 12%, black 82%, transparent);
+}
+
+.ps-hero__glow {
+  position: absolute;
+  z-index: -2;
+  top: 2%;
+  right: -8%;
+  width: min(68vw, 900px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(189, 150, 85, .12) 0%,
+    rgba(189, 150, 85, .055) 35%,
+    transparent 70%
+  );
+}
+
+/* Scan wrapper is a size container so the line can travel 100cqw
+   (the hero's own width — no scrollbar-width drift like 100vw). */
+.ps-hero__scan {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: inline-size;
+}
+
+.ps-hero__scan i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  opacity: 0;
+  background: linear-gradient(to bottom, transparent, var(--hero-gold), transparent);
+  will-change: transform;
+  animation: ps-hero-background-scan 12s ease-in-out infinite;
+}
+
+@keyframes ps-hero-background-scan {
+  0%, 100% { transform: translateX(0); opacity: 0; }
+  15%, 80% { opacity: .25; }
+  50%      { transform: translateX(calc(100cqw - 1px)); opacity: .12; }
+}
+
+/* ==========================================================================
+   02. MAIN GRID
+   ========================================================================== */
+
+.ps-hero__inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 68px);
+
+  width: min(100% - var(--hero-pad) * 2, var(--hero-max));
+  min-height: 690px;
+  margin-inline: auto;
+  padding-top: clamp(110px, 13vh, 150px);
+  padding-bottom: 112px;
+}
+
+/* Short laptop screens (e.g. 1366×650): let content define the height */
+@media (min-width: 801px) and (max-height: 760px) {
+  .ps-hero { min-height: auto; }
+
+  .ps-hero__inner {
+    min-height: 0;
+    padding-top: 96px;
+    padding-bottom: 96px;
+  }
+}
+
+/* ==========================================================================
+   03. CONTENT COLUMN
+   ========================================================================== */
+
+.ps-hero__content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 570px;
+  min-width: 0;
+  padding-block: 24px;
+  animation: ps-hero-content-enter 1s var(--hero-ease) both;
+}
+
+@keyframes ps-hero-content-enter {
+  from { opacity: 0; transform: translate3d(0, 22px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* Eyebrow */
+
+.ps-hero__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: clamp(24px, 3.5vh, 38px);
+
+  color: var(--hero-muted);
+  font-family: var(--hero-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .14em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.ps-hero__pin {
+  position: relative;
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hero-gold);
+}
+
+.ps-hero__pin::after {
+  position: absolute;
+  inset: -5px;
+  border: 1px solid rgba(189, 150, 85, .4);
+  border-radius: 50%;
+  content: "";
+  animation: ps-hero-pin-pulse 2.8s ease-out infinite;
+}
+
+@keyframes ps-hero-pin-pulse {
+  0%   { opacity: .8; transform: scale(.65); }
+  100% { opacity: 0;  transform: scale(1.8); }
+}
+
+.ps-hero__eyebrow-line {
+  flex: 1;
+  max-width: 92px;
+  height: 1px;
+  margin-left: 5px;
+  background: linear-gradient(to right, var(--hero-gold), transparent);
+}
+
+/* Main title */
+
+.ps-hero__title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 0;
+  color: var(--hero-navy);
+
+  font-family: var(--hero-font-display);
+  font-size: clamp(104px, 12.2vw, 184px);
+  font-weight: 800;
+  letter-spacing: -.085em;
+  line-height: .74;
+  text-transform: uppercase;
+}
+
+.ps-hero__title > span {
+  display: block;
+}
+
+.ps-hero__title-second {
+  margin-top: .12em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--hero-navy);
+  paint-order: stroke fill;       /* avoids overlapping-contour artefacts */
+}
+
+/* Browsers without text-stroke: fall back to a solid, softened word */
+@supports not (-webkit-text-stroke: 1px black) {
+  .ps-hero__title-second {
+    color: var(--hero-navy);
+    opacity: .85;
+  }
+}
+
+/* Title divider */
+
+.ps-hero__divider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 118px;
+  height: 2px;
+  margin-top: 34px;
+  margin-bottom: 27px;
+}
+
+.ps-hero__divider span {
+  display: block;
+  height: 2px;
+  background: var(--hero-gold);
+}
+
+.ps-hero__divider span:nth-child(1) { width: 48px; }
+.ps-hero__divider span:nth-child(2) { width: 24px; opacity: .55; }
+.ps-hero__divider span:nth-child(3) { width: 9px;  opacity: .3; }
+
+/* Tagline and CTAs */
+
+.ps-hero__sub {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 25px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.ps-hero__tagline {
+  max-width: 390px;
+  margin: 0;
+  color: var(--hero-body);
+
+  font-family: var(--hero-font-body);
+  font-size: clamp(15px, 1.25vw, 18px);
+  font-weight: 400;
+  line-height: 1.85;
+  letter-spacing: -.015em;
+}
+
+.ps-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ps-hero__cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 34px;
+  min-height: 52px;
+  padding: 0 19px;
+
+  border: 1px solid rgba(0, 41, 80, .22);
+  color: var(--hero-navy);
+  background: transparent;
+
+  font-family: var(--hero-font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .025em;
+  text-decoration: none;
+
+  transition:
+    color .3s ease,
+    background .3s ease,
+    border-color .3s ease,
+    transform .3s ease;
+}
+
+.ps-hero__cta:hover {
+  transform: translateY(-2px);
+  border-color: var(--hero-navy);
+  color: #fff;
+  background: var(--hero-navy);
+}
+
+/* Primary (solid) variant */
+.ps-hero__cta--solid {
+  border-color: var(--hero-navy);
+  color: #fff;
+  background: var(--hero-navy);
+}
+
+.ps-hero__cta--solid:hover {
+  border-color: var(--hero-navy-hover);
+  background: var(--hero-navy-hover);
+}
+
+.ps-hero__cta-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  transition: transform .3s ease;
+}
+
+.ps-hero__cta:hover .ps-hero__cta-arrow {
+  transform: translate(3px, -3px);
+}
+
+/* Statistics (<dl>: label is <dt>, value is <dd>, shown value-first) */
+
+.ps-hero__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  width: 100%;
+  max-width: 500px;
+  margin: clamp(38px, 6vh, 66px) 0 0;
+  padding-top: 23px;
+  border-top: 1px solid rgba(0, 41, 80, .14);
+}
+
+.ps-hero__stat {
+  position: relative;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: 0;
+  padding-right: 12px;
+}
+
+.ps-hero__stat dd {
+  margin: 0;
+  color: var(--hero-navy);
+  font-family: var(--hero-font-display);
+  font-size: clamp(28px, 3vw, 42px);
+  font-weight: 700;
+  letter-spacing: -.055em;
+  line-height: 1;
+}
+
+.ps-hero__stat dt {
+  max-width: 120px;
+  color: var(--hero-muted);
+  font-family: var(--hero-font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: .04em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.ps-hero__stat:not(:last-child)::after {
+  position: absolute;
+  top: 4px;
+  right: 13px;
+  width: 1px;
+  height: 36px;
+  background: rgba(0, 41, 80, .15);
+  content: "";
+}
+
+/* ==========================================================================
+   04. ILLUSTRATION COLUMN
+   ========================================================================== */
+
+.ps-hero__visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 570px;
+  padding: 20px 0 34px;
+}
+
+.ps-hero__scene {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 790px;
+  aspect-ratio: 900 / 760;
+  margin-inline: auto;
+  animation: ps-hero-scene-enter 1.25s .12s var(--hero-ease) both;
+}
+
+.ps-scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+@keyframes ps-hero-scene-enter {
+  from { opacity: 0; transform: translate3d(18px, 12px, 0) scale(.97); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* Scene annotations (decorative) */
+
+.ps-hero__annotation {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: rgba(0, 41, 80, .72);
+  font-family: var(--hero-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.ps-hero__annotation--top {
+  top: 7%;
+  right: 2%;
+}
+
+.ps-hero__annotation--bottom {
+  right: 2%;
+  bottom: 5%;
+  left: 3%;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.ps-hero__annotation-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--hero-gold);
+}
+
+.ps-hero__annotation-line {
+  width: clamp(25px, 4vw, 65px);
+  height: 1px;
+  background: var(--hero-gold);
+  opacity: .65;
+}
+
+/* ==========================================================================
+   05. SERVICES TICKER
+   ========================================================================== */
+
+.ps-hero__strip {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--strip-h);
+  margin-top: auto;
+  overflow: hidden;
+  border-top: 1px solid rgba(0, 41, 80, .12);
+  border-bottom: 1px solid rgba(0, 41, 80, .12);
+  background: rgba(247, 247, 245, .82);
+}
+
+.ps-hero__strip-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  min-width: max-content;
+  animation: ps-hero-ticker 45s linear infinite;
+  will-change: transform;
+}
+
+.ps-hero__strip:hover .ps-hero__strip-track {
+  animation-play-state: paused;
+}
+
+.ps-hero__strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 35px;
+  padding-inline: 28px;
+
+  color: rgba(0, 41, 80, .75);
+  font-family: var(--hero-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ps-hero__strip-item i {
+  display: block;
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  transform: rotate(45deg);
+  background: var(--hero-gold);
+}
+
+/* The track holds the service list repeated an even number of times, so
+   shifting by exactly half loops seamlessly (and stays gap-free on wide screens). */
+@keyframes ps-hero-ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ==========================================================================
+   06. SCROLL AND INDEX
+   ========================================================================== */
+
+.ps-hero__scroll {
+  position: absolute;
+  z-index: 5;
+  bottom: calc(var(--strip-h) + var(--scroll-gap));
+  left: max(var(--hero-pad), calc((100% - var(--hero-max)) / 2));
+
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  color: rgba(0, 41, 80, .75);
+  font-family: var(--hero-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .14em;
+  text-decoration: none;
+}
+
+.ps-hero__scroll-line {
+  position: relative;
+  display: block;
+  width: 42px;
+  height: 1px;
+  overflow: hidden;
+  background: rgba(0, 41, 80, .2);
+}
+
+.ps-hero__scroll-line i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 45%;
+  background: var(--hero-gold);
+  animation: ps-hero-scroll-line 1.8s ease-in-out infinite;
+}
+
+@keyframes ps-hero-scroll-line {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(240%); }
+}
+
+.ps-hero__index {
+  position: absolute;
+  z-index: 5;
+  right: max(var(--hero-pad), calc((100% - var(--hero-max)) / 2));
+  bottom: calc(var(--strip-h) + var(--scroll-gap));
+
+  color: rgba(0, 41, 80, .65);
+  font-family: var(--hero-font-mono);
+  font-size: 11px;
+  letter-spacing: .15em;
+}
+
+/* ==========================================================================
+   07. SVG ANIMATION SYSTEM
+   One build sequence (~5 s) that plays once and holds, then calm ambient
+   motion. Every element is fully visible in its base state, so
+   `animation: none` (reduced motion, no-JS) always yields the finished scene.
+   Delays are set per element from the component via --ps-d.
+   ========================================================================== */
+
+.ps-scene {
+  /* Hook travel and cable stretch share one value so they cannot drift:
+     scale = 1 + travel / cable length (29 / 192). */
+  --ps-lift-px: 29px;
+  --ps-lift-scale: 1.151;
+}
+
+/* Generic fade-in used for staged reveal */
+.ps-scene__reveal {
+  animation: ps-reveal .9s var(--hero-ease) var(--ps-d, 0s) both;
+}
+
+@keyframes ps-reveal {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Building rises into place */
+.ps-scene__building {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: ps-building-rise 1.2s var(--hero-ease) .3s both;
+}
+
+@keyframes ps-building-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Architectural outline is drawn once (<use> of paths with pathLength="1") */
+.ps-scene__draw-path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: ps-draw 2.4s ease-in-out var(--ps-d, .6s) both;
+}
+
+@keyframes ps-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* Labels */
+.ps-scene__labels {
+  fill: var(--hero-gold-light);
+  font-family: var(--hero-font-mono);
+  font-size: 10px;
+}
+
+/* Crane hook + cable: lower and raise the load, perfectly in sync */
+.ps-scene__cable {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: ps-cable-lift 8s ease-in-out 4.5s infinite alternate;
+}
+
+.ps-scene__hook-load {
+  animation: ps-hook-lift 8s ease-in-out 4.5s infinite alternate;
+}
+
+@keyframes ps-cable-lift {
+  from { transform: scaleY(1); }
+  to   { transform: scaleY(var(--ps-lift-scale)); }
+}
+
+@keyframes ps-hook-lift {
+  from { transform: translateY(0); }
+  to   { transform: translateY(var(--ps-lift-px)); }
+}
+
+.ps-scene__load {
+  animation: ps-load-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes ps-load-pulse {
+  0%, 100% { opacity: .6; }
+  50%      { opacity: 1; }
+}
+
+/* Hand-held tools (workers themselves stay planted on the ground) */
+.ps-scene__measuring-tool {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: ps-tool-motion 3s ease-in-out infinite;
+}
+
+@keyframes ps-tool-motion {
+  0%, 100% { transform: rotate(0); }
+  50%      { transform: rotate(-9deg); }
+}
+
+.ps-scene__clipboard {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ps-clipboard-motion 2.5s ease-in-out infinite;
+}
+
+@keyframes ps-clipboard-motion {
+  0%, 100% { transform: rotate(0); }
+  50%      { transform: rotate(-7deg); }
+}
+
+/* Survey beam */
+.ps-scene__scan-line {
+  stroke-dasharray: 5 5;
+  animation: ps-scan-dash 2s linear infinite;
+}
+
+@keyframes ps-scan-dash {
+  to { stroke-dashoffset: -20; }
+}
+
+.ps-scene__scan-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ps-scan-pulse 1.8s ease-out infinite;
+}
+
+@keyframes ps-scan-pulse {
+  0%   { opacity: 1; transform: scale(.7); }
+  100% { opacity: 0; transform: scale(2); }
+}
+
+.ps-scene__survey-point {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ps-survey-point-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ps-survey-point-pulse {
+  0%, 100% { opacity: .5; transform: scale(.8); }
+  50%      { opacity: 1;  transform: scale(1.3); }
+}
+
+/* Technical guides */
+.ps-scene__guides {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ps-guides-rotate 60s linear infinite;
+}
+
+@keyframes ps-guides-rotate {
+  to { transform: rotate(360deg); }
+}
+
+/* Control point */
+.ps-scene__target {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ps-target-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ps-target-pulse {
+  0%, 100% { transform: scale(.9);  opacity: .6; }
+  50%      { transform: scale(1.1); opacity: 1; }
+}
+
+/* Ambient particles */
+.ps-scene__particles circle {
+  animation: ps-particle-float 3s ease-in-out infinite;
+}
+
+.ps-scene__particles circle:nth-child(2) { animation-delay: .5s; }
+.ps-scene__particles circle:nth-child(3) { animation-delay: 1s; }
+.ps-scene__particles circle:nth-child(4) { animation-delay: 1.5s; }
+.ps-scene__particles circle:nth-child(5) { animation-delay: 2s; }
+
+/* ==========================================================================
+   CONSTRUCTION SCENE — REPEAT
+   ========================================================================== */
+
+.ps-scene {
+  animation: ps-construction-loop 14s linear infinite;
+}
+
+@keyframes ps-construction-loop {
+  0%, 99.99%, 100% {
+    visibility: visible;
+  }
+}
+
+@keyframes ps-particle-float {
+  0%, 100% { opacity: .2; transform: translateY(0); }
+  50%      { opacity: 1;  transform: translateY(-8px); }
+}
+
+/* ==========================================================================
+   08. RESPONSIVE — TABLET
+   ========================================================================== */
+
+@media (max-width: 1100px) {
+  .ps-hero {
+    --hero-pad: 36px;
+    --hero-max: 1200px;
+  }
+
+  .ps-hero__inner {
+    grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr);
+    gap: 22px;
+  }
+
+  .ps-hero__title {
+    font-size: clamp(94px, 12vw, 140px);
+  }
+
+  .ps-hero__visual {
+    min-height: 500px;
+  }
+
+  .ps-hero__stat:not(:last-child)::after {
+    right: 7px;
+  }
+}
+
+@media (max-width: 800px) {
+  .ps-hero {
+    --hero-pad: 24px;
+    --hero-max: 680px;
+    --scroll-gap: 20px;
+    min-height: auto;
+  }
+
+  .ps-hero__inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    min-height: 0;
+    padding-top: 125px;
+    padding-bottom: 95px;
+  }
+
+  .ps-hero__content {
+    max-width: 600px;
+    padding-block: 0 15px;
+  }
+
+  .ps-hero__title {
+    font-size: clamp(100px, 19vw, 150px);
+  }
+
+  .ps-hero__sub {
+    max-width: 460px;
+  }
+
+  .ps-hero__stats {
+    max-width: 520px;
+    margin-top: 38px;
+  }
+
+  .ps-hero__visual {
+    min-height: 0;
+    width: 100%;
+    margin-top: 22px;
+    padding: 15px 0 38px;
+  }
+
+  .ps-hero__scene {
+    width: min(100%, 620px);
+  }
+
+  .ps-hero__annotation--top {
+    top: 3%;
+    right: 1%;
+  }
+
+  .ps-hero__annotation--bottom {
+    right: 1%;
+    bottom: 1%;
+    left: 1%;
+  }
+
+  /* Drop purely decorative motion on small / low-power devices */
+  .ps-scene__particles,
+  .ps-hero__glow {
+    display: none;
+  }
+
+  .ps-scene__guides,
+  .ps-scene__load,
+  .ps-hero__scan i {
+    animation: none;
+  }
+
+  .ps-hero__scan {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   09. RESPONSIVE — MOBILE
+   ========================================================================== */
+
+@media (max-width: 520px) {
+  .ps-hero {
+    --hero-pad: 20px;
+    --strip-h: 49px;
+    --scroll-gap: 16px;
+  }
+
+  .ps-hero__inner {
+    padding-top: 112px;
+    padding-bottom: 80px;
+  }
+
+  .ps-hero__eyebrow {
+    gap: 9px;
+    margin-bottom: 27px;
+  }
+
+  .ps-hero__eyebrow-line {
+    max-width: 48px;
+  }
+
+  .ps-hero__title {
+    font-size: clamp(88px, 22vw, 116px);
+    letter-spacing: -.08em;
+  }
+
+  .ps-hero__divider {
+    margin-top: 27px;
+    margin-bottom: 21px;
+  }
+
+  .ps-hero__tagline {
+    max-width: 350px;
+    font-size: 15px;
+    line-height: 1.75;
+  }
+
+  .ps-hero__cta {
+    min-height: 49px;
+  }
+
+  .ps-hero__stats {
+    gap: 0;
+    margin-top: 34px;
+    padding-top: 19px;
+  }
+
+  .ps-hero__stat {
+    gap: 6px;
+    padding-right: 7px;
+  }
+
+  .ps-hero__stat dd {
+    font-size: 29px;
+  }
+
+  .ps-hero__stat dt {
+    max-width: 96px;
+    font-size: 10px;
+    letter-spacing: .02em;
+  }
+
+  .ps-hero__stat:not(:last-child)::after {
+    right: 5px;
+    height: 30px;
+  }
+
+  .ps-hero__visual {
+    margin-top: 20px;
+    padding-block: 15px 35px;
+  }
+
+  .ps-hero__scene {
+    width: 112%;
+    max-width: none;
+    margin-inline: -6%;
+  }
+
+  .ps-hero__annotation {
+    font-size: 10px;
+    letter-spacing: .06em;
+  }
+
+  .ps-hero__annotation--top {
+    top: 0;
+    right: 0;
+  }
+
+  .ps-hero__annotation--bottom {
+    bottom: 0;
+    gap: 7px;
+  }
+
+  .ps-hero__annotation-line {
+    width: 18px;
+  }
+
+  .ps-hero__strip-item {
+    gap: 22px;
+    padding-inline: 19px;
+    font-size: 10px;
+  }
+
+  .ps-hero__scroll {
+    font-size: 10px;
+  }
+
+  .ps-hero__index {
+    font-size: 10px;
+  }
+}
+
+/* ==========================================================================
+   10. SMALL MOBILE
+   ========================================================================== */
+
+@media (max-width: 360px) {
+  .ps-hero {
+    --hero-pad: 16px;
+  }
+
+  .ps-hero__title {
+    font-size: 84px;
+  }
+
+  .ps-hero__stat dd {
+    font-size: 26px;
+  }
+
+  .ps-hero__stat dt {
+    font-size: 9px;
+  }
+
+  .ps-hero__annotation--bottom span:first-child {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   11. ACCESSIBILITY — REDUCED MOTION
+   `animation: none` leaves every element in its natural, finished state.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-hero *,
+  .ps-hero *::before,
+  .ps-hero *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  .ps-hero__strip-track {
+    transform: none;
+  }
+}

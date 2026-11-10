@@ -1,22 +1,23 @@
 import type { Metadata } from "next";
-import { Fraunces, DM_Sans, Roboto_Serif } from "next/font/google";
+import {
+  Manrope,
+  DM_Sans,
+  IBM_Plex_Mono,
+} from "next/font/google";
+
 import "./globals.css";
+import "./admin.css";
+import "./hero.css";
+import "./styles.css";
 import "leaflet/dist/leaflet.css";
+
 import { cn } from "@/lib/utils/utils";
 import { ToastProvider } from "./components/toast/toast_provider";
-import { Analytics } from "@vercel/analytics/next"
-import "./admin.css";
-import "./styles.css";
-
 import OrganizationSchema from "./components/organization_schema";
+import { Analytics } from "@vercel/analytics/next";
 
-/* Fonts. The CSS variables are mapped to Tailwind's `font-display` and
-   `font-body` in globals.css (see the @theme inline block there). */
-
-const display = Roboto_Serif({
+const display = Manrope({
   subsets: ["latin"],
-  style: ["normal", "italic"],
-  axes: ["opsz"], // optical sizing: sharper at large sizes
   variable: "--font-display-face",
   display: "swap",
 });
@@ -24,6 +25,13 @@ const display = Roboto_Serif({
 const body = DM_Sans({
   subsets: ["latin"],
   variable: "--font-body-face",
+  display: "swap",
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono-face",
   display: "swap",
 });
 
@@ -43,12 +51,7 @@ export const metadata: Metadata = {
   applicationName: "PRO SOTA",
 
   icons: {
-    icon: [
-      {
-        url: "/images/favicon.png",
-        type: "image/png",
-      },
-    ],
+    icon: "/images/favicon.png",
     shortcut: "/images/favicon.png",
     apple: "/images/favicon.png",
   },
@@ -119,14 +122,20 @@ export default function RootLayout({
   return (
     <html
       lang="pt-AO"
-      className={cn("h-full", "antialiased", display.variable, body.variable)}
+      className={cn(
+        "h-full",
+        "antialiased",
+        display.variable,
+        body.variable,
+        mono.variable
+      )}
     >
-      {/* NOTE: `overflow-hidden` removed from <body>. It blocks page scroll and
-          breaks `sticky`/`fixed` behaviour. If a specific page needs it, set it
-          on that page's own wrapper instead. */}
       <body className="flex min-h-full flex-col">
         <OrganizationSchema />
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          {children}
+        </ToastProvider>
+        <Analytics />
       </body>
     </html>
   );

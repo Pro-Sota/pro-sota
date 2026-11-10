@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const ITEMS = [
@@ -54,22 +55,26 @@ export default function Sidebar() {
     <>
       {/* Desktop: fixed index column */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col justify-between border-r border-line bg-white p-8 lg:flex">
-        <a href="#top" aria-label="PRO SOTA — início">
+        <Link href="#top" aria-label="PRO SOTA — início">
           <img src="/images/logo-brand.png" alt="PRO SOTA" className="h-9 w-auto" />
-        </a>
+        </Link>
         <nav aria-label="Secções">{list}</nav>
         <div className="space-y-1 text-sm text-mute">
           <p>Lar do Patriota, Luanda</p>
-          <a className="block hover:text-ink" href="tel:+244947803610">+244 947 803 610</a>
-          <a className="block hover:text-ink" href="mailto:geral@prosota.ao">geral@prosota.ao</a>
+          <Link className="block hover:text-ink" href="tel:+244947803610">
+            +244 947 803 610
+          </Link>
+          <Link className="block hover:text-ink" href="mailto:geral@prosota.ao">
+            geral@prosota.ao
+          </Link  >
         </div>
       </aside>
 
       {/* Mobile: top bar + full-screen menu */}
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-white/90 px-5 py-3 backdrop-blur lg:hidden">
-        <a href="#top" aria-label="PRO SOTA — início">
+        <Link href="#top" aria-label="PRO SOTA — início">
           <img src="/images/logo-brand.png" alt="PRO SOTA" className="h-7 w-auto" />
-        </a>
+        </Link>
         <button
           type="button"
           aria-expanded={open}

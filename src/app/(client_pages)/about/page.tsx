@@ -95,17 +95,10 @@ export default function AboutPage() {
 
   return (
     <>
-      <Link
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:bg-gold focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-navy"
-      >
-        Saltar para o conteúdo
-      </Link>
+
 
       {/* Nav lives in its own fixed layer; page content sits in a z-0 context. */}
-      <div className="fixed inset-x-0 top-0 z-[100]">
-        <Nav />
-      </div>
+      <Nav />
 
       <main id="main" className="relative z-0 bg-paper text-navy">
         <script

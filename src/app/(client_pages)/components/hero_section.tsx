@@ -1,4 +1,10 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useRef } from "react";
+
+import "../../hero.css";
+import HeroConstructionScene from "./hero_construction_scene";
+import Link from "next/link";
 
 const SERVICES = [
   "Arquitectura",
@@ -7,80 +13,123 @@ const SERVICES = [
   "Fiscalização & Consultoria",
 ];
 
+/* Repeated an even number of times so the CSS ticker (translateX -50%)
+   loops without a gap, even on very wide screens. */
+const TICKER_ITEMS = Array.from({ length: 6 }, () => SERVICES).flat();
+
 export default function Hero() {
+  const heroRef = useRef<HTMLElement>(null);
+
+  /* Pause every CSS animation while the hero is off-screen. */
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        el.dataset.paused = String(!entry.isIntersecting);
+      },
+      { threshold: 0 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+
   return (
-    <section className="hero" id="top">
-      <div className="hero__grid" />
-      <div className="hero__scan" />
+    <section
+      ref={heroRef}
+      className="ps-hero"
+      id="top"
+      lang="pt-AO"
+      data-paused="false"
+    >
+      {/* Background */}
+      <div className="ps-hero__grid" aria-hidden="true" />
+      <div className="ps-hero__glow" aria-hidden="true" />
+      <div className="ps-hero__scan" aria-hidden="true">
+        <i />
+      </div>
 
-      {/* Planta arquitectónica decorativa */}
-      <Image
-        className="hero__blueprint"
-        src="/images/planta-arquitectonica.svg"
-        alt=""
-        aria-hidden="true"
-        width={1200}
-        height={900}
-        priority
-      />
+      {/* Main composition */}
+      <div className="ps-hero__inner">
+        <div className="ps-hero__content">
+          <div className="ps-hero__eyebrow">
+            <span className="ps-hero__pin" aria-hidden="true" />
+            <span>Angola </span>
+            <span className="ps-hero__eyebrow-line" aria-hidden="true" />
+          </div>
 
-      <div className="hero__inner">
-        <div className="hero__eyebrow-row">
-          <span className="hero__pin" />
-          <span className="hero__eyebrow">
-            Angola · Desde 1997
-          </span>
+          <h1 className="ps-hero__title">
+            <span>PRO</span>
+            <span className="ps-hero__title-second">SOTA</span>
+          </h1>
+
+          <div className="ps-hero__divider" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+
+          <div className="ps-hero__sub">
+            <p className="ps-hero__tagline">
+              Transformamos ideias em espaços, projectos em realidade e
+              desafios em obras de excelência.
+            </p>
+
+            <div className="ps-hero__actions">
+              <Link href="#contacto" className="ps-hero__cta ps-hero__cta--solid">
+                <span>Pedir proposta</span>
+                <span className="ps-hero__cta-arrow" aria-hidden="true">
+                  ↗
+                </span>
+              </Link>
+
+              <Link href="#servicos" className="ps-hero__cta">
+                <span>Explorar serviços</span>
+                <span className="ps-hero__cta-arrow" aria-hidden="true">
+                  ↗
+                </span>
+              </Link>
+            </div>
+          </div>
         </div>
 
-        <h1>
-          <span className="hero__pro">PRO</span>
-          <span className="hero__sota">SOTA</span>
-        </h1>
+        {/* Illustration column */}
+        <div className="ps-hero__visual">
+          <div className="ps-hero__scene" aria-hidden="true">
+            <HeroConstructionScene />
+          </div>
 
-        <div className="hero__sub">
-          <p className="hero__tagline">
-            Onde a arte da arquitectura e a excelência na construção se
-            unem para transformar sonhos em realidade.
-          </p>
+          <div
+            className="ps-hero__annotation ps-hero__annotation--top"
+            aria-hidden="true"
+          >
+            <span className="ps-hero__annotation-dot" />
+            <span>ENGENHARIA · 01</span>
+          </div>
 
-          <a href="#servicos" className="hero__cta">
-            Explorar serviços <span aria-hidden="true">→</span>
-          </a>
-
-          <div className="hero__meta">
-            <div>
-              <strong>29</strong>
-              <span>anos de experiência</span>
-            </div>
-
-            <div>
-              <strong>11+</strong>
-              <span>grandes projectos</span>
-            </div>
-
-            <div>
-              <strong>4</strong>
-              <span>áreas de actuação</span>
-            </div>
+          <div
+            className="ps-hero__annotation ps-hero__annotation--bottom"
+            aria-hidden="true"
+          >
+            <span>DESIGN &amp; CONSTRUÇÃO</span>
+            <span className="ps-hero__annotation-line" />
+            <span>08°50′ S · 13°14′ E</span>
           </div>
         </div>
       </div>
 
-      <div className="hero__strip">
-        <div className="hero__strip-track">
-          {[...SERVICES, ...SERVICES].map((service, index) => (
-            <span key={`${service}-${index}`}>
+      {/* Services ticker (decorative duplicate of the services section) */}
+      <div className="ps-hero__strip" aria-hidden="true">
+        <div className="ps-hero__strip-track">
+          {TICKER_ITEMS.map((service, index) => (
+            <span className="ps-hero__strip-item" key={`${service}-${index}`}>
               {service}
-              <b aria-hidden="true" />
+              <i aria-hidden="true" />
             </span>
           ))}
-        </div>
-      </div>
-
-      <div className="scrolldown">
-        <span>Scroll</span>
-        <div className="scrolldown__line">
-          <i />
         </div>
       </div>
     </section>

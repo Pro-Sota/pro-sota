@@ -173,7 +173,6 @@ button:focus-visible {
   padding: 12px clamp(20px, 5vw, 64px);
   transition: background .4s var(--ease), padding .4s var(--ease), box-shadow .4s var(--ease);
 }
-
 .nav.is-scrolled {
   background: rgba(5, 18, 33, 0.86);
   backdrop-filter: blur(10px);
@@ -333,8 +332,8 @@ button:focus-visible {
 .hero {
   position: relative;
   min-height: 100svh;
-  background: radial-gradient(120% 90% at 78% -10%, #0e3a63 0%, var(--navy-deep) 55%), var(--navy-deep);
-  color: var(--cream);
+  background: #F7F7F5;
+  color: var(--navy);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
