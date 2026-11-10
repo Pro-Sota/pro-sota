@@ -696,7 +696,7 @@ export default function BriefingSummary({
             <header className="pb-7">
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                     <Link
-                        href="/management/project-briefs"
+                        href="/management/project-briefing"
                         className="inline-flex min-h-9 items-center gap-2 rounded-lg pr-2 text-sm font-medium text-slate-600 transition hover:text-[#002950] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#BD9655]"
                     >
                         <ArrowLeft size={16} />
