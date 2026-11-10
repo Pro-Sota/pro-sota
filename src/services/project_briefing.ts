@@ -1,9 +1,10 @@
 
 import "server-only";
 
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { cookies } from "next/headers";
+import { requirePermission } from "@/app/lib/permissions/server";
 
 export type ProjectBriefing = {
   id: string;
@@ -40,39 +41,9 @@ const VALID_STATUSES = [
 ] as const;
 
 async function getAuthorisedSupabase() {
-  const supabase = await createClient(await cookies());
+  await requirePermission("project_briefing.view");
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    redirect("/login");
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role_id")
-    .eq("profile_id", user.id)
-    .maybeSingle();
-
-  if (profileError) {
-    console.error(
-      "Erro ao verificar permissões do utilizador:",
-      profileError.message,
-    );
-
-    throw new Error("Não foi possível verificar as permissões.");
-  }
-
-  // Replace with your existing permission helper if Directors
-  // are also authorised to review project briefings.
-  if (!profile || profile.role_id !== 1) {
-    redirect("/management");
-  }
-
-  return supabase;
+  return createClient(await cookies());
 }
 
 export async function getProjectBriefings({
