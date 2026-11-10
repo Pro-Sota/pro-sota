@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Fraunces, DM_Sans } from "next/font/google";
+import { Fraunces, DM_Sans, Roboto_Serif } from "next/font/google";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { cn } from "@/lib/utils/utils";
 import { ToastProvider } from "./components/toast/toast_provider";
+import { Analytics } from "@vercel/analytics/next"
 import "./admin.css";
 import "./styles.css";
 
@@ -12,7 +13,7 @@ import OrganizationSchema from "./components/organization_schema";
 /* Fonts. The CSS variables are mapped to Tailwind's `font-display` and
    `font-body` in globals.css (see the @theme inline block there). */
 
-const display = Fraunces({
+const display = Roboto_Serif({
   subsets: ["latin"],
   style: ["normal", "italic"],
   axes: ["opsz"], // optical sizing: sharper at large sizes

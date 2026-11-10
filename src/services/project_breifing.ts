@@ -76,15 +76,17 @@ export type ProjectBrief = {
     kitchen_layout: string | null;
     floor_count: string | null;
     essential_space: string | null;
-
+    latitude: number | null;
+    longitude: number | null;
     architectural_style: string[];
+    architectural_style_other: string | null;
+
     colour_material_preferences: string | null;
     natural_light_rating: number | null;
     privacy_rating: number | null;
 
     reference_links: string | null;
     other_information: string | null;
-    architectural_style_other: string | null;
     service_scope: string;
     project_priorities: string[];
     construction_start: string;
@@ -200,25 +202,47 @@ async function requireAdmin() {
 type BriefValidationInput = Pick<
     CreateProjectBriefInput,
     "full_name" | "contact_phone" | "contact_email"
-> & Partial<Pick<CreateProjectBriefInput, "budget">>;
+> &
+    Partial<
+        Pick<
+            CreateProjectBriefInput,
+            | "budget"
+            | "latitude"
+            | "longitude"
+            | "land_area"
+            | "land_length"
+            | "land_width"
+        >
+    >;
 
 function validateBrief(input: BriefValidationInput) {
+
     if (!input.full_name?.trim()) {
         throw new Error("O nome completo é obrigatório.");
+    }
+
+    const name = input.full_name?.trim();
+    
+    if (!name || name.length < 3) {
+        return {
+            success: false,
+            error: "O nome deve ter pelo menos 3 caracteres.",
+        };
     }
 
     if (!input.contact_phone?.trim()) {
         throw new Error("O número de telefone é obrigatório.");
     }
 
-    if (!input.contact_email?.trim()) {
-        throw new Error("O endereço de email é obrigatório.");
-    }
+    // Email is optional, but must be valid when provided.
+    const email = input.contact_email?.trim();
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!emailRegex.test(input.contact_email.trim())) {
-        throw new Error("Indique um endereço de email válido.");
+        if (!emailRegex.test(email)) {
+            throw new Error("Indique um endereço de email válido.");
+        }
     }
 
     const budget = input.budget;
@@ -227,13 +251,63 @@ function validateBrief(input: BriefValidationInput) {
         if (
             typeof budget !== "number" ||
             !Number.isFinite(budget) ||
-            budget < MIN_BUDGET ||
-            budget > MAX_BUDGET
+            budget < 0 ||
+            budget > 9999999999999.99
         ) {
-            throw new Error(
-                "O orçamento deve estar entre 1.000.000 Kz e 1.000.000.000 Kz.",
-            );
+            throw new Error("Introduza um orçamento válido.");
         }
+    }
+
+    // Coordinates must be supplied together.
+    const latitude = input.latitude;
+    const longitude = input.longitude;
+
+    if (
+        (latitude == null && longitude != null) ||
+        (latitude != null && longitude == null)
+    ) {
+        throw new Error(
+            "A latitude e a longitude devem ser indicadas em conjunto.",
+        );
+    }
+
+    if (
+        latitude != null &&
+        (typeof latitude !== "number" ||
+            !Number.isFinite(latitude) ||
+            latitude < -90 ||
+            latitude > 90)
+    ) {
+        throw new Error("A latitude indicada não é válida.");
+    }
+
+    if (
+        longitude != null &&
+        (typeof longitude !== "number" ||
+            !Number.isFinite(longitude) ||
+            longitude < -180 ||
+            longitude > 180)
+    ) {
+        throw new Error("A longitude indicada não é válida.");
+    }
+
+    // Land dimensions cannot be negative.
+    const dimensions = [
+        input.land_area,
+        input.land_length,
+        input.land_width,
+    ];
+
+    if (
+        dimensions.some(
+            (value) =>
+                value != null &&
+                (!Number.isFinite(value) || value < 0),
+        )
+    ) {
+        throw new Error(
+            "As dimensões do terreno não podem ser negativas.",
+        );
     }
 }
 
@@ -250,12 +324,38 @@ function sanitizeFileName(name: string) {
 }
 
 function getBriefPayload(input: CreateProjectBriefInput) {
+    const architecturalStyles = [
+        ...new Set(
+            input.architectural_style
+                .map((style) =>
+                    style === "Outro"
+                        ? input.architectural_style_other?.trim() ?? ""
+                        : style.trim(),
+                )
+                .filter(Boolean),
+        ),
+    ];
+
     return {
         ...input,
+
         full_name: input.full_name.trim(),
         contact_phone: input.contact_phone.trim(),
         contact_email: input.contact_email.trim().toLowerCase(),
+
         budget: input.budget ?? null,
+
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
+
+        architectural_style: architecturalStyles,
+
+        architectural_style_other:
+            input.architectural_style_other?.trim() || null,
+
+        infrastructure: [...new Set(input.infrastructure)],
+        desired_spaces: [...new Set(input.desired_spaces)],
+        project_priorities: [...new Set(input.project_priorities)],
     };
 }
 
@@ -680,6 +780,22 @@ export async function updateProjectBrief(
 
         ...(input.contact_email !== undefined
             ? { contact_email: input.contact_email.trim().toLowerCase() }
+            : {}),
+
+        ...(input.architectural_style !== undefined
+            ? {
+                architectural_style: [
+                    ...new Set(
+                        input.architectural_style
+                            .map((style) =>
+                                style === "Outro"
+                                    ? input.architectural_style_other?.trim() ?? ""
+                                    : style.trim(),
+                            )
+                            .filter(Boolean),
+                    ),
+                ],
+            }
             : {}),
 
         updated_at: new Date().toISOString(),

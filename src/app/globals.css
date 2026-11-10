@@ -71,6 +71,10 @@
   }
 }
 
+.pro-sota-map-marker {
+  background: transparent;
+  border: none;
+}
 
 @keyframes fadeIn {
   from {

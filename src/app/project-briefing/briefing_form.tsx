@@ -193,9 +193,6 @@ const initialValues: BriefValues = {
   contact_email: "",
 
   budget: "50000000",
-  budget_min: "0",
-  budget_max: "50000000",
-
   decision_makers: "",
   preferred_contact: "",
 
@@ -205,8 +202,6 @@ const initialValues: BriefValues = {
   location_reference: "",
   location_city: "",
   location_province: "",
-  location_latitude: "",
-  location_longitude: "",
 
   land_ownership: "",
   land_area: "",
@@ -216,6 +211,8 @@ const initialValues: BriefValues = {
   existing_buildings: "",
   has_trees: "",
   infrastructure: [],
+  latitude: "",
+  longitude: "",
 
   residents_count: "",
   domestic_workers: "",
@@ -231,9 +228,11 @@ const initialValues: BriefValues = {
   bedrooms_count: "",
   suites_count: "",
   desired_spaces: [],
+  desired_spaces_other: "",
   cars_count: "",
   kitchen_layout: "",
   floor_count: "",
+  floor_count_other: "",
   essential_space: "",
 
   service_scope: "",
@@ -942,10 +941,41 @@ function LandLocationMap({
           }
         ).addTo(map);
 
+        const customIcon = L.divIcon({
+          className: "pro-sota-map-marker",
+          html: `
+    <svg
+      width="36"
+      height="46"
+      viewBox="0 0 36 46"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M18 1C8.6 1 1 8.6 1 18C1 30 18 44 18 44C18 44 35 30 35 18C35 8.6 27.4 1 18 1Z"
+        fill="#002950"
+        stroke="white"
+        stroke-width="2"
+      />
+      <circle
+        cx="18"
+        cy="18"
+        r="6"
+        fill="#BD9655"
+        stroke="white"
+        stroke-width="2"
+      />
+    </svg>
+  `,
+          iconSize: [36, 46],
+          iconAnchor: [18, 44],
+        });
+
         const marker = L.marker(
           [initialLat, initialLng],
           {
             draggable: true,
+            icon: customIcon,
           }
         ).addTo(map);
 
@@ -954,16 +984,8 @@ function LandLocationMap({
           lng: number
         ) => {
           if (!isValidCoordinate(lat, lng)) return;
-
-          onChangeRef.current(
-            "location_latitude",
-            lat.toFixed(7)
-          );
-
-          onChangeRef.current(
-            "location_longitude",
-            lng.toFixed(7)
-          );
+          onChangeRef.current("latitude", lat.toFixed(7));
+          onChangeRef.current("longitude", lng.toFixed(7));
         };
 
         marker.on("dragend", () => {
@@ -1053,285 +1075,6 @@ function LandLocationMap({
 
 
 
-function BudgetRange({
-  values,
-  update,
-}: {
-  values: BriefValues;
-  update: (name: keyof BriefValues, value: string) => void;
-}) {
-  const [activeHandle, setActiveHandle] = useState<"min" | "max">("max");
-
-  const minValue = Math.max(0, Number(values.budget_min) || 0);
-  const rawMax = Math.max(0, Number(values.budget_max) || 0);
-  const maxValue = Math.max(minValue, rawMax);
-
-  // The slider always has room beyond the selected maximum.
-  const effectiveMax = Math.max(
-    INITIAL_BUDGET_CEILING * 2,
-    Math.ceil((Math.max(maxValue, 1) * 2) / 1000) * 1000
-  );
-
-  // Keep precision practical even for large budgets.
-  const sliderStep = Math.max(1, Math.round(effectiveMax / 10000));
-
-  const minPercent = Math.min(100, (minValue / effectiveMax) * 100);
-  const maxPercent = Math.min(100, (maxValue / effectiveMax) * 100);
-
-  function updateMinimum(value: number) {
-    const nextValue = Math.max(
-      0,
-      Math.min(Math.round(value), Number.MAX_SAFE_INTEGER)
-    );
-
-    update("budget_min", String(nextValue));
-
-    if (nextValue > maxValue) {
-      update("budget_max", String(nextValue));
-      update("budget", String(nextValue));
-    }
-  }
-
-  function updateMaximum(value: number) {
-    const nextValue = Math.max(
-      0,
-      Math.min(Math.round(value), Number.MAX_SAFE_INTEGER)
-    );
-
-    const adjustedMax = Math.max(nextValue, minValue);
-
-    update("budget_max", String(adjustedMax));
-    update("budget", String(adjustedMax));
-
-    if (nextValue < minValue) {
-      update("budget_min", String(adjustedMax));
-    }
-  }
-
-  function handleMinimumInput(value: string) {
-    if (value === "") {
-      update("budget_min", "");
-      return;
-    }
-
-    const parsed = Number(value);
-
-    if (Number.isFinite(parsed)) {
-      updateMinimum(parsed);
-    }
-  }
-
-  function handleMaximumInput(value: string) {
-    if (value === "") {
-      update("budget_max", "");
-      update("budget", "");
-      return;
-    }
-
-    const parsed = Number(value);
-
-    if (Number.isFinite(parsed)) {
-      updateMaximum(parsed);
-    }
-  }
-
-  return (
-    <div className="w-full rounded-2xl border border-[#E9E9E6] bg-white p-5 sm:p-7">
-      <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-[#002950]">
-            Defina o seu orçamento
-          </p>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Seleccione o intervalo que prevê investir na construção.
-          </p>
-        </div>
-
-        <span className="w-fit rounded-full bg-[#F7F7F5] px-3 py-1.5 text-xs font-medium text-gray-500">
-          Intervalo de investimento
-        </span>
-      </div>
-
-      {/* Budget inputs */}
-      <div className="mb-8 grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-[#E9E9E6] bg-[#FAFAF9] p-4 transition-colors focus-within:border-[#BD9655]">
-          <label
-            htmlFor="budget-min"
-            className="text-xs font-medium text-gray-400"
-          >
-            Orçamento mínimo
-          </label>
-
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              id="budget-min"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              step={1}
-              value={String(values.budget_min ?? "")}
-              onChange={(event) => handleMinimumInput(event.target.value)}
-              className="w-full min-w-0 bg-transparent text-base font-semibold text-[#002950] outline-none sm:text-lg"
-            />
-
-            <span className="shrink-0 text-xs font-medium text-gray-400">
-              Kz
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-[#E9E9E6] bg-[#FAFAF9] p-4 transition-colors focus-within:border-[#BD9655]">
-          <label
-            htmlFor="budget-max"
-            className="text-xs font-medium text-gray-400"
-          >
-            Orçamento máximo
-          </label>
-
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              id="budget-max"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              step={1}
-              value={String(values.budget_max ?? "")}
-              onChange={(event) => handleMaximumInput(event.target.value)}
-              className="w-full min-w-0 bg-transparent text-base font-semibold text-[#002950] outline-none sm:text-lg"
-            />
-
-            <span className="shrink-0 text-xs font-medium text-gray-400">
-              Kz
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Dual range slider */}
-      <div className="relative px-2 pb-3 pt-5">
-        <div className="relative h-2 rounded-full bg-[#EAEAE7]">
-          <div
-            className="absolute top-0 h-full rounded-full bg-[#BD9655]"
-            style={{
-              left: `${minPercent}%`,
-              width: `${Math.max(0, maxPercent - minPercent)}%`,
-            }}
-          />
-
-          {/* Minimum handle */}
-          <input
-            aria-label="Orçamento mínimo"
-            aria-valuetext={formatBudget(minValue)}
-            type="range"
-            min={0}
-            max={effectiveMax}
-            step={sliderStep}
-            value={Math.min(minValue, effectiveMax)}
-            onPointerDown={() => setActiveHandle("min")}
-            onFocus={() => setActiveHandle("min")}
-            onChange={(event) => updateMinimum(Number(event.target.value))}
-            className={`budget-range-input ${
-              activeHandle === "min" ? "is-active" : ""
-            }`}
-          />
-
-          {/* Maximum handle */}
-          <input
-            aria-label="Orçamento máximo"
-            aria-valuetext={formatBudget(maxValue)}
-            type="range"
-            min={minValue}
-            max={effectiveMax}
-            step={sliderStep}
-            value={Math.min(maxValue, effectiveMax)}
-            onPointerDown={() => setActiveHandle("max")}
-            onFocus={() => setActiveHandle("max")}
-            onChange={(event) => updateMaximum(Number(event.target.value))}
-            className={`budget-range-input ${
-              activeHandle === "max" ? "is-active" : ""
-            }`}
-          />
-        </div>
-
-        <div className="mt-5 flex justify-between text-xs text-gray-400">
-          <span>0 Kz</span>
-          <span>{formatBudget(effectiveMax)}</span>
-        </div>
-      </div>
-
-      <style jsx>{`
-        .budget-range-input {
-          appearance: none;
-          -webkit-appearance: none;
-          position: absolute;
-          inset: -9px 0 auto;
-          width: 100%;
-          height: 20px;
-          margin: 0;
-          background: transparent;
-          pointer-events: none;
-          cursor: grab;
-          outline: none;
-        }
-
-        .budget-range-input:active {
-          cursor: grabbing;
-        }
-
-        .budget-range-input.is-active {
-          z-index: 3;
-        }
-
-        .budget-range-input::-webkit-slider-runnable-track {
-          height: 8px;
-          background: transparent;
-        }
-
-        .budget-range-input::-moz-range-track {
-          height: 8px;
-          background: transparent;
-        }
-
-        .budget-range-input::-webkit-slider-thumb {
-          appearance: none;
-          -webkit-appearance: none;
-          width: 22px;
-          height: 22px;
-          margin-top: -7px;
-          border: 4px solid white;
-          border-radius: 50%;
-          background: #002950;
-          box-shadow: 0 1px 5px rgb(0 0 0 / 18%);
-          pointer-events: auto;
-          cursor: grab;
-        }
-
-        .budget-range-input::-moz-range-thumb {
-          width: 14px;
-          height: 14px;
-          border: 4px solid white;
-          border-radius: 50%;
-          background: #002950;
-          box-shadow: 0 1px 5px rgb(0 0 0 / 18%);
-          pointer-events: auto;
-          cursor: grab;
-        }
-
-        .budget-range-input:focus-visible::-webkit-slider-thumb {
-          outline: 3px solid rgb(189 150 85 / 30%);
-          outline-offset: 2px;
-        }
-
-        .budget-range-input:focus-visible::-moz-range-thumb {
-          outline: 3px solid rgb(189 150 85 / 30%);
-          outline-offset: 2px;
-        }
-      `}</style>
-    </div>
-  );
-}
-
 
 /* -------------------------------------------------------------------------- */
 /* Main form                                                                  */
@@ -1392,12 +1135,18 @@ export default function ProjectBriefForm() {
           next.domestic_workers_count = "";
         }
 
-        if (
-          name === "desired_spaces" &&
-          Array.isArray(value) &&
-          !value.includes("Garagem")
-        ) {
-          next.cars_count = "";
+        if (name === "desired_spaces" && Array.isArray(value)) {
+          if (!value.includes("Garagem")) {
+            next.cars_count = "";
+          }
+
+          if (!value.includes("Outro")) {
+            next.desired_spaces_other = "";
+          }
+        }
+
+        if (name === "floor_count" && value !== "Outro") {
+          next.floor_count_other = "";
         }
 
         if (
@@ -1432,18 +1181,15 @@ export default function ProjectBriefForm() {
 
   function validateStep(): string {
     if (step === 5) {
-      const budgetMin = Number(str("budget_min"));
-      const budgetMax = Number(str("budget_max"));
+      const budgetValue = str("budget").trim();
+      const budget = Number(budgetValue);
 
       if (
-        str("budget_min").trim() === "" ||
-        str("budget_max").trim() === "" ||
-        !Number.isFinite(budgetMin) ||
-        !Number.isFinite(budgetMax) ||
-        budgetMin < 0 ||
-        budgetMax < budgetMin
+        budgetValue === "" ||
+        !Number.isFinite(budget) ||
+        budget < 0
       ) {
-        return "Indique um intervalo de orçamento válido.";
+        return "Indique um orçamento válido.";
       }
     }
 
@@ -1456,18 +1202,23 @@ export default function ProjectBriefForm() {
         "location_reference",
       ].some((key) => str(key).trim() !== "");
 
-      const lat = str("location_latitude");
-      const lng = str("location_longitude");
+      const latitude = str("latitude").trim();
+      const longitude = str("longitude").trim();
 
-      const hasLatitude = lat.trim() !== "";
-      const hasLongitude = lng.trim() !== "";
+      const hasLatitude = latitude !== "";
+      const hasLongitude = longitude !== "";
 
       if (hasLatitude !== hasLongitude) {
         return "Seleccione uma localização válida no mapa.";
       }
 
       if (hasLatitude && hasLongitude) {
-        if (!isValidCoordinate(Number(lat), Number(lng))) {
+        if (
+          !isValidCoordinate(
+            Number(latitude),
+            Number(longitude)
+          )
+        ) {
           return "As coordenadas seleccionadas não são válidas.";
         }
       }
@@ -1476,10 +1227,14 @@ export default function ProjectBriefForm() {
         return "Indique pelo menos o endereço, o bairro, o município ou seleccione a localização no mapa.";
       }
 
+      const area = str("land_area").trim();
+      const length = str("land_length").trim();
+      const width = str("land_width").trim();
+
       if (
-        Number(str("land_area")) < 0 ||
-        Number(str("land_length")) < 0 ||
-        Number(str("land_width")) < 0
+        (area !== "" && Number(area) < 0) ||
+        (length !== "" && Number(length) < 0) ||
+        (width !== "" && Number(width) < 0)
       ) {
         return "As dimensões do terreno não podem ser negativas.";
       }
@@ -1520,6 +1275,20 @@ export default function ProjectBriefForm() {
         Number(str("cars_count")) < 1
       ) {
         return "Indique um número válido de carros.";
+      }
+
+      if (
+        arr("desired_spaces").includes("Outro") &&
+        !str("desired_spaces_other").trim()
+      ) {
+        return "Especifique o outro espaço pretendido.";
+      }
+
+      if (
+        str("floor_count") === "Outro" &&
+        !str("floor_count_other").trim()
+      ) {
+        return "Especifique o número ou tipo de pisos pretendido.";
       }
     }
     if (step === 4) {
@@ -1811,21 +1580,21 @@ export default function ProjectBriefForm() {
             </p>
 
             <LandLocationMap
-              latitude={str("location_latitude")}
-              longitude={str("location_longitude")}
+              latitude={str("latitude")}
+              longitude={str("longitude")}
               onChange={update}
             />
 
             <input
               type="hidden"
-              name="location_latitude"
-              value={str("location_latitude")}
+              name="latitude"
+              value={str("latitude")}
             />
 
             <input
               type="hidden"
-              name="location_longitude"
-              value={str("location_longitude")}
+              name="longitude"
+              value={str("longitude")}
             />
           </div>
         </Field>
@@ -2126,6 +1895,22 @@ export default function ProjectBriefForm() {
             onChange={update}
             options={SPACES}
           />
+
+          {arr("desired_spaces").includes("Outro") && (
+            <Field
+              label="Especifique o outro espaço"
+              required
+              hint="Indique o espaço adicional que pretende incluir no projecto."
+            >
+              <TextInput
+                name="desired_spaces_other"
+                value={str("desired_spaces_other")}
+                onChange={update}
+                placeholder="Ex.: Sala de cinema, adega, atelier..."
+                required
+              />
+            </Field>
+          )}
         </Field>
 
         {arr("desired_spaces").includes("Garagem") && (
@@ -2171,6 +1956,22 @@ export default function ProjectBriefForm() {
               "Outro",
             ]}
           />
+
+          {str("floor_count") === "Outro" && (
+            <Field
+              label="Especifique o número ou tipo de pisos"
+              required
+              hint="Indique a configuração pretendida."
+            >
+              <TextInput
+                name="floor_count_other"
+                value={str("floor_count_other")}
+                onChange={update}
+                placeholder="Ex.: 2 pisos, cave e rés-do-chão..."
+                required
+              />
+            </Field>
+          )}
         </Field>
 
         <Field label="29. Há algum espaço indispensável que não foi listado?">
@@ -2304,39 +2105,81 @@ export default function ProjectBriefForm() {
     );
   }
 
-function renderInvestment() {
-  return (
-    <Field
-      label="33. Qual é o orçamento previsto para o projecto?"
-      required
-      hint="Defina o intervalo de investimento que considera adequado. Pode ajustar o valor mínimo e máximo."
-    >
-      <BudgetRange
-        values={values}
-        update={update}
-      />
+  function formatBudget(value: string) {
+    if (!value) return "";
 
-      <input
-        type="hidden"
-        name="budget_min"
-        value={str("budget_min")}
-      />
+    const number = Number(value);
 
-      <input
-        type="hidden"
-        name="budget_max"
-        value={str("budget_max")}
-      />
+    if (!Number.isFinite(number)) return "";
 
-      <input
-        type="hidden"
-        name="budget"
-        value={str("budget")}
-      />
-    </Field>
-  );
-}
+    return new Intl.NumberFormat("pt-AO", {
+      maximumFractionDigits: 0,
+    }).format(number);
+  }
 
+  function renderInvestment() {
+    const budget = str("budget");
+
+    return (
+      <Field
+        label="33. Qual é o orçamento previsto para o projecto?"
+        required
+        hint="Indique o orçamento aproximado que prevê investir no projecto."
+      >
+        <div className="relative">
+          <input
+            type="text"
+            inputMode="numeric"
+            name="budget"
+            value={formatBudget(budget)}
+            onChange={(event) => {
+              const rawValue = event.target.value.replace(/\D/g, "");
+
+              update("budget", rawValue);
+            }}
+            placeholder="0"
+            autoComplete="off"
+            className="
+                        w-full h-14
+                        rounded-xl
+                        border border-[#DCDCD6]
+                        bg-white
+                        pl-5 pr-20
+                        text-lg font-medium
+                        tracking-tight
+                        text-[#002950]
+                        outline-none
+                        transition-all duration-200
+                        placeholder:text-[#B8B8B1]
+                        hover:border-[#BD9655]
+                        focus:border-[#BD9655]
+                        focus:ring-4 focus:ring-[#BD9655]/10
+                    "
+          />
+
+          <div className="
+                    pointer-events-none
+                    absolute inset-y-0 right-0
+                    flex items-center
+                    pr-5
+                ">
+            <span className="
+                        text-sm font-semibold
+                        text-[#8B8B83]
+                    ">
+              Kz
+            </span>
+          </div>
+        </div>
+
+        <p className="mt-2 text-xs text-[#85857D]">
+          {budget
+            ? `Orçamento indicado: ${formatBudget(budget)} Kz`
+            : "Introduza o valor em kwanzas angolanos."}
+        </p>
+      </Field>
+    );
+  }
   function renderScopeAndPlanning() {
     return (
       <>

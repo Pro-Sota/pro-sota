@@ -38,9 +38,6 @@ export type ActionResult<T = void> = {
 /* Constants                                                                  */
 /* -------------------------------------------------------------------------- */
 
-const MIN_BUDGET = 1_000_000;
-const MAX_BUDGET = 1_000_000_000;
-
 const PROJECT_PRIORITIES = [
     "Conforto e funcionalidade",
     "Controlo do orçamento",
@@ -76,14 +73,9 @@ const CONSTRUCTION_START_OPTIONS = [
 
 async function execute<T>(
     operation: () => Promise<T>,
-    shouldRevalidate = false,
 ): Promise<ActionResult<T>> {
     try {
         const data = await operation();
-
-        if (shouldRevalidate) {
-            revalidatePath("/management/project-briefing");
-        }
 
         return {
             success: true,
@@ -130,9 +122,7 @@ function getNumber(
 ): number | null {
     const value = getString(formData, key);
 
-    if (!value) {
-        return null;
-    }
+    if (!value) return null;
 
     const parsed = Number(value);
 
@@ -143,15 +133,116 @@ function getNumber(
     return parsed;
 }
 
+function getCoordinate(
+    formData: FormData,
+    key: "latitude" | "longitude",
+): number | null {
+    const value = getString(formData, key);
+
+    if (!value) return null;
+
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed)) {
+        throw new Error("As coordenadas seleccionadas não são válidas.");
+    }
+
+    const min = key === "latitude" ? -90 : -180;
+    const max = key === "latitude" ? 90 : 180;
+
+    if (parsed < min || parsed > max) {
+        throw new Error("As coordenadas seleccionadas estão fora dos limites válidos.");
+    }
+
+    return parsed;
+}
+
+function getBudget(formData: FormData): number | null {
+    const value = getString(formData, "budget");
+
+    if (!value) return null;
+
+    if (!/^\d+(?:\.\d{1,2})?$/.test(value)) {
+        throw new Error("Introduza um orçamento válido.");
+    }
+
+    const budget = Number(value);
+
+    if (!Number.isFinite(budget) || budget < 0) {
+        throw new Error("Introduza um orçamento válido.");
+    }
+
+    if (budget > 9999999999999.99) {
+        throw new Error("O orçamento excede o limite permitido.");
+    }
+
+    return budget;
+}
+
 function getStringArray(
     formData: FormData,
     key: string,
 ): string[] {
+    return [
+        ...new Set(
+            formData
+                .getAll(key)
+                .filter(
+                    (value): value is string =>
+                        typeof value === "string",
+                )
+                .map((value) => value.trim())
+                .filter(Boolean),
+        ),
+    ];
+}
+
+function getArchitecturalStyles(formData: FormData): string[] {
+    const styles = getStringArray(formData, "architectural_style");
+    const otherStyle = getString(
+        formData,
+        "architectural_style_other",
+    );
+
+    return [
+        ...new Set(
+            styles
+                .map((style) =>
+                    style === "Outro" ? otherStyle : style,
+                )
+                .filter(Boolean),
+        ),
+    ];
+}
+
+function getAttachments(formData: FormData): File[] {
     return formData
-        .getAll(key)
-        .filter((value): value is string => typeof value === "string")
-        .map((value) => value.trim())
-        .filter(Boolean);
+        .getAll("attachments")
+        .filter(
+            (value): value is File =>
+                typeof File !== "undefined" &&
+                value instanceof File &&
+                value.size > 0,
+        );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Submission Validation                                                      */
+/* -------------------------------------------------------------------------- */
+
+function validatePublicSubmission(formData: FormData) {
+    const consent = getString(formData, "privacy_consent");
+
+    if (!["true", "on", "1"].includes(consent)) {
+        throw new Error(
+            "É necessário aceitar a política de privacidade para continuar.",
+        );
+    }
+
+    // Honeypot: bots should not be able to submit the form.
+    if (getString(formData, "website")) {
+        throw new Error("Não foi possível submeter o formulário.");
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -161,27 +252,18 @@ function getStringArray(
 function parseProjectBriefFormData(
     formData: FormData,
 ): CreateProjectBriefInput {
-    const rawBudget = getString(formData, "budget");
+    const fullName = getString(formData, "full_name");
+    const contactPhone = getString(formData, "contact_phone");
 
-    let budget: number | null = null;
-
-    if (rawBudget) {
-        budget = Number(rawBudget);
-
-        if (
-            !Number.isFinite(budget) ||
-            budget < MIN_BUDGET ||
-            budget > MAX_BUDGET
-        ) {
-            throw new Error(
-                "O orçamento deve estar entre 1.000.000 Kz e 1.000.000.000 Kz.",
-            );
-        }
+    if (!fullName) {
+        throw new Error("Introduza o seu nome.");
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* Scope and planning validation                                          */
-    /* ---------------------------------------------------------------------- */
+    if (!contactPhone) {
+        throw new Error("Introduza o seu número de telefone.");
+    }
+
+    /* Service scope */
 
     const serviceScope = getString(formData, "service_scope");
 
@@ -194,6 +276,8 @@ function parseProjectBriefFormData(
             "Seleccione o âmbito dos serviços pretendidos.",
         );
     }
+
+    /* Construction start */
 
     const constructionStart = getString(
         formData,
@@ -210,6 +294,8 @@ function parseProjectBriefFormData(
         );
     }
 
+    /* Project priorities */
+
     const projectPriorities = getStringArray(
         formData,
         "project_priorities",
@@ -223,7 +309,6 @@ function parseProjectBriefFormData(
 
     if (
         projectPriorities.length !== 3 ||
-        new Set(projectPriorities).size !== 3 ||
         !validPriorities
     ) {
         throw new Error(
@@ -231,17 +316,54 @@ function parseProjectBriefFormData(
         );
     }
 
+    /* Coordinates */
+
+    const latitude = getCoordinate(formData, "latitude");
+    const longitude = getCoordinate(formData, "longitude");
+
+    if (
+        (latitude === null && longitude !== null) ||
+        (latitude !== null && longitude === null)
+    ) {
+        throw new Error(
+            "A latitude e a longitude devem ser indicadas em conjunto.",
+        );
+    }
+
+    /* Budget */
+
+    const budget = getBudget(formData);
+
+    if (budget === null) {
+        throw new Error("Indique o orçamento previsto para o projecto.");
+    }
+
+    /* Architectural styles */
+
+    const architecturalStyles = getArchitecturalStyles(formData);
+
     return {
         /* Personal information */
-        full_name: getString(formData, "full_name"),
-        contact_phone: getString(formData, "contact_phone"),
+
+        full_name: fullName,
+        contact_phone: contactPhone,
         contact_email: getString(formData, "contact_email"),
         budget,
-        decision_makers: getNullableString(formData, "decision_makers"),
-        preferred_contact: getNullableString(formData, "preferred_contact"),
+        decision_makers: getNullableString(
+            formData,
+            "decision_makers",
+        ),
+        preferred_contact: getNullableString(
+            formData,
+            "preferred_contact",
+        ),
 
         /* Location */
-        location_address: getNullableString(formData, "location_address"),
+
+        location_address: getNullableString(
+            formData,
+            "location_address",
+        ),
         location_neighborhood: getNullableString(
             formData,
             "location_neighborhood",
@@ -254,16 +376,24 @@ function parseProjectBriefFormData(
             formData,
             "location_reference",
         ),
-        location_city: getNullableString(formData, "location_city"),
-        location_province: getNullableString(formData, "location_province"),
-        map_link: getNullableString(formData, "map_link"),
-        architectural_style_other: getNullableString(
+        location_city: getNullableString(
             formData,
-            "architectural_style_other",
+            "location_city",
         ),
+        location_province: getNullableString(
+            formData,
+            "location_province",
+        ),
+        latitude,
+        longitude,
+        map_link: getNullableString(formData, "map_link"),
 
         /* Land */
-        land_ownership: getNullableString(formData, "land_ownership"),
+
+        land_ownership: getNullableString(
+            formData,
+            "land_ownership",
+        ),
         land_area: getNumber(formData, "land_area"),
         land_length: getNumber(formData, "land_length"),
         land_width: getNumber(formData, "land_width"),
@@ -273,10 +403,17 @@ function parseProjectBriefFormData(
             "existing_buildings",
         ),
         has_trees: getNullableString(formData, "has_trees"),
-        infrastructure: getStringArray(formData, "infrastructure"),
+        infrastructure: getStringArray(
+            formData,
+            "infrastructure",
+        ),
 
         /* Household */
-        residents_count: getNumber(formData, "residents_count"),
+
+        residents_count: getNumber(
+            formData,
+            "residents_count",
+        ),
         domestic_workers: getNullableString(
             formData,
             "domestic_workers",
@@ -289,7 +426,10 @@ function parseProjectBriefFormData(
             formData,
             "resident_profiles",
         ),
-        family_growth: getNullableString(formData, "family_growth"),
+        family_growth: getNullableString(
+            formData,
+            "family_growth",
+        ),
         works_from_home: getNullableString(
             formData,
             "works_from_home",
@@ -309,23 +449,45 @@ function parseProjectBriefFormData(
         ),
 
         /* Architectural programme */
-        bedrooms_count: getNumber(formData, "bedrooms_count"),
-        suites_count: getNumber(formData, "suites_count"),
-        desired_spaces: getStringArray(formData, "desired_spaces"),
+
+        bedrooms_count: getNumber(
+            formData,
+            "bedrooms_count",
+        ),
+        suites_count: getNumber(
+            formData,
+            "suites_count",
+        ),
+        desired_spaces: getStringArray(
+            formData,
+            "desired_spaces",
+        ),
         cars_count: getNumber(formData, "cars_count"),
-        kitchen_layout: getNullableString(formData, "kitchen_layout"),
-        floor_count: getNullableString(formData, "floor_count"),
-        essential_space: getNullableString(formData, "essential_space"),
+        kitchen_layout: getNullableString(
+            formData,
+            "kitchen_layout",
+        ),
+        floor_count: getNullableString(
+            formData,
+            "floor_count",
+        ),
+        essential_space: getNullableString(
+            formData,
+            "essential_space",
+        ),
 
         /* Scope and planning */
+
         service_scope: serviceScope,
         project_priorities: projectPriorities,
         construction_start: constructionStart,
 
         /* Aesthetic preferences */
-        architectural_style: getStringArray(
+
+        architectural_style: architecturalStyles,
+        architectural_style_other: getNullableString(
             formData,
-            "architectural_style",
+            "architectural_style_other",
         ),
         colour_material_preferences: getNullableString(
             formData,
@@ -335,14 +497,21 @@ function parseProjectBriefFormData(
             formData,
             "natural_light_rating",
         ),
-        privacy_rating: getNumber(formData, "privacy_rating"),
-        reference_links: getNullableString(formData, "reference_links"),
+        privacy_rating: getNumber(
+            formData,
+            "privacy_rating",
+        ),
+        reference_links: getNullableString(
+            formData,
+            "reference_links",
+        ),
         other_information: getNullableString(
             formData,
             "other_information",
         ),
     };
 }
+
 /* -------------------------------------------------------------------------- */
 /* Public Submission                                                          */
 /* -------------------------------------------------------------------------- */
@@ -351,28 +520,10 @@ export async function submitProjectBrief(
     formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
     return execute(async () => {
-        const consent = getString(formData, "privacy_consent");
-
-        if (!["true", "on", "1"].includes(consent)) {
-            throw new Error(
-                "É necessário aceitar a política de privacidade para continuar.",
-            );
-        }
-
-        if (getString(formData, "website")) {
-            throw new Error("Não foi possível submeter o formulário.");
-        }
+        validatePublicSubmission(formData);
 
         const input = parseProjectBriefFormData(formData);
-
-        const files = formData
-            .getAll("attachments")
-            .filter(
-                (value): value is File =>
-                    typeof File !== "undefined" &&
-                    value instanceof File &&
-                    value.size > 0,
-            );
+        const files = getAttachments(formData);
 
         const brief = await createProjectBrief(input, files);
 
@@ -380,29 +531,22 @@ export async function submitProjectBrief(
     });
 }
 
-/*
- * Compatibility action for callers that already provide a typed object.
- * The public form should use submitProjectBrief(FormData).
- */
+/* -------------------------------------------------------------------------- */
+/* Compatibility Submission                                                   */
+/* -------------------------------------------------------------------------- */
+
 export async function submitProjectBriefAction(
     formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
     return execute(async () => {
+        validatePublicSubmission(formData);
+
         const input = parseProjectBriefFormData(formData);
-        const files = formData
-            .getAll("attachments")
-            .filter(
-                (value): value is File =>
-                    typeof File !== "undefined" &&
-                    value instanceof File &&
-                    value.size > 0,
-            );
+        const files = getAttachments(formData);
 
         const brief = await createProjectBrief(input, files);
 
-        return {
-            id: brief.id,
-        };
+        return { id: brief.id };
     });
 }
 
@@ -425,7 +569,7 @@ export async function getProjectBriefStatsAction() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Detail                                                                     */
+/* Detail                                                                      */
 /* -------------------------------------------------------------------------- */
 
 export async function getProjectBriefAction(id: string) {

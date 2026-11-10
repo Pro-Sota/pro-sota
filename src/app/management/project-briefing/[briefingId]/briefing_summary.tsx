@@ -80,18 +80,23 @@ type Briefing = {
     bedrooms_count: number | null;
     suites_count: number | null;
     desired_spaces: string[];
+    desired_spaces_other: string | null;
     cars_count: number | null;
     kitchen_layout: string | null;
     floor_count: string | null;
+    floor_count_other: string | null;
     essential_space: string | null;
 
     architectural_style: string[];
+    architectural_style_other: string | null;
     colour_material_preferences: string | null;
     natural_light_rating: number | null;
     privacy_rating: number | null;
 
     reference_links: string | null;
     other_information: string | null;
+    latitude: number | null;
+    longitude: number | null;
 
     reviewed_by: string | null;
     reviewed_at: string | null;
@@ -206,6 +211,34 @@ function display(value: unknown): string {
     if (typeof value === "boolean") return value ? "Sim" : "Não";
     if (Array.isArray(value)) return value.join(", ");
     return String(value);
+}
+
+/**
+ * Keeps an "Outro" answer attached to the field that triggered it.
+ * The custom value is displayed without hiding the original selections.
+ */
+function displayWithOther(value: unknown, other: string | null): unknown {
+    const customValue = other?.trim();
+
+    if (!customValue) return value;
+
+    if (Array.isArray(value)) {
+        const selections = value.filter(
+            (item) => String(item).toLocaleLowerCase("pt-PT") !== "outro"
+        );
+
+        return [...selections, `Outro: ${customValue}`];
+    }
+
+    if (value === "Outro") {
+        return `Outro: ${customValue}`;
+    }
+
+    if (isEmpty(value)) {
+        return `Outro: ${customValue}`;
+    }
+
+    return `${display(value)}, Outro: ${customValue}`;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -490,11 +523,10 @@ function Rating({
                     {[1, 2, 3, 4, 5].map((n) => (
                         <span
                             key={n}
-                            className={`h-2 w-5 rounded-full ${
-                                n <= value
+                            className={`h-2 w-5 rounded-full ${n <= value
                                     ? "bg-[#BD9655]"
                                     : "bg-slate-200"
-                            }`}
+                                }`}
                         />
                     ))}
                 </span>
@@ -646,41 +678,41 @@ export default function BriefingSummary({
                 {(briefing.contact_phone ||
                     briefing.contact_email ||
                     mapLink) && (
-                    <div className="mt-6 flex flex-wrap gap-2.5">
-                        {briefing.contact_phone && (
-                            <a
-                                href={`tel:${briefing.contact_phone}`}
-                                className={`${buttonBase} bg-[#002950] text-white hover:bg-[#003968]`}
-                            >
-                                <Phone size={14} />
-                                {briefing.contact_phone}
-                            </a>
-                        )}
+                        <div className="mt-6 flex flex-wrap gap-2.5">
+                            {briefing.contact_phone && (
+                                <a
+                                    href={`tel:${briefing.contact_phone}`}
+                                    className={`${buttonBase} bg-[#002950] text-white hover:bg-[#003968]`}
+                                >
+                                    <Phone size={14} />
+                                    {briefing.contact_phone}
+                                </a>
+                            )}
 
-                        {briefing.contact_email && (
-                            <a
-                                href={`mailto:${briefing.contact_email}`}
-                                className={`${buttonBase} border border-slate-200 bg-white text-[#002950] hover:bg-slate-50`}
-                            >
-                                <Mail size={14} />
-                                {briefing.contact_email}
-                            </a>
-                        )}
+                            {briefing.contact_email && (
+                                <a
+                                    href={`mailto:${briefing.contact_email}`}
+                                    className={`${buttonBase} border border-slate-200 bg-white text-[#002950] hover:bg-slate-50`}
+                                >
+                                    <Mail size={14} />
+                                    {briefing.contact_email}
+                                </a>
+                            )}
 
-                        {mapLink && (
-                            <a
-                                href={mapLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`${buttonBase} border border-slate-200 bg-white text-[#002950] hover:bg-slate-50`}
-                            >
-                                <MapPin size={14} />
-                                Ver localização
-                                <ArrowUpRight size={13} />
-                            </a>
-                        )}
-                    </div>
-                )}
+                            {mapLink && (
+                                <a
+                                    href={mapLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`${buttonBase} border border-slate-200 bg-white text-[#002950] hover:bg-slate-50`}
+                                >
+                                    <MapPin size={14} />
+                                    Ver localização
+                                    <ArrowUpRight size={13} />
+                                </a>
+                            )}
+                        </div>
+                    )}
             </header>
 
             {/* ---------------------------------------------------------------- */}
@@ -895,7 +927,10 @@ export default function BriefingSummary({
                                 },
                                 {
                                     label: "Pisos",
-                                    value: briefing.floor_count,
+                                    value: displayWithOther(
+                                        briefing.floor_count,
+                                        briefing.floor_count_other
+                                    ),
                                 },
                                 {
                                     label: "Cozinha",
@@ -903,7 +938,10 @@ export default function BriefingSummary({
                                 },
                                 {
                                     label: "Espaços desejados",
-                                    value: briefing.desired_spaces,
+                                    value: displayWithOther(
+                                        briefing.desired_spaces,
+                                        briefing.desired_spaces_other
+                                    ),
                                     wide: true,
                                 },
                                 {
@@ -922,7 +960,10 @@ export default function BriefingSummary({
                             items={[
                                 {
                                     label: "Estilo arquitectónico",
-                                    value: briefing.architectural_style,
+                                    value: displayWithOther(
+                                        briefing.architectural_style,
+                                        briefing.architectural_style_other
+                                    ),
                                     wide: true,
                                 },
                                 {
