@@ -80,18 +80,14 @@ export default function Hero() {
 
             <div className="ps-hero__actions">
               <Link href="#contacto" className="ps-hero__cta ps-hero__cta--solid">
-                <span>Pedir proposta</span>
-                <span className="ps-hero__cta-arrow" aria-hidden="true">
-                  ↗
-                </span>
-              </Link>
+  <span>Pedir proposta</span>
+  <span className="ps-hero__cta-arrow" aria-hidden="true" />
+</Link>
 
-              <Link href="#servicos" className="ps-hero__cta">
-                <span>Explorar serviços</span>
-                <span className="ps-hero__cta-arrow" aria-hidden="true">
-                  ↗
-                </span>
-              </Link>
+<Link href="#servicos" className="ps-hero__cta">
+  <span>Explorar serviços</span>
+  <span className="ps-hero__cta-arrow" aria-hidden="true" />
+</Link>
             </div>
           </div>
         </div>
