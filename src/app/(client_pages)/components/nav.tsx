@@ -11,6 +11,7 @@ const links = [
   { label: "Sobre", href: "/about" },
   { label: "Serviços", href: "/services" },
   { label: "Projectos", href: "/projects" },
+  { label: "Briefing de Projecto", href: "/project-briefing" },
 ];
 
 export default function Nav() {
@@ -25,7 +26,7 @@ export default function Nav() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > -40 );
+      setScrolled(window.scrollY > 40);
     };
 
     handleScroll();
@@ -89,9 +90,10 @@ export default function Nav() {
         min-[861px]:min-h-[84px]
         min-[861px]:px-[clamp(20px,5vw,64px)]
         transition-[background-color,box-shadow] duration-300
-        ${scrolled
-          ? "bg-[#F7F7F5] shadow-[0_4px_20px_rgba(0,41,80,0.06)]"
-          : "bg-transparent shadow-none"
+        ${
+          scrolled
+            ? "bg-[#F7F7F5] shadow-[0_4px_20px_rgba(0,41,80,0.06)]"
+            : "bg-transparent shadow-none"
         }
       `}
     >
@@ -127,7 +129,6 @@ export default function Nav() {
       <nav
         id="mobile-navigation"
         aria-label="Navegação principal"
-        aria-hidden={!open ? undefined : undefined}
         className={`
           fixed inset-0 z-[110]
           flex h-[100dvh] w-full
@@ -141,14 +142,15 @@ export default function Nav() {
           min-[861px]:h-auto min-[861px]:w-auto
           min-[861px]:flex-row min-[861px]:items-center
           min-[861px]:justify-end
-          min-[861px]:gap-[clamp(18px,2.4vw,38px)]
+          min-[861px]:gap-[clamp(14px,1.8vw,30px)]
           min-[861px]:overflow-visible
           min-[861px]:bg-transparent
           min-[861px]:px-0
           min-[861px]:transition-none
-          ${open
-            ? "visible translate-x-0"
-            : "invisible translate-x-full min-[861px]:visible min-[861px]:translate-x-0"
+          ${
+            open
+              ? "visible translate-x-0"
+              : "invisible translate-x-full min-[861px]:visible min-[861px]:translate-x-0"
           }
         `}
       >
@@ -162,20 +164,24 @@ export default function Nav() {
               onClick={() => setOpen(false)}
               aria-current={isActive ? "page" : undefined}
               className={`
-        !no-underline
-        text-[24px] font-semibold
-        transition-colors duration-300
-        ${isActive
-                  ? "text-[#BD9655]"
-                  : "text-[#002950] hover:text-[#BD9655]"
+                !no-underline
+                text-[24px] font-semibold
+                transition-colors duration-300
+                min-[861px]:text-[12.5px]
+                min-[861px]:whitespace-nowrap
+                ${
+                  isActive
+                    ? "text-[#BD9655]"
+                    : "text-[#002950] hover:text-[#BD9655]"
                 }
-      `}
+              `}
             >
               {link.label}
             </Link>
           );
         })}
 
+        {/* Contact CTA */}
         <Link
           href="/contact"
           onClick={() => setOpen(false)}
@@ -194,6 +200,7 @@ export default function Nav() {
             min-[861px]:px-[18px]
             min-[861px]:py-[9px]
             min-[861px]:text-[12.5px]
+            min-[861px]:whitespace-nowrap
           "
         >
           Fale connosco
@@ -223,9 +230,10 @@ export default function Nav() {
           className={`
             h-[2px] w-6 bg-[#002950]
             transition-all duration-300
-            ${open
-              ? "translate-y-[7px] rotate-45 !bg-[#BD9655]"
-              : ""
+            ${
+              open
+                ? "translate-y-[7px] rotate-45 !bg-[#BD9655]"
+                : ""
             }
           `}
         />
@@ -242,9 +250,10 @@ export default function Nav() {
           className={`
             h-[2px] w-6 bg-[#002950]
             transition-all duration-300
-            ${open
-              ? "-translate-y-[7px] -rotate-45 !bg-[#BD9655]"
-              : ""
+            ${
+              open
+                ? "-translate-y-[7px] -rotate-45 !bg-[#BD9655]"
+                : ""
             }
           `}
         />
