@@ -8,18 +8,24 @@
 }
 .ps-hero {
   /* Colour tokens */
-  --hero-navy: #F7F7F5;
-  --hero-navy-hover: #F7F7F5;
+  --hero-navy: #002950;
+  --hero-navy-hover: #BD9655;
+
   --hero-gold: #BD9655;
   --hero-gold-light: #D7B477;
   --hero-gold-pale: #E4C58F;
+
   --hero-sand: #E8E2D7;
   --hero-ivory: #F4E6C9;
   --hero-skin: #D5A879;
+
   --hero-grid-line: #D5D0C5;
   --hero-cream: #F7F7F5;
-  --hero-muted: #5f5e58;          /* ~6:1 on cream (was #77766f, ~4.3:1) */
+
+  --hero-muted: #5f5e58;
   --hero-body: #555e65;
+
+  /* Keep the remaining existing font and layout variables unchanged */
 
   /* Type tokens — safe fallbacks if next/font variables are missing */
   --hero-font-display: var(--font-display-face, "Helvetica Neue"), Arial, sans-serif;
@@ -242,11 +248,15 @@
   display: block;
 }
 
+.ps-hero__title {
+  color: var(--hero-navy);
+}
+
 .ps-hero__title-second {
   margin-top: .12em;
   color: transparent;
   -webkit-text-stroke: 1.5px var(--hero-navy);
-  paint-order: stroke fill;       /* avoids overlapping-contour artefacts */
+  paint-order: stroke fill;
 }
 
 /* Browsers without text-stroke: fall back to a solid, softened word */
