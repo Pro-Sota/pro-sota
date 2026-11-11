@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -8,8 +9,9 @@ import Footer from "./components/footer";
 import About from "./components/about";
 import WhyUs from "./components/why_us";
 import ServicesSection from "./components/service_component";
+import BriefingSection from "./components/briefing_section";
 import ProjectsShowcase from "./components/projects";
-import Contact from "./components/contact_page"
+import Contact from "./components/contact_page";
 
 import { services } from "./components/servicesData";
 
@@ -20,7 +22,6 @@ import "../admin.css";
 interface HomeClientProps {
   projects: any[];
 }
-
 
 const ROUTES = {
   about: "/about",
@@ -65,11 +66,13 @@ export default function HomeClient({
         {/* 04 — WHY PRO SOTA */}
         <WhyUs />
 
-        {/* 05 — SELECTED PROJECTS */}
+        {/* 05 — PROJECT BRIEFING */}
+        <BriefingSection />
 
+        {/* 06 — SELECTED PROJECTS */}
         <ProjectsShowcase projects={featuredProjects} />
 
-        {/* 06 — CONTACT */}
+        {/* 07 — CONTACT */}
         <section
           id="contacto"
           className="scroll-mt-24 border-t border-line"
