@@ -365,17 +365,40 @@
 }
 
 .ps-hero__cta-arrow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
+  position: relative;
+  display: inline-block;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
   transition: transform .3s ease;
+}
+
+.ps-hero__cta-arrow::before {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 9px;
+  height: 9px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  content: "";
+}
+
+.ps-hero__cta-arrow::after {
+  position: absolute;
+  right: 1px;
+  bottom: 2px;
+  width: 12px;
+  height: 1.5px;
+  background: currentColor;
+  content: "";
+  transform: rotate(-45deg);
+  transform-origin: right center;
 }
 
 .ps-hero__cta:hover .ps-hero__cta-arrow {
   transform: translate(3px, -3px);
 }
-
 /* Statistics (<dl>: label is <dt>, value is <dd>, shown value-first) */
 
 .ps-hero__stats {
