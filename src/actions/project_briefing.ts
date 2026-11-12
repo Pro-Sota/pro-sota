@@ -1,5 +1,7 @@
-
 "use server";
+
+import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 
 import {
     createProjectBrief,
@@ -22,7 +24,8 @@ import type {
     ProjectBriefStatus,
 } from "@/services/project_briefing";
 
-import { revalidatePath } from "next/cache";
+import { checkBrief, rateLimited } from "@/app/project-briefing/brief_server";
+import type { BriefValues } from "@/app/project-briefing/values";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -33,39 +36,6 @@ export type ActionResult<T = void> = {
     error?: string;
     data?: T;
 };
-
-/* -------------------------------------------------------------------------- */
-/* Constants                                                                  */
-/* -------------------------------------------------------------------------- */
-
-const PROJECT_PRIORITIES = [
-    "Conforto e funcionalidade",
-    "Controlo do orçamento",
-    "Eficiência energética",
-    "Privacidade e segurança",
-    "Rapidez de execução",
-    "Valorização do imóvel",
-    "Sustentabilidade",
-    "Integração com o exterior",
-    "Flexibilidade para o futuro",
-] as const;
-
-const SERVICE_SCOPE_OPTIONS = [
-    "Apenas arquitectura",
-    "Arquitectura e engenharia",
-    "Projecto completo (arquitectura, especialidades e fiscalização)",
-    "Projecto e construção (solução chave-na-mão)",
-    "Ainda não tenho a certeza",
-] as const;
-
-const CONSTRUCTION_START_OPTIONS = [
-    "O mais breve possível",
-    "Dentro de 1 a 3 meses",
-    "Dentro de 3 a 6 meses",
-    "Dentro de 6 a 12 meses",
-    "Daqui a mais de 12 meses",
-    "Ainda não definido",
-] as const;
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
@@ -81,7 +51,6 @@ async function execute<T>(
             success: true,
             data,
         };
-        
     } catch (error) {
         console.error("Project Brief Action:", error);
 
@@ -100,416 +69,104 @@ function revalidateBrief(id: string) {
     revalidatePath(`/management/project-briefing/${id}`);
 }
 
-/* -------------------------------------------------------------------------- */
-/* FormData Helpers                                                           */
-/* -------------------------------------------------------------------------- */
+const toNull = (value: string) => value.trim() || null;
 
-function getString(formData: FormData, key: string): string {
-    const value = formData.get(key);
+const toNumber = (value: string) =>
+    value.trim() === "" ? null : Number(value);
 
-    return typeof value === "string" ? value.trim() : "";
-}
+/** Human-friendly reference derived from the id (no extra column needed). */
+function makeReference(brief: { id: string; created_at: string }) {
+    const year = new Date(brief.created_at).getFullYear();
 
-function getNullableString(
-    formData: FormData,
-    key: string,
-): string | null {
-    return getString(formData, key) || null;
-}
-
-function getNumber(
-    formData: FormData,
-    key: string,
-): number | null {
-    const value = getString(formData, key);
-
-    if (!value) return null;
-
-    const parsed = Number(value);
-
-    if (!Number.isFinite(parsed)) {
-        throw new Error(`O campo "${key}" contém um valor inválido.`);
-    }
-
-    return parsed;
-}
-
-function getCoordinate(
-    formData: FormData,
-    key: "latitude" | "longitude",
-): number | null {
-    const value = getString(formData, key);
-
-    if (!value) return null;
-
-    const parsed = Number(value);
-
-    if (!Number.isFinite(parsed)) {
-        throw new Error("As coordenadas seleccionadas não são válidas.");
-    }
-
-    const min = key === "latitude" ? -90 : -180;
-    const max = key === "latitude" ? 90 : 180;
-
-    if (parsed < min || parsed > max) {
-        throw new Error("As coordenadas seleccionadas estão fora dos limites válidos.");
-    }
-
-    return parsed;
-}
-
-function getBudget(formData: FormData): number | null {
-    const value = getString(formData, "budget");
-
-    if (!value) return null;
-
-    if (!/^\d+(?:\.\d{1,2})?$/.test(value)) {
-        throw new Error("Introduza um orçamento válido.");
-    }
-
-    const budget = Number(value);
-
-    if (!Number.isFinite(budget) || budget < 0) {
-        throw new Error("Introduza um orçamento válido.");
-    }
-
-    if (budget > 9999999999999.99) {
-        throw new Error("O orçamento excede o limite permitido.");
-    }
-
-    return budget;
-}
-
-function getStringArray(
-    formData: FormData,
-    key: string,
-): string[] {
-    return [
-        ...new Set(
-            formData
-                .getAll(key)
-                .filter(
-                    (value): value is string =>
-                        typeof value === "string",
-                )
-                .map((value) => value.trim())
-                .filter(Boolean),
-        ),
-    ];
-}
-
-function getArchitecturalStyles(formData: FormData): string[] {
-    const styles = getStringArray(formData, "architectural_style");
-    const otherStyle = getString(
-        formData,
-        "architectural_style_other",
-    );
-
-    return [
-        ...new Set(
-            styles
-                .map((style) =>
-                    style === "Outro" ? otherStyle : style,
-                )
-                .filter(Boolean),
-        ),
-    ];
-}
-
-function getAttachments(formData: FormData): File[] {
-    return formData
-        .getAll("attachments")
-        .filter(
-            (value): value is File =>
-                typeof File !== "undefined" &&
-                value instanceof File &&
-                value.size > 0,
-        );
+    return `PS-${year}-${brief.id.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Submission Validation                                                      */
+/* Form values -> service input                                               */
 /* -------------------------------------------------------------------------- */
 
-function validatePublicSubmission(formData: FormData) {
-    const consent = getString(formData, "privacy_consent");
-
-    if (!["true", "on", "1"].includes(consent)) {
-        throw new Error(
-            "É necessário aceitar a política de privacidade para continuar.",
-        );
-    }
-
-    // Honeypot: bots should not be able to submit the form.
-    if (getString(formData, "website")) {
-        throw new Error("Não foi possível submeter o formulário.");
-    }
-}
-
-/* -------------------------------------------------------------------------- */
-/* FormData Parser                                                            */
-/* -------------------------------------------------------------------------- */
-
-function parseProjectBriefFormData(
-    formData: FormData,
-): CreateProjectBriefInput {
-    const fullName = getString(formData, "full_name");
-    const contactPhone = getString(formData, "contact_phone");
-
-    if (!fullName) {
-        throw new Error("Introduza o seu nome.");
-    }
-
-    if (!contactPhone) {
-        throw new Error("Introduza o seu número de telefone.");
-    }
-
-    /* Service scope */
-
-    const serviceScope = getString(formData, "service_scope");
-
-    if (
-        !SERVICE_SCOPE_OPTIONS.includes(
-            serviceScope as (typeof SERVICE_SCOPE_OPTIONS)[number],
-        )
-    ) {
-        throw new Error(
-            "Seleccione o âmbito dos serviços pretendidos.",
-        );
-    }
-
-    /* Construction start */
-
-    const constructionStart = getString(
-        formData,
-        "construction_start",
-    );
-
-    if (
-        !CONSTRUCTION_START_OPTIONS.includes(
-            constructionStart as (typeof CONSTRUCTION_START_OPTIONS)[number],
-        )
-    ) {
-        throw new Error(
-            "Seleccione quando pretende iniciar a construção.",
-        );
-    }
-
-    /* Project priorities */
-
-    const projectPriorities = getStringArray(
-        formData,
-        "project_priorities",
-    );
-
-    const validPriorities = projectPriorities.every((priority) =>
-        PROJECT_PRIORITIES.includes(
-            priority as (typeof PROJECT_PRIORITIES)[number],
-        ),
-    );
-
-    if (
-        projectPriorities.length !== 3 ||
-        !validPriorities
-    ) {
-        throw new Error(
-            "Seleccione exactamente três prioridades para o projecto.",
-        );
-    }
-
-    /* Coordinates */
-
-    const latitude = getCoordinate(formData, "latitude");
-    const longitude = getCoordinate(formData, "longitude");
-
-    if (
-        (latitude === null && longitude !== null) ||
-        (latitude !== null && longitude === null)
-    ) {
-        throw new Error(
-            "A latitude e a longitude devem ser indicadas em conjunto.",
-        );
-    }
-
-    /* Budget */
-
-    const budget = getBudget(formData);
-
-    if (budget === null) {
-        throw new Error("Indique o orçamento previsto para o projecto.");
-    }
-
-    /* Architectural styles */
-
-    const architecturalStyles = getArchitecturalStyles(formData);
+function toInput(v: BriefValues): CreateProjectBriefInput {
+    const latitude = toNumber(v.latitude);
+    const longitude = toNumber(v.longitude);
+    const undisclosed = v.budget_undisclosed === "yes";
 
     return {
         /* Personal information */
 
-        full_name: fullName,
-        contact_phone: contactPhone,
-        contact_email: getString(formData, "contact_email"),
-        budget,
-        decision_makers: getNullableString(
-            formData,
-            "decision_makers",
-        ),
-        preferred_contact: getNullableString(
-            formData,
-            "preferred_contact",
-        ),
+        full_name: v.full_name,
+        contact_phone: v.contact_phone,
+        contact_email: v.contact_email,
+        budget: undisclosed ? null : toNumber(v.budget),
+        budget_undisclosed: undisclosed,
+        decision_makers: toNull(v.decision_makers),
+        preferred_contact: toNull(v.preferred_contact),
 
         /* Location */
 
-        location_address: getNullableString(
-            formData,
-            "location_address",
-        ),
-        location_neighborhood: getNullableString(
-            formData,
-            "location_neighborhood",
-        ),
-        location_municipality: getNullableString(
-            formData,
-            "location_municipality",
-        ),
-        location_reference: getNullableString(
-            formData,
-            "location_reference",
-        ),
-        location_city: getNullableString(
-            formData,
-            "location_city",
-        ),
-        location_province: getNullableString(
-            formData,
-            "location_province",
-        ),
+        location_address: toNull(v.location_address),
+        location_neighborhood: toNull(v.location_neighborhood),
+        location_municipality: toNull(v.location_municipality),
+        location_reference: toNull(v.location_reference),
+        location_city: toNull(v.location_city),
+        location_province: toNull(v.location_province),
         latitude,
         longitude,
-        map_link: getNullableString(formData, "map_link"),
+        map_link:
+            latitude !== null && longitude !== null
+                ? `https://www.google.com/maps?q=${latitude},${longitude}`
+                : null,
 
         /* Land */
 
-        land_ownership: getNullableString(
-            formData,
-            "land_ownership",
-        ),
-        land_area: getNumber(formData, "land_area"),
-        land_length: getNumber(formData, "land_length"),
-        land_width: getNumber(formData, "land_width"),
-        land_type: getNullableString(formData, "land_type"),
-        existing_buildings: getNullableString(
-            formData,
-            "existing_buildings",
-        ),
-        has_trees: getNullableString(formData, "has_trees"),
-        infrastructure: getStringArray(
-            formData,
-            "infrastructure",
-        ),
+        land_ownership: toNull(v.land_ownership),
+        land_area: toNumber(v.land_area),
+        land_length: toNumber(v.land_length),
+        land_width: toNumber(v.land_width),
+        land_type: toNull(v.land_type),
+        existing_buildings: toNull(v.existing_buildings),
+        has_trees: toNull(v.has_trees),
+        infrastructure: v.infrastructure,
 
         /* Household */
 
-        residents_count: getNumber(
-            formData,
-            "residents_count",
-        ),
-        domestic_workers: getNullableString(
-            formData,
-            "domestic_workers",
-        ),
-        domestic_workers_count: getNumber(
-            formData,
-            "domestic_workers_count",
-        ),
-        resident_profiles: getNullableString(
-            formData,
-            "resident_profiles",
-        ),
-        family_growth: getNullableString(
-            formData,
-            "family_growth",
-        ),
-        works_from_home: getNullableString(
-            formData,
-            "works_from_home",
-        ),
-        visitors_frequency: getNullableString(
-            formData,
-            "visitors_frequency",
-        ),
-        pets: getNullableString(formData, "pets"),
-        current_home_dislikes: getNullableString(
-            formData,
-            "current_home_dislikes",
-        ),
-        current_home_likes: getNullableString(
-            formData,
-            "current_home_likes",
-        ),
+        residents_count: toNumber(v.residents_count),
+        domestic_workers: toNull(v.domestic_workers),
+        domestic_workers_count: toNumber(v.domestic_workers_count),
+        resident_profiles: toNull(v.resident_profiles),
+        family_growth: toNull(v.family_growth),
+        works_from_home: toNull(v.works_from_home),
+        visitors_frequency: toNull(v.visitors_frequency),
+        pets: toNull(v.pets),
+        current_home_dislikes: toNull(v.current_home_dislikes),
+        current_home_likes: toNull(v.current_home_likes),
 
         /* Architectural programme */
 
-        bedrooms_count: getNumber(
-            formData,
-            "bedrooms_count",
-        ),
-        suites_count: getNumber(
-            formData,
-            "suites_count",
-        ),
-        desired_spaces: getStringArray(
-            formData,
-            "desired_spaces",
-        ),
-        cars_count: getNumber(formData, "cars_count"),
-        kitchen_layout: getNullableString(
-            formData,
-            "kitchen_layout",
-        ),
-        floor_count: getNullableString(
-            formData,
-            "floor_count",
-        ),
-        essential_space: getNullableString(
-            formData,
-            "essential_space",
-        ),
+        bedrooms_count: toNumber(v.bedrooms_count),
+        suites_count: toNumber(v.suites_count),
+        desired_spaces: v.desired_spaces,
+        desired_spaces_other: toNull(v.desired_spaces_other),
+        cars_count: toNumber(v.cars_count),
+        kitchen_layout: toNull(v.kitchen_layout),
+        floor_count: toNull(v.floor_count),
+        floor_count_other: toNull(v.floor_count_other),
+        essential_space: toNull(v.essential_space),
 
         /* Scope and planning */
 
-        service_scope: serviceScope,
-        project_priorities: projectPriorities,
-        construction_start: constructionStart,
+        service_scope: v.service_scope,
+        project_priorities: v.project_priorities,
+        construction_start: v.construction_start,
 
         /* Aesthetic preferences */
 
-        architectural_style: architecturalStyles,
-        architectural_style_other: getNullableString(
-            formData,
-            "architectural_style_other",
-        ),
-        colour_material_preferences: getNullableString(
-            formData,
-            "colour_material_preferences",
-        ),
-        natural_light_rating: getNumber(
-            formData,
-            "natural_light_rating",
-        ),
-        privacy_rating: getNumber(
-            formData,
-            "privacy_rating",
-        ),
-        reference_links: getNullableString(
-            formData,
-            "reference_links",
-        ),
-        other_information: getNullableString(
-            formData,
-            "other_information",
-        ),
+        architectural_style: v.architectural_style,
+        architectural_style_other: toNull(v.architectural_style_other),
+        colour_material_preferences: toNull(v.colour_material_preferences),
+        natural_light_rating: toNumber(v.natural_light_rating),
+        privacy_rating: toNumber(v.privacy_rating),
+        reference_links: toNull(v.reference_links),
+        other_information: toNull(v.other_information),
     };
 }
 
@@ -519,16 +176,33 @@ function parseProjectBriefFormData(
 
 export async function submitProjectBrief(
     formData: FormData,
-): Promise<ActionResult<{ id: string }>> {
+): Promise<ActionResult<{ id: string; reference: string }>> {
     return execute(async () => {
-        validatePublicSubmission(formData);
+        const ip =
+            (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ??
+            "unknown";
 
-        const input = parseProjectBriefFormData(formData);
-        const files = getAttachments(formData);
+        if (rateLimited(ip)) {
+            throw new Error("Demasiados pedidos. Tente novamente mais tarde.");
+        }
 
-        const brief = await createProjectBrief(input, files);
+        const checked = await checkBrief(formData);
 
-        return { id: brief.id };
+        if (!checked.ok) {
+            throw new Error(checked.error);
+        }
+
+        const brief = await createProjectBrief(toInput(checked.values), {
+            land: checked.land,
+            reference: checked.reference,
+        });
+
+        revalidatePath("/management/project-briefing");
+
+        return {
+            id: brief.id,
+            reference: makeReference(brief),
+        };
     });
 }
 
@@ -536,19 +210,8 @@ export async function submitProjectBrief(
 /* Compatibility Submission                                                   */
 /* -------------------------------------------------------------------------- */
 
-export async function submitProjectBriefAction(
-    formData: FormData,
-): Promise<ActionResult<{ id: string }>> {
-    return execute(async () => {
-        validatePublicSubmission(formData);
-
-        const input = parseProjectBriefFormData(formData);
-        const files = getAttachments(formData);
-
-        const brief = await createProjectBrief(input, files);
-
-        return { id: brief.id };
-    });
+export async function submitProjectBriefAction(formData: FormData) {
+    return submitProjectBrief(formData);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -570,7 +233,7 @@ export async function getProjectBriefStatsAction() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Detail                                                                      */
+/* Detail                                                                     */
 /* -------------------------------------------------------------------------- */
 
 export async function getProjectBriefAction(id: string) {
@@ -581,15 +244,11 @@ export async function getProjectBriefAction(id: string) {
 /* Attachments                                                                */
 /* -------------------------------------------------------------------------- */
 
-export async function getProjectBriefAttachmentsAction(
-    briefId: string,
-) {
+export async function getProjectBriefAttachmentsAction(briefId: string) {
     return execute(() => getProjectBriefAttachments(briefId));
 }
 
-export async function deleteProjectBriefAttachmentAction(
-    id: string,
-) {
+export async function deleteProjectBriefAttachmentAction(id: string) {
     return execute(async () => {
         const result = await deleteProjectBriefAttachment(id);
 

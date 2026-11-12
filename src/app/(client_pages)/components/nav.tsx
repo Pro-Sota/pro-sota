@@ -11,7 +11,6 @@ const links = [
   { label: "Sobre", href: "/about" },
   { label: "Serviços", href: "/services" },
   { label: "Projectos", href: "/projects" },
-  { label: "Briefing de Projecto", href: "/project-briefing" },
 ];
 
 export default function Nav() {
@@ -90,10 +89,9 @@ export default function Nav() {
         min-[861px]:min-h-[84px]
         min-[861px]:px-[clamp(20px,5vw,64px)]
         transition-[background-color,box-shadow] duration-300
-        ${
-          scrolled
-            ? "bg-[#F7F7F5] shadow-[0_4px_20px_rgba(0,41,80,0.06)]"
-            : "bg-transparent shadow-none"
+        ${scrolled
+          ? "bg-[#F7F7F5] shadow-[0_4px_20px_rgba(0,41,80,0.06)]"
+          : "bg-transparent shadow-none"
         }
       `}
     >
@@ -103,13 +101,13 @@ export default function Nav() {
         onClick={() => setOpen(false)}
         aria-label="PRO SOTA - Página inicial"
         className="
-          relative z-[130] block shrink-0 overflow-hidden
-          h-[52px] w-[180px]
-          min-[861px]:h-[60px] min-[861px]:w-[210px]
-          focus-visible:outline-2
-          focus-visible:outline-offset-4
-          focus-visible:outline-[#BD9655]
-        "
+    relative z-[130] block shrink-0 overflow-hidden
+    h-[44px] w-[155px]
+    min-[861px]:h-[48px] min-[861px]:w-[180px]
+    focus-visible:outline-2
+    focus-visible:outline-offset-4
+    focus-visible:outline-[#BD9655]
+  "
       >
         <Image
           src="/images/logo-horizontal.png"
@@ -118,10 +116,11 @@ export default function Nav() {
           height={70}
           priority
           className="
-            absolute left-1/2 top-1/2
-            h-auto w-[120%] max-w-none
-            -translate-x-1/2 -translate-y-1/2
-          "
+      absolute left-1/2 top-1/2
+      h-auto w-full max-w-none
+      -translate-x-1/2 -translate-y-1/2
+      object-contain
+    "
         />
       </Link>
 
@@ -147,10 +146,9 @@ export default function Nav() {
           min-[861px]:bg-transparent
           min-[861px]:px-0
           min-[861px]:transition-none
-          ${
-            open
-              ? "visible translate-x-0"
-              : "invisible translate-x-full min-[861px]:visible min-[861px]:translate-x-0"
+          ${open
+            ? "visible translate-x-0"
+            : "invisible translate-x-full min-[861px]:visible min-[861px]:translate-x-0"
           }
         `}
       >
@@ -169,10 +167,9 @@ export default function Nav() {
                 transition-colors duration-300
                 min-[861px]:text-[12.5px]
                 min-[861px]:whitespace-nowrap
-                ${
-                  isActive
-                    ? "text-[#BD9655]"
-                    : "text-[#002950] hover:text-[#BD9655]"
+                ${isActive
+                  ? "text-[#BD9655]"
+                  : "text-[#002950] hover:text-[#BD9655]"
                 }
               `}
             >
@@ -230,10 +227,9 @@ export default function Nav() {
           className={`
             h-[2px] w-6 bg-[#002950]
             transition-all duration-300
-            ${
-              open
-                ? "translate-y-[7px] rotate-45 !bg-[#BD9655]"
-                : ""
+            ${open
+              ? "translate-y-[7px] rotate-45 !bg-[#BD9655]"
+              : ""
             }
           `}
         />
@@ -250,10 +246,9 @@ export default function Nav() {
           className={`
             h-[2px] w-6 bg-[#002950]
             transition-all duration-300
-            ${
-              open
-                ? "-translate-y-[7px] -rotate-45 !bg-[#BD9655]"
-                : ""
+            ${open
+              ? "-translate-y-[7px] -rotate-45 !bg-[#BD9655]"
+              : ""
             }
           `}
         />

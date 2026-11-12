@@ -1,4 +1,3 @@
-
 import "server-only";
 
 import { notFound } from "next/navigation";
@@ -6,6 +5,7 @@ import { cookies } from "next/headers";
 
 import { createClient } from "@/app/lib/supabase/server";
 import { requirePermission } from "@/app/lib/permissions/server";
+import { sniffFileType } from "@/app/project-briefing/brief_server";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -19,6 +19,15 @@ export type ProjectBriefStatus =
     | "rejected"
     | "converted";
 
+export type AttachmentCategory = "land" | "reference";
+export type AttachmentGroups = Record<AttachmentCategory, File[]>;
+
+type PreparedAttachment = {
+    file: File;
+    category: AttachmentCategory;
+    mime: string;
+};
+
 export type ProjectBriefAttachment = {
     id: string;
     brief_id: string;
@@ -27,6 +36,7 @@ export type ProjectBriefAttachment = {
     mime_type: string;
     file_size: number;
     created_at: string;
+    category: AttachmentCategory;
     signed_url?: string | null;
     download_url?: string | null;
 };
@@ -41,6 +51,7 @@ export type ProjectBrief = {
     contact_phone: string;
     contact_email: string;
     budget: number | null;
+    budget_undisclosed: boolean;
     decision_makers: string | null;
     preferred_contact: string | null;
 
@@ -51,6 +62,8 @@ export type ProjectBrief = {
     location_city: string | null;
     location_province: string | null;
     map_link: string | null;
+    latitude: number | null;
+    longitude: number | null;
 
     land_ownership: string | null;
     land_area: number | null;
@@ -69,30 +82,27 @@ export type ProjectBrief = {
     works_from_home: string | null;
     visitors_frequency: string | null;
     pets: string | null;
-
     current_home_dislikes: string | null;
     current_home_likes: string | null;
 
     bedrooms_count: number | null;
     suites_count: number | null;
     desired_spaces: string[];
+    desired_spaces_other: string | null;
     cars_count: number | null;
     kitchen_layout: string | null;
     floor_count: string | null;
+    floor_count_other: string | null;
     essential_space: string | null;
-
-    latitude: number | null;
-    longitude: number | null;
 
     architectural_style: string[];
     architectural_style_other: string | null;
-
     colour_material_preferences: string | null;
     natural_light_rating: number | null;
     privacy_rating: number | null;
-
     reference_links: string | null;
     other_information: string | null;
+
     service_scope: string;
     project_priorities: string[];
     construction_start: string;
@@ -120,8 +130,7 @@ export type CreateProjectBriefInput = Omit<
     | "attachments"
 >;
 
-export type UpdateProjectBriefInput =
-    Partial<CreateProjectBriefInput>;
+export type UpdateProjectBriefInput = Partial<CreateProjectBriefInput>;
 
 export type ProjectBriefFilters = {
     status?: ProjectBriefStatus | "all";
@@ -163,6 +172,7 @@ export type ProjectBriefingAttachment = {
     mime_type: string;
     file_size: number;
     created_at: string;
+    category: AttachmentCategory;
     download_url: string | null;
 };
 
@@ -172,14 +182,16 @@ export type ProjectBriefingAttachment = {
 
 const STORAGE_BUCKET = "project-brief-attachments";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const MAX_ATTACHMENTS = 10;
+const MAX_FILE_SIZE = 8 * 1024 * 1024;
+const MAX_PER_CATEGORY = 5;
 
-const ALLOWED_MIME_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "application/pdf",
+const ALL_STATUSES: ProjectBriefStatus[] = [
+    "pending",
+    "in_review",
+    "contacted",
+    "approved",
+    "rejected",
+    "converted",
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -221,9 +233,7 @@ async function requireAdmin() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-        throw new Error(
-            "Não tem autorização para realizar esta operação.",
-        );
+        throw new Error("Não tem autorização para realizar esta operação.");
     }
 
     const { data: profile, error } = await supabase
@@ -233,9 +243,7 @@ async function requireAdmin() {
         .single();
 
     if (error || profile?.role_id !== 1) {
-        throw new Error(
-            "Não tem permissões para gerir os briefings.",
-        );
+        throw new Error("Não tem permissões para gerir os briefings.");
     }
 
     return { supabase, user };
@@ -269,15 +277,11 @@ function validateBrief(input: BriefValidationInput): void {
     }
 
     if (name.length < 3) {
-        throw new Error(
-            "O nome deve ter pelo menos 3 caracteres.",
-        );
+        throw new Error("O nome deve ter pelo menos 3 caracteres.");
     }
 
     if (!input.contact_phone?.trim()) {
-        throw new Error(
-            "O número de telefone é obrigatório.",
-        );
+        throw new Error("O número de telefone é obrigatório.");
     }
 
     const email = input.contact_email?.trim();
@@ -286,9 +290,7 @@ function validateBrief(input: BriefValidationInput): void {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!emailRegex.test(email)) {
-            throw new Error(
-                "Indique um endereço de email válido.",
-            );
+            throw new Error("Indique um endereço de email válido.");
         }
     }
 
@@ -301,9 +303,7 @@ function validateBrief(input: BriefValidationInput): void {
             budget < 0 ||
             budget > 9999999999999.99
         ) {
-            throw new Error(
-                "Introduza um orçamento válido.",
-            );
+            throw new Error("Introduza um orçamento válido.");
         }
     }
 
@@ -320,38 +320,27 @@ function validateBrief(input: BriefValidationInput): void {
 
     if (
         latitude != null &&
-        (!Number.isFinite(latitude) ||
-            latitude < -90 ||
-            latitude > 90)
+        (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)
     ) {
         throw new Error("A latitude indicada não é válida.");
     }
 
     if (
         longitude != null &&
-        (!Number.isFinite(longitude) ||
-            longitude < -180 ||
-            longitude > 180)
+        (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)
     ) {
         throw new Error("A longitude indicada não é válida.");
     }
 
-    const dimensions = [
-        input.land_area,
-        input.land_length,
-        input.land_width,
-    ];
+    const dimensions = [input.land_area, input.land_length, input.land_width];
 
     if (
         dimensions.some(
             (value) =>
-                value != null &&
-                (!Number.isFinite(value) || value < 0),
+                value != null && (!Number.isFinite(value) || value < 0),
         )
     ) {
-        throw new Error(
-            "As dimensões do terreno não podem ser negativas.",
-        );
+        throw new Error("As dimensões do terreno não podem ser negativas.");
     }
 }
 
@@ -368,62 +357,61 @@ function sanitizeFileName(name: string) {
 }
 
 function getBriefPayload(input: CreateProjectBriefInput) {
-    const architecturalStyles = [
-        ...new Set(
-            input.architectural_style
-                .map((style) =>
-                    style === "Outro"
-                        ? input.architectural_style_other?.trim() ?? ""
-                        : style.trim(),
-                )
-                .filter(Boolean),
-        ),
-    ];
-
     return {
         ...input,
-
         full_name: input.full_name.trim(),
         contact_phone: input.contact_phone.trim(),
         contact_email: input.contact_email.trim().toLowerCase(),
-
         budget: input.budget ?? null,
         latitude: input.latitude ?? null,
         longitude: input.longitude ?? null,
-
-        architectural_style: architecturalStyles,
-
         architectural_style_other:
             input.architectural_style_other?.trim() || null,
-
         infrastructure: [...new Set(input.infrastructure)],
         desired_spaces: [...new Set(input.desired_spaces)],
-        project_priorities: [
-            ...new Set(input.project_priorities),
-        ],
+        project_priorities: [...new Set(input.project_priorities)],
+        architectural_style: [...new Set(input.architectural_style)],
     };
 }
 
-function validateAttachments(files: File[]) {
-    if (files.length > MAX_ATTACHMENTS) {
-        throw new Error(
-            `Pode anexar no máximo ${MAX_ATTACHMENTS} ficheiros.`,
-        );
-    }
+/**
+ * Validates every file and detects its real type from the file content.
+ * Runs before anything is inserted, so a bad file never leaves a half-created brief.
+ */
+async function prepareAttachments(
+    groups: AttachmentGroups,
+): Promise<PreparedAttachment[]> {
+    const prepared: PreparedAttachment[] = [];
 
-    for (const file of files) {
-        if (!file.size || file.size > MAX_FILE_SIZE) {
+    for (const category of ["land", "reference"] as const) {
+        const files = groups[category] ?? [];
+
+        if (files.length > MAX_PER_CATEGORY) {
             throw new Error(
-                `O ficheiro "${file.name}" ultrapassa o limite de 10 MB.`,
+                `Pode anexar no máximo ${MAX_PER_CATEGORY} ficheiros por secção.`,
             );
         }
 
-        if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-            throw new Error(
-                `O formato do ficheiro "${file.name}" não é permitido.`,
-            );
+        for (const file of files) {
+            if (!file.size || file.size > MAX_FILE_SIZE) {
+                throw new Error(
+                    `O ficheiro "${file.name}" ultrapassa o limite de 8 MB.`,
+                );
+            }
+
+            const mime = await sniffFileType(file);
+
+            if (!mime) {
+                throw new Error(
+                    `O formato do ficheiro "${file.name}" não é permitido.`,
+                );
+            }
+
+            prepared.push({ file, category, mime });
         }
     }
+
+    return prepared;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -432,10 +420,11 @@ function validateAttachments(files: File[]) {
 
 export async function createProjectBrief(
     input: CreateProjectBriefInput,
-    files: File[] = [],
+    files: AttachmentGroups = { land: [], reference: [] },
 ) {
     validateBrief(input);
-    validateAttachments(files);
+
+    const prepared = await prepareAttachments(files);
 
     const supabase = await getPublicSupabase();
 
@@ -451,17 +440,12 @@ export async function createProjectBrief(
     if (error || !brief) {
         console.error("createProjectBrief:", error);
 
-        throw new Error(
-            "Não foi possível submeter o briefing.",
-        );
+        throw new Error("Não foi possível submeter o briefing.");
     }
 
-    if (files.length) {
+    if (prepared.length) {
         try {
-            await uploadProjectBriefAttachments(
-                brief.id,
-                files,
-            );
+            await uploadPrepared(brief.id, prepared);
         } catch (uploadError) {
             const { error: deleteError } = await supabase
                 .from("project_briefs")
@@ -469,10 +453,7 @@ export async function createProjectBrief(
                 .eq("id", brief.id);
 
             if (deleteError) {
-                console.error(
-                    "createProjectBrief rollback:",
-                    deleteError,
-                );
+                console.error("createProjectBrief rollback:", deleteError);
             }
 
             throw uploadError;
@@ -486,60 +467,53 @@ export async function createProjectBrief(
 /* Attachments                                                                */
 /* -------------------------------------------------------------------------- */
 
-export async function uploadProjectBriefAttachments(
+async function uploadPrepared(
     briefId: string,
-    files: File[],
+    items: PreparedAttachment[],
 ) {
-    validateAttachments(files);
-
     const supabase = await getPublicSupabase();
-
-    const { data: brief, error: briefError } = await supabase
-        .from("project_briefs")
-        .select("id")
-        .eq("id", briefId)
-        .single();
-
-    if (briefError || !brief) {
-        throw new Error("Briefing não encontrado.");
-    }
 
     const uploadedPaths: string[] = [];
     const insertedIds: string[] = [];
 
     try {
-        for (const file of files) {
-            const storagePath =
-                `${briefId}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
+        for (const { file, category, mime } of items) {
+            const storagePath = `${briefId}/${category}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
 
             const { error: uploadError } = await supabase.storage
                 .from(STORAGE_BUCKET)
                 .upload(storagePath, file, {
-                    contentType: file.type,
+                    contentType: mime,
                     upsert: false,
                 });
 
             if (uploadError) {
-                throw uploadError;
+                console.error("Attachment upload:", uploadError);
+
+                throw new Error(
+                    "Não foi possível carregar os anexos. Tente novamente.",
+                );
             }
 
             uploadedPaths.push(storagePath);
 
-            const { data: attachment, error: insertError } =
-                await supabase
-                    .from("project_brief_attachments")
-                    .insert({
-                        brief_id: briefId,
-                        storage_path: storagePath,
-                        original_name: file.name,
-                        mime_type: file.type,
-                        file_size: file.size,
-                    })
-                    .select("*")
-                    .single();
+            const { data: attachment, error: insertError } = await supabase
+                .from("project_brief_attachments")
+                .insert({
+                    brief_id: briefId,
+                    storage_path: storagePath,
+                    original_name: file.name,
+                    mime_type: mime,
+                    file_size: file.size,
+                    category,
+                })
+                .select("id")
+                .single();
 
             if (insertError || !attachment) {
-                throw insertError ?? new Error(
+                console.error("Attachment insert:", insertError);
+
+                throw new Error(
                     "Não foi possível guardar o registo do anexo.",
                 );
             }
@@ -556,10 +530,7 @@ export async function uploadProjectBriefAttachments(
                 .in("id", insertedIds);
 
             if (deleteError) {
-                console.error(
-                    "Attachment rollback:",
-                    deleteError,
-                );
+                console.error("Attachment rollback:", deleteError);
             }
         }
 
@@ -569,10 +540,7 @@ export async function uploadProjectBriefAttachments(
                 .remove(uploadedPaths);
 
             if (storageError) {
-                console.error(
-                    "Storage rollback:",
-                    storageError,
-                );
+                console.error("Storage rollback:", storageError);
             }
         }
 
@@ -580,9 +548,28 @@ export async function uploadProjectBriefAttachments(
     }
 }
 
-export async function getProjectBriefAttachments(
+export async function uploadProjectBriefAttachments(
     briefId: string,
+    groups: AttachmentGroups,
 ) {
+    const prepared = await prepareAttachments(groups);
+
+    const supabase = await getPublicSupabase();
+
+    const { data: brief, error: briefError } = await supabase
+        .from("project_briefs")
+        .select("id")
+        .eq("id", briefId)
+        .single();
+
+    if (briefError || !brief) {
+        throw new Error("Briefing não encontrado.");
+    }
+
+    return uploadPrepared(briefId, prepared);
+}
+
+export async function getProjectBriefAttachments(briefId: string) {
     const { supabase } = await requireAdmin();
 
     const { data, error } = await supabase
@@ -592,9 +579,7 @@ export async function getProjectBriefAttachments(
         .order("created_at", { ascending: true });
 
     if (error) {
-        throw new Error(
-            "Não foi possível carregar os anexos.",
-        );
+        throw new Error("Não foi possível carregar os anexos.");
     }
 
     return Promise.all(
@@ -602,24 +587,17 @@ export async function getProjectBriefAttachments(
             const { data: signed, error: signedError } =
                 await supabase.storage
                     .from(STORAGE_BUCKET)
-                    .createSignedUrl(
-                        attachment.storage_path,
-                        300,
-                    );
+                    .createSignedUrl(attachment.storage_path, 300);
 
             return {
                 ...attachment,
-                signed_url: signedError
-                    ? null
-                    : signed?.signedUrl ?? null,
+                signed_url: signedError ? null : (signed?.signedUrl ?? null),
             };
         }),
     );
 }
 
-export async function deleteProjectBriefAttachment(
-    id: string,
-) {
+export async function deleteProjectBriefAttachment(id: string) {
     const { supabase } = await requireAdmin();
 
     const { data: attachment, error } = await supabase
@@ -637,9 +615,7 @@ export async function deleteProjectBriefAttachment(
         .remove([attachment.storage_path]);
 
     if (storageError) {
-        throw new Error(
-            "Não foi possível remover o ficheiro.",
-        );
+        throw new Error("Não foi possível remover o ficheiro.");
     }
 
     const { error: deleteError } = await supabase
@@ -648,9 +624,7 @@ export async function deleteProjectBriefAttachment(
         .eq("id", id);
 
     if (deleteError) {
-        throw new Error(
-            "Não foi possível remover o registo do anexo.",
-        );
+        throw new Error("Não foi possível remover o registo do anexo.");
     }
 
     return true;
@@ -660,9 +634,7 @@ export async function deleteProjectBriefAttachment(
 /* Briefing List - Paginated                                                  */
 /* -------------------------------------------------------------------------- */
 
-export async function getProjectBriefs(
-    filters: ProjectBriefFilters = {},
-) {
+export async function getProjectBriefs(filters: ProjectBriefFilters = {}) {
     const supabase = await getAuthorisedSupabase();
 
     const {
@@ -674,10 +646,7 @@ export async function getProjectBriefs(
     } = filters;
 
     const safePage = Math.max(1, Math.floor(page));
-    const safePageSize = Math.min(
-        100,
-        Math.max(1, Math.floor(pageSize)),
-    );
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
 
     const from = (safePage - 1) * safePageSize;
     const to = from + safePageSize - 1;
@@ -691,9 +660,7 @@ export async function getProjectBriefs(
     }
 
     if (search.trim()) {
-        const term = search
-            .trim()
-            .replace(/[,%()]/g, " ");
+        const term = search.trim().replace(/[,%()]/g, " ");
 
         query = query.or(
             [
@@ -706,17 +673,13 @@ export async function getProjectBriefs(
     }
 
     const { data, error, count } = await query
-        .order("created_at", {
-            ascending: sort === "oldest",
-        })
+        .order("created_at", { ascending: sort === "oldest" })
         .range(from, to);
 
     if (error) {
         console.error("getProjectBriefs:", error);
 
-        throw new Error(
-            "Não foi possível carregar os briefings.",
-        );
+        throw new Error("Não foi possível carregar os briefings.");
     }
 
     return {
@@ -724,9 +687,7 @@ export async function getProjectBriefs(
         count: count ?? 0,
         page: safePage,
         pageSize: safePageSize,
-        totalPages: Math.ceil(
-            (count ?? 0) / safePageSize,
-        ),
+        totalPages: Math.ceil((count ?? 0) / safePageSize),
     };
 }
 
@@ -745,18 +706,7 @@ export async function getProjectBriefings({
         .replace(/\s+/g, " ")
         .trim();
 
-    const validStatuses: ProjectBriefStatus[] = [
-        "pending",
-        "in_review",
-        "contacted",
-        "approved",
-        "rejected",
-        "converted",
-    ];
-
-    const selectedStatus = validStatuses.includes(
-        status as ProjectBriefStatus,
-    )
+    const selectedStatus = ALL_STATUSES.includes(status as ProjectBriefStatus)
         ? (status as ProjectBriefStatus)
         : "";
 
@@ -798,44 +748,27 @@ export async function getProjectBriefings({
 
         supabase
             .from("project_briefs")
-            .select("id", {
-                count: "exact",
-                head: true,
-            }),
+            .select("id", { count: "exact", head: true }),
 
         supabase
             .from("project_briefs")
-            .select("id", {
-                count: "exact",
-                head: true,
-            })
+            .select("id", { count: "exact", head: true })
             .eq("status", "pending"),
 
         supabase
             .from("project_briefs")
-            .select("id", {
-                count: "exact",
-                head: true,
-            })
+            .select("id", { count: "exact", head: true })
             .eq("status", "in_review"),
     ]);
 
-    const errors = [
-        error,
-        totalError,
-        pendingError,
-        reviewError,
-    ].filter(Boolean);
+    const errors = [error, totalError, pendingError, reviewError].filter(
+        Boolean,
+    );
 
     if (errors.length) {
-        console.error(
-            "Erro ao carregar dados dos briefings:",
-            errors,
-        );
+        console.error("Erro ao carregar dados dos briefings:", errors);
 
-        throw new Error(
-            "Não foi possível carregar os briefings.",
-        );
+        throw new Error("Não foi possível carregar os briefings.");
     }
 
     return {
@@ -853,18 +786,30 @@ export async function getProjectBriefings({
 export async function getProjectBriefStats(): Promise<ProjectBriefStats> {
     const supabase = await getAuthorisedSupabase();
 
-    const { data, error } = await supabase
-        .from("project_briefs")
-        .select("status");
+    const countFor = (status?: ProjectBriefStatus) => {
+        const request = supabase
+            .from("project_briefs")
+            .select("id", { count: "exact", head: true });
 
-    if (error) {
-        throw new Error(
-            "Não foi possível carregar as estatísticas.",
-        );
+        return status ? request.eq("status", status) : request;
+    };
+
+    const [total, ...byStatus] = await Promise.all([
+        countFor(),
+        ...ALL_STATUSES.map((status) => countFor(status)),
+    ]);
+
+    if (total.error || byStatus.some((result) => result.error)) {
+        console.error("getProjectBriefStats:", [
+            total.error,
+            ...byStatus.map((result) => result.error),
+        ]);
+
+        throw new Error("Não foi possível carregar as estatísticas.");
     }
 
     const stats: ProjectBriefStats = {
-        total: data.length,
+        total: total.count ?? 0,
         pending: 0,
         in_review: 0,
         contacted: 0,
@@ -873,16 +818,9 @@ export async function getProjectBriefStats(): Promise<ProjectBriefStats> {
         converted: 0,
     };
 
-    for (const brief of data) {
-        if (brief.status in stats) {
-            stats[
-                brief.status as keyof Omit<
-                    ProjectBriefStats,
-                    "total"
-                >
-            ]++;
-        }
-    }
+    ALL_STATUSES.forEach((status, index) => {
+        stats[status] = byStatus[index].count ?? 0;
+    });
 
     return stats;
 }
@@ -904,27 +842,21 @@ export async function getProjectBrief(id: string) {
         throw new Error("Briefing não encontrado.");
     }
 
-    const { data: attachments, error: attachmentError } =
-        await supabase
-            .from("project_brief_attachments")
-            .select("*")
-            .eq("brief_id", id)
-            .order("created_at", { ascending: true });
+    const { data: attachments, error: attachmentError } = await supabase
+        .from("project_brief_attachments")
+        .select("*")
+        .eq("brief_id", id)
+        .order("created_at", { ascending: true });
 
     if (attachmentError) {
-        throw new Error(
-            "Não foi possível carregar os anexos.",
-        );
+        throw new Error("Não foi possível carregar os anexos.");
     }
 
     const signedAttachments = await Promise.all(
         (attachments ?? []).map(async (attachment) => {
             const { data: signed } = await supabase.storage
                 .from(STORAGE_BUCKET)
-                .createSignedUrl(
-                    attachment.storage_path,
-                    300,
-                );
+                .createSignedUrl(attachment.storage_path, 300);
 
             return {
                 ...attachment,
@@ -939,89 +871,73 @@ export async function getProjectBrief(id: string) {
     } as ProjectBrief;
 }
 
-export async function getProjectBriefingDetails(
-    briefingId: string,
-) {
+export async function getProjectBriefingDetails(briefingId: string) {
     if (!briefingId?.trim()) {
         notFound();
     }
 
     const supabase = await getAuthorisedSupabase();
 
-    const { data: briefing, error: briefingError } =
-        await supabase
-            .from("project_briefs")
-            .select("*")
-            .eq("id", briefingId)
-            .maybeSingle();
+    const { data: briefing, error: briefingError } = await supabase
+        .from("project_briefs")
+        .select("*")
+        .eq("id", briefingId)
+        .maybeSingle();
 
     if (briefingError) {
-        console.error(
-            "Erro ao carregar briefing:",
-            briefingError.message,
-        );
+        console.error("Erro ao carregar briefing:", briefingError.message);
 
-        throw new Error(
-            "Não foi possível carregar o briefing.",
-        );
+        throw new Error("Não foi possível carregar o briefing.");
     }
 
     if (!briefing) {
         notFound();
     }
 
-    const { data: attachments, error: attachmentError } =
-        await supabase
-            .from("project_brief_attachments")
-            .select(`
-                id,
-                original_name,
-                mime_type,
-                file_size,
-                storage_path,
-                created_at
-            `)
-            .eq("brief_id", briefingId)
-            .order("created_at", { ascending: true });
+    const { data: attachments, error: attachmentError } = await supabase
+        .from("project_brief_attachments")
+        .select(`
+            id,
+            original_name,
+            mime_type,
+            file_size,
+            storage_path,
+            category,
+            created_at
+        `)
+        .eq("brief_id", briefingId)
+        .order("created_at", { ascending: true });
 
     if (attachmentError) {
-        console.error(
-            "Erro ao carregar anexos:",
-            attachmentError.message,
-        );
+        console.error("Erro ao carregar anexos:", attachmentError.message);
 
-        throw new Error(
-            "Não foi possível carregar os anexos do briefing.",
-        );
+        throw new Error("Não foi possível carregar os anexos do briefing.");
     }
 
-    const safeAttachments: ProjectBriefingAttachment[] =
-        await Promise.all(
-            (attachments ?? []).map(async (attachment) => {
-                const { data, error } = await supabase.storage
-                    .from(STORAGE_BUCKET)
-                    .createSignedUrl(
-                        attachment.storage_path,
-                        300,
-                    );
+    const safeAttachments: ProjectBriefingAttachment[] = await Promise.all(
+        (attachments ?? []).map(async (attachment) => {
+            const { data, error } = await supabase.storage
+                .from(STORAGE_BUCKET)
+                .createSignedUrl(attachment.storage_path, 300);
 
-                if (error) {
-                    console.error(
-                        `Erro ao gerar link para o anexo ${attachment.id}:`,
-                        error.message,
-                    );
-                }
+            if (error) {
+                console.error(
+                    `Erro ao gerar link para o anexo ${attachment.id}:`,
+                    error.message,
+                );
+            }
 
-                return {
-                    id: attachment.id,
-                    original_name: attachment.original_name,
-                    mime_type: attachment.mime_type,
-                    file_size: attachment.file_size,
-                    created_at: attachment.created_at,
-                    download_url: data?.signedUrl ?? null,
-                };
-            }),
-        );
+            return {
+                id: attachment.id,
+                original_name: attachment.original_name,
+                mime_type: attachment.mime_type,
+                file_size: attachment.file_size,
+                created_at: attachment.created_at,
+                category: attachment.category as AttachmentCategory,
+                download_url: data?.signedUrl ?? null,
+            };
+        }),
+    );
 
     return {
         briefing,
@@ -1039,17 +955,16 @@ export async function updateProjectBrief(
 ) {
     const { supabase } = await requireAdmin();
 
-    const { data: current, error: currentError } =
-        await supabase
-            .from("project_briefs")
-            .select(`
-                full_name,
-                contact_phone,
-                contact_email,
-                budget
-            `)
-            .eq("id", id)
-            .single();
+    const { data: current, error: currentError } = await supabase
+        .from("project_briefs")
+        .select(`
+            full_name,
+            contact_phone,
+            contact_email,
+            budget
+        `)
+        .eq("id", id)
+        .single();
 
     if (currentError || !current) {
         throw new Error("Briefing não encontrado.");
@@ -1074,22 +989,11 @@ export async function updateProjectBrief(
     }
 
     if (input.contact_email !== undefined) {
-        payload.contact_email =
-            input.contact_email.trim().toLowerCase();
+        payload.contact_email = input.contact_email.trim().toLowerCase();
     }
 
     if (input.architectural_style !== undefined) {
-        payload.architectural_style = [
-            ...new Set(
-                input.architectural_style
-                    .map((style) =>
-                        style === "Outro"
-                            ? input.architectural_style_other?.trim() ?? ""
-                            : style.trim(),
-                    )
-                    .filter(Boolean),
-            ),
-        ];
+        payload.architectural_style = [...new Set(input.architectural_style)];
     }
 
     const { data, error } = await supabase
@@ -1102,9 +1006,7 @@ export async function updateProjectBrief(
     if (error) {
         console.error("updateProjectBrief:", error);
 
-        throw new Error(
-            "Não foi possível actualizar o briefing.",
-        );
+        throw new Error("Não foi possível actualizar o briefing.");
     }
 
     return data as ProjectBrief;
@@ -1121,26 +1023,12 @@ export async function updateProjectBriefStatus(
 ) {
     const { supabase, user } = await requireAdmin();
 
-    const allowedStatuses: ProjectBriefStatus[] = [
-        "pending",
-        "in_review",
-        "contacted",
-        "approved",
-        "rejected",
-        "converted",
-    ];
-
-    if (!allowedStatuses.includes(status)) {
+    if (!ALL_STATUSES.includes(status)) {
         throw new Error("Estado inválido.");
     }
 
-    if (
-        status === "rejected" &&
-        !rejectionReason?.trim()
-    ) {
-        throw new Error(
-            "Indique o motivo da rejeição.",
-        );
+    if (status === "rejected" && !rejectionReason?.trim()) {
+        throw new Error("Indique o motivo da rejeição.");
     }
 
     const now = new Date().toISOString();
@@ -1150,18 +1038,13 @@ export async function updateProjectBriefStatus(
         updated_at: now,
     };
 
-    if (
-        ["in_review", "contacted", "approved", "rejected"]
-            .includes(status)
-    ) {
+    if (["in_review", "contacted", "approved", "rejected"].includes(status)) {
         payload.reviewed_by = user.id;
         payload.reviewed_at = now;
     }
 
     payload.rejection_reason =
-        status === "rejected"
-            ? rejectionReason?.trim()
-            : null;
+        status === "rejected" ? rejectionReason?.trim() : null;
 
     const { data, error } = await supabase
         .from("project_briefs")
@@ -1171,14 +1054,9 @@ export async function updateProjectBriefStatus(
         .single();
 
     if (error) {
-        console.error(
-            "updateProjectBriefStatus:",
-            error,
-        );
+        console.error("updateProjectBriefStatus:", error);
 
-        throw new Error(
-            "Não foi possível actualizar o estado.",
-        );
+        throw new Error("Não foi possível actualizar o estado.");
     }
 
     return data as ProjectBrief;
@@ -1188,10 +1066,7 @@ export async function updateProjectBriefStatus(
 /* Internal Notes                                                             */
 /* -------------------------------------------------------------------------- */
 
-export async function updateProjectBriefNotes(
-    id: string,
-    notes: string,
-) {
+export async function updateProjectBriefNotes(id: string, notes: string) {
     const { supabase } = await requireAdmin();
 
     const { data, error } = await supabase
@@ -1205,9 +1080,7 @@ export async function updateProjectBriefNotes(
         .single();
 
     if (error) {
-        throw new Error(
-            "Não foi possível guardar as notas internas.",
-        );
+        throw new Error("Não foi possível guardar as notas internas.");
     }
 
     return data as ProjectBrief;
@@ -1217,22 +1090,18 @@ export async function updateProjectBriefNotes(
 /* Convert to Project                                                         */
 /* -------------------------------------------------------------------------- */
 
-export async function convertProjectBrief(
-    id: string,
-    projectId: string,
-) {
+export async function convertProjectBrief(id: string, projectId: string) {
     const { supabase } = await requireAdmin();
 
     if (!projectId?.trim()) {
         throw new Error("O projecto é obrigatório.");
     }
 
-    const { data: project, error: projectError } =
-        await supabase
-            .from("projects")
-            .select("project_id")
-            .eq("project_id", projectId)
-            .single();
+    const { data: project, error: projectError } = await supabase
+        .from("projects")
+        .select("project_id")
+        .eq("project_id", projectId)
+        .single();
 
     if (projectError || !project) {
         throw new Error("Projecto não encontrado.");
@@ -1253,9 +1122,7 @@ export async function convertProjectBrief(
         .single();
 
     if (error) {
-        throw new Error(
-            "Não foi possível associar o briefing ao projecto.",
-        );
+        throw new Error("Não foi possível associar o briefing ao projecto.");
     }
 
     return data as ProjectBrief;
@@ -1268,31 +1135,22 @@ export async function convertProjectBrief(
 export async function deleteProjectBrief(id: string) {
     const { supabase } = await requireAdmin();
 
-    const { data: attachments, error: fetchError } =
-        await supabase
-            .from("project_brief_attachments")
-            .select("storage_path")
-            .eq("brief_id", id);
+    const { data: attachments, error: fetchError } = await supabase
+        .from("project_brief_attachments")
+        .select("storage_path")
+        .eq("brief_id", id);
 
     if (fetchError) {
-        throw new Error(
-            "Não foi possível consultar os anexos.",
-        );
+        throw new Error("Não foi possível consultar os anexos.");
     }
 
     if (attachments?.length) {
         const { error: storageError } = await supabase.storage
             .from(STORAGE_BUCKET)
-            .remove(
-                attachments.map(
-                    (item) => item.storage_path,
-                ),
-            );
+            .remove(attachments.map((item) => item.storage_path));
 
         if (storageError) {
-            throw new Error(
-                "Não foi possível remover os anexos.",
-            );
+            throw new Error("Não foi possível remover os anexos.");
         }
     }
 
@@ -1302,9 +1160,7 @@ export async function deleteProjectBrief(id: string) {
         .eq("id", id);
 
     if (error) {
-        throw new Error(
-            "Não foi possível eliminar o briefing.",
-        );
+        throw new Error("Não foi possível eliminar o briefing.");
     }
 
     return true;

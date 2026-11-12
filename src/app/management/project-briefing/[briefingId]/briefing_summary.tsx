@@ -17,7 +17,31 @@ import {
     Phone,
     Ruler,
     Users,
+    Wallet,
 } from "lucide-react";
+import BriefingImageGallery from "../components/image_gallery";
+
+import {
+    ARCHITECTURAL_STYLES,
+    CONSTRUCTION_START,
+    DECISION_MAKERS,
+    FAMILY_GROWTH,
+    FLOOR_COUNTS,
+    INFRASTRUCTURES,
+    KITCHEN_LAYOUTS,
+    LAND_OWNERSHIP,
+    LAND_TYPES,
+    OTHER,
+    PREFERRED_CONTACT,
+    PROJECT_PRIORITIES,
+    SERVICE_SCOPES,
+    SPACES,
+    VISITORS,
+    WORKS_FROM_HOME,
+    YES_NO,
+    formatBudget,
+    labelOf,
+} from "@/app/project-briefing/constants";
 
 import FormSubmitButton from "../components/form_submit_btn";
 import DownloadPdfButton from "../components/download_pdf_btn";
@@ -27,6 +51,8 @@ import type { PdfData, PdfRow } from "../components/briefing_pdf";
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 
+type AttachmentCategory = "land" | "reference";
+
 type Attachment = {
     id: string;
     brief_id: string;
@@ -35,9 +61,10 @@ type Attachment = {
     mime_type: string;
     file_size: number;
     created_at: string;
-    signed_url: string | null;
+    category?: AttachmentCategory | null;
+    signed_url?: string | null;
+    download_url?: string | null;
 };
-
 type Briefing = {
     id: string;
     created_at: string;
@@ -47,6 +74,8 @@ type Briefing = {
     full_name: string;
     contact_phone: string;
     contact_email: string;
+    budget: number | null;
+    budget_undisclosed: boolean | null;
     decision_makers: string | null;
     preferred_contact: string | null;
 
@@ -89,6 +118,10 @@ type Briefing = {
     floor_count_other: string | null;
     essential_space: string | null;
 
+    service_scope: string | null;
+    project_priorities: string[];
+    construction_start: string | null;
+
     architectural_style: string[];
     architectural_style_other: string | null;
     colour_material_preferences: string | null;
@@ -128,6 +161,8 @@ type Item = {
     /** Long answers: full width, set in a tinted block so they read as prose. */
     wide?: boolean;
 };
+
+type Option = { value: string; label: string };
 
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                  */
@@ -177,13 +212,18 @@ const NEXT_STEP: Record<
     },
 };
 
+const ATTACHMENT_GROUPS: { key: AttachmentCategory; title: string }[] = [
+    { key: "land", title: "Terreno" },
+    { key: "reference", title: "Referências" },
+];
+
 const buttonBase =
     "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] disabled:pointer-events-none disabled:opacity-60";
 
 /**
- * Label / value contrast: labels are small, semibold and bronze (#7A5C28,
- * ~6:1 on white); values are larger, medium weight and near-black. Colour AND
- * weight AND size differ, so the pair still reads when printed in greyscale.
+ * Label / value contrast: labels are small, semibold and slate; values are
+ * larger, medium weight and near-black. Colour AND weight AND size differ,
+ * so the pair still reads when printed in greyscale.
  */
 const labelClass = "text-xs font-semibold text-slate-600";
 const valueClass =
@@ -205,32 +245,70 @@ function isEmpty(value: unknown) {
     );
 }
 
+function isImageAttachment(attachment: Attachment) {
+    return attachment.mime_type.startsWith("image/");
+}
+
 function display(value: unknown): string {
     if (typeof value === "boolean") return value ? "Sim" : "Não";
     if (Array.isArray(value)) return value.join(", ");
     return String(value);
 }
 
-/**
- * Keeps an "Outro" answer attached to the field that triggered it.
- * The custom value is displayed without hiding the original selections.
- */
-function displayWithOther(value: unknown, other: string | null): unknown {
-    const customValue = other?.trim();
+/** Single stored key -> label. Old rows (already a label) pass through. */
+function lab(options: readonly Option[], value: string | null | undefined) {
+    return value ? labelOf(options, value) : null;
+}
 
-    if (!customValue) return value;
+/** List of stored keys -> labels. */
+function labs(options: readonly Option[], values: string[] | null | undefined) {
+    return (values ?? []).map((value) => labelOf(options, value));
+}
+
+const isOtherKey = (value: string) =>
+    value === OTHER || value.trim().toLocaleLowerCase("pt-PT") === "outro";
+
+/**
+ * Maps keys to labels and attaches the custom "Outro" text.
+ * - New rows store the key "other" plus the text in a separate column.
+ * - Old rows stored the custom text inside the list itself; the check
+ *   against `custom` avoids showing it twice.
+ */
+function withOther(
+    value: string[] | string | null | undefined,
+    other: string | null | undefined,
+    options: readonly Option[],
+): string[] | string | null {
+    const custom = other?.trim();
 
     if (Array.isArray(value)) {
-        const selections = value.filter(
-            (item) => String(item).toLocaleLowerCase("pt-PT") !== "outro"
-        );
+        const selections = value
+            .filter((item) => !isOtherKey(item))
+            .map((item) => labelOf(options, item));
 
-        return [...selections, `Outro: ${customValue}`];
+        const hasOther = value.some(isOtherKey);
+
+        if (custom && !selections.includes(custom)) {
+            selections.push(`Outro: ${custom}`);
+        } else if (hasOther && !custom) {
+            selections.push("Outro");
+        }
+
+        return selections;
     }
 
-    if (value === "Outro" || isEmpty(value)) return `Outro: ${customValue}`;
+    if (!value) return custom ? `Outro: ${custom}` : null;
 
-    return `${display(value)}, Outro: ${customValue}`;
+    if (isOtherKey(value)) return custom ? `Outro: ${custom}` : "Outro";
+
+    return labelOf(options, value);
+}
+
+/** Same format the client sees on the confirmation screen. */
+function makeReference(id: string, createdAt: string) {
+    const year = new Date(createdAt).getFullYear();
+
+    return `PS-${year}-${id.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -292,9 +370,7 @@ function getFileType(mimeType: string) {
 
 /**
  * Information section. Empty fields and empty sections are hidden.
- * Short answers sit in a two-column grid, each with a top rule so every
- * label/value pair is a clear unit; long answers span the full width in a
- * tinted block. Sections never split across printed pages when short.
+ * Short answers sit in a two-column grid; long answers span the full width.
  */
 function Section({
     title,
@@ -331,9 +407,8 @@ function Section({
                     {filled.map((item) => (
                         <div
                             key={item.label}
-                            className={`min-w-0 rounded-xl bg-slate-50 p-4 ${
-                                item.wide ? "sm:col-span-2" : ""
-                            }`}
+                            className={`min-w-0 rounded-xl bg-slate-50 p-4 ${item.wide ? "sm:col-span-2" : ""
+                                }`}
                         >
                             <dt className={labelClass}>{item.label}</dt>
 
@@ -489,9 +564,8 @@ function Rating({ label, value }: { label: string; value: number | null }) {
                     {[1, 2, 3, 4, 5].map((n) => (
                         <span
                             key={n}
-                            className={`h-2.5 w-6 rounded-full ${
-                                n <= value ? "bg-[#002950]" : "bg-slate-200"
-                            }`}
+                            className={`h-2.5 w-6 rounded-full ${n <= value ? "bg-[#002950]" : "bg-slate-200"
+                                }`}
                         />
                     ))}
                 </span>
@@ -503,6 +577,89 @@ function Rating({ label, value }: { label: string; value: number | null }) {
         </div>
     );
 }
+
+
+
+function AttachmentList({ items }: { items: Attachment[] }) {
+    // Image attachments with a valid URL
+    const images = items
+        .filter(
+            (attachment) =>
+                isImageAttachment(attachment) &&
+                Boolean(
+                    attachment.signed_url || attachment.download_url
+                )
+        )
+        .map((attachment) => ({
+            id: attachment.id,
+            name: attachment.original_name,
+            url: attachment.signed_url || attachment.download_url!,
+        }));
+
+    // All non-image attachments (PDF, DOC, XLS, etc.)
+    const files = items.filter(
+        (attachment) => !isImageAttachment(attachment)
+    );
+
+    return (
+        <div className="space-y-4">
+            {images.length > 0 && (
+                <BriefingImageGallery images={images} />
+            )}
+
+            {files.length > 0 && (
+                <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {files.map((attachment) => {
+                        const fileUrl =
+                            attachment.signed_url ||
+                            attachment.download_url;
+
+                        return (
+                            <li
+                                key={attachment.id}
+                                className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 p-3.5"
+                            >
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[#002950]">
+                                    <FileText size={19} aria-hidden />
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold text-slate-900">
+                                        {attachment.original_name}
+                                    </p>
+
+                                    <p className="mt-1 flex flex-wrap gap-x-3 text-xs">
+                                        <span className="font-semibold text-slate-600">
+                                            {getFileType(attachment.mime_type)}
+                                        </span>
+
+                                        <span className="font-medium text-slate-600">
+                                            {formatFileSize(attachment.file_size)}
+                                        </span>
+                                    </p>
+                                </div>
+
+                                {fileUrl &&
+                                    isSafeExternalUrl(fileUrl) && (
+                                        <a
+                                            href={fileUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            aria-label={`Abrir ${attachment.original_name}`}
+                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-[#002950]"
+                                        >
+                                            <Download size={17} />
+                                        </a>
+                                    )}
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </div>
+    );
+}
+
 
 /* -------------------------------------------------------------------------- */
 /* Main component                                                             */
@@ -541,15 +698,27 @@ export default function BriefingSummary({
     const updatedAt = formatDate(briefing.updated_at);
     const createdAt = formatDate(briefing.created_at);
 
+    const reference = makeReference(briefing.id, briefing.created_at);
+
+    /* Budget: a number, "to be discussed", or nothing (old rows). */
+    const budgetText = briefing.budget_undisclosed
+        ? "A discutir numa reunião"
+        : briefing.budget !== null && briefing.budget !== undefined
+            ? `${formatBudget(String(briefing.budget))} Kz`
+            : null;
+
+    const floors = withOther(
+        briefing.floor_count,
+        briefing.floor_count_other,
+        FLOOR_COUNTS,
+    );
+
     const quickFacts = [
+        { icon: Wallet, label: "Orçamento", value: budgetText },
         { icon: Ruler, label: "Área", value: withUnit(briefing.land_area, "m²") },
         { icon: BedDouble, label: "Quartos", value: briefing.bedrooms_count },
         { icon: Users, label: "Moradores", value: briefing.residents_count },
-        {
-            icon: Layers,
-            label: "Pisos",
-            value: displayWithOther(briefing.floor_count, briefing.floor_count_other),
-        },
+        { icon: Layers, label: "Pisos", value: floors },
         { icon: Car, label: "Viaturas", value: briefing.cars_count },
         { icon: Paperclip, label: "Anexos", value: attachments.length },
     ].filter((fact) => !isEmpty(fact.value));
@@ -559,69 +728,81 @@ export default function BriefingSummary({
 
     const nextStep = NEXT_STEP[currentStatus];
 
+    /* Attachments grouped by category (rows without one count as "land"). */
+    const groupedAttachments = ATTACHMENT_GROUPS.map((group) => ({
+        ...group,
+        items: attachments.filter(
+            (attachment) => (attachment.category ?? "land") === group.key,
+        ),
+    })).filter((group) => group.items.length > 0);
+
     const sectionItems: Record<string, Item[]> = {
         cliente: [
-                                { label: "Quem toma as decisões", value: briefing.decision_makers },
-                                { label: "Contacto preferido", value: briefing.preferred_contact },
-                            ],
+            { label: "Quem toma as decisões", value: lab(DECISION_MAKERS, briefing.decision_makers) },
+            { label: "Contacto preferido", value: lab(PREFERRED_CONTACT, briefing.preferred_contact) },
+        ],
         terreno: [
-                                { label: "Endereço", value: briefing.location_address, wide: true },
-                                { label: "Bairro", value: briefing.location_neighborhood },
-                                { label: "Município", value: briefing.location_municipality },
-                                { label: "Cidade", value: briefing.location_city },
-                                { label: "Província", value: briefing.location_province },
-                                { label: "Ponto de referência", value: briefing.location_reference, wide: true },
-                                { label: "Já é proprietário?", value: briefing.land_ownership },
-                                { label: "Tipo de terreno", value: briefing.land_type },
-                                { label: "Área aproximada", value: withUnit(briefing.land_area, "m²") },
-                                { label: "Comprimento", value: withUnit(briefing.land_length, "m") },
-                                { label: "Largura", value: withUnit(briefing.land_width, "m") },
-                                { label: "Construções existentes", value: briefing.existing_buildings },
-                                { label: "Árvores no terreno", value: briefing.has_trees },
-                                { label: "Infra-estruturas", value: briefing.infrastructure, wide: true },
-                            ],
+            { label: "Endereço", value: briefing.location_address, wide: true },
+            { label: "Bairro", value: briefing.location_neighborhood },
+            { label: "Município", value: briefing.location_municipality },
+            { label: "Cidade", value: briefing.location_city },
+            { label: "Província", value: briefing.location_province },
+            { label: "Ponto de referência", value: briefing.location_reference, wide: true },
+            { label: "Já é proprietário?", value: lab(LAND_OWNERSHIP, briefing.land_ownership) },
+            { label: "Tipo de terreno", value: lab(LAND_TYPES, briefing.land_type) },
+            { label: "Área aproximada", value: withUnit(briefing.land_area, "m²") },
+            { label: "Comprimento", value: withUnit(briefing.land_length, "m") },
+            { label: "Largura", value: withUnit(briefing.land_width, "m") },
+            { label: "Construções existentes", value: lab(YES_NO, briefing.existing_buildings) },
+            { label: "Árvores no terreno", value: lab(YES_NO, briefing.has_trees) },
+            { label: "Infra-estruturas", value: labs(INFRASTRUCTURES, briefing.infrastructure), wide: true },
+        ],
         familia: [
-                                { label: "Moradores", value: briefing.residents_count },
-                                { label: "Trabalhadores domésticos", value: briefing.domestic_workers },
-                                { label: "Número de trabalhadores", value: briefing.domestic_workers_count },
-                                { label: "Animais de estimação", value: briefing.pets },
-                                { label: "Idades e perfis dos moradores", value: briefing.resident_profiles, wide: true },
-                                { label: "Crescimento familiar (10 anos)", value: briefing.family_growth },
-                                { label: "Trabalha em casa", value: briefing.works_from_home },
-                                { label: "Visitas e eventos", value: briefing.visitors_frequency },
-                                { label: "O que incomoda na casa actual", value: briefing.current_home_dislikes, wide: true },
-                                { label: "O que mais gosta na casa actual", value: briefing.current_home_likes, wide: true },
-                            ],
+            { label: "Moradores", value: briefing.residents_count },
+            { label: "Trabalhadores domésticos", value: lab(YES_NO, briefing.domestic_workers) },
+            { label: "Número de trabalhadores", value: briefing.domestic_workers_count },
+            { label: "Animais de estimação", value: briefing.pets },
+            { label: "Idades e perfis dos moradores", value: briefing.resident_profiles, wide: true },
+            { label: "Crescimento familiar (10 anos)", value: lab(FAMILY_GROWTH, briefing.family_growth) },
+            { label: "Trabalha em casa", value: lab(WORKS_FROM_HOME, briefing.works_from_home) },
+            { label: "Visitas e eventos", value: lab(VISITORS, briefing.visitors_frequency) },
+            { label: "O que incomoda na casa actual", value: briefing.current_home_dislikes, wide: true },
+            { label: "O que mais gosta na casa actual", value: briefing.current_home_likes, wide: true },
+        ],
         programa: [
-                                { label: "Quartos", value: briefing.bedrooms_count },
-                                { label: "Suites", value: briefing.suites_count },
-                                { label: "Viaturas", value: briefing.cars_count },
-                                {
-                                    label: "Pisos",
-                                    value: displayWithOther(briefing.floor_count, briefing.floor_count_other),
-                                },
-                                { label: "Cozinha", value: briefing.kitchen_layout },
-                                {
-                                    label: "Espaços desejados",
-                                    value: displayWithOther(briefing.desired_spaces, briefing.desired_spaces_other),
-                                    wide: true,
-                                },
-                                { label: "Espaço indispensável adicional", value: briefing.essential_space, wide: true },
-                            ],
+            { label: "Quartos", value: briefing.bedrooms_count },
+            { label: "Suites", value: briefing.suites_count },
+            { label: "Viaturas", value: briefing.cars_count },
+            { label: "Pisos", value: floors },
+            { label: "Cozinha", value: lab(KITCHEN_LAYOUTS, briefing.kitchen_layout) },
+            {
+                label: "Espaços desejados",
+                value: withOther(briefing.desired_spaces, briefing.desired_spaces_other, SPACES),
+                wide: true,
+            },
+            { label: "Espaço indispensável adicional", value: briefing.essential_space, wide: true },
+        ],
+        ambito: [
+            { label: "Serviços pretendidos", value: lab(SERVICE_SCOPES, briefing.service_scope), wide: true },
+            { label: "Três prioridades", value: labs(PROJECT_PRIORITIES, briefing.project_priorities), wide: true },
+            { label: "Início da construção", value: lab(CONSTRUCTION_START, briefing.construction_start) },
+            { label: "Orçamento previsto", value: budgetText },
+        ],
         estilo: [
-                                {
-                                    label: "Estilo arquitectónico",
-                                    value: displayWithOther(
-                                        briefing.architectural_style,
-                                        briefing.architectural_style_other
-                                    ),
-                                    wide: true,
-                                },
-                                { label: "Cores e materiais", value: briefing.colour_material_preferences, wide: true },
-                            ],
+            {
+                label: "Estilo arquitectónico",
+                value: withOther(
+                    briefing.architectural_style,
+                    briefing.architectural_style_other,
+                    ARCHITECTURAL_STYLES,
+                ),
+                wide: true,
+            },
+            { label: "Cores e materiais", value: briefing.colour_material_preferences, wide: true },
+        ],
         observacoes: [
-                                { label: "Observações", value: briefing.other_information, wide: true },
-                            ],
+            { label: "Observações", value: briefing.other_information, wide: true },
+        ],
     };
 
     /* Data for the PDF: only labels and values, no screen chrome. */
@@ -637,9 +818,16 @@ export default function BriefingSummary({
         .filter(([, v]) => v !== null)
         .map(([label, v]) => ({ label: label as string, value: `${v}/5` }));
 
+    const attachmentRows: PdfRow[] = groupedAttachments.flatMap((group) =>
+        group.items.map((a) => ({
+            label: `${group.title} · ${getFileType(a.mime_type)}`,
+            value: `${a.original_name} (${formatFileSize(a.file_size)})`,
+        })),
+    );
+
     const pdfData: PdfData = {
         title: briefing.full_name || "Cliente sem nome",
-        reference: `BRF-${briefing.id.slice(0, 8).toUpperCase()}`,
+        reference,
         meta: [
             ...(createdAt ? [{ label: "Recebido a", value: createdAt }] : []),
             ...(place ? [{ label: "Localização", value: place }] : []),
@@ -659,6 +847,7 @@ export default function BriefingSummary({
             { title: "Terreno", rows: rows(sectionItems.terreno) },
             { title: "Família e estilo de vida", rows: rows(sectionItems.familia) },
             { title: "Programa arquitectónico", rows: rows(sectionItems.programa) },
+            { title: "Âmbito e orçamento", rows: rows(sectionItems.ambito) },
             {
                 title: "Estilo arquitectónico",
                 rows: [...rows(sectionItems.estilo), ...ratingRows],
@@ -670,13 +859,7 @@ export default function BriefingSummary({
                     ...rows([{ label: "Links de referência", value: referenceLinks.join("\n") }]),
                 ],
             },
-            {
-                title: "Anexos",
-                rows: attachments.map((a) => ({
-                    label: getFileType(a.mime_type),
-                    value: `${a.original_name} (${formatFileSize(a.file_size)})`,
-                })),
-            },
+            { title: "Anexos", rows: attachmentRows },
         ].filter((section) => section.rows.length > 0),
     };
 
@@ -738,7 +921,7 @@ export default function BriefingSummary({
                             <div>
                                 <dt className={heroLabel}>Referência</dt>
                                 <dd className="mt-1 text-base font-semibold tabular-nums">
-                                    BRF-{briefing.id.slice(0, 8).toUpperCase()}
+                                    {reference}
                                 </dd>
                             </div>
 
@@ -811,8 +994,6 @@ export default function BriefingSummary({
                                 Resumo do briefing
                             </h2>
 
-                            {/* Wide cells (2 per row, 3 on xl) so long answers such as
-                                "Rés do chão, Outro: ..." wrap instead of being cut off. */}
                             <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                 {quickFacts.map(({ icon: Icon, label, value }) => (
                                     <div
@@ -864,6 +1045,12 @@ export default function BriefingSummary({
                             title="Programa arquitectónico"
                             description="Espaços, organização e necessidades funcionais"
                             items={sectionItems.programa}
+                        />
+
+                        <Section
+                            title="Âmbito e orçamento"
+                            description="Serviços pretendidos, prioridades, prazo e investimento"
+                            items={sectionItems.ambito}
                         />
 
                         <Section
@@ -931,61 +1118,32 @@ export default function BriefingSummary({
                                     O cliente não enviou anexos.
                                 </p>
                             ) : (
-                                <>
-                                    <p className="mb-3 text-sm font-semibold text-slate-800">
+                                <div className="space-y-6">
+                                    <p className="text-sm font-semibold text-slate-800">
                                         {attachments.length}{" "}
                                         {attachments.length === 1 ? "ficheiro" : "ficheiros"}
                                     </p>
 
-                                    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                        {attachments.map((attachment) => (
-                                            <li
-                                                key={attachment.id}
-                                                className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 p-3.5"
-                                            >
-                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[#002950]">
-                                                    <FileText size={19} aria-hidden />
-                                                </div>
+                                    {groupedAttachments.map((group) => (
+                                        <div key={group.key}>
+                                            <h3 className="mb-3 text-sm font-semibold text-[#002950]">
+                                                {group.title}{" "}
+                                                <span className="font-medium text-slate-500">
+                                                    ({group.items.length})
+                                                </span>
+                                            </h3>
 
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-semibold text-slate-900">
-                                                        {attachment.original_name}
-                                                    </p>
-
-                                                    <p className="mt-1 flex flex-wrap gap-x-3 text-xs">
-                                                        <span className="font-semibold text-slate-600">
-                                                            {getFileType(attachment.mime_type)}
-                                                        </span>
-                                                        <span className="font-medium text-slate-600">
-                                                            {formatFileSize(attachment.file_size)}
-                                                        </span>
-                                                    </p>
-                                                </div>
-
-                                                {attachment.signed_url &&
-                                                    isSafeExternalUrl(attachment.signed_url) && (
-                                                        <a
-                                                            href={attachment.signed_url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            aria-label={`Abrir ${attachment.original_name}`}
-                                                            title="Abrir anexo"
-                                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-[#002950] focus-visible:outline-2 focus-visible:outline-[#BD9655]"
-                                                        >
-                                                            <Download size={17} />
-                                                        </a>
-                                                    )}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </>
+                                            <AttachmentList items={group.items} />
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </Section>
                     </div>
                 </div>
 
                 {/* ======================================================== */}
-                {/* Sidebar (prints after the content, as a review block)    */}
+                {/* Sidebar                                                  */}
                 {/* ======================================================== */}
 
                 <aside className="order-1 space-y-4 lg:sticky lg:top-6 lg:order-2 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pb-2">
@@ -1092,11 +1250,10 @@ export default function BriefingSummary({
                             </form>
                         )}
 
-                        {/* Read-only copy: shown to viewers without actions (the form replaces it otherwise) */}
+                        {/* Read-only copy for viewers without actions */}
                         <p
-                            className={`whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-800 ${
-                                actions ? "hidden" : ""
-                            }`}
+                            className={`whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-800 ${actions ? "hidden" : ""
+                                }`}
                         >
                             {briefing.internal_notes || (
                                 <span className="text-slate-600">Sem notas internas.</span>
