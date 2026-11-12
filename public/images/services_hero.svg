@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+<title id="title">PRO SOTA — Serviços integrados</title>
+<desc id="desc">Ilustração vectorial animada em fundo creme, com arquitectura, engenharia, construção e fiscalização representadas por um edifício, desenho técnico, grua, topografia e profissionais em obra. Linhas douradas animadas.</desc>
+<defs>
+  <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#d9e2df"/>
+    <stop offset=".55" stop-color="#f5ead7"/>
+    <stop offset="1" stop-color="#c8d4d1"/>
+  </linearGradient>
+  <linearGradient id="goldWash" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#bd9655" stop-opacity=".03"/>
+    <stop offset=".5" stop-color="#bd9655" stop-opacity=".17"/>
+    <stop offset="1" stop-color="#bd9655" stop-opacity=".02"/>
+  </linearGradient>
+  <pattern id="paperGrid" width="38" height="38" patternUnits="userSpaceOnUse">
+    <path d="M38 0H0V38" fill="none" stroke="#bd9655" stroke-opacity=".13" stroke-width="1"/>
+  </pattern>
+  <style>
+    .ink{stroke:#002950;stroke-linecap:round;stroke-linejoin:round}
+    .gold{stroke:#bd9655;stroke-linecap:round;stroke-linejoin:round;fill:none}
+    .fine{stroke-width:1.5}.mid{stroke-width:2.5}.bold{stroke-width:5}
+    .draft{stroke-dasharray:8 8;animation:dashes 16s linear infinite}
+    .trace{stroke-dasharray:1100;stroke-dashoffset:1100;animation:trace 8s ease-in-out infinite}
+    .lift{transform-box:fill-box;transform-origin:50% 0;animation:lift 5s ease-in-out infinite}
+    .sway{transform-box:fill-box;transform-origin:50% 0;animation:sway 6s ease-in-out infinite}
+    .bob{animation:bob 4.5s ease-in-out infinite}
+    .shine{animation:shine 5s ease-in-out infinite}
+    .pulse{animation:pulse 3.8s ease-in-out infinite}
+    @keyframes dashes{to{stroke-dashoffset:-160}}
+    @keyframes trace{0%,8%{stroke-dashoffset:1100}55%,90%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+    @keyframes lift{0%,100%{transform:translateY(0)}50%{transform:translateY(-22px)}}
+    @keyframes sway{0%,100%{transform:rotate(-1.2deg)}50%{transform:rotate(1.4deg)}}
+    @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+    @keyframes shine{0%,100%{opacity:.25}50%{opacity:.8}}
+    @keyframes pulse{0%,100%{opacity:.35;transform:scale(.96)}50%{opacity:.9;transform:scale(1.04)}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important}}
+  </style>
+</defs>
+
+<!-- Warm cream canvas -->
+<rect width="1200" height="760" fill="#F7F7F5"/>
+<rect x="38" y="36" width="1124" height="674" rx="4" fill="url(#paperGrid)" opacity=".58"/>
+
+<!-- Gold orbital geometry / technical drawing language -->
+<g class="gold fine" opacity=".62">
+  <circle cx="720" cy="355" r="294"/>
+  <circle cx="720" cy="355" r="252" stroke-dasharray="2 12" class="draft"/>
+  <path d="M405 650A360 360 0 0 1 1080 205"/>
+  <path d="M450 682A420 420 0 0 1 1110 250" opacity=".45"/>
+  <path d="M500 125H1060M500 132H860" opacity=".5"/>
+  <path d="M1030 170V590M1022 170H1038M1022 590H1038"/>
+</g>
+<g fill="#BD9655">
+  <circle cx="110" cy="116" r="3"/><circle cx="132" cy="116" r="3"/><circle cx="154" cy="116" r="3"/>
+  <circle cx="110" cy="138" r="3"/><circle cx="132" cy="138" r="3"/><circle cx="154" cy="138" r="3"/>
+  <circle cx="110" cy="160" r="3"/><circle cx="132" cy="160" r="3"/><circle cx="154" cy="160" r="3"/>
+</g>
+
+<!-- Fine architectural construction lines -->
+<g fill="none" stroke="#BD9655" stroke-width="1.4" opacity=".62">
+  <path d="M180 574L440 218L900 218L1060 574" class="trace"/>
+  <path d="M210 592L470 252L850 252L1030 592" stroke-dasharray="4 8"/>
+  <path d="M465 202V590M490 188V590M875 225V590"/>
+  <path d="M440 218L875 590M900 218L465 590" opacity=".35"/>
+</g>
+
+<!-- Survey / site plan at left -->
+<g transform="translate(100 310)">
+  <path d="M0 225L120 165L235 210L115 274Z" fill="#BD9655" fill-opacity=".08" stroke="#BD9655" stroke-width="2"/>
+  <path d="M24 216L120 170L210 207M42 237L138 190L230 226" class="gold fine" stroke-dasharray="5 6"/>
+  <path d="M120 165V35M112 35H128M120 35L90 78M120 35L150 78" class="ink fine"/>
+  <circle cx="120" cy="35" r="8" fill="#F7F7F5" stroke="#BD9655" stroke-width="2"/>
+  <path d="M120 35L120 165" class="gold mid"/>
+  <path d="M88 77H152L140 91H100Z" fill="#002950"/>
+  <path d="M120 165L83 222M120 165L170 224" class="gold fine"/>
+  <path d="M70 260H250" class="gold fine"/>
+  <g class="pulse" fill="#BD9655"><circle cx="120" cy="165" r="5"/><circle cx="0" cy="225" r="4"/><circle cx="235" cy="210" r="4"/></g>
+</g>
+
+<!-- Main building: architecture and engineering -->
+<g>
+  <!-- foundation and ground -->
+  <path d="M300 592L770 592L1010 515L1010 555L770 638L300 638Z" fill="#E9E3D8" stroke="#002950" stroke-width="2.5"/>
+  <path d="M300 592L770 592L1010 515" class="gold mid"/>
+  <!-- lower mass -->
+  <path d="M380 490L700 390L945 455L625 560Z" fill="#F0EDE6" stroke="#002950" stroke-width="3"/>
+  <path d="M380 490V590L625 660V560Z" fill="#E4E5DF" stroke="#002950" stroke-width="3"/>
+  <path d="M625 560V660L945 555V455Z" fill="#D8DED9" stroke="#002950" stroke-width="3"/>
+  <!-- upper mass -->
+  <path d="M460 315L700 238L890 288L650 367Z" fill="#FBF8F0" stroke="#002950" stroke-width="3"/>
+  <path d="M460 315V490L650 550V367Z" fill="url(#glass)" stroke="#002950" stroke-width="3"/>
+  <path d="M650 367V550L890 470V288Z" fill="#E7E8E1" stroke="#002950" stroke-width="3"/>
+  <!-- roof slab -->
+  <path d="M438 306L700 220L914 278L650 365Z" fill="#FDFBF6" stroke="#002950" stroke-width="4"/>
+  <path d="M438 306L650 365L914 278" class="gold mid"/>
+  <!-- glazing -->
+  <path d="M480 333L630 381V521L480 475Z" fill="url(#glass)" stroke="#002950" stroke-width="1.8"/>
+  <path d="M674 377L866 315V453L674 516Z" fill="url(#glass)" stroke="#002950" stroke-width="1.8"/>
+  <path d="M405 506L608 568V630L405 570Z" fill="url(#glass)" stroke="#002950" stroke-width="1.8"/>
+  <path d="M666 574L920 491V550L666 633Z" fill="url(#glass)" stroke="#002950" stroke-width="1.8"/>
+  <!-- mullions -->
+  <g class="ink fine" opacity=".9">
+    <path d="M530 349V491M580 365V506M720 362V501M770 346V484M820 330V468"/>
+    <path d="M480 400L630 448M480 445L630 493M674 423L866 361M674 468L866 406"/>
+    <path d="M470 526L608 568M470 550L608 592M720 557V616M790 535V594M860 512V572"/>
+  </g>
+  <!-- gold interior light -->
+  <g class="shine" fill="#BD9655" opacity=".5">
+    <path d="M684 385L707 378V500L684 508Z"/>
+    <path d="M744 366L755 362V481L744 485Z"/>
+    <path d="M814 344L826 340V458L814 462Z"/>
+  </g>
+  <!-- structural columns -->
+  <g class="ink mid">
+    <path d="M460 315V490M650 367V550M890 288V470M625 560V660"/>
+    <path d="M380 490L625 560L945 455"/>
+  </g>
+  <!-- gold detail line -->
+  <path d="M438 306L700 220L914 278" class="gold bold"/>
+  <path d="M380 590L625 660L945 555" class="gold mid"/>
+</g>
+
+<!-- Crane: lifting material with a gentle loop -->
+<g>
+  <path d="M1000 520V110M986 520H1014M986 110H1014" class="ink bold" fill="none"/>
+  <path d="M1000 110L690 72L660 94L1000 145L1130 112L1000 110Z" fill="#E8E3D9" stroke="#002950" stroke-width="3"/>
+  <g class="ink fine" fill="none">
+    <path d="M690 72L660 94M720 76L690 98M750 80L720 102M780 84L750 106M810 88L780 110M840 92L810 114M870 96L840 118M900 100L870 122M930 104L900 126M960 108L930 130M1030 137L1000 145M1060 130L1030 140M1090 122L1060 133"/>
+    <path d="M1000 145L976 520M1000 145L1024 520" opacity=".55"/>
+    <path d="M1000 145L980 170L1020 195L980 220L1020 245L980 270L1020 295L980 320L1020 345L980 370L1020 395L980 420L1020 445L980 470L1000 520"/>
+  </g>
+  <path d="M825 91V246" class="gold fine"/>
+  <g class="lift">
+    <path d="M825 246L794 286H856Z" fill="#BD9655" fill-opacity=".85" stroke="#002950" stroke-width="2"/>
+    <path d="M794 286H856L846 300H804Z" fill="#002950"/>
+    <path d="M825 246L794 286M825 246L856 286" class="gold fine"/>
+  </g>
+  <path d="M825 91V246" class="gold fine trace"/>
+</g>
+
+<!-- Construction scaffold and site supervision -->
+<g fill="none" stroke="#002950" stroke-width="2" opacity=".65">
+  <path d="M900 350H970V540H900ZM900 395H970M900 445H970M900 495H970"/>
+  <path d="M900 350L970 395M970 350L900 395M900 395L970 445M970 395L900 445M900 445L970 495M970 445L900 495M900 495L970 540M970 495L900 540"/>
+</g>
+
+<!-- Two professionals in foreground -->
+<g class="bob">
+  <!-- engineer with safety vest -->
+  <path d="M265 620L278 538Q284 507 317 504L355 521L382 642Z" fill="#002950"/>
+  <path d="M288 522L320 536L350 520L369 628L286 605Z" fill="#BD9655"/>
+  <path d="M302 542L294 620M347 542L359 626" class="ink mid"/>
+  <path d="M292 507Q287 477 313 465Q343 466 348 500L337 522H303Z" fill="#9A6D54"/>
+  <path d="M288 483Q293 449 322 452Q350 454 353 482L344 491H291Z" fill="#FFFEF9" stroke="#002950" stroke-width="2.5"/>
+  <path d="M284 484H356" class="ink bold"/>
+  <path d="M350 531L400 487L421 492" class="ink bold" fill="none"/>
+  <path d="M416 492L429 479" class="gold mid"/>
+  <!-- architect holding plans -->
+  <path d="M405 638L416 548Q421 516 455 514L490 532L515 650Z" fill="#173D5A"/>
+  <path d="M433 517Q426 488 451 475Q480 475 486 511L473 533H442Z" fill="#8D604D"/>
+  <path d="M426 491Q431 459 460 461Q488 463 490 491L481 499H430Z" fill="#FFFEF9" stroke="#002950" stroke-width="2.5"/>
+  <path d="M422 492H494" class="ink bold"/>
+  <path d="M484 546L521 590" class="ink bold" fill="none"/>
+  <path d="M513 576L552 618Q558 626 549 634L539 638L500 594Z" fill="#FFFDF7" stroke="#002950" stroke-width="2.5"/>
+  <path d="M507 596L544 631" class="gold fine"/>
+</g>
+
+<!-- Animated golden technical route and service markers -->
+<g class="gold mid" fill="none">
+  <path d="M170 665C330 700 420 680 550 650S830 660 1080 610" class="trace"/>
+  <circle cx="565" cy="165" r="18" class="pulse"/>
+  <path d="M555 165H575M565 155V175"/>
+  <circle cx="1070" cy="315" r="10" class="pulse"/>
+  <path d="M1055 315H1085M1070 300V330"/>
+</g>
+
+<!-- Ground shadow -->
+<path d="M180 660C390 680 700 690 1080 625" fill="none" stroke="#002950" stroke-opacity=".12" stroke-width="10"/>
+<path d="M180 660C390 680 700 690 1080 625" fill="none" stroke="#BD9655" stroke-opacity=".7" stroke-width="2"/>
+</svg>
