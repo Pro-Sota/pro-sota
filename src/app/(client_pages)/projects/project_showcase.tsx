@@ -1,6 +1,13 @@
+
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Image from "next/image";
 
 import Nav from "../components/nav";
@@ -41,18 +48,34 @@ type DisplayProject = {
   featured: boolean;
 };
 
+type SortOption =
+  | "display_order"
+  | "newest"
+  | "oldest"
+  | "az"
+  | "za";
+
 type PortfolioClientProps = {
   projects: PortfolioProject[];
   projectId?: string;
 };
 
-/* -------------------------------------------------------------------------- */
-/* Small shared pieces                                                        */
-/* -------------------------------------------------------------------------- */
-
 const EMPTY_PROJECTS: PortfolioProject[] = [];
 
-/** Uppercase section label used all over the page. */
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "display_order", label: "Ordem original" },
+  { value: "newest", label: "Mais recentes" },
+  { value: "oldest", label: "Mais antigos" },
+  { value: "az", label: "Nome A–Z" },
+  { value: "za", label: "Nome Z–A" },
+];
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/* -------------------------------------------------------------------------- */
+/* Shared components                                                          */
+/* -------------------------------------------------------------------------- */
+
 function Label({
   children,
   className = "text-[#002950]/65",
@@ -69,13 +92,81 @@ function Label({
   );
 }
 
-/** Zero-padded "01 — 04" style counter. */
-const pad = (n: number) => String(n).padStart(2, "0");
+function ChevronLeft() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
 
-/**
- * Image that fills its (relatively positioned) parent, fades in once loaded
- * and falls back to a neutral placeholder if the URL is broken.
- */
+function ChevronRight() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
+function ChevronDown() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="m18 6-12 12M6 6l12 12" />
+    </svg>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Image                                                                      */
+/* -------------------------------------------------------------------------- */
+
 function FadeImage({
   src,
   alt,
@@ -95,7 +186,7 @@ function FadeImage({
   if (failed) {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-[#EAE9E4]">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#002950]/40">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#002950]/40">
           Imagem indisponível
         </span>
       </div>
@@ -112,91 +203,149 @@ function FadeImage({
       draggable={false}
       onLoad={() => setLoaded(true)}
       onError={() => setFailed(true)}
-      className={`object-cover transition-opacity duration-500 motion-reduce:transition-none ${loaded ? "opacity-100" : "opacity-0"
-        } ${className}`}
+      className={`object-cover transition-opacity duration-500 motion-reduce:transition-none ${
+        loaded ? "opacity-100" : "opacity-0"
+      } ${className}`}
     />
   );
 }
 
-const ChevronLeft = () => (
-  <svg
-    width="17"
-    height="17"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="m15 18-6-6 6-6" />
-  </svg>
-);
+/* -------------------------------------------------------------------------- */
+/* Native select styling                                                      */
+/* -------------------------------------------------------------------------- */
 
-const ChevronRight = () => (
-  <svg
-    width="17"
-    height="17"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="m9 18 6-6-6-6" />
-  </svg>
-);
+function SelectControl({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  label: string;
+}) {
+  return (
+    <div className="relative min-w-0">
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full appearance-none border border-[#002950]/15 bg-transparent py-2 pl-3 pr-9 text-xs text-[#002950] outline-none transition-colors hover:border-[#BD9655] focus:border-[#BD9655]"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#002950]/55">
+        <ChevronDown />
+      </span>
+    </div>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
-/* Column 1 — project list                                                    */
+/* Project list — desktop                                                     */
 /* -------------------------------------------------------------------------- */
 
 function ProjectList({
   projects,
   selectedId,
+  categories,
+  categoryFilter,
+  sortBy,
   onSelect,
+  onCategoryChange,
+  onSortChange,
 }: {
   projects: DisplayProject[];
   selectedId: string;
+  categories: string[];
+  categoryFilter: string;
+  sortBy: SortOption;
   onSelect: (id: string) => void;
+  onCategoryChange: (value: string) => void;
+  onSortChange: (value: SortOption) => void;
 }) {
   return (
     <aside
       aria-label="Projectos"
-      className="flex min-w-0 flex-col lg:h-full lg:min-h-0"
+      className="hidden min-w-0 flex-col lg:flex lg:h-full lg:min-h-0"
     >
+      {/* Heading */}
       <div className="mb-5 flex shrink-0 items-center justify-between">
         <Label>Projectos</Label>
+
         <span className="text-[11px] tabular-nums text-[#002950]/55">
           {pad(projects.length)}
         </span>
       </div>
 
+      {/* Filters */}
+      <div className="mb-5 shrink-0 space-y-3 border-b border-[#002950]/15 pb-5">
+        <div>
+          <Label className="mb-2 text-[#002950]/50">
+            Categoria
+          </Label>
+
+          <SelectControl
+            label="Filtrar por categoria"
+            value={categoryFilter}
+            onChange={onCategoryChange}
+            options={[
+              { value: "Todos", label: "Todas as categorias" },
+              ...categories.map((category) => ({
+                value: category,
+                label: category,
+              })),
+            ]}
+          />
+        </div>
+
+        <div>
+          <Label className="mb-2 text-[#002950]/50">
+            Ordenar por
+          </Label>
+
+          <SelectControl
+            label="Ordenar projectos"
+            value={sortBy}
+            onChange={(value) => onSortChange(value as SortOption)}
+            options={SORT_OPTIONS}
+          />
+        </div>
+      </div>
+
+      {/* Project list */}
       <ul
         aria-label="Lista de projectos"
-        className="flex gap-3 overflow-x-auto pb-3 lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-0 lg:overflow-y-auto lg:overflow-x-hidden lg:pb-0"
+        className="min-h-0 flex-1 space-y-0 overflow-y-auto overflow-x-hidden pr-2"
       >
         {projects.map((project, index) => {
           const isActive = selectedId === project.id;
 
           return (
-            <li key={project.id} className="shrink-0 lg:shrink">
+            <li key={project.id}>
               <button
                 type="button"
                 onClick={() => onSelect(project.id)}
                 aria-current={isActive ? "true" : undefined}
-                className={`group relative flex w-[190px] flex-col border-b py-4 text-left transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] lg:w-full lg:py-5 ${isActive
+                className={`group relative flex w-full flex-col border-b py-4 text-left transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#BD9655] ${
+                  isActive
                     ? "border-[#BD9655]"
-                    : "border-[#002950]/10 hover:border-[#002950]/40"
-                  }`}
+                    : "border-[#002950]/10 hover:border-[#002950]/35"
+                }`}
               >
                 <span className="mb-3 flex items-center justify-between">
                   <span
-                    className={`text-[11px] tabular-nums transition-colors ${isActive ? "text-[#7a6032]" : "text-[#002950]/55"
-                      }`}
+                    className={`text-[11px] tabular-nums ${
+                      isActive
+                        ? "text-[#7a6032]"
+                        : "text-[#002950]/45"
+                    }`}
                   >
                     {pad(index + 1)}
                   </span>
@@ -210,36 +359,393 @@ function ProjectList({
                 </span>
 
                 <span
-                  className={`text-sm font-semibold leading-snug tracking-[-0.02em] transition-colors ${isActive
+                  className={`text-sm font-semibold leading-snug tracking-[-0.02em] transition-colors ${
+                    isActive
                       ? "text-[#002950]"
                       : "text-[#002950]/65 group-hover:text-[#002950]"
-                    }`}
+                  }`}
                 >
                   {project.name}
                 </span>
 
                 <span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="text-[11px] uppercase tracking-[0.1em] text-[#002950]/60">
+                  <span className="text-[10px] uppercase tracking-[0.1em] text-[#002950]/55">
                     {project.category}
                   </span>
 
                   {project.year && (
                     <>
-                      <span aria-hidden="true" className="text-[#BD9655]/70">
-                        ·
-                      </span>
-                      <span className="text-[11px] text-[#002950]/60">
+                      <span className="text-[#BD9655]/70">·</span>
+                      <span className="text-[11px] text-[#002950]/55">
                         {project.year}
                       </span>
                     </>
                   )}
                 </span>
+
+                {project.featured && (
+                  <span className="mt-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#7a6032]">
+                    Projecto em destaque
+                  </span>
+                )}
               </button>
             </li>
           );
         })}
       </ul>
+
+      {projects.length === 0 && (
+        <p className="py-8 text-xs text-[#002950]/55">
+          Não existem projectos nesta categoria.
+        </p>
+      )}
     </aside>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Project selector — mobile                                                  */
+/* -------------------------------------------------------------------------- */
+
+function MobileProjectSelector({
+  projects,
+  selectedProject,
+  categories,
+  categoryFilter,
+  sortBy,
+  onSelect,
+  onCategoryChange,
+  onSortChange,
+}: {
+  projects: DisplayProject[];
+  selectedProject: DisplayProject;
+  categories: string[];
+  categoryFilter: string;
+  sortBy: SortOption;
+  onSelect: (id: string) => void;
+  onCategoryChange: (value: string) => void;
+  onSortChange: (value: SortOption) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredProjects = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("pt-PT");
+
+    if (!query) return projects;
+
+    return projects.filter((project) =>
+      [
+        project.name,
+        project.category,
+        project.location,
+        project.year,
+      ]
+        .join(" ")
+        .toLocaleLowerCase("pt-PT")
+        .includes(query),
+    );
+  }, [projects, search]);
+
+  const close = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
+  const handleSelect = (id: string) => {
+    onSelect(id);
+    close();
+    setSearch("");
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, close]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  return (
+    <>
+      {/* Compact selector */}
+      <div className="lg:hidden">
+        <div className="mb-3 flex items-center justify-between">
+          <Label>Projecto seleccionado</Label>
+
+          <span className="text-[11px] tabular-nums text-[#002950]/55">
+            {pad(projects.findIndex(
+              (project) => project.id === selectedProject.id,
+            ) + 1)}
+            {" / "}
+            {pad(projects.length)}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          className="group flex w-full items-center justify-between gap-4 border border-[#002950]/20 bg-white/40 px-4 py-4 text-left transition-colors hover:border-[#BD9655] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#BD9655]"
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold tracking-[-0.02em] text-[#002950]">
+              {selectedProject.name}
+            </span>
+
+            <span className="mt-1 block truncate text-[10px] uppercase tracking-[0.12em] text-[#002950]/55">
+              {selectedProject.category}
+              {selectedProject.year && ` · ${selectedProject.year}`}
+            </span>
+          </span>
+
+          <span className="flex size-9 shrink-0 items-center justify-center border border-[#002950]/15 text-[#002950] transition-colors group-hover:border-[#BD9655] group-hover:bg-[#BD9655] group-hover:text-white">
+            <ChevronDown />
+          </span>
+        </button>
+      </div>
+
+      {/* Bottom sheet */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center lg:hidden"
+          role="presentation"
+        >
+          <button
+            type="button"
+            aria-label="Fechar selector de projectos"
+            onClick={close}
+            className="absolute inset-0 bg-[#00182E]/60 backdrop-blur-[2px]"
+          />
+
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-project-selector-title"
+            className="relative z-10 flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-[#F7F7F5] shadow-2xl animate-in slide-in-from-bottom duration-300"
+          >
+            {/* Sheet header */}
+            <div className="shrink-0 border-b border-[#002950]/15 px-5 pb-5 pt-4">
+              <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-[#002950]/20" />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Portfólio PRO SOTA</Label>
+
+                  <h2
+                    id="mobile-project-selector-title"
+                    className="mt-1 text-xl font-semibold tracking-[-0.04em] text-[#002950]"
+                  >
+                    Seleccionar projecto<span className="text-[#BD9655]">.</span>
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={close}
+                  aria-label="Fechar"
+                  className="flex size-10 items-center justify-center border border-[#002950]/15 text-[#002950] transition-colors hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-white"
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="relative mt-5">
+                <svg
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#002950]/45"
+                  width="17"
+                  height="17"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-4-4" />
+                </svg>
+
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Pesquisar projecto..."
+                  aria-label="Pesquisar projecto"
+                  className="h-11 w-full border border-[#002950]/15 bg-white/50 pl-10 pr-4 text-sm text-[#002950] outline-none placeholder:text-[#002950]/35 focus:border-[#BD9655]"
+                />
+              </div>
+
+              {/* Category and sorting */}
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <SelectControl
+                  label="Filtrar por categoria"
+                  value={categoryFilter}
+                  onChange={onCategoryChange}
+                  options={[
+                    { value: "Todos", label: "Todas categorias" },
+                    ...categories.map((category) => ({
+                      value: category,
+                      label: category,
+                    })),
+                  ]}
+                />
+
+                <SelectControl
+                  label="Ordenar projectos"
+                  value={sortBy}
+                  onChange={(value) => onSortChange(value as SortOption)}
+                  options={SORT_OPTIONS}
+                />
+              </div>
+            </div>
+
+            {/* Project results */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-3">
+              <div className="mb-3 flex items-center justify-between">
+                <Label>Projectos disponíveis</Label>
+
+                <span className="text-[10px] tabular-nums text-[#002950]/50">
+                  {pad(filteredProjects.length)} resultados
+                </span>
+              </div>
+
+              {filteredProjects.length > 0 ? (
+                <div className="divide-y divide-[#002950]/10">
+                  {filteredProjects.map((project) => {
+                    const isActive =
+                      selectedProject.id === project.id;
+
+                    const thumbnail = project.images[0];
+
+                    return (
+                      <button
+                        key={project.id}
+                        type="button"
+                        onClick={() => handleSelect(project.id)}
+                        aria-current={isActive ? "true" : undefined}
+                        className={`flex w-full items-center gap-4 py-4 text-left transition-colors ${
+                          isActive ? "bg-[#BD9655]/[0.06]" : ""
+                        }`}
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative size-[76px] shrink-0 overflow-hidden bg-[#EAE9E4]">
+                          {thumbnail ? (
+                            <FadeImage
+                              src={thumbnail}
+                              alt=""
+                              sizes="76px"
+                            />
+                          ) : (
+                            <span className="flex h-full items-center justify-center text-[9px] text-[#002950]/40">
+                              PRO SOTA
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Information */}
+                        <span className="min-w-0 flex-1">
+                          <span className="mb-1 block text-[10px] uppercase tracking-[0.12em] text-[#7a6032]">
+                            {project.category}
+                          </span>
+
+                          <span className="block text-sm font-semibold leading-snug text-[#002950]">
+                            {project.name}
+                          </span>
+
+                          <span className="mt-1 block text-[11px] text-[#002950]/55">
+                            {[project.location, project.year]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        </span>
+
+                        {/* Selection */}
+                        <span
+                          className={`flex size-7 shrink-0 items-center justify-center border transition-colors ${
+                            isActive
+                              ? "border-[#BD9655] bg-[#BD9655] text-white"
+                              : "border-[#002950]/20 text-transparent"
+                          }`}
+                        >
+                          {isActive && (
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="m5 12 4 4L19 6" />
+                            </svg>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-12 text-center">
+                  <span className="mb-3 text-[#BD9655]">
+                    <svg
+                      width="26"
+                      height="26"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                    >
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-4-4" />
+                    </svg>
+                  </span>
+
+                  <p className="text-sm font-semibold text-[#002950]">
+                    Nenhum projecto encontrado
+                  </p>
+
+                  <p className="mt-1 text-xs text-[#002950]/55">
+                    Experimente outra pesquisa ou categoria.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 border-t border-[#002950]/15 bg-[#F7F7F5] px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
+              <button
+                type="button"
+                onClick={close}
+                className="flex w-full items-center justify-center bg-[#002950] px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-[#BD9655]"
+              >
+                Ver projecto seleccionado
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -267,7 +773,7 @@ function ProjectViewer({
       ref={containerRef}
       className="flex min-w-0 scroll-mt-28 flex-col lg:h-full lg:min-h-0"
     >
-      <div className="mb-4 flex shrink-0 items-center justify-between">
+      <div className="mb-4 hidden shrink-0 items-center justify-between lg:flex">
         <Label>Imagem principal</Label>
 
         <span className="text-[11px] tabular-nums text-[#002950]/60">
@@ -285,7 +791,6 @@ function ProjectViewer({
             aria-label={`Ampliar imagem de ${project.name}`}
             className="relative block aspect-[4/3] w-full cursor-zoom-in overflow-hidden bg-[#EAE9E4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] sm:aspect-[16/11] lg:absolute lg:inset-0 lg:aspect-auto lg:h-full"
           >
-            {/* `key` remounts the image so the fade-in replays per image */}
             <FadeImage
               key={activeImage}
               src={activeImage}
@@ -296,12 +801,12 @@ function ProjectViewer({
 
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#002950]/25 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#002950]/35 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
             />
 
             <span
               aria-hidden="true"
-              className="absolute bottom-5 right-5 flex size-10 items-center justify-center rounded-full border border-white/60 bg-[#002950]/20 text-white opacity-0 backdrop-blur-sm transition-all duration-300 group-hover:opacity-100"
+              className="absolute bottom-5 right-5 flex size-10 items-center justify-center border border-white/60 bg-[#002950]/20 text-white opacity-0 backdrop-blur-sm transition-all duration-300 group-hover:opacity-100"
             >
               <svg
                 width="18"
@@ -316,6 +821,13 @@ function ProjectViewer({
                 <path d="M15 3h6v6M14 10l7-7M9 21H3v-6m0 6 7-7" />
               </svg>
             </span>
+
+            {/* Mobile image counter */}
+            <span className="absolute bottom-4 left-4 flex items-center gap-2 bg-[#002950]/65 px-3 py-2 text-[10px] tabular-nums text-white backdrop-blur-sm lg:hidden">
+              {pad(activeIndex + 1)}
+              <span className="text-white/50">/</span>
+              {pad(images.length)}
+            </span>
           </button>
         ) : (
           <div className="flex aspect-[4/3] items-center justify-center sm:aspect-[16/11] lg:absolute lg:inset-0 lg:aspect-auto">
@@ -326,15 +838,23 @@ function ProjectViewer({
         )}
       </div>
 
-      {/* Main image footer */}
-      <div className="mt-4 shrink-0 border-b border-[#002950]/15 pb-4">
-        <p className="text-xs font-semibold text-[#002950]">{project.name}</p>
-
-        {project.location && (
-          <p className="mt-1 text-[11px] text-[#002950]/60">
-            {project.location}
+      {/* Image footer */}
+      <div className="mt-4 flex shrink-0 items-start justify-between border-b border-[#002950]/15 pb-4">
+        <div>
+          <p className="text-xs font-semibold text-[#002950]">
+            {project.name}
           </p>
-        )}
+
+          {project.location && (
+            <p className="mt-1 text-[11px] text-[#002950]/60">
+              {project.location}
+            </p>
+          )}
+        </div>
+
+        <span className="text-[11px] tabular-nums text-[#002950]/55 lg:hidden">
+          {pad(activeIndex + 1)} / {pad(images.length)}
+        </span>
       </div>
     </div>
   );
@@ -361,36 +881,41 @@ function ProjectDetails({
 }) {
   const stripRef = useRef<HTMLDivElement | null>(null);
 
-  // Keep the active thumbnail visible when navigating with arrows / keyboard.
+  // Keep active thumbnail visible.
   useEffect(() => {
     const thumb = stripRef.current?.querySelector<HTMLElement>(
       `[data-index="${activeIndex}"]`,
     );
+
     thumb?.scrollIntoView({
       block: "nearest",
       inline: "nearest",
-      behavior: "smooth",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
     });
   }, [activeIndex]);
 
   return (
     <aside
       aria-label="Detalhes do projecto"
-      className="flex min-w-0 flex-col gap-10 lg:h-full lg:min-h-0 lg:gap-6"
+      className="flex min-w-0 flex-col gap-8 lg:h-full lg:min-h-0 lg:gap-6"
     >
-      {/* TOP — description (scrolls if too long) */}
+      {/* Description */}
       <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pr-3">
         <div className="mb-6 flex items-center justify-between border-b border-[#002950]/15 pb-4">
           <Label>Sobre o projecto</Label>
 
           {project.featured && (
-            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7a6032]">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#7a6032]">
               Destaque
             </span>
           )}
         </div>
 
-        <Label className="mb-4 text-[#7a6032]">{project.category}</Label>
+        <Label className="mb-4 text-[#7a6032]">
+          {project.category}
+        </Label>
 
         <h2 className="text-2xl font-semibold leading-[1.08] tracking-[-0.045em] text-[#002950] sm:text-3xl lg:text-[clamp(25px,2.2vw,38px)]">
           {project.name}
@@ -401,7 +926,7 @@ function ProjectDetails({
           <dl className="mt-6 flex flex-wrap gap-x-5 gap-y-3 border-y border-[#002950]/10 py-4">
             {project.location && (
               <div>
-                <dt className="mb-1 text-[11px] uppercase tracking-[0.12em] text-[#002950]/60">
+                <dt className="mb-1 text-[10px] uppercase tracking-[0.12em] text-[#002950]/55">
                   Localização
                 </dt>
                 <dd className="text-xs font-medium text-[#002950]">
@@ -412,7 +937,7 @@ function ProjectDetails({
 
             {project.year && (
               <div>
-                <dt className="mb-1 text-[11px] uppercase tracking-[0.12em] text-[#002950]/60">
+                <dt className="mb-1 text-[10px] uppercase tracking-[0.12em] text-[#002950]/55">
                   Ano
                 </dt>
                 <dd className="text-xs font-medium text-[#002950]">
@@ -424,9 +949,11 @@ function ProjectDetails({
         )}
 
         <div className="mt-6 w-full">
-          <Label className="mb-3 text-[#002950]/60">Descrição</Label>
+          <Label className="mb-3 text-[#002950]/60">
+            Descrição
+          </Label>
 
-          <p className="w-full word-break text-sm leading-8 text-[#002950]/70">
+          <p className="w-full break-words text-sm leading-8 text-[#002950]/70">
             {project.description ||
               project.summary ||
               "Informações sobre este projecto serão disponibilizadas brevemente."}
@@ -434,13 +961,15 @@ function ProjectDetails({
         </div>
       </div>
 
-      {/* BOTTOM — gallery (pinned) */}
+      {/* Gallery */}
       <div className="min-w-0 shrink-0 border-t border-[#002950]/15 pt-5">
         <div className="mb-5 flex items-center justify-between">
           <div>
             <Label>Galeria</Label>
+
             <p className="mt-1 text-[11px] text-[#002950]/60">
-              {images.length} {images.length === 1 ? "imagem" : "imagens"}
+              {images.length}{" "}
+              {images.length === 1 ? "imagem" : "imagens"}
             </p>
           </div>
 
@@ -450,7 +979,7 @@ function ProjectDetails({
               onClick={onPrevious}
               disabled={images.length <= 1}
               aria-label="Imagem anterior"
-              className="flex size-9 items-center justify-center border border-[#002950]/15 text-[#002950] transition-all hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] disabled:cursor-not-allowed disabled:opacity-25"
+              className="flex size-9 items-center justify-center border border-[#002950]/15 text-[#002950] transition-all hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#BD9655] disabled:cursor-not-allowed disabled:opacity-25"
             >
               <ChevronLeft />
             </button>
@@ -460,7 +989,7 @@ function ProjectDetails({
               onClick={onNext}
               disabled={images.length <= 1}
               aria-label="Imagem seguinte"
-              className="flex size-9 items-center justify-center border border-[#002950]/15 text-[#002950] transition-all hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] disabled:cursor-not-allowed disabled:opacity-25"
+              className="flex size-9 items-center justify-center border border-[#002950]/15 text-[#002950] transition-all hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#BD9655] disabled:cursor-not-allowed disabled:opacity-25"
             >
               <ChevronRight />
             </button>
@@ -468,7 +997,10 @@ function ProjectDetails({
         </div>
 
         {images.length > 0 ? (
-          <div ref={stripRef} className="flex gap-3 overflow-x-auto pb-2">
+          <div
+            ref={stripRef}
+            className="flex gap-3 overflow-x-auto pb-2"
+          >
             {images.map((image, index) => {
               const isActive = index === activeIndex;
 
@@ -480,10 +1012,11 @@ function ProjectDetails({
                   onClick={() => onSelectImage(index)}
                   aria-label={`Ver imagem ${index + 1}`}
                   aria-current={isActive ? "true" : undefined}
-                  className={`group relative w-[105px] shrink-0 overflow-hidden border-2 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] sm:w-[115px] ${isActive
+                  className={`group relative w-[95px] shrink-0 overflow-hidden border-2 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] sm:w-[115px] ${
+                    isActive
                       ? "border-[#BD9655]"
-                      : "border-transparent opacity-70 hover:opacity-100"
-                    }`}
+                      : "border-transparent opacity-65 hover:opacity-100"
+                  }`}
                 >
                   <span className="relative block aspect-[4/3] overflow-hidden bg-[#EAE9E4]">
                     <FadeImage
@@ -514,18 +1047,16 @@ export default function ProjectsPage({
   projects: initialProjects,
   projectId,
 }: PortfolioClientProps) {
-  // Stable reference when the prop isn't an array, so the memo below doesn't
-  // re-run on every render.
   const projects = Array.isArray(initialProjects)
     ? initialProjects
     : EMPTY_PROJECTS;
 
   /* ------------------------------------------------------------------------ */
-  /* Prepare projects                                                         */
+  /* Prepare published projects                                               */
   /* ------------------------------------------------------------------------ */
 
   const displayProjects = useMemo<DisplayProject[]>(() => {
-    return [...projects]
+    return projects
       .filter(Boolean)
       .filter((project) => project.status === "published")
       .sort((a, b) => {
@@ -536,7 +1067,10 @@ export default function ProjectsPage({
         return (a.display_order ?? 0) - (b.display_order ?? 0);
       })
       .map((project) => {
-        const images = [project.cover_image, ...(project.gallery ?? [])].filter(
+        const images = [
+          project.cover_image,
+          ...(project.gallery ?? []),
+        ].filter(
           (image): image is string =>
             typeof image === "string" && Boolean(image.trim()),
         );
@@ -556,22 +1090,78 @@ export default function ProjectsPage({
   }, [projects]);
 
   /* ------------------------------------------------------------------------ */
+  /* Filtering and sorting                                                    */
+  /* ------------------------------------------------------------------------ */
+
+  const categories = useMemo(() => {
+    return [...new Set(
+      displayProjects
+        .map((project) => project.category)
+        .filter(Boolean),
+    )].sort((a, b) => a.localeCompare(b, "pt-PT"));
+  }, [displayProjects]);
+
+  const [categoryFilter, setCategoryFilter] = useState("Todos");
+  const [sortBy, setSortBy] = useState<SortOption>("display_order");
+
+  const visibleProjects = useMemo(() => {
+    const filtered = displayProjects.filter(
+      (project) =>
+        categoryFilter === "Todos" ||
+        project.category === categoryFilter,
+    );
+
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return (
+            (Number(b.year) || 0) - (Number(a.year) || 0) ||
+            a.name.localeCompare(b.name, "pt-PT")
+          );
+
+        case "oldest":
+          return (
+            (Number(a.year) || Infinity) -
+              (Number(b.year) || Infinity) ||
+            a.name.localeCompare(b.name, "pt-PT")
+          );
+
+        case "az":
+          return a.name.localeCompare(b.name, "pt-PT");
+
+        case "za":
+          return b.name.localeCompare(a.name, "pt-PT");
+
+        case "display_order":
+        default:
+          return (
+            Number(b.featured) - Number(a.featured) ||
+            displayProjects.indexOf(a) -
+              displayProjects.indexOf(b)
+          );
+      }
+    });
+  }, [displayProjects, categoryFilter, sortBy]);
+
+  /* ------------------------------------------------------------------------ */
   /* Selection state                                                          */
   /* ------------------------------------------------------------------------ */
 
   const [selectedId, setSelectedId] = useState<string | null>(
     () => projectId ?? null,
   );
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   const viewerRef = useRef<HTMLDivElement | null>(null);
 
-  // If the route changes `projectId` while this component stays mounted,
-  // follow it (adjusting state during render, no extra effect).
+  // Follow route changes without an effect.
   const [prevProjectId, setPrevProjectId] = useState(projectId);
+
   if (projectId !== prevProjectId) {
     setPrevProjectId(projectId);
+
     if (projectId) {
       setSelectedId(projectId);
       setActiveImageIndex(0);
@@ -579,29 +1169,37 @@ export default function ProjectsPage({
     }
   }
 
+  // Keep the selection inside the filtered result set.
   const selectedProject =
-    displayProjects.find((project) => project.id === selectedId) ??
-    displayProjects[0] ??
+    visibleProjects.find((project) => project.id === selectedId) ??
+    visibleProjects[0] ??
     null;
 
   const images = selectedProject?.images ?? [];
   const imageCount = images.length;
 
   /* ------------------------------------------------------------------------ */
-  /* URL hash <-> selected project                                            */
+  /* URL hash                                                                 */
   /* ------------------------------------------------------------------------ */
 
-  // On load, honour a `#slug` when no `projectId` prop was given.
   useEffect(() => {
     if (projectId) return;
 
-    const hash = decodeURIComponent(window.location.hash.slice(1));
-    if (hash && displayProjects.some((project) => project.id === hash)) {
+    const hash = decodeURIComponent(
+      window.location.hash.slice(1),
+    );
+
+    if (
+      hash &&
+      displayProjects.some((project) => project.id === hash)
+    ) {
       setSelectedId(hash);
     }
-    // Run once on mount only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [projectId, displayProjects]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Project selection                                                       */
+  /* ------------------------------------------------------------------------ */
 
   const selectProject = useCallback((id: string) => {
     setSelectedId(id);
@@ -615,13 +1213,14 @@ export default function ProjectsPage({
         `${window.location.pathname}${window.location.search}#${encodeURIComponent(id)}`,
       );
     } catch {
-      // Safari throws if replaceState is called too often. Safe to ignore.
+      // Ignore Safari history errors.
     }
 
-    // On stacked (mobile) layouts the viewer is below the list: bring it up.
     if (window.matchMedia("(max-width: 1023px)").matches) {
       viewerRef.current?.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        behavior: window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches
           ? "auto"
           : "smooth",
         block: "start",
@@ -635,26 +1234,52 @@ export default function ProjectsPage({
 
   const showNextImage = useCallback(() => {
     if (imageCount <= 1) return;
-    setActiveImageIndex((current) => (current + 1) % imageCount);
+
+    setActiveImageIndex(
+      (current) => (current + 1) % imageCount,
+    );
   }, [imageCount]);
 
   const showPreviousImage = useCallback(() => {
     if (imageCount <= 1) return;
-    setActiveImageIndex((current) => (current - 1 + imageCount) % imageCount);
+
+    setActiveImageIndex(
+      (current) => (current - 1 + imageCount) % imageCount,
+    );
   }, [imageCount]);
 
-  // ← / → switch images (the lightbox handles its own keys while open).
+  // Reset active image when changing projects.
+  const [previousSelectedId, setPreviousSelectedId] =
+    useState(selectedProject?.id);
+
+  if (selectedProject?.id !== previousSelectedId) {
+    setPreviousSelectedId(selectedProject?.id);
+    setActiveImageIndex(0);
+    setIsLightboxOpen(false);
+  }
+
+  // Keyboard navigation.
   useEffect(() => {
     if (isLightboxOpen || imageCount <= 1) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.metaKey || event.ctrlKey) return;
+      if (
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey
+      ) {
+        return;
+      }
 
       const target = event.target as HTMLElement | null;
+
       if (
         target &&
         (target.isContentEditable ||
-          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+          ["INPUT", "TEXTAREA", "SELECT"].includes(
+            target.tagName,
+          ))
       ) {
         return;
       }
@@ -664,8 +1289,14 @@ export default function ProjectsPage({
     };
 
     window.addEventListener("keydown", onKeyDown);
+
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isLightboxOpen, imageCount, showNextImage, showPreviousImage]);
+  }, [
+    isLightboxOpen,
+    imageCount,
+    showNextImage,
+    showPreviousImage,
+  ]);
 
   /* ------------------------------------------------------------------------ */
   /* Render                                                                   */
@@ -675,14 +1306,18 @@ export default function ProjectsPage({
     <main className="min-h-screen overflow-x-hidden bg-[#F7F7F5] text-[#002950]">
       <Nav />
 
-      {/* On lg+ the section is exactly one screen tall (nav clearance comes
-          from the top padding), so scrolling reveals only the footer. */}
       <section className="mx-auto flex w-full max-w-[1800px] flex-col px-5 pb-12 pt-28 sm:px-8 md:px-10 md:pt-32 lg:h-[100dvh] lg:min-h-[640px] lg:px-12 lg:pb-8">
-        {/* PAGE HEADER */}
-        <div className="mb-8 flex shrink-0 items-end justify-between border-b border-[#002950]/15 pb-5 md:mb-10 lg:mb-6">
-          <h1 className="text-2xl font-semibold tracking-[-0.045em] sm:text-3xl">
-            Projectos<span className="text-[#BD9655]">.</span>
-          </h1>
+        {/* Page header */}
+        <div className="mb-7 flex shrink-0 items-end justify-between border-b border-[#002950]/15 pb-5 md:mb-9 lg:mb-6">
+          <div>
+            <Label className="mb-2 text-[#7a6032]">
+              PRO SOTA · ANGOLA
+            </Label>
+
+            <h1 className="text-2xl font-semibold tracking-[-0.045em] sm:text-3xl">
+              Projectos<span className="text-[#BD9655]">.</span>
+            </h1>
+          </div>
 
           <span className="hidden text-[11px] font-medium uppercase tracking-[0.16em] text-[#002950]/55 sm:block">
             Portfólio
@@ -690,7 +1325,7 @@ export default function ProjectsPage({
         </div>
 
         {displayProjects.length === 0 || !selectedProject ? (
-          /* EMPTY STATE */
+          /* Empty state */
           <div className="flex min-h-[55vh] flex-col items-center justify-center text-center lg:min-h-0 lg:flex-1">
             <span className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-[#7a6032]">
               PRO SOTA
@@ -701,46 +1336,61 @@ export default function ProjectsPage({
             </h2>
 
             <p className="mt-3 max-w-md text-sm leading-7 text-[#002950]/65">
-              Estamos a preparar a apresentação dos nossos projectos. Volte em
-              breve.
+              Estamos a preparar a apresentação dos nossos projectos.
+              Volte em breve.
             </p>
           </div>
         ) : (
-          /* THREE COLUMN PROJECT EXPLORER */
-          <div className="grid grid-cols-1 gap-9 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(190px,0.72fr)_minmax(0,1.8fr)_minmax(270px,0.95fr)] lg:grid-rows-1 lg:gap-8 xl:gap-12">
-            <ProjectList
-              projects={displayProjects}
-              selectedId={selectedProject.id}
+          <>
+            {/* Mobile project selector */}
+            <MobileProjectSelector
+              projects={visibleProjects}
+              selectedProject={selectedProject}
+              categories={categories}
+              categoryFilter={categoryFilter}
+              sortBy={sortBy}
               onSelect={selectProject}
+              onCategoryChange={setCategoryFilter}
+              onSortChange={setSortBy}
             />
 
-            <ProjectViewer
-              project={selectedProject}
-              images={images}
-              activeIndex={activeImageIndex}
-              onOpenLightbox={() => setIsLightboxOpen(true)}
-              containerRef={viewerRef}
-            />
+            {/* Project explorer */}
+            <div className="mt-6 grid grid-cols-1 gap-8 lg:mt-0 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(190px,0.72fr)_minmax(0,1.8fr)_minmax(270px,0.95fr)] lg:grid-rows-1 lg:gap-8 xl:gap-12">
+              <ProjectList
+                projects={visibleProjects}
+                selectedId={selectedProject.id}
+                categories={categories}
+                categoryFilter={categoryFilter}
+                sortBy={sortBy}
+                onSelect={selectProject}
+                onCategoryChange={setCategoryFilter}
+                onSortChange={setSortBy}
+              />
 
-            <ProjectDetails
-              project={selectedProject}
-              images={images}
-              activeIndex={activeImageIndex}
-              onSelectImage={setActiveImageIndex}
-              onPrevious={showPreviousImage}
-              onNext={showNextImage}
-            />
-          </div>
+              <ProjectViewer
+                project={selectedProject}
+                images={images}
+                activeIndex={activeImageIndex}
+                onOpenLightbox={() => setIsLightboxOpen(true)}
+                containerRef={viewerRef}
+              />
+
+              <ProjectDetails
+                project={selectedProject}
+                images={images}
+                activeIndex={activeImageIndex}
+                onSelectImage={setActiveImageIndex}
+                onPrevious={showPreviousImage}
+                onNext={showNextImage}
+              />
+            </div>
+          </>
         )}
       </section>
 
       <Footer />
 
-      {/* LIGHTBOX
-          Needs two small additions in light_box.tsx:
-            initialIndex?: number          -> image to open on
-            onIndexChange?: (i: number) => void -> called when the user moves
-          so the page stays in sync with what was last viewed. */}
+      {/* Lightbox */}
       {isLightboxOpen && selectedProject && (
         <Lightbox
           project={selectedProject}
