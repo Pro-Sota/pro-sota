@@ -758,12 +758,16 @@ function ProjectViewer({
   images,
   activeIndex,
   onOpenLightbox,
+  onPrevious,
+  onNext,
   containerRef,
 }: {
   project: DisplayProject;
   images: string[];
   activeIndex: number;
   onOpenLightbox: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const activeImage = images[activeIndex] ?? null;
@@ -836,10 +840,33 @@ function ProjectViewer({
             </span>
           </div>
         )}
+
+        {/* Mobile previous / next controls */}
+        {images.length > 1 && activeImage && (
+          <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-10 flex items-center justify-between px-3 lg:hidden">
+            <button
+              type="button"
+              onClick={onPrevious}
+              aria-label="Imagem anterior"
+              className="pointer-events-auto flex size-10 items-center justify-center rounded-full border border-white/50 bg-[#002950]/65 text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-[#BD9655] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              <ChevronLeft />
+            </button>
+
+            <button
+              type="button"
+              onClick={onNext}
+              aria-label="Imagem seguinte"
+              className="pointer-events-auto flex size-10 items-center justify-center rounded-full border border-white/50 bg-[#002950]/65 text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-[#BD9655] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              <ChevronRight />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Image footer */}
-      <div className="mt-4 flex shrink-0 items-start justify-between border-b border-[#002950]/15 pb-4">
+      {/* Desktop image footer */}
+      <div className="mt-4 hidden shrink-0 items-start justify-between border-b border-[#002950]/15 pb-4 lg:flex">
         <div>
           <p className="text-xs font-semibold text-[#002950]">
             {project.name}
@@ -851,10 +878,6 @@ function ProjectViewer({
             </p>
           )}
         </div>
-
-        <span className="text-[11px] tabular-nums text-[#002950]/55 lg:hidden">
-          {pad(activeIndex + 1)} / {pad(images.length)}
-        </span>
       </div>
     </div>
   );
@@ -901,8 +924,84 @@ function ProjectDetails({
       aria-label="Detalhes do projecto"
       className="flex min-w-0 flex-col gap-8 lg:h-full lg:min-h-0 lg:gap-6"
     >
-      {/* Description */}
-      <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pr-3">
+      {/* Gallery — first on mobile, second on desktop */}
+      <div className="order-1 min-w-0 shrink-0 border-t border-[#002950]/15 pt-5 lg:order-2">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <Label>Galeria</Label>
+
+            <p className="mt-1 text-[11px] text-[#002950]/60">
+              {images.length}{" "}
+              {images.length === 1 ? "imagem" : "imagens"}
+            </p>
+          </div>
+
+          {/* Desktop gallery navigation */}
+          <div className="hidden items-center gap-2 lg:flex">
+            <button
+              type="button"
+              onClick={onPrevious}
+              disabled={images.length <= 1}
+              aria-label="Imagem anterior"
+              className="flex size-9 items-center justify-center border border-[#002950]/15 text-[#002950] transition-all hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#BD9655] disabled:cursor-not-allowed disabled:opacity-25"
+            >
+              <ChevronLeft />
+            </button>
+
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={images.length <= 1}
+              aria-label="Imagem seguinte"
+              className="flex size-9 items-center justify-center border border-[#002950]/15 text-[#002950] transition-all hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#BD9655] disabled:cursor-not-allowed disabled:opacity-25"
+            >
+              <ChevronRight />
+            </button>
+          </div>
+        </div>
+
+        {images.length > 0 ? (
+          <div
+            ref={stripRef}
+            className="flex gap-3 overflow-x-auto pb-2"
+          >
+            {images.map((image, index) => {
+              const isActive = index === activeIndex;
+
+              return (
+                <button
+                  key={`${project.id}-${image}`}
+                  type="button"
+                  data-index={index}
+                  onClick={() => onSelectImage(index)}
+                  aria-label={`Ver imagem ${index + 1}`}
+                  aria-current={isActive ? "true" : undefined}
+                  className={`group relative w-[88px] shrink-0 overflow-hidden border-2 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] sm:w-[105px] ${
+                    isActive
+                      ? "border-[#BD9655]"
+                      : "border-transparent opacity-65 hover:opacity-100"
+                  }`}
+                >
+                  <span className="relative block aspect-[4/3] overflow-hidden bg-[#EAE9E4]">
+                    <FadeImage
+                      src={image}
+                      alt={`${project.name} — miniatura ${index + 1}`}
+                      sizes="115px"
+                    />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="py-6 text-xs text-[#002950]/60">
+            Não existem imagens disponíveis.
+          </p>
+        )}
+      </div>
+
+      {/* Description — second on mobile, first on desktop */}
+      <div className="order-2 lg:order-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pr-3">
         <div className="mb-6 flex items-center justify-between border-b border-[#002950]/15 pb-4">
           <Label>Sobre o projecto</Label>
 
@@ -959,81 +1058,6 @@ function ProjectDetails({
               "Informações sobre este projecto serão disponibilizadas brevemente."}
           </p>
         </div>
-      </div>
-
-      {/* Gallery */}
-      <div className="min-w-0 shrink-0 border-t border-[#002950]/15 pt-5">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <Label>Galeria</Label>
-
-            <p className="mt-1 text-[11px] text-[#002950]/60">
-              {images.length}{" "}
-              {images.length === 1 ? "imagem" : "imagens"}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onPrevious}
-              disabled={images.length <= 1}
-              aria-label="Imagem anterior"
-              className="flex size-9 items-center justify-center border border-[#002950]/15 text-[#002950] transition-all hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#BD9655] disabled:cursor-not-allowed disabled:opacity-25"
-            >
-              <ChevronLeft />
-            </button>
-
-            <button
-              type="button"
-              onClick={onNext}
-              disabled={images.length <= 1}
-              aria-label="Imagem seguinte"
-              className="flex size-9 items-center justify-center border border-[#002950]/15 text-[#002950] transition-all hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#BD9655] disabled:cursor-not-allowed disabled:opacity-25"
-            >
-              <ChevronRight />
-            </button>
-          </div>
-        </div>
-
-        {images.length > 0 ? (
-          <div
-            ref={stripRef}
-            className="flex gap-3 overflow-x-auto pb-2"
-          >
-            {images.map((image, index) => {
-              const isActive = index === activeIndex;
-
-              return (
-                <button
-                  key={`${project.id}-${image}`}
-                  type="button"
-                  data-index={index}
-                  onClick={() => onSelectImage(index)}
-                  aria-label={`Ver imagem ${index + 1}`}
-                  aria-current={isActive ? "true" : undefined}
-                  className={`group relative w-[95px] shrink-0 overflow-hidden border-2 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] sm:w-[115px] ${
-                    isActive
-                      ? "border-[#BD9655]"
-                      : "border-transparent opacity-65 hover:opacity-100"
-                  }`}
-                >
-                  <span className="relative block aspect-[4/3] overflow-hidden bg-[#EAE9E4]">
-                    <FadeImage
-                      src={image}
-                      alt={`${project.name} — miniatura ${index + 1}`}
-                      sizes="115px"
-                    />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="py-6 text-xs text-[#002950]/60">
-            Não existem imagens disponíveis.
-          </p>
-        )}
       </div>
     </aside>
   );
@@ -1372,6 +1396,8 @@ export default function ProjectsPage({
                 images={images}
                 activeIndex={activeImageIndex}
                 onOpenLightbox={() => setIsLightboxOpen(true)}
+                onPrevious={showPreviousImage}
+                onNext={showNextImage}
                 containerRef={viewerRef}
               />
 
