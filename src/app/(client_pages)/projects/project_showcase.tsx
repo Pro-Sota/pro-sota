@@ -10,8 +10,6 @@ import {
 } from "react";
 import Image from "next/image";
 
-import Nav from "../components/nav";
-import Footer from "../components/footer";
 import Lightbox from "../components/light_box";
 
 /* -------------------------------------------------------------------------- */
@@ -1328,8 +1326,6 @@ export default function ProjectsPage({
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#F7F7F5] text-[#002950]">
-      <Nav />
-
       <section className="mx-auto flex w-full max-w-[1800px] flex-col px-5 pb-12 pt-28 sm:px-8 md:px-10 md:pt-32 lg:h-[100dvh] lg:min-h-[640px] lg:px-12 lg:pb-8">
         {/* Page header */}
         <div className="mb-7 flex shrink-0 items-end justify-between border-b border-[#002950]/15 pb-5 md:mb-9 lg:mb-6">
@@ -1413,8 +1409,6 @@ export default function ProjectsPage({
           </>
         )}
       </section>
-
-      <Footer />
 
       {/* Lightbox */}
       {isLightboxOpen && selectedProject && (

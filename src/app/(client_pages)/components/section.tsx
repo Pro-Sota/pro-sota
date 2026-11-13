@@ -33,7 +33,7 @@ export function Eyebrow({ children, className = "text-gold-ink" }: { children: R
 
 export function H2({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <h2 className={`font-display text-[clamp(2rem,4.5vw,3.75rem)] font-medium leading-[1.05] tracking-tight ${className}`}>
+    <h2 className={`font-display text-[clamp(1.375rem,2vw,1.875rem)] font-medium leading-[1.12] tracking-[-0.02em] ${className}`}>
       {children}
     </h2>
   );

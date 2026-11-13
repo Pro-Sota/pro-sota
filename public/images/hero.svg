@@ -1,1 +1,129 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" fill="none"><style>.d{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 3s cubic-bezier(.6,.1,.2,1) forwards}@keyframes draw{to{stroke-dashoffset:0}}@media (prefers-reduced-motion:reduce){.d{animation:none;stroke-dashoffset:0}}</style><rect width="1600" height="900" fill="#002950"/><path pathLength="1" d="M0 0V900M80 0V900M160 0V900M240 0V900M320 0V900M400 0V900M480 0V900M560 0V900M640 0V900M720 0V900M800 0V900M880 0V900M960 0V900M1040 0V900M1120 0V900M1200 0V900M1280 0V900M1360 0V900M1440 0V900M1520 0V900M1600 0V900M0 0H1600M0 80H1600M0 160H1600M0 240H1600M0 320H1600M0 400H1600M0 480H1600M0 560H1600M0 640H1600M0 720H1600M0 800H1600M0 880H1600" stroke="#fff" stroke-width="1" stroke-opacity="0.06" fill="none"/><path class="d" pathLength="1" d="M0 760H1600" stroke="#BD9655" stroke-width="2" stroke-opacity="0.9" fill="none" style="animation-delay:0s"/><path class="d" pathLength="1" d="M980 760V150H1180V760" stroke="#BD9655" stroke-width="3" stroke-opacity="1" fill="none" style="animation-delay:0.2s"/><path class="d" pathLength="1" d="M1010 150V110H1150V150M1080 110V40" stroke="#BD9655" stroke-width="2" stroke-opacity="1" fill="none" style="animation-delay:0.5s"/><path class="d" pathLength="1" d="M980 190H1180M980 228H1180M980 266H1180M980 304H1180M980 342H1180M980 380H1180M980 418H1180M980 456H1180M980 494H1180M980 532H1180M980 570H1180M980 608H1180M980 646H1180M980 684H1180M980 722H1180" stroke="#fff" stroke-width="1.5" stroke-opacity="0.55" fill="none" style="animation-delay:0.8s"/><path class="d" pathLength="1" d="M1005 150V760M1030 150V760M1055 150V760M1080 150V760M1105 150V760M1130 150V760M1155 150V760" stroke="#fff" stroke-width="1" stroke-opacity="0.2" fill="none" style="animation-delay:1.0s"/><path class="d" pathLength="1" d="M760 760V400H960V760M760 400L860 360L960 400" stroke="#fff" stroke-width="2.5" stroke-opacity="0.85" fill="none" style="animation-delay:0.6s"/><path class="d" pathLength="1" d="M760 440H960M760 480H960M760 520H960M760 560H960M760 600H960M760 640H960M760 680H960M760 720H960" stroke="#fff" stroke-width="1.5" stroke-opacity="0.45" fill="none" style="animation-delay:1.0s"/><path class="d" pathLength="1" d="M800 400V760M840 400V760M880 400V760M920 400V760" stroke="#fff" stroke-width="1" stroke-opacity="0.2" fill="none" style="animation-delay:1.2s"/><path class="d" pathLength="1" d="M1210 760V340H1320V270H1450V760" stroke="#fff" stroke-width="2.5" stroke-opacity="0.85" fill="none" style="animation-delay:0.9s"/><path class="d" pathLength="1" d="M1210 380H1450M1210 416H1450M1210 452H1450M1210 488H1450M1210 524H1450M1210 560H1450M1210 596H1450M1210 632H1450M1210 668H1450M1210 704H1450M1210 740H1450" stroke="#fff" stroke-width="1.5" stroke-opacity="0.4" fill="none" style="animation-delay:1.3s"/><path class="d" pathLength="1" d="M600 760V180M620 760V180" stroke="#fff" stroke-width="2" stroke-opacity="0.9" fill="none" style="animation-delay:0.4s"/><path class="d" pathLength="1" d="M600 760L620 720L600 680L620 640L600 600L620 560L600 520L620 480L600 440L620 400L600 360L620 320L600 280L620 240L600 200" stroke="#fff" stroke-width="1.2" stroke-opacity="0.5" fill="none" style="animation-delay:0.9s"/><path class="d" pathLength="1" d="M440 180H920M440 160H920V180M610 180V110L440 180M610 110L920 180M440 180V215H480" stroke="#BD9655" stroke-width="2.5" stroke-opacity="1" fill="none" style="animation-delay:1.4s"/><path class="d" pathLength="1" d="M800 180V430M780 430H820L810 450H790Z" stroke="#BD9655" stroke-width="2" stroke-opacity="0.9" fill="none" style="animation-delay:2.0s"/><path class="d" pathLength="1" d="M1240 150V760M1228 150H1252M1228 760H1252" stroke="#BD9655" stroke-width="1.5" stroke-opacity="0.8" fill="none" style="animation-delay:2.0s"/><text x="1262" y="460" fill="#fff" fill-opacity="0.6" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="15" text-anchor="start">H 62.40 m</text><path class="d" pathLength="1" d="M1180 150H1235" stroke="#BD9655" stroke-width="1" stroke-opacity="0.6" fill="none" style="animation-delay:2.0s"/><text x="80" y="800" fill="#fff" fill-opacity="0.45" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="14" text-anchor="start">PRO SOTA  /  Alçado A-01  /  Esc. 1:200</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 760" preserveAspectRatio="xMidYMax slice" fill="none" role="img" aria-labelledby="hero-title" xmlns:c2pa="http://c2pa.org/manifest">
+  <title id="hero-title">Architectural line drawing of a tall tower, surrounding buildings and a construction crane</title>
+  <style>
+    :root {
+      --bg: #F7F7F5;
+      --line: #BD9655;
+      --grid: .16;
+    }
+    .bg { fill: var(--bg); }
+    .grid { stroke: var(--line); stroke-width: 1; stroke-opacity: var(--grid); }
+    .grid-major { stroke: var(--line); stroke-width: 1; stroke-opacity: .28; }
+    .d {
+      stroke: var(--line);
+      stroke-linecap: square;
+      stroke-dasharray: 1 1;
+      stroke-dashoffset: 1;
+      animation: draw 18s linear infinite both;
+    }
+    /* Three stroke tiers */
+    .p { stroke-width: 3; }
+    .s { stroke-width: 1.5; stroke-opacity: .7; }
+    .t { stroke-width: 1; stroke-opacity: .4; }
+    /* Supporting buildings sit back so the tower leads */
+    .bk { opacity: .6; }
+    .win { fill: var(--line); opacity: 0; animation: glow 18s linear infinite both; }
+    /* One 18s cycle per element: draw, hold, erase in build order, rest.
+       Every element shares the same period, so staggered delays stay in sync on each loop. */
+    @keyframes draw {
+      0%   { stroke-dashoffset: 1; animation-timing-function: cubic-bezier(.6,.1,.2,1); }
+      9%   { stroke-dashoffset: 0; }
+      66%  { stroke-dashoffset: 0; animation-timing-function: ease-in-out; }
+      75%, 100% { stroke-dashoffset: 1; }
+    }
+    @keyframes glow {
+      0%   { opacity: 0; }
+      5%, 66% { opacity: .35; }
+      72%, 100% { opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .d { animation: none; stroke-dashoffset: 0; }
+      .win { animation: none; opacity: .35; }
+    </style>
+
+  <rect class="bg" width="1600" height="760"/>
+
+  <!-- Engineering-paper grid: every 5th line stronger -->
+  <path class="grid" d="M80 0V760M160 0V760M240 0V760M320 0V760M480 0V760M560 0V760M640 0V760M720 0V760M880 0V760M960 0V760M1040 0V760M1120 0V760M1280 0V760M1360 0V760M1440 0V760M1520 0V760M0 80H1600M0 160H1600M0 240H1600M0 320H1600M0 480H1600M0 560H1600M0 640H1600M0 720H1600"/>
+  <path class="grid-major" d="M0 0V760M400 0V760M800 0V760M1200 0V760M1600 0V760M0 0H1600M0 400H1600"/>
+
+  <!-- 1. Ground -->
+  <path class="d p" pathLength="1" d="M0 760H1600" style="animation-delay:0.00s" stroke-opacity=".9" stroke-width="2"/>
+
+  <!-- 2. Hero tower: frame, crown, spire -->
+  <path class="d p" pathLength="1" d="M980 760V150H1180V760" style="animation-delay:0.20s"/>
+  <path class="d p" pathLength="1" d="M1010 150V110H1150V150M1080 110V40" style="animation-delay:0.70s"/>
+
+  <!-- 3. Supporting buildings (quieter) -->
+  <g class="bk">
+  <path class="d p" pathLength="1" d="M760 760V400H960V760M760 400L860 360L960 400" style="animation-delay:0.50s" stroke-width="2"/>
+  <path class="d p" pathLength="1" d="M1210 760V340H1320V270H1450V760" style="animation-delay:0.70s" stroke-width="2"/>
+  </g>
+
+  <!-- 4. Truss mast (X cross-members) -->
+  <path class="d p" pathLength="1" d="M600 760V140M620 760V140" style="animation-delay:0.90s" stroke-width="2"/>
+  <path class="d s" pathLength="1" d="M600 760L620 720M620 760L600 720M600 720L620 680M620 720L600 680M600 680L620 640M620 680L600 640M600 640L620 600M620 640L600 600M600 600L620 560M620 600L600 560M600 560L620 520M620 560L600 520M600 520L620 480M620 520L600 480M600 480L620 440M620 480L600 440M600 440L620 400M620 440L600 400M600 400L620 360M620 400L600 360M600 360L620 320M620 360L600 320M600 320L620 280M620 320L600 280M600 280L620 240M620 280L600 240M600 240L620 200M620 240L600 200M600 200L620 160M620 200L600 160M600 160L620 120M620 160L600 120" style="animation-delay:1.10s"/>
+
+  <!-- 5. Roof -->
+  <path class="d p" pathLength="1" d="M440 180H920M440 160H920V180M610 180V110L440 180M610 110L920 180M440 180V215H480" style="animation-delay:1.30s" stroke-width="2"/>
+
+  <!-- 6. Floor lines, staggered bottom-up like floors stacking -->
+  <path class="d s" pathLength="1" d="M980 722H1180" style="animation-delay:1.50s"/>
+  <path class="d s" pathLength="1" d="M980 684H1180" style="animation-delay:1.57s"/>
+  <path class="d s" pathLength="1" d="M980 646H1180" style="animation-delay:1.64s"/>
+  <path class="d s" pathLength="1" d="M980 608H1180" style="animation-delay:1.71s"/>
+  <path class="d s" pathLength="1" d="M980 570H1180" style="animation-delay:1.78s"/>
+  <path class="d s" pathLength="1" d="M980 532H1180" style="animation-delay:1.85s"/>
+  <path class="d s" pathLength="1" d="M980 494H1180" style="animation-delay:1.92s"/>
+  <path class="d s" pathLength="1" d="M980 456H1180" style="animation-delay:1.99s"/>
+  <path class="d s" pathLength="1" d="M980 418H1180" style="animation-delay:2.06s"/>
+  <path class="d s" pathLength="1" d="M980 380H1180" style="animation-delay:2.13s"/>
+  <path class="d s" pathLength="1" d="M980 342H1180" style="animation-delay:2.20s"/>
+  <path class="d s" pathLength="1" d="M980 304H1180" style="animation-delay:2.27s"/>
+  <path class="d s" pathLength="1" d="M980 266H1180" style="animation-delay:2.34s"/>
+  <path class="d s" pathLength="1" d="M980 228H1180" style="animation-delay:2.41s"/>
+  <path class="d s" pathLength="1" d="M980 190H1180" style="animation-delay:2.48s"/>
+  <path class="d s" pathLength="1" d="M1210 740H1450" style="animation-delay:1.50s"/>
+  <path class="d s bk" pathLength="1" d="M1210 704H1450" style="animation-delay:1.60s"/>
+  <path class="d s bk" pathLength="1" d="M1210 668H1450" style="animation-delay:1.67s"/>
+  <path class="d s bk" pathLength="1" d="M1210 632H1450" style="animation-delay:1.74s"/>
+  <path class="d s bk" pathLength="1" d="M1210 596H1450" style="animation-delay:1.81s"/>
+  <path class="d s bk" pathLength="1" d="M1210 560H1450" style="animation-delay:1.88s"/>
+  <path class="d s bk" pathLength="1" d="M1210 524H1450" style="animation-delay:1.95s"/>
+  <path class="d s bk" pathLength="1" d="M1210 488H1450" style="animation-delay:2.02s"/>
+  <path class="d s bk" pathLength="1" d="M1210 452H1450" style="animation-delay:2.09s"/>
+  <path class="d s bk" pathLength="1" d="M1210 416H1450" style="animation-delay:2.16s"/>
+  <path class="d s bk" pathLength="1" d="M1210 380H1450" style="animation-delay:2.23s"/>
+  <path class="d s bk" pathLength="1" d="M760 720H960" style="animation-delay:1.50s"/>
+  <path class="d s bk" pathLength="1" d="M760 680H960" style="animation-delay:1.57s"/>
+  <path class="d s bk" pathLength="1" d="M760 640H960" style="animation-delay:1.64s"/>
+  <path class="d s bk" pathLength="1" d="M760 600H960" style="animation-delay:1.71s"/>
+  <path class="d s bk" pathLength="1" d="M760 560H960" style="animation-delay:1.78s"/>
+  <path class="d s bk" pathLength="1" d="M760 520H960" style="animation-delay:1.85s"/>
+  <path class="d s bk" pathLength="1" d="M760 480H960" style="animation-delay:1.92s"/>
+  <path class="d s bk" pathLength="1" d="M760 440H960" style="animation-delay:1.99s"/>
+
+  <!-- 7. Structural verticals and bracing -->
+  <path class="d t" pathLength="1" d="M1005 150V760M1030 150V760M1055 150V760M1080 150V760M1105 150V760M1130 150V760M1155 150V760" style="animation-delay:2.90s"/>
+  <path class="d t bk" pathLength="1" d="M800 400V760M840 400V760M880 400V760M920 400V760M800 720L920 560M920 720L800 560" style="animation-delay:2.9s"/>
+  <path class="d p" pathLength="1" d="M800 180V430M780 430H820L810 450H790Z" style="animation-delay:2.90s" stroke-width="2"/>
+
+  <!-- 8. Crane -->
+  <path class="d s" pathLength="1" d="M1492 760V200M1508 760V200" style="animation-delay:3.00s"/>
+  <path class="d t" pathLength="1" d="M1492 760L1508 720M1508 760L1492 720M1492 720L1508 680M1508 720L1492 680M1492 680L1508 640M1508 680L1492 640M1492 640L1508 600M1508 640L1492 600M1492 600L1508 560M1508 600L1492 560M1492 560L1508 520M1508 560L1492 520M1492 520L1508 480M1508 520L1492 480M1492 480L1508 440M1508 480L1492 440M1492 440L1508 400M1508 440L1492 400M1492 400L1508 360M1508 400L1492 360M1492 360L1508 320M1508 360L1492 320M1492 320L1508 280M1508 320L1492 280M1492 280L1508 240M1508 280L1492 240M1492 240L1508 200M1508 240L1492 200" style="animation-delay:3.10s"/>
+  <path class="d s" pathLength="1" d="M1410 200H1590M1500 200L1500 160L1410 200M1500 160L1590 200M1430 200V300M1424 300H1436L1430 312Z" style="animation-delay:3.40s"/>
+
+  <!-- 9. Lit windows -->
+  <rect class="win" x="1030" y="228" width="25" height="38" style="animation-delay:3.9s"/>
+  <rect class="win" x="1105" y="342" width="25" height="38" style="animation-delay:4.0s"/>
+  <rect class="win" x="1055" y="494" width="25" height="38" style="animation-delay:4.1s"/>
+  <rect class="win" x="1130" y="570" width="25" height="38" style="animation-delay:4.2s"/>
+  <rect class="win" x="1005" y="646" width="25" height="38" style="animation-delay:4.3s"/>
+  <rect class="win" x="840" y="520" width="40" height="40" style="animation-delay:4.1s"/>
+  <rect class="win" x="920" y="640" width="40" height="40" style="animation-delay:4.3s"/>
+
+  <!-- 10. Dimension lines, drawn last -->
+  <path class="d s" pathLength="1" d="M1240 150V760M1228 150H1252M1228 760H1252" style="animation-delay:3.60s"/>
+  <path class="d t" pathLength="1" d="M1180 150H1235" style="animation-delay:3.60s"/>
+  <path class="d s" pathLength="1" d="M980 75H1180M980 63V87M1180 63V87" style="animation-delay:3.70s"/>
+<metadata><c2pa:manifest>AAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYTowZDRkNmQzNS1mMWFhLTRjMzMtODA4MS1lODZjZmQ3MmE2YzEAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaCxWU/QqJtYTofpdVgdxeZwAAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDphOTQyMjFhZS0zNDFkLTRjNTUtOWNlOS02YmQzZGI0ZTI0OGRscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNoEmFdN299gzi6ep2q+itoMAAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFgg5NK29nqhzE07Sah7FIVJMfz5Hd8cwU6oskKaEqG9sLmkZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaKLeJ28sauVz+t5HIApRjrwAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRMAAAAAAAAAAAAAAAAZGhhc2hYIC5Xw4Ms0n9Fa8tp9qE7y59oG6/JjZIDtXNZOXrzzaQoZG5hbWVuanVtYmYgbWFuaWZlc3RqZXhjbHVzaW9uc4GiZXN0YXJ0GSSKZmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOjBkNGQ2ZDM1LWYxYWEtNGMzMy04MDgxLWU4NmNmZDcyYTZjMS9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOjZiNGZkMDZiLTFjNzUtNGVmNC1hOTQ5LTI4ZmUyODM4NzU3OXJjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCDk0rb2eqHMTTtJqHsUhUkx/Pkd3xzBTqiyQpoSob2wuaJjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFggrcxxbLDuQX5qbtHQFB6TqFuxrogPUcFVbyPb/L+/xryiY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFgg4pYvUB5ZXPkA69YL2CdY2Wt57JivSH6wUel4ikIUjQN0Y2xhaW1fZ2VuZXJhdG9yX2luZm+jZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj+OPEz5o+nMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1+UCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9+1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQDasSuajia8myC0VmkdTwJzbQ0hiOb30kou1w5WKhWrBAE8VyBt7XMyeSFJJOBRO3oph70ffjp2ib1aA48wNlZg=</c2pa:manifest></metadata></svg>

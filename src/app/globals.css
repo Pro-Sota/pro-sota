@@ -50,6 +50,93 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* =========================================
+   PRO SOTA — Public Page Transitions
+========================================= */
+
+::view-transition-old(.public-page-exit) {
+  animation: 180ms cubic-bezier(0.4, 0, 1, 1) both public-page-out;
+}
+
+::view-transition-new(.public-page-enter) {
+  animation: 320ms cubic-bezier(0.16, 1, 0.3, 1) both public-page-in;
+}
+
+@keyframes public-page-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes public-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  ::view-transition-old(.public-page-exit),
+  ::view-transition-new(.public-page-enter) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+  }
+}
+
+
+
+/* =========================================
+   PRO SOTA — Navigation Progress
+========================================= */
+
+.public-navigation-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  width: 100%;
+  height: 3px;
+  background: #BD9655;
+  box-shadow: 0 0 10px rgba(189, 150, 85, 0.4);
+  pointer-events: none;
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: public-navigation-loading 1.2s
+    cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes public-navigation-loading {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-navigation-progress {
+    animation: none;
+    transform: scaleX(1);
+  }
+}
+
+
+
+
 @theme {
   --animate-ticker: ticker 35s linear infinite;
   --animate-scroll-line: scrollLine 1.8s ease-in-out infinite;
@@ -58,6 +145,7 @@
     from {
       transform: translateX(0);
     }
+
     to {
       transform: translateX(-50%);
     }
@@ -67,6 +155,7 @@
     0% {
       transform: translateY(-100%);
     }
+
     100% {
       transform: translateY(250%);
     }
@@ -82,6 +171,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -91,7 +181,8 @@
   animation: fadeIn 200ms ease-in-out;
 }
 
-html, body {
+html,
+body {
   overflow-x: hidden;
 }
 
@@ -168,9 +259,11 @@ html, body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
   }
@@ -194,25 +287,25 @@ html:focus-within {
 }
 
 .sidebar-scroll {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 41, 80, 0.18) transparent;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 41, 80, 0.18) transparent;
 }
 
 .sidebar-scroll::-webkit-scrollbar {
-    width: 5px;
+  width: 5px;
 }
 
 .sidebar-scroll::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 .sidebar-scroll::-webkit-scrollbar-thumb {
-    background: rgba(0, 41, 80, 0.18);
-    border-radius: 9999px;
+  background: rgba(0, 41, 80, 0.18);
+  border-radius: 9999px;
 }
 
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 41, 80, 0.3);
+  background: rgba(0, 41, 80, 0.3);
 }
 
 .leaflet-tooltip.project-tooltip,
@@ -222,12 +315,15 @@ html:focus-within {
   box-shadow: none;
   padding: 0;
 }
+
 .leaflet-tooltip.project-tooltip::before {
   display: none;
 }
+
 .leaflet-popup.project-map-popup .leaflet-popup-content {
   margin: 0;
 }
+
 .leaflet-popup.project-map-popup .leaflet-popup-tip {
   display: none;
 }
@@ -270,5 +366,3 @@ html:focus-within {
   outline: 2px solid #bd9655;
   outline-offset: -2px;
 }
-
-

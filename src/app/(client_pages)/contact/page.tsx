@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 
-import Nav from "../components/nav";
 import Contact from "../components/contact_page";
-import Footer from "../components/footer";
 
 import "../../globals.css";
 import "../../styles.css";
@@ -27,9 +25,6 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <>
-      <Nav />
-
-      <main>
         {/* CONTACT HERO */}
         <section
           id="top"
@@ -75,9 +70,6 @@ export default function ContactPage() {
         >
           <Contact />
         </section>
-      </main>
-
-      <Footer />
     </>
   );
 }

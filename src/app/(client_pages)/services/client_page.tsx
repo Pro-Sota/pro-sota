@@ -12,17 +12,15 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 
-import Nav from "../components/nav";
-
 import {
   services,
   SERVICE_KEYS,
   type ServiceKey,
 } from "../components/servicesData";
 
-/* No CSS imports here: styles come from Tailwind classes only.
-   Tailwind + the @theme tokens (font-display) must be loaded once in
-   app/layout.tsx, not per page. */
+/* Styles come from Tailwind classes only. The color tokens and the
+   `hero-enter` keyframes used below live in the @theme block in your global
+   CSS (see theme-tokens.css), loaded once in app/layout.tsx. */
 
 /* -------------------------------------------------------------------------- */
 /* Code-split pieces                                                          */
@@ -33,24 +31,16 @@ const Contact = dynamic(() => import("../components/contact_page"));
 const Footer = dynamic(() => import("../components/footer"));
 
 // 3D scenes only render on desktop, so mobile never downloads them.
-const SCENE_BY_SERVICE = {
-  arquitectura: dynamic(
-    () => import("../components/scene").then((m) => m.SCENES.arquitectura),
-    { ssr: false, loading: () => null },
-  ),
-  engenharia: dynamic(
-    () => import("../components/scene").then((m) => m.SCENES.engenharia),
-    { ssr: false, loading: () => null },
-  ),
-  construcao: dynamic(
-    () => import("../components/scene").then((m) => m.SCENES.construcao),
-    { ssr: false, loading: () => null },
-  ),
-  fiscalizacao: dynamic(
-    () => import("../components/scene").then((m) => m.SCENES.fiscalizacao),
-    { ssr: false, loading: () => null },
-  ),
-} satisfies Record<ServiceKey, ComponentType>;
+// If your Next version complains about this factory, inline the four calls.
+const loadScene = (name: ServiceKey) =>
+  dynamic(() => import("../components/scene").then((m) => m.SCENES[name]), {
+    ssr: false,
+    loading: () => null,
+  });
+
+const SCENE_BY_SERVICE = Object.fromEntries(
+  SERVICE_KEYS.map((key) => [key, loadScene(key)]),
+) as Record<ServiceKey, ComponentType>;
 
 /* -------------------------------------------------------------------------- */
 /* Configuration                                                              */
@@ -69,8 +59,8 @@ const SCENE_EXIT_MS = 600;
 
 /**
  * Space kept between the bottom of the pinned aside and the bottom of the
- * services column (i.e. the Contact section). Equals the `py-20` (80px)
- * vertical padding of each service article on desktop.
+ * services column. Equals the `py-20` (80px) vertical padding of each
+ * service article on desktop.
  */
 const ASIDE_BOTTOM_GAP = 80;
 
@@ -79,6 +69,16 @@ const SCROLL_OFFSETS = {
   mobileNav: 82,
   mobileGap: 24,
 } as const;
+
+/* Class groups, split so the long aside string stays readable. */
+const cn = (...parts: (string | false | null | undefined)[]) =>
+  parts.filter(Boolean).join(" ");
+
+const ASIDE_MOBILE =
+  "fixed inset-x-0 bottom-0 z-30 block border-t border-navy/10 bg-[#F7F7F5]/95 px-6 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur transition-transform duration-300 motion-reduce:transition-none";
+
+const ASIDE_DESKTOP =
+  "min-[901px]:absolute min-[901px]:inset-auto min-[901px]:left-0 min-[901px]:top-0 min-[901px]:z-auto min-[901px]:w-full min-[901px]:translate-y-0 min-[901px]:border-0 min-[901px]:bg-[#051221] min-[901px]:p-0 min-[901px]:backdrop-blur-none min-[901px]:h-[70svh] min-[901px]:max-h-[640px] min-[901px]:min-h-[480px] min-[901px]:overflow-hidden";
 
 const isServiceKey = (value: string | null): value is ServiceKey =>
   value !== null && SERVICE_KEYS.includes(value as ServiceKey);
@@ -112,12 +112,9 @@ function getVisibleTop() {
 /**
  * Tracks which service is closest to the reading position.
  *
- * Geometry (document-space top + height of every step) is measured only when
- * something actually changes size, then the scroll handler works from the
- * cache. No layout reads happen while scrolling.
- *
- * `count` is part of the effect deps so that, if the number of services ever
- * changes, the observers are re-attached to the new nodes.
+ * Geometry is measured only when something changes size; the scroll handler
+ * works from the cache, so no layout reads happen while scrolling.
+ * `count` is in the effect deps so observers re-attach if the list changes.
  */
 function useActiveService(
   stepsRef: { current: (HTMLElement | null)[] },
@@ -128,6 +125,7 @@ function useActiveService(
 
   useEffect(() => {
     let frame = 0;
+    let observerFrame = 0;
     let reading = 0;
     let lastWidth = window.innerWidth;
     let lastHeight = window.innerHeight;
@@ -202,8 +200,14 @@ function useActiveService(
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize, { passive: true });
 
+    // Deferred to the next frame to avoid "ResizeObserver loop" warnings.
     const resizeObserver =
-      "ResizeObserver" in window ? new ResizeObserver(measure) : null;
+      "ResizeObserver" in window
+        ? new ResizeObserver(() => {
+          cancelAnimationFrame(observerFrame);
+          observerFrame = requestAnimationFrame(measure);
+        })
+        : null;
     stepsRef.current.forEach((step) => {
       if (step) resizeObserver?.observe(step);
     });
@@ -211,6 +215,7 @@ function useActiveService(
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
+      cancelAnimationFrame(observerFrame);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
       resizeObserver?.disconnect();
@@ -247,14 +252,16 @@ const ServiceArticle = memo(function ServiceArticle({
       id={service.key}
       tabIndex={-1}
       aria-labelledby={`${service.key}-title`}
-      className={`relative flex min-h-0 scroll-mt-28 flex-col justify-center py-10 outline-none transition-opacity duration-500 motion-reduce:transition-none sm:min-h-[62svh] min-[901px]:min-h-[90svh] min-[901px]:py-20 ${isActive ? "opacity-100" : "min-[901px]:opacity-40"
-        }`}
+      className={cn(
+        "relative flex min-h-0 scroll-mt-28 flex-col justify-center py-10 outline-none transition-opacity duration-500 motion-reduce:transition-none sm:min-h-[55svh] min-[901px]:min-h-[75svh] min-[901px]:py-20",
+        isActive ? "opacity-100" : "min-[901px]:opacity-60",
+      )}
     >
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <span className="text-xs font-semibold tracking-[0.18em] text-[#7a6032]">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <span className="text-xs font-semibold tracking-[0.18em] text-gold-ink">
           {service.num} / {service.label}
         </span>
-        <span className="text-xs tabular-nums text-[#002950]/60">
+        <span className="text-xs tabular-nums text-navy/70">
           {String(index + 1).padStart(2, "0")}
           {" — "}
           {String(total).padStart(2, "0")}
@@ -263,28 +270,28 @@ const ServiceArticle = memo(function ServiceArticle({
 
       <h2
         id={`${service.key}-title`}
-        className="max-w-2xl font-display text-[clamp(2rem,4vw,3.5rem)] font-medium leading-[1] tracking-[-0.02em] text-[#002950]"
+        className="max-w-2xl font-display text-[clamp(1.75rem,2.8vw,2.5rem)] font-medium leading-[1.1] tracking-[-0.015em] text-navy"
       >
         {service.title}
       </h2>
 
-      <p className="mt-8 max-w-xl text-base leading-8 text-[#5b6066] md:text-lg">
+      <p className="mt-6 max-w-xl text-base leading-8 text-ink md:text-lg">
         {service.intro}
       </p>
 
-      <div className="mt-12 border-t border-[#002950]/15">
+      <div className="mt-10 border-t border-navy/15">
         {service.items.map(([title, description], itemIndex) => (
           <div
             key={title}
-            className="grid gap-3 border-b border-[#002950]/10 py-6 md:grid-cols-[48px_0.8fr_1.2fr] md:gap-6"
+            className="grid gap-3 border-b border-navy/10 py-6 md:grid-cols-[48px_0.8fr_1.2fr] md:gap-6"
           >
-            <span className="text-xs font-medium tabular-nums text-[#7a6032]">
+            <span className="text-xs font-medium tabular-nums text-gold-ink">
               {String(itemIndex + 1).padStart(2, "0")}
             </span>
-            <h3 className="font-body text-sm font-semibold tracking-normal text-[#002950]">
+            <h3 className="font-body text-sm font-semibold tracking-normal text-navy">
               {title}
             </h3>
-            <p className="text-sm leading-7 text-[#5b6066]">{description}</p>
+            <p className="text-sm leading-7 text-ink">{description}</p>
           </div>
         ))}
       </div>
@@ -417,8 +424,6 @@ export default function ServicesOverview() {
     if (!current && active === SERVICE_KEYS[0]) return;
 
     try {
-      // Full path + search, not just "#hash": more reliable with Next's
-      // patched history API. Keep Next's own history.state for back/forward.
       window.history.replaceState(
         window.history.state,
         "",
@@ -433,12 +438,10 @@ export default function ServicesOverview() {
      Three states, switched with window.scrollY:
        before -> absolute, travels with the page until it reaches the middle
        pinned -> position: fixed in the middle, completely still
-       after  -> absolute near the bottom of the column (ASIDE_BOTTOM_GAP
-                 above it), released and scrolls away with the page
+       after  -> absolute near the bottom of the column, released
      Geometry is measured once (resize / ResizeObserver), the scroll handler
      only does arithmetic, and styles are written only when the state flips.
-     On mobile the aside is a fixed bottom bar styled purely with classes,
-     so this effect clears any inline styles and does nothing. */
+     On mobile the aside is a fixed bottom bar styled purely with classes. */
 
   useEffect(() => {
     const column = columnRef.current;
@@ -450,6 +453,7 @@ export default function ServicesOverview() {
     type Mode = "off" | "before" | "pinned" | "after";
     let mode: Mode | null = null;
     let frame = 0;
+    let observerFrame = 0;
 
     let colTop = 0; // column top in document space
     let colLeft = 0;
@@ -468,7 +472,6 @@ export default function ServicesOverview() {
     const update = () => {
       frame = 0;
 
-      // Mobile: the fixed bottom bar is handled by CSS classes.
       if (!desktop.matches) {
         if (mode !== "off") {
           reset();
@@ -514,10 +517,7 @@ export default function ServicesOverview() {
         colWidth = rect.width;
         centred = (window.innerHeight - asideH) / 2;
 
-        // Start: centred on the first service.
         minY = Math.max(0, (firstH - asideH) / 2);
-        // End: aside's bottom stops ASIDE_BOTTOM_GAP above the column's
-        // bottom, matching the padding of the service content.
         maxY = Math.max(minY, column.offsetHeight - asideH - ASIDE_BOTTOM_GAP);
       }
 
@@ -538,11 +538,17 @@ export default function ServicesOverview() {
     // Observe the column only: the aside is absolutely positioned inside it,
     // so it can't change the column's size, and observing both risks a loop.
     const resizeObserver =
-      "ResizeObserver" in window ? new ResizeObserver(measure) : null;
+      "ResizeObserver" in window
+        ? new ResizeObserver(() => {
+          cancelAnimationFrame(observerFrame);
+          observerFrame = requestAnimationFrame(measure);
+        })
+        : null;
     resizeObserver?.observe(column);
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
+      cancelAnimationFrame(observerFrame);
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", measure);
       desktop.removeEventListener("change", measure);
@@ -554,131 +560,210 @@ export default function ServicesOverview() {
 
   return (
     <>
-      <Nav />
-
       {/* No ancestor of the aside may set overflow (hidden/auto/scroll).
           Keep this <main> and every parent in layout.tsx free of it. */}
-      <main className="bg-[#F7F7F5] font-body text-[#16191c]">
+      <main className="bg-paper font-body text-[#16191c]">
         {/* ============================ HERO ============================ */}
-        {/* ============================ HERO ============================ */}
+        
+<section
+  className="
+    relative isolate flex min-h-[760px] items-center
+    overflow-hidden bg-paper text-navy
+    md:min-h-[820px] lg:min-h-[880px]
+  "
+  aria-labelledby="services-page-title"
+>
+  {/* Subtle architectural grid */}
+  <div
+    aria-hidden="true"
+    className="
+      pointer-events-none absolute inset-0
+      bg-[linear-gradient(rgba(0,41,80,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(0,41,80,0.025)_1px,transparent_1px)]
+      bg-[size:64px_64px]
+    "
+  />
 
+  {/* Architectural illustration */}
+  <div
+    aria-hidden="true"
+    className="
+      pointer-events-none absolute inset-y-0 right-0
+      z-0 w-full overflow-hidden
+      md:w-[65%] lg:w-[68%]
+    "
+  >
+    <img
+      src="/images/services_hero.svg"
+      alt=""
+      width={1600}
+      height={760}
+      loading="eager"
+      fetchPriority="low"
+      decoding="async"
+      className="
+        absolute inset-0 h-full w-full
+        object-contain object-right
+        opacity-35
+        md:opacity-75
+      "
+    />
 
-        <section
-          className="relative isolate flex min-h-[70svh] items-end overflow-hidden bg-[#F7F7F5] pb-12 pt-32 text-[#002950] md:min-h-[620px] md:pb-16"
-          aria-labelledby="services-page-title"
-        >
-          {/* Blueprint grid */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,41,80,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(0,41,80,0.018)_1px,transparent_1px)] bg-[size:80px_80px]"
-          />
+    {/* Blend illustration into text column */}
+    <div
+      className="
+        absolute inset-0
+        bg-gradient-to-r
+        from-paper via-paper/80 to-transparent
+        md:from-paper md:via-paper/55 md:to-transparent
+      "
+    />
 
-          {/* Architectural circles */}
-          {[450, 650].map((size, index) => (
-            <div
-              key={size}
-              aria-hidden="true"
-              className="pointer-events-none absolute -right-24 -top-32 rounded-full border border-[#002950]/10"
-              style={{
-                width: size,
-                height: size,
-                transform: index === 0 ? "translate(-48px, 48px)" : undefined,
-              }}
-            />
-          ))}
+    {/* Bottom fade */}
+    <div
+      className="
+        absolute inset-x-0 bottom-0 h-32
+        bg-gradient-to-t from-paper to-transparent
+      "
+    />
+  </div>
 
-          {/* Animated illustration */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-0 flex h-[38%] items-end justify-end overflow-hidden md:inset-y-0 md:left-auto md:right-0 md:h-full md:w-[58%]"
+  {/* Content */}
+  <div
+    className="
+      relative z-10 mx-auto grid w-full max-w-[1440px]
+      grid-cols-1 items-center
+      px-6 py-28
+      md:px-12 lg:grid-cols-[0.9fr_1.1fr]
+      lg:px-20
+    "
+  >
+    <div className="max-w-[570px]">
+
+      {/* Eyebrow */}
+      <div
+        className="
+          mb-10 flex items-center gap-4
+          motion-safe:animate-[hero-enter_.7s_ease-out_both]
+        "
+      >
+        <span className="h-px w-10 bg-gold" />
+
+        <span className="
+          text-[10px] font-semibold uppercase
+          tracking-[0.22em] text-navy/65
+        ">
+          PRO SOTA / O que fazemos
+        </span>
+      </div>
+
+      {/* Heading */}
+      <h1
+        id="services-page-title"
+        className="
+          font-display text-[clamp(3.5rem,6.5vw,6rem)]
+          font-medium leading-[0.98]
+          tracking-[-0.055em] text-navy
+          motion-safe:animate-[hero-enter_.8s_ease-out_both]
+        "
+      >
+        Serviços
+        <span className="
+          block font-normal italic
+          tracking-[-0.045em] text-gold-dark
+        ">
+          integrados.
+        </span>
+      </h1>
+
+      {/* Description */}
+      <p className="
+        mt-9 max-w-[430px]
+        text-sm leading-[1.9] text-ink/80
+        md:text-[15px]
+      ">
+        Da concepção à entrega, reunimos arquitectura,
+        engenharia, construção e fiscalização numa única
+        abordagem integrada, assegurando continuidade
+        entre o projecto, a execução e o acompanhamento
+        de cada obra.
+      </p>
+
+      {/* Centred CTA */}
+      {SERVICES.length > 0 && (
+        <div className="mt-12 flex w-full justify-center">
+          <a
+            href={`#${SERVICES[0].key}`}
+            onClick={(event) => {
+              event.preventDefault();
+              goToService(0);
+            }}
+            aria-label="Explorar os serviços"
+            className="
+              group flex size-14 items-center justify-center
+              rounded-full border border-navy/30
+              text-navy
+              transition-all duration-300
+              hover:-translate-y-1 hover:border-gold-dark
+              hover:bg-navy hover:text-paper
+              focus-visible:outline-none
+              focus-visible:ring-2 focus-visible:ring-gold-dark
+              focus-visible:ring-offset-4
+              focus-visible:ring-offset-paper
+              motion-reduce:transition-none
+            "
           >
-            <img
-              src="/images/services/pro-sota-servicos-vector-animado.svg"
-              alt=""
-              width={1200}
-              height={760}
-              loading="eager"
-              fetchPriority="high"
-              decoding="async"
-              className="h-full w-full object-contain object-right-bottom opacity-30 md:opacity-65"
-            />
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              className="
+                size-5 transition-transform duration-300
+                group-hover:translate-y-0.5
+                motion-reduce:transition-none
+              "
+            >
+              <path
+                d="M12 4v16m-7-7 7 7 7-7"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </a>
+        </div>
+      )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-[#F7F7F5]/70 via-transparent to-transparent md:hidden" />
+    </div>
 
-            <div className="absolute inset-y-0 left-0 hidden w-[30%] bg-gradient-to-r from-[#F7F7F5] to-transparent md:block" />
-          </div>
+    {/* Right column reserved for illustration */}
+    <div
+      aria-hidden="true"
+      className="hidden lg:block"
+    />
+  </div>
 
-          {/* Content */}
-          <div className="relative z-10 mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20">
-            <div className="mb-8 flex items-center gap-4">
-              <span className="h-px w-10 bg-[#BD9655]" />
+  {/* Bottom reference */}
+  <div className="
+    pointer-events-none absolute bottom-7
+    left-6 right-6 z-10 flex items-center
+    justify-between md:left-12 md:right-12 lg:left-20 lg:right-20
+  ">
+    <span className="
+      text-[9px] font-medium uppercase
+      tracking-[0.18em] text-navy/45
+    ">
+      Arquitectura · Engenharia · Construção
+    </span>
 
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#002950]/70">
-                PRO SOTA / O que fazemos
-              </span>
-            </div>
-
-            <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-              {/* Heading */}
-              <h1
-                id="services-page-title"
-                className="max-w-4xl font-display text-[clamp(2.75rem,6.5vw,5.5rem)] font-medium leading-[1] tracking-[-0.03em] text-[#002950] motion-safe:animate-[hero-enter_.8s_ease-out_both]"
-              >
-                Serviços
-                <span className="block font-normal italic text-[#BD9655]">
-                  integrados.
-                </span>
-              </h1>
-
-              {/* Description */}
-              <div className="max-w-md lg:justify-self-end">
-                <p className="text-sm leading-8 text-[#5b6066] md:text-base">
-                  Da concepção à entrega, reunimos arquitectura, engenharia,
-                  construção e fiscalização numa única abordagem integrada,
-                  assegurando continuidade entre o projecto, a execução
-                  e o acompanhamento de cada obra.
-                </p>
-
-                {/* CTA */}
-                {SERVICES.length > 0 && (
-                  <div className="mt-8">
-                    <a
-                      href={`#${SERVICES[0].key}`}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        goToService(0);
-                      }}
-                      className="group inline-flex items-center gap-4 text-xs font-semibold tracking-[0.18em] text-[#002950] transition-colors hover:text-[#8F6F36] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8F6F36] focus-visible:ring-offset-4 focus-visible:ring-offset-[#F7F7F5]"
-                    >
-                      Explorar serviços
-
-                      <span
-                        aria-hidden="true"
-                        className="flex size-9 items-center justify-center rounded-full border border-[#002950]/25 text-base transition-all duration-300 group-hover:translate-y-1 group-hover:border-[#8F6F36] group-hover:text-[#8F6F36] motion-reduce:transition-none"
-                      >
-                        ↓
-                      </span>
-                    </a>
-                  </div>
-                )}
-
-                {/* Statistics */}
-                <div className="mt-9 flex items-center gap-5 border-t border-[#002950]/15 pt-5">
-                  <span className="font-display text-2xl font-medium text-[#8F6F36]">
-                    {String(SERVICES.length).padStart(2, "0")}
-                  </span>
-
-                  <span className="h-px flex-1 bg-[#002950]/15" />
-
-                  <span className="text-xs tracking-[0.15em] text-[#002950]/70">
-                    Áreas de especialização
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
+    <span className="
+      text-[9px] font-medium tabular-nums
+      tracking-[0.15em] text-navy/45
+    ">
+      01 / 04
+    </span>
+  </div>
+</section>
 
 
         {/* ===================== SERVICES SCROLL ===================== */}
@@ -717,27 +802,20 @@ export default function ServicesOverview() {
                 <aside
                   ref={visualRef}
                   aria-label="Navegação dos serviços"
-                  className={`
-                    fixed inset-x-0 bottom-0 z-30 block border-t border-[#002950]/10
-                    bg-[#F7F7F5]/95 px-6 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur
-                    transition-transform duration-300 motion-reduce:transition-none
-                    ${inServices ? "translate-y-0" : "translate-y-full"}
-                    min-[901px]:absolute min-[901px]:inset-auto min-[901px]:left-0 min-[901px]:top-0
-                    min-[901px]:z-auto min-[901px]:w-full min-[901px]:translate-y-0
-                    min-[901px]:border-0 min-[901px]:bg-[#051221] min-[901px]:p-0 min-[901px]:backdrop-blur-none
-                    min-[901px]:h-[70svh] min-[901px]:max-h-[640px] min-[901px]:min-h-[480px]
-                    min-[901px]:overflow-hidden
-                  `}
+                  className={cn(
+                    ASIDE_MOBILE,
+                    inServices ? "translate-y-0" : "translate-y-full",
+                    ASIDE_DESKTOP,
+                  )}
                 >
-                  {/* 3D stage: desktop only, never mounted on mobile */}
+                  {/* 3D stage: desktop only, never mounted on mobile.
+                      The whole stage is decorative, so it is hidden from
+                      assistive tech as one unit. */}
                   {!isMobile && (
-                    <>
-                      {/* Static decorative layer: promoted to its own layer so
-                          the large radial mask isn't repainted with the scenes. */}
-                      <div
-                        aria-hidden="true"
-                        className="absolute inset-0 transform-gpu opacity-50 [background-image:linear-gradient(rgba(226,198,144,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(226,198,144,0.18)_1px,transparent_1px)] [background-size:46px_46px] [mask-image:radial-gradient(70%_70%_at_50%_55%,black,transparent)]"
-                      />
+                    <div aria-hidden="true" className="absolute inset-0">
+                      {/* Static decorative layer on its own GPU layer so the
+                          large radial mask isn't repainted with the scenes. */}
+                      <div className="absolute inset-0 transform-gpu opacity-50 [background-image:linear-gradient(rgba(226,198,144,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(226,198,144,0.18)_1px,transparent_1px)] [background-size:46px_46px] [mask-image:radial-gradient(70%_70%_at_50%_55%,black,transparent)]" />
 
                       {SERVICES.map((service) => {
                         const key = service.key as ServiceKey;
@@ -749,42 +827,37 @@ export default function ServicesOverview() {
                         return (
                           <div
                             key={service.key}
-                            aria-hidden={!isActive}
                             ref={(node) => {
                               if (node) node.inert = !isActive;
                             }}
-                            className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 motion-reduce:transition-none ${isActive
-                              ? "opacity-100"
-                              : "pointer-events-none opacity-0"
-                              }`}
+                            className={cn(
+                              "absolute inset-0 flex items-center justify-center transition-opacity duration-500 motion-reduce:transition-none",
+                              isActive
+                                ? "opacity-100"
+                                : "pointer-events-none opacity-0",
+                            )}
                           >
-                            <span
-                              aria-hidden="true"
-                              className="absolute left-6 top-6 font-display text-sm font-semibold tracking-[0.15em] text-[#e2c690]"
-                            >
+                            <span className="absolute left-6 top-6 font-display text-sm font-semibold tracking-[0.15em] text-gold-light">
                               {service.num}
                             </span>
 
-                            <div
-                              aria-hidden="true"
-                              className="relative size-[310px] [transform-style:preserve-3d] [transform:rotateX(42deg)_rotateZ(-38deg)]"
-                            >
+                            <div className="relative size-[310px] [transform-style:preserve-3d] [transform:rotateX(42deg)_rotateZ(-38deg)]">
                               {shouldMount && <Scene />}
                             </div>
 
-                            <b className="absolute bottom-20 left-6 font-display text-2xl font-semibold uppercase tracking-tight text-[#f3efe6]">
+                            <b className="absolute bottom-20 left-6 font-display text-lg font-semibold uppercase tracking-tight text-cream/90">
                               {service.title}
                             </b>
                           </div>
                         );
                       })}
-                    </>
+                    </div>
                   )}
 
                   {/* Progress navigation */}
                   <nav
                     aria-label="Escolher área de serviço"
-                    className="relative flex items-center justify-between gap-4 text-xs text-[#002950] min-[901px]:absolute min-[901px]:inset-x-6 min-[901px]:bottom-6 min-[901px]:text-white/80"
+                    className="relative flex items-center justify-between gap-4 text-xs text-navy min-[901px]:absolute min-[901px]:inset-x-6 min-[901px]:bottom-6 min-[901px]:text-white/80"
                   >
                     <div className="flex items-center gap-2">
                       {SERVICES.map((service, index) => {
@@ -798,14 +871,16 @@ export default function ServicesOverview() {
                             aria-current={isActive ? "step" : undefined}
                             aria-controls={service.key}
                             onClick={() => goToService(index)}
-                            className="group/dot flex h-8 items-center px-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BD9655] focus-visible:ring-offset-2"
+                            className="group/dot flex h-8 items-center px-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2"
                           >
                             <span
                               aria-hidden="true"
-                              className={`block h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none ${isActive
-                                ? "w-10 bg-[#BD9655]"
-                                : "w-6 bg-[#002950]/25 group-hover/dot:bg-[#002950]/50 min-[901px]:bg-white/25 min-[901px]:group-hover/dot:bg-white/50"
-                                }`}
+                              className={cn(
+                                "block h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none",
+                                isActive
+                                  ? "w-10 bg-gold"
+                                  : "w-6 bg-navy/25 group-hover/dot:bg-navy/50 min-[901px]:bg-white/25 min-[901px]:group-hover/dot:bg-white/50",
+                              )}
                             />
                           </button>
                         );
@@ -813,7 +888,7 @@ export default function ServicesOverview() {
                     </div>
 
                     <p className="tabular-nums">
-                      <span className="font-semibold text-[#7a6032] min-[901px]:text-[#e2c690]">
+                      <span className="font-semibold text-gold-ink min-[901px]:text-gold-light">
                         {String(currentNumber).padStart(2, "0")}
                       </span>
                       {" / "}
@@ -833,8 +908,6 @@ export default function ServicesOverview() {
         {/* ========================== CONTACT ========================== */}
         <Contact />
       </main>
-
-      <Footer />
     </>
   );
 }
