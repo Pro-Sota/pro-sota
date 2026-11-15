@@ -667,12 +667,6 @@ export default function ServicesOverview() {
         "
       >
         Serviços
-        <span className="
-          block font-normal italic
-          tracking-[-0.045em] text-gold-dark
-        ">
-          integrados.
-        </span>
       </h1>
 
       {/* Description */}
