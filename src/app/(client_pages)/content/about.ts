@@ -1,5 +1,5 @@
-export const projectsCount = "11+";
-export const countriesCount = "3";
+export const projectsCount = "95+";
+export const countriesCount = "98%";
 
 export const values = [
   { title: "Rigor", description: "Trabalhamos com precisão, responsabilidade e atenção ao detalhe em todas as fases de cada projecto." },

@@ -1,50 +1,39 @@
+
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
 
 export default function CustomSelect({
     children,
-    onMouseDown,
-    onBlur,
-    onChange,
-    onKeyDown,
+    className = "",
     ...props
 }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-    const [open, setOpen] = useState(false);
-
-    const inputStyle =
-        "w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#1B3A5C] focus:ring-2 focus:ring-[#1B3A5C]/10";
-
     return (
         <div className="relative">
             <select
                 {...props}
-                className={`${inputStyle} appearance-none pr-10`}
-                onMouseDown={(e) => {
-                    setOpen((prev) => !prev);
-                    onMouseDown?.(e);
-                }}
-                onChange={(e) => {
-                    setOpen(false);
-                    onChange?.(e);
-                }}
-                onBlur={(e) => {
-                    setOpen(false);
-                    onBlur?.(e);
-                }}
-                onKeyDown={(e) => {
-                    if (e.key === "Escape" || e.key === "Enter") setOpen(false);
-                    onKeyDown?.(e);
-                }}
+                className={`
+        w-full appearance-none rounded-lg
+        border border-white/15
+        bg-white/[0.06]
+        px-4 py-3 pr-10
+        text-sm text-[#F7F7F5]
+        outline-none
+        transition-colors duration-200
+        hover:border-white/25
+        focus:border-[#BD9655]
+        focus:ring-2 focus:ring-[#BD9655]/15
+        disabled:cursor-not-allowed
+        disabled:opacity-50
+        ${className}
+    `}
             >
                 {children}
             </select>
 
             <ChevronDown
-                className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-transform duration-200 ${
-                    open ? "rotate-180" : ""
-                }`}
+                aria-hidden="true"
+                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#BD9655]"
             />
         </div>
     );

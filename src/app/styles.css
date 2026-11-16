@@ -1519,6 +1519,18 @@ button:focus-visible {
   }
 }
 
+@media (max-width: 640px) {
+  .contact h2 {
+    font-size: clamp(32px, 8vw, 42px);
+    line-height: 1.06;
+    max-width: 20ch;
+  }
+
+  .contact__grid {
+    background-size: 44px 44px;
+  }
+}
+
 .contact {
   background: var(--navy-deep);
   color: var(--cream);
@@ -1534,9 +1546,17 @@ button:focus-visible {
 .contact__grid {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(var(--line-dark) 1px, transparent 1px), linear-gradient(90deg, var(--line-dark) 1px, transparent 1px);
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--line-dark) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-dark) 1px, transparent 1px);
   background-size: 64px 64px;
-  mask-image: radial-gradient(60% 60% at 50% 40%, black, transparent 80%);
+  mask-image: radial-gradient(
+    60% 60% at 50% 40%,
+    black,
+    transparent 80%
+  );
+  opacity: 0.7;
 }
 
 .contact__inner {
@@ -1545,10 +1565,13 @@ button:focus-visible {
 }
 
 .contact h2 {
-  font-size: clamp(44px, 6vw, 82px);
-  line-height: .94;
+  position: relative;
+  font-size: clamp(34px, 4.2vw, 58px);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
   text-transform: uppercase;
-  max-width: 22ch;
+  font-weight: 800;
+  max-width: 24ch;
   color: var(--cream);
 }
 

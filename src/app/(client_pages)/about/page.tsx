@@ -132,28 +132,28 @@ export default function AboutPage() {
   const currentYear = new Date().getFullYear();
   const years = Math.max(1, currentYear - site.founded);
 
-  const stats = [
-    {
-      value: `${years}+`,
-      label: "Anos de experiência",
-      index: "01",
-    },
-    {
-      value: projectsCount,
-      label: "Grandes projectos",
-      index: "02",
-    },
-    {
-      value: countriesCount,
-      label: "Países com projectos",
-      index: "03",
-    },
-    {
-      value: expertise.length,
-      label: "Áreas de especialidade",
-      index: "04",
-    },
-  ];
+const stats = [
+  {
+    value: projectsCount,
+    label: "Projectos e obras acabadas",
+    index: "01",
+  },
+  {
+    value: `${years}+`,
+    label: "Anos de experiência",
+    index: "02",
+  },
+  {
+    value: countriesCount,
+    label: "Taxa de entrega dentro do prazo",
+    index: "03",
+  },
+  {
+    value: expertise.length,
+    label: "Áreas de especialidade",
+    index: "04",
+  },
+];
 
   return (
     <main id="main" className="relative z-0 bg-paper text-navy">

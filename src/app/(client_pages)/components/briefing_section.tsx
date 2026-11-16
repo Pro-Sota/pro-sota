@@ -1,42 +1,64 @@
 
+"use client";
+
 import Link from "next/link";
+import { useId } from "react";
 
 export default function BriefingSection() {
+  const gradientId = useId().replace(/:/g, "");
+
   return (
     <section
       id="briefing"
       aria-labelledby="briefing-title"
       className="relative overflow-hidden bg-[#F7F7F5] text-[#002950]"
     >
-      <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-10 px-6 py-20 md:px-12 md:py-28 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-20 lg:px-20">
+      <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-y-8 px-6 py-14 md:gap-y-10 md:px-12 md:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[auto_auto] lg:items-center lg:gap-x-16 lg:gap-y-5 lg:px-20">
 
-        {/* Architectural visual — first on mobile */}
-        <div className="relative order-1 min-h-[300px] overflow-hidden border border-[#002950]/10 bg-[#FDFCFA] sm:min-h-[380px] lg:order-2 lg:min-h-[480px]">
+        {/* Heading — first on mobile */}
+        <div className="relative z-10 lg:col-start-1 lg:row-start-1">
+          <div className="mb-6 flex items-center gap-3 sm:mb-7">
+            <span className="h-px w-8 bg-[#BD9655]" />
+
+            <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#BD9655]">
+              O próximo passo começa aqui
+            </span>
+          </div>
+
+          <h2
+            id="briefing-title"
+            className="max-w-2xl text-[clamp(2.25rem,4.5vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.05em]"
+          >
+            Tem um projecto
+            <br />
+            <span className="font-light text-[#BD9655]">
+              em mente?
+            </span>
+          </h2>
+        </div>
+
+        {/* Architectural visual — after heading on mobile */}
+        <div className="relative min-h-[280px] overflow-hidden border border-[#002950]/10 bg-[#FDFCFA] sm:min-h-[360px] lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:min-h-[480px] lg:h-full">
 
           {/* Technical drawing grid */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 opacity-[0.12]"
-            style={{
-              backgroundImage:
-                "linear-gradient(#002950 1px, transparent 1px), linear-gradient(90deg, #002950 1px, transparent 1px)",
-              backgroundSize: "28px 28px",
-            }}
+            className="absolute inset-0 opacity-[0.07]
+              [background-image:linear-gradient(to_right,#002950_1px,transparent_1px),linear-gradient(to_bottom,#002950_1px,transparent_1px)]
+              [background-size:36px_36px]"
           />
 
           {/* Soft architectural atmosphere */}
           <div
             aria-hidden="true"
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(ellipse at 50% 48%, rgba(189,150,85,0.10), transparent 65%)",
-            }}
+            className="absolute inset-0
+              [background:radial-gradient(ellipse_at_50%_48%,rgba(189,150,85,0.12),transparent_68%)]"
           />
 
           {/* Drawing label */}
           <div className="absolute left-5 top-5 z-10 flex items-center gap-2 sm:left-7 sm:top-7">
             <span className="h-1.5 w-1.5 rounded-full bg-[#BD9655]" />
+
             <span className="text-[9px] font-medium uppercase tracking-[0.2em] text-[#002950]/65">
               PRO SOTA · ESTUDO ARQUITECTÓNICO
             </span>
@@ -48,16 +70,29 @@ export default function BriefingSection() {
               viewBox="0 0 620 460"
               role="img"
               aria-label="Ilustração técnica de um edifício contemporâneo"
-              className="h-auto w-full max-w-[560px]"
+              className="h-auto w-full max-w-[520px]"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
-                <linearGradient id="briefingFacade" x1="0" y1="0" x2="1" y2="1">
+                <linearGradient
+                  id={`${gradientId}-facade`}
+                  x1="0"
+                  y1="0"
+                  x2="1"
+                  y2="1"
+                >
                   <stop offset="0" stopColor="#002950" stopOpacity=".025" />
                   <stop offset="1" stopColor="#002950" stopOpacity=".12" />
                 </linearGradient>
-                <linearGradient id="briefingGlass" x1="0" y1="0" x2="1" y2="1">
+
+                <linearGradient
+                  id={`${gradientId}-glass`}
+                  x1="0"
+                  y1="0"
+                  x2="1"
+                  y2="1"
+                >
                   <stop offset="0" stopColor="#BD9655" stopOpacity=".06" />
                   <stop offset="1" stopColor="#002950" stopOpacity=".13" />
                 </linearGradient>
@@ -83,10 +118,11 @@ export default function BriefingSection() {
               {/* Main building volume */}
               <path
                 d="M115 188 L310 295 L310 391 L115 284 Z"
-                fill="url(#briefingFacade)"
+                fill={`url(#${gradientId}-facade)`}
                 stroke="#002950"
                 strokeWidth="1.5"
               />
+
               <path
                 d="M310 295 L505 188 L505 284 L310 391 Z"
                 fill="#002950"
@@ -102,12 +138,14 @@ export default function BriefingSection() {
                 stroke="#002950"
                 strokeWidth="1.5"
               />
+
               <path
                 d="M176 150 L310 223 L310 292 L176 219 Z"
-                fill="url(#briefingFacade)"
+                fill={`url(#${gradientId}-facade)`}
                 stroke="#002950"
                 strokeWidth="1.3"
               />
+
               <path
                 d="M310 223 L444 150 L444 219 L310 292 Z"
                 fill="#002950"
@@ -119,13 +157,14 @@ export default function BriefingSection() {
               {/* Upper left windows */}
               <path
                 d="M194 155 L242 181 L242 229 L194 203 Z"
-                fill="url(#briefingGlass)"
+                fill={`url(#${gradientId}-glass)`}
                 stroke="#002950"
                 strokeWidth="1.1"
               />
+
               <path
                 d="M251 186 L293 209 L293 257 L251 234 Z"
-                fill="url(#briefingGlass)"
+                fill={`url(#${gradientId}-glass)`}
                 stroke="#002950"
                 strokeWidth="1.1"
               />
@@ -133,13 +172,14 @@ export default function BriefingSection() {
               {/* Upper right windows */}
               <path
                 d="M329 209 L376 184 L376 232 L329 257 Z"
-                fill="url(#briefingGlass)"
+                fill={`url(#${gradientId}-glass)`}
                 stroke="#002950"
                 strokeWidth="1.1"
               />
+
               <path
                 d="M389 176 L427 155 L427 203 L389 224 Z"
-                fill="url(#briefingGlass)"
+                fill={`url(#${gradientId}-glass)`}
                 stroke="#002950"
                 strokeWidth="1.1"
               />
@@ -147,32 +187,46 @@ export default function BriefingSection() {
               {/* Lower left facade divisions */}
               <path
                 d="M137 219 L180 242 L180 319 L137 296 Z"
-                fill="url(#briefingGlass)"
+                fill={`url(#${gradientId}-glass)`}
                 stroke="#002950"
                 strokeWidth="1.1"
               />
+
               <path
                 d="M193 250 L265 289 L265 365 L193 326 Z"
-                fill="url(#briefingGlass)"
+                fill={`url(#${gradientId}-glass)`}
                 stroke="#002950"
                 strokeWidth="1.1"
               />
-              <path d="M229 270 V346" stroke="#002950" strokeWidth="1" opacity=".65" />
+
+              <path
+                d="M229 270 V346"
+                stroke="#002950"
+                strokeWidth="1"
+                opacity=".65"
+              />
 
               {/* Lower right facade divisions */}
               <path
                 d="M334 308 L382 282 L382 359 L334 385 Z"
-                fill="url(#briefingGlass)"
+                fill={`url(#${gradientId}-glass)`}
                 stroke="#002950"
                 strokeWidth="1.1"
               />
+
               <path
                 d="M400 272 L482 228 L482 305 L400 350 Z"
-                fill="url(#briefingGlass)"
+                fill={`url(#${gradientId}-glass)`}
                 stroke="#002950"
                 strokeWidth="1.1"
               />
-              <path d="M441 250 V327" stroke="#002950" strokeWidth="1" opacity=".65" />
+
+              <path
+                d="M441 250 V327"
+                stroke="#002950"
+                strokeWidth="1"
+                opacity=".65"
+              />
 
               {/* Structural details */}
               <g stroke="#002950" strokeWidth="1.1" opacity=".65">
@@ -232,53 +286,40 @@ export default function BriefingSection() {
               <p className="text-[8px] uppercase tracking-[0.2em] text-[#002950]/45">
                 Da ideia à realidade
               </p>
+
               <p className="mt-1 text-[10px] font-medium text-[#002950] sm:text-xs">
                 Arquitectura · Engenharia · Construção
               </p>
             </div>
+
             <span className="text-[9px] tracking-widest text-[#BD9655]">
               PS — 01
             </span>
           </div>
         </div>
 
-        {/* Content — second on mobile */}
-        <div className="relative z-10 order-2 lg:order-1">
-          <div className="mb-7 flex items-center gap-3">
-            <span className="h-px w-8 bg-[#BD9655]" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#BD9655]">
-              O próximo passo começa aqui
-            </span>
-          </div>
-
-          <h2
-            id="briefing-title"
-            className="max-w-3xl text-[clamp(3rem,6.5vw,6.5rem)] font-semibold leading-[0.94] tracking-[-0.055em]"
-          >
-            Tem um projecto
-            <br />
-            <span className="font-light text-[#BD9655]">
-              em mente?
-            </span>
-          </h2>
-
-          <p className="mt-7 max-w-xl text-base leading-8 text-[#002950]/70 md:text-lg">
-            Cada projecto começa com uma ideia. Partilhe connosco a sua visão,
-            as características do espaço e os seus objectivos. Queremos
-            compreender as suas necessidades para encontrar a melhor solução.
+        {/* Supporting content and CTA */}
+        <div className="relative z-10 lg:col-start-1 lg:row-start-2">
+          <p className="max-w-lg text-sm leading-7 text-[#002950]/70 sm:text-[15px] sm:leading-8">
+            Partilhe connosco a sua ideia, os seus objectivos e as
+            características do projecto. A nossa equipa irá analisar as
+            suas necessidades para desenvolver uma solução adequada à sua
+            visão.
           </p>
 
-          <div className="mt-9 flex flex-wrap items-center gap-5">
+          <div className="mt-7 flex flex-wrap items-center gap-5 sm:mt-9">
             <Link
               href="/project-briefing"
-              className="group inline-flex min-h-[56px] items-center gap-8 bg-[#002950] px-6 text-sm font-medium text-white transition-colors duration-300 hover:bg-[#BD9655] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#BD9655]"
+              className="group inline-flex min-h-[50px] items-center gap-7 bg-[#002950] px-5 text-[13px] font-medium text-white transition-colors duration-300 hover:bg-[#BD9655] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#BD9655]"
             >
               <span>Iniciar briefing</span>
+
               <span
                 aria-hidden="true"
                 className="relative h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1"
               >
                 <span className="absolute right-0 top-0 h-2.5 w-2.5 border-r border-t border-white" />
+
                 <span className="absolute bottom-[2px] right-0 h-px w-3 -rotate-45 origin-right bg-white" />
               </span>
             </Link>

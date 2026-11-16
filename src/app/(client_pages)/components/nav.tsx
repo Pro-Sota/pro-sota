@@ -8,9 +8,10 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { label: "Início", href: "/" },
-  { label: "Sobre", href: "/about" },
-  { label: "Serviços", href: "/services" },
+  { label: "Sobre nós", href: "/about" },
   { label: "Projectos", href: "/projects" },
+  { label: "Serviços", href: "/services" },
+
 ];
 
 const MIN_PROGRESS_DURATION = 1200;

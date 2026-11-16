@@ -2,15 +2,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type {
-  ChangeEvent,
-  FormEvent,
-} from "react";
+import type { ChangeEvent, FormEvent } from "react";
+import Link from "next/link";
 
 import { submitContact } from "@/actions/contact_submission";
 import CustomSelect from "@/app/components/custom_select";
 import { useToast } from "@/app/components/toast/use_toast";
-import Link from "next/link";
 
 export default function Contact() {
   const [status, setStatus] = useState("");
@@ -18,10 +15,8 @@ export default function Contact() {
   const [imageName, setImageName] = useState("");
 
   const imageInput = useRef<HTMLInputElement>(null);
-
   const toast = useToast();
 
-  // Actualiza o nome da imagem seleccionada.
   function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
@@ -30,11 +25,7 @@ export default function Contact() {
 
     if (!file) return;
 
-    const allowedTypes = [
-      "image/png",
-      "image/jpeg",
-      "image/webp",
-    ];
+    const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
 
     if (!allowedTypes.includes(file.type)) {
       setStatus("Seleccione uma imagem PNG, JPEG ou WebP.");
@@ -50,7 +41,6 @@ export default function Contact() {
     }
   }
 
-  // Envia os dados directamente para a Server Action.
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -68,7 +58,6 @@ export default function Contact() {
       }
 
       const formData = new FormData(form);
-
       const result = await submitContact(formData);
 
       if (!result.success) {
@@ -76,8 +65,9 @@ export default function Contact() {
           result.error || "Não foi possível enviar o pedido."
         );
       }
+
       toast.success(
-          "Pedido enviado com sucesso! Entraremos em contacto consigo em breve.",
+        "Pedido enviado com sucesso! Entraremos em contacto consigo em breve."
       );
 
       form.reset();
@@ -97,33 +87,56 @@ export default function Contact() {
     }
   }
 
-  return (
-    <section className="contact" id="contacto">
-      <div className="contact__grid" />
+  const inputClass =
+    "mt-2 min-h-11 w-full rounded-sm border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-[#F7F7F5] outline-none transition-colors placeholder:text-white/35 focus:border-[#BD9655] disabled:cursor-not-allowed disabled:opacity-50";
 
-      <div className="wrap contact__inner">
-        <p
-          className="section-label"
-          style={{ color: "var(--gold-light)" }}
-        >
+  const labelClass =
+    "block min-w-0 text-xs font-medium tracking-wide text-[#F7F7F5]/75";
+
+  const contactLinkClass =
+    "block w-fit text-sm text-[#F7F7F5]/85 transition-colors hover:text-[#BD9655]";
+
+  return (
+    <section
+      id="contacto"
+      className="relative isolate overflow-hidden bg-[#101D2A] text-[#F7F7F5] py-8"
+    >
+      {/* Architectural background grid */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.14]
+          [background-image:linear-gradient(to_right,rgba(247,247,245,0.2)_1px,transparent_1px),linear-gradient(to_bottom,rgba(247,247,245,0.2)_1px,transparent_1px)]
+          [background-size:64px_64px]
+          [mask-image:radial-gradient(ellipse_at_center,black_15%,transparent_85%)]"
+      />
+
+      <div className="wrap relative z-10">
+        <p className="section-label !text-[#BD9655]">
           Vamos conversar
         </p>
 
-        <h2>
-          Prontos para construir <em>o futuro</em> consigo.
+        <h2 className="mt-4 max-w-2xl text-[clamp(1.625rem,3vw,2.625rem)] font-bold uppercase leading-[1.08] tracking-[-0.035em]">
+          Prontos para construir{" "}
+          <em className="not-italic text-[#BD9655]">
+            o futuro
+          </em>{" "}
+          consigo.
         </h2>
 
-        <div className="contact__content">
+        <div className="mt-12 grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,1.6fr)_minmax(220px,0.65fr)] lg:gap-16 xl:gap-20">
           <form
-            className="contact-form"
+            className="min-w-0"
             onSubmit={handleSubmit}
           >
-            <h3>Peça um orçamento</h3>
+            <h3 className="mb-7 text-lg font-medium tracking-tight text-[#F7F7F5]">
+              Peça um orçamento
+            </h3>
 
-            <div className="contact-form__grid">
-              <label>
+            <div className="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-2">
+              <label className={labelClass}>
                 Nome *
                 <input
+                  className={inputClass}
                   name="name"
                   type="text"
                   required
@@ -133,9 +146,10 @@ export default function Contact() {
                 />
               </label>
 
-              <label>
+              <label className={labelClass}>
                 Email (opcional)
                 <input
+                  className={inputClass}
                   name="email"
                   type="email"
                   maxLength={200}
@@ -144,9 +158,10 @@ export default function Contact() {
                 />
               </label>
 
-              <label>
+              <label className={labelClass}>
                 Telefone *
                 <input
+                  className={inputClass}
                   name="phone"
                   type="tel"
                   required
@@ -156,7 +171,7 @@ export default function Contact() {
                 />
               </label>
 
-              <label>
+              <label className={labelClass}>
                 Tipo de serviço *
                 <CustomSelect
                   name="service"
@@ -167,48 +182,45 @@ export default function Contact() {
                   <option value="" disabled>
                     Seleccione
                   </option>
-                  <option value="Arquitectura">
-                    Arquitectura
-                  </option>
-                  <option value="Engenharia">
-                    Engenharia
-                  </option>
-                  <option value="Construção">
-                    Construção
-                  </option>
-                  <option value="Fiscalização e consultoria">
+                  <option value="Arquitectura" className="text-black">Arquitectura</option>
+                  <option value="Engenharia" className="text-black">Engenharia</option>
+                  <option value="Construção" className="text-black">Construção</option>
+                  <option value="Fiscalização e consultoria" className="text-black">
                     Fiscalização e consultoria
                   </option>
-                  <option value="Outro">
-                    Outro
-                  </option>
+                  <option value="Outro" className="text-black">Outro</option>
                 </CustomSelect>
               </label>
 
-              <label>
-                Urgência (opcional)
+              <label className={labelClass}>
+                Prazo previsto (opcional)
                 <CustomSelect
                   name="urgency"
                   defaultValue=""
                   disabled={busy}
                 >
-                  <option value="">
-                    Sem prazo definido
+                  <option value="" className="text-black">
+                    Ainda por definir
                   </option>
-                  <option value="Imediata">
-                    Imediata
+                  <option value="Imediato" className="text-black">
+                    O mais breve possível
                   </option>
-                  <option value="Até 1 mês">
-                    Até 1 mês
+                  <option value="Até 1 mês" className="text-black">
+                    Nos próximos 30 dias
                   </option>
-                  <option value="1 a 3 meses">
-                    1 a 3 meses
+                  <option value="1 a 3 meses" className="text-black">
+                    Dentro de 1 a 3 meses
+                  </option>
+                  <option value="Mais de 3 meses" className="text-black">
+                    Daqui a mais de 3 meses
                   </option>
                 </CustomSelect>
               </label>
 
-              <div className="contact-form__upload">
-                <span>Imagem opcional</span>
+              <div className="min-w-0">
+                <span className={labelClass}>
+                  Imagem opcional
+                </span>
 
                 <input
                   ref={imageInput}
@@ -222,7 +234,7 @@ export default function Contact() {
 
                 <button
                   type="button"
-                  className="contact-form__file-button"
+                  className="mt-2 flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm border border-dashed border-white/25 bg-white/[0.03] px-3 text-left text-sm text-[#F7F7F5]/70 transition-colors hover:border-[#BD9655] hover:text-[#BD9655] disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label={
                     imageName
                       ? `Alterar imagem: ${imageName}`
@@ -231,49 +243,92 @@ export default function Contact() {
                   disabled={busy}
                   onClick={() => imageInput.current?.click()}
                 >
-                  {imageName || "Escolher imagem"}
+                  <span className="shrink-0 text-[#BD9655]">
+                    +
+                  </span>
+                  <span className="truncate">
+                    {imageName || "Escolher imagem"}
+                  </span>
                 </button>
               </div>
             </div>
 
-            <label>
+            <label className={`${labelClass} mt-6`}>
               Mensagem (opcional)
               <textarea
+                className="mt-2 min-h-28 w-full resize-y rounded-sm border border-white/15 bg-white/[0.04] px-3 py-3 text-sm text-[#F7F7F5] outline-none transition-colors placeholder:text-white/35 focus:border-[#BD9655] disabled:cursor-not-allowed disabled:opacity-50"
                 name="message"
-                rows={2}
+                rows={3}
                 maxLength={4000}
                 disabled={busy}
               />
             </label>
 
-            <button
-              type="submit"
-              className="contact__cta"
-              disabled={busy}
-            >
-              {busy ? "A enviar…" : "Enviar pedido →"}
-            </button>
+            <div className="mt-6 flex flex-wrap items-center gap-4">
+              <button
+                type="submit"
+                className="inline-flex min-h-11 items-center justify-center bg-[#BD9655] px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#002950] transition-colors hover:bg-[#D0AD76] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={busy}
+              >
+                {busy ? "A enviar…" : "Enviar pedido →"}
+              </button>
 
-            <p role="status" aria-live="polite">
-              {status}
-            </p>
+              <p
+                className="text-xs text-red-200"
+                role="status"
+                aria-live="polite"
+              >
+                {status}
+              </p>
+            </div>
           </form>
-        </div>
 
-        <div className="contact-links">
-          <p>Contactos</p>
+          <aside className="grid min-w-0 border-t border-white/15 pt-8 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0 gap-y-2">
+            <p className="mb-5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#BD9655]">
+              Contactos
+            </p>
 
-          <Link href="tel:+244947803610">
-            +244 947 803 610
-          </Link>
+            <h3 className="mb-9 max-w-[18ch] text-xl font-medium leading-snug tracking-tight text-[#F7F7F5] sm:text-2xl">
+              Estamos disponíveis para conversar.
+            </h3>
 
-          <Link href="tel:+244947804186">
-            +244 947 804 186
-          </Link>
+            <div className="grid gap-7">
+              <div className="grid gap-3">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#BD9655]">
+                  Telefone
+                </span>
 
-          <Link href="mailto:geral@prosota.ao">
-            geral@prosota.ao
-          </Link>
+                <div className="grid gap-2">
+                  <Link
+                    href="tel:+244947803610"
+                    className={contactLinkClass}
+                  >
+                    +244 947 803 610
+                  </Link>
+
+                  <Link
+                    href="tel:+244947804186"
+                    className={contactLinkClass}
+                  >
+                    +244 947 804 186
+                  </Link>
+                </div>
+              </div>
+
+              <div className="grid gap-3">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#BD9655]">
+                  Email
+                </span>
+
+                <Link
+                  href="mailto:geral@prosota.ao"
+                  className={contactLinkClass}
+                >
+                  geral@prosota.ao
+                </Link>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </section>
