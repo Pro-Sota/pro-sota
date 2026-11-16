@@ -199,7 +199,7 @@ export default function AboutPage() {
             >
               <span className="h-px w-10 bg-gold" />
               <p className={`${EYEBROW} text-[#1F1E1B]/70`}>
-                PRO SOTA · ANGOLA · DESDE {site.founded}
+                PRO SOTA · ANGOLA 
               </p>
             </div>
 
@@ -317,18 +317,10 @@ export default function AboutPage() {
 
           {/* Company history */}
           <div className="flex flex-col justify-start lg:col-span-5">
-            <div className="mb-7">
-              <span className="font-display text-7xl font-medium leading-none tracking-tight text-gold md:text-8xl">
-                {site.founded}
-              </span>
-
-              <p className={`${EYEBROW} mt-3 text-navy/55`}>
-                O início do nosso percurso
-              </p>
-            </div>
+         
 
             <h3 className="font-display text-2xl font-medium leading-snug md:text-3xl">
-              Desde {site.founded}, a PRO SOTA participa na transformação do
+              A Pro Sota participa na transformação do
               ambiente construído.
             </h3>
 
@@ -370,9 +362,6 @@ export default function AboutPage() {
 
             <span className="h-px flex-1 bg-navy/15" />
 
-            <span className={`${EYEBROW} ${GOLD_INK}`}>
-              {site.founded} — {currentYear}
-            </span>
           </div>
 
           <dl className="grid grid-cols-2 border-y border-navy/15 md:grid-cols-4">
@@ -428,10 +417,7 @@ export default function AboutPage() {
             </h2>
 
             <p className="mt-7 text-base leading-8 text-paper/80">
-              Desenvolver e concretizar projectos de arquitectura, engenharia e
-              construção, e assegurar fiscalização e acompanhamento técnico,
-              respondendo às necessidades dos clientes e contribuindo para o
-              desenvolvimento das comunidades.
+            Conceber, desenvolver e executar projectos, assegurando a fiscalização e o acompanhamento técnico, com soluções inovadoras, sustentáveis e de elevada qualidade que respondam às necessidades dos clientes e promovam o desenvolvimento das comunidades. 
             </p>
 
             <div className="mt-12 h-px w-full bg-paper/15" />
@@ -465,10 +451,7 @@ export default function AboutPage() {
             </h2>
 
             <p className="mt-7 text-base leading-8 text-navy/75">
-              Ser uma referência de confiança nas áreas da arquitectura,
-              engenharia, construção e fiscalização, reconhecida pela capacidade
-              de integrar competências e contribuir para a transformação
-              positiva do ambiente construído.
+              Ser uma referência de confiança no sector da arquitectura, engenharia e construção, reconhecida pela excelência, inovação e capacidade de criar valor para os clientes e para a sociedade. 
             </p>
 
             <div className="mt-12 h-px w-full bg-navy/15" />
