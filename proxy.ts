@@ -6,17 +6,35 @@ export async function proxy(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
 
     // Generate a unique nonce for every request.
-    const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+    const nonce = Buffer.from(
+        crypto.randomUUID()
+    ).toString("base64");
+
+    // Resolve the actual Supabase project from environment variables.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    if (!supabaseUrl) {
+        throw new Error("NEXT_PUBLIC_SUPABASE_URL is not configured.");
+    }
+
+    const supabaseOrigin = new URL(supabaseUrl).origin;
+
+    const supabaseWsOrigin = supabaseOrigin
+        .replace(/^https:/, "wss:")
+        .replace(/^http:/, "ws:");
 
     const isDevelopment = process.env.NODE_ENV === "development";
 
+    // Content Security Policy.
     const csp = [
         "default-src 'self'",
         `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ""}`,
+        "script-src-attr 'none'",
         `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
+        "style-src-attr 'none'",
         "img-src 'self' data: blob: https:",
         "font-src 'self' data: https://fonts.gstatic.com",
-        "connect-src 'self' https://xwmkjdemnoxixetzlhaz.supabase.co wss://xwmkjdemnoxixetzlhaz.supabase.co",
+        `connect-src 'self' ${supabaseOrigin} ${supabaseWsOrigin}`,
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",
@@ -24,9 +42,11 @@ export async function proxy(request: NextRequest) {
         "upgrade-insecure-requests",
     ].join("; ");
 
-    // Pass CSP to Next.js so it can apply the nonce.
+    // Forward CSP to Next.js for automatic nonce propagation.
     const requestHeaders = new Headers(request.headers);
+
     requestHeaders.set("Content-Security-Policy", csp);
+    requestHeaders.set("x-nonce", nonce);
 
     const requestWithCsp = new NextRequest(request, {
         headers: requestHeaders,
@@ -34,7 +54,7 @@ export async function proxy(request: NextRequest) {
 
     let response: NextResponse;
 
-    // Preserve existing Supabase authentication.
+    // Supabase authentication for management routes.
     if (
         pathname === "/management" ||
         pathname.startsWith("/management/")
@@ -62,6 +82,7 @@ export async function proxy(request: NextRequest) {
 
             const redirect = NextResponse.redirect(loginUrl);
 
+            // Preserve Supabase session cookies.
             for (const cookie of response.cookies.getAll()) {
                 redirect.cookies.set(cookie);
             }
@@ -69,6 +90,7 @@ export async function proxy(request: NextRequest) {
             response = redirect;
         }
     } else {
+        // Public routes.
         response = NextResponse.next({
             request: {
                 headers: requestHeaders,
@@ -76,32 +98,8 @@ export async function proxy(request: NextRequest) {
         });
     }
 
-    // Security response headers.
+    // Apply CSP to every response.
     response.headers.set("Content-Security-Policy", csp);
-    response.headers.set("X-CSP-Proxy", "executed");
-
-    response.headers.set(
-        "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains; preload"
-    );
-
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("X-Frame-Options", "DENY");
-
-    response.headers.set(
-        "Referrer-Policy",
-        "strict-origin-when-cross-origin"
-    );
-
-    response.headers.set(
-        "Permissions-Policy",
-        "camera=(), microphone=(), geolocation=()"
-    );
-
-    response.headers.set(
-        "Cross-Origin-Opener-Policy",
-        "same-origin"
-    );
 
     return response;
 }

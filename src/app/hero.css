@@ -251,8 +251,17 @@
 
 .ps-hero__title-second {
   margin-top: .12em;
-  color: var(--hero-bronze);
-  -webkit-text-stroke: 0;
+  color: transparent;
+  -webkit-text-stroke: 1.5px #8B6A2F;
+  paint-order: stroke fill;
+}
+
+/* Browsers without text-stroke: fall back to a solid, softened word */
+@supports not (-webkit-text-stroke: 1px black) {
+  .ps-hero__title-second {
+    color: var(--hero-navy);
+    opacity: .85;
+  }
 }
 
 /* Title divider */
@@ -1077,73 +1086,5 @@
 
   .ps-hero__strip-track {
     transform: none;
-  }
-}
-
-.ps-hero__scroll {
-  position: absolute;
-  right: clamp(24px, 5vw, 80px);
-  bottom: 105px;
-  z-index: 5;
-
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  color: #5F5B54;
-  text-decoration: none;
-  transition: color 250ms ease;
-}
-
-.ps-hero__scroll-label {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.ps-hero__scroll-icon {
-  position: relative;
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(139, 106, 47, 0.45);
-  border-radius: 50%;
-}
-
-.ps-hero__scroll-icon::after {
-  content: "";
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  left: 10px;
-  top: 8px;
-  border-right: 1px solid #8B6A2F;
-  border-bottom: 1px solid #8B6A2F;
-  transform: rotate(45deg);
-  animation: hero-scroll 1.8s ease-in-out infinite;
-}
-
-.ps-hero__scroll:hover {
-  color: #8B6A2F;
-}
-
-@keyframes hero-scroll {
-  0%, 100% {
-    transform: translateY(-2px) rotate(45deg);
-  }
-  50% {
-    transform: translateY(3px) rotate(45deg);
-  }
-}
-
-@media (max-width: 768px) {
-  .ps-hero__scroll {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ps-hero__scroll-icon::after {
-    animation: none;
   }
 }

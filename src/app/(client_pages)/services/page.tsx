@@ -1,4 +1,4 @@
-import ServicesOverview from "./client_page";
+import ServicesOverview from "./service_page";
 import "../../admin.css";
 import "../../styles.css";
 
