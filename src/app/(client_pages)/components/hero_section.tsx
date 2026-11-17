@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { CSSProperties, useEffect, useRef } from "react";
 
 import "../../hero.css";
 import HeroConstructionScene from "./hero_construction_scene";
@@ -36,6 +36,7 @@ export default function Hero() {
     return () => observer.disconnect();
   }, []);
 
+  const GOLD_INK = "text-[#8B6A2F]";
 
   return (
     <section
@@ -61,9 +62,10 @@ export default function Hero() {
             <span className="ps-hero__eyebrow-line" aria-hidden="true" />
           </div>
 
-          <h1 className="ps-hero__title">
-            <span>PRO</span>
-            <span className="ps-hero__title-second">SOTA</span>
+          <h1 className="ps-hero__title ">
+            <span
+            >PRO</span>
+            <span className={`ps-hero__title-second ${GOLD_INK}`}>SOTA</span>
           </h1>
 
           <div className="ps-hero__divider" aria-hidden="true">
@@ -80,14 +82,14 @@ export default function Hero() {
 
             <div className="ps-hero__actions">
               <Link href="#contacto" className="ps-hero__cta ps-hero__cta--solid">
-  <span>Pedir proposta</span>
-  <span className="ps-hero__cta-arrow" aria-hidden="true" />
-</Link>
+                <span>Pedir proposta</span>
+                <span className="ps-hero__cta-arrow" aria-hidden="true" />
+              </Link>
 
-<Link href="#servicos" className="ps-hero__cta">
-  <span>Explorar serviços</span>
-  <span className="ps-hero__cta-arrow" aria-hidden="true" />
-</Link>
+              <Link href="#servicos" className="ps-hero__cta">
+                <span>Explorar serviços</span>
+                <span className="ps-hero__cta-arrow" aria-hidden="true" />
+              </Link>
             </div>
           </div>
         </div>
@@ -116,7 +118,14 @@ export default function Hero() {
           </div>
         </div>
       </div>
-
+      <Link
+        href="#servicos"
+        className="ps-hero__scroll"
+        aria-label="Descer para descobrir os nossos serviços"
+      >
+        <span className="ps-hero__scroll-label">Descobrir</span>
+        <span className="ps-hero__scroll-icon" aria-hidden="true" />
+      </Link>
       {/* Services ticker (decorative duplicate of the services section) */}
       <div className="ps-hero__strip" aria-hidden="true">
         <div className="ps-hero__strip-track">

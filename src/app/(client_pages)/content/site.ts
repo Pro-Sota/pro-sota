@@ -2,15 +2,15 @@
 // anything left undefined is simply omitted from the page and the JSON-LD.
 export const site = {
   name: "PRO SOTA",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://prosota.ao", // TODO real domain
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://prosota.ao",
   founded: 2013,
-  logo: "/images/logo-vertical.png", // TODO must exist in /public
+  logo: "/images/logo-vertical.png", 
   email: "geral@prosota.ao",
-  phone: undefined as string | undefined, // TODO e.g. "+244 9XX XXX XXX"
-  whatsapp: undefined as string | undefined, // TODO digits only, e.g. "2449XXXXXXXX"
+  phone: "+244 947 803 610", 
+  whatsapp: "947 804 186" , 
   address: {
-    locality: undefined as string | undefined, // TODO e.g. "Luanda"
-    street: undefined as string | undefined,
+    locality: "Lar do Patriota, Luanda",
+    street: "Rua Mario Pinto de Andrade, nº36",
     country: "AO",
   },
   sameAs: [] as string[], // TODO social profile URLs
