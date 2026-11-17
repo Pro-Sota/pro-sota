@@ -27,7 +27,7 @@ export default function BriefingSection() {
 
           <h2
             id="briefing-title"
-            className="max-w-2xl text-[clamp(2.25rem,4.5vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.05em]"
+            className="max-w-2xl text-[clamp(2.25rem,4vw,3.5rem)] font-medium leading-[1.08] tracking-[-0.045em] text-[#002950]"
           >
             Tem um projecto
             <br />

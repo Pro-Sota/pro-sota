@@ -12,8 +12,7 @@ import {
 } from "./types";
 import type { Role } from "./types";
 
-type Profile =
-    Database["public"]["Tables"]["profiles"]["Row"];
+type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 type AddMemberModalProps = {
     projectId: string;

@@ -1,8 +1,7 @@
-// src/components/WhyUs.tsx
 
 "use client";
 
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
 const REASONS = [
   [
@@ -37,82 +36,185 @@ const REASONS = [
   ],
 ] as const;
 
+type Direction = -1 | 1;
+
 export default function WhyUs() {
   const trackRef = useRef<HTMLDivElement>(null);
 
-  // Avança ou recua a largura de um cartão mais o intervalo visual.
-  function scrollByCard(direction: -1 | 1) {
+  const [canScroll, setCanScroll] = useState({
+    previous: false,
+    next: true,
+  });
+
+  const updateScrollState = useCallback(() => {
     const track = trackRef.current;
 
     if (!track) return;
 
-    const card = track.querySelector<HTMLElement>("[data-reason-card]");
-    const distance = card
-      ? card.getBoundingClientRect().width + 20
-      : 300;
+    const maxScroll = track.scrollWidth - track.clientWidth;
+
+    setCanScroll({
+      previous: track.scrollLeft > 2,
+      next: track.scrollLeft < maxScroll - 2,
+    });
+  }, []);
+
+  const scrollByCard = useCallback((direction: Direction) => {
+    const track = trackRef.current;
+
+    if (!track) return;
+
+    const card = track.querySelector<HTMLElement>(
+      "[data-reason-card]",
+    );
+
+    if (!card) return;
+
+    const gap =
+      Number.parseFloat(window.getComputedStyle(track).columnGap) || 0;
+
+    const distance = card.getBoundingClientRect().width + gap;
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
 
     track.scrollBy({
       left: distance * direction,
-      behavior: "smooth",
+      behavior: prefersReducedMotion ? "auto" : "smooth",
     });
-  }
+  }, []);
 
   return (
-    <section className="why relative overflow-hidden bg-navy-deep py-[clamp(80px,12vh,120px)] text-cream">
+    <section
+      aria-labelledby="why-us-title"
+      className="relative overflow-hidden bg-[#1F1E1B] py-[clamp(80px,10vw,120px)] text-[#F7F7F5]"    >
       <div className="mx-auto max-w-[1320px] px-[clamp(20px,5vw,64px)]">
-        <div className="reveal is-visible mb-[clamp(40px,6vh,64px)] flex flex-wrap items-end justify-between gap-5">
-          <h2 className="max-w-[16ch] font-display text-[clamp(34px,4.6vw,58px)] leading-none font-extrabold uppercase">
-            Porque escolher a Pro Sota
-          </h2>
 
-          <p className="max-w-[40ch] text-[14.5px] leading-[1.6] text-cream/60">
-            Seis razões pelas quais os nossos clientes confiam o seu projecto
-            à PRO SOTA, do primeiro esboço à entrega da chave.
+        {/* Section heading */}
+        <div className="mb-[clamp(40px,6vh,64px)] grid gap-7 md:grid-cols-[1fr_0.65fr] md:items-end">
+          <div>
+            <div className="mb-6 flex items-center gap-3">
+              <span
+                aria-hidden="true"
+                className="h-px w-9 bg-[#BD9655]"
+              />
+
+              <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#BD9655]">
+                O nosso compromisso
+              </span>
+            </div>
+
+            <h2
+              id="why-us-title"
+              className="max-w-[16ch] font-display text-[clamp(32px,4vw,52px)] leading-[1.08] font-bold uppercase tracking-[-0.035em] text-[#F7F7F5]"
+            >
+              A diferença está
+              <br />
+              <span className="text-[#BD9655]">
+                na forma como fazemos.
+              </span>
+            </h2>
+          </div>
+
+          <p className="max-w-[42ch] text-[14px] leading-[1.8] text-[#F7F7F5]/70 md:justify-self-end md:text-[15px]">
+            Seis razões pelas quais os nossos clientes confiam o seu
+            projecto à PRO SOTA, da concepção à execução e entrega da obra.
           </p>
         </div>
 
+        {/* Reasons carousel */}
         <div
           ref={trackRef}
-          className="-mx-[clamp(20px,5vw,64px)] flex snap-x snap-proximity gap-5 overflow-x-auto px-[clamp(20px,5vw,64px)] pt-1 pb-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onScroll={updateScrollState}
+          className="-mx-[clamp(20px,5vw,64px)] flex snap-x snap-proximity gap-4 overflow-x-auto px-[clamp(20px,5vw,64px)] pt-1 pb-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-5"
           role="region"
-          aria-label="Razões para escolher a Pro Sota"
+          aria-label="Razões para escolher a PRO SOTA"
           tabIndex={0}
         >
-          {REASONS.map(([num, title, description]) => (
+          {REASONS.map(([number, title, description]) => (
             <article
+              key={number}
               data-reason-card
-              className="w-[clamp(250px,26vw,320px)] shrink-0 snap-start rounded-[3px] border border-gold-light/20 bg-gradient-to-br from-white/5 to-transparent p-6 lg:p-7"
-              key={num}
+              className="group flex min-h-[310px] w-[85%] shrink-0 snap-start flex-col border border-[#F7F7F5]/10 bg-[#292824] p-6 transition-colors duration-300 hover:border-[#BD9655]/50 hover:bg-[#33312C] sm:w-[65%] sm:p-7 lg:min-h-[330px] lg:w-[calc((100%-40px)/3)] lg:p-8"
             >
-              <i className="mb-[30px] block font-display text-[15px] font-extrabold not-italic text-gold">
-                {num}
-              </i>
+              <div className="flex items-center justify-between">
+                <span className="font-display text-sm font-bold tracking-[0.16em] text-[#B8B5AE]">
+                  {number}
+                </span>
 
-              <h3 className="mb-3 font-display text-[19px] leading-[1.15] font-extrabold uppercase text-cream">
-                {title}
-              </h3>
+                <span
+                  aria-hidden="true"
+                  className="h-px w-9 bg-[#BD9655]/45 transition-all duration-300 group-hover:w-14 group-hover:bg-[#BD9655]"
+                />
+              </div>
 
-              <p className="text-[13.5px] leading-[1.6] text-cream/60">
-                {description}
-              </p>
+              <div className="mt-auto pt-12">
+                <h3 className="mb-4 max-w-[18ch] font-display text-[19px] leading-[1.2] font-bold uppercase text-[#F7F7F5] sm:text-[20px]">
+                  {title}
+                </h3>
+
+                <p className="max-w-[38ch] text-[13px] leading-[1.75] text-[#F7F7F5]/70 sm:text-[13.5px]">
+                  {description}
+                </p>
+              </div>
             </article>
           ))}
         </div>
 
-        <div className="mt-7 flex gap-2.5">
-          {([-1, 1] as const).map((direction) => (
+        {/* Carousel navigation */}
+        <div className="mt-6 flex items-center justify-between border-t border-[#F7F7F5]/15 pt-6">
+          <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#F7F7F5]/50">
+            01 <span className="px-1 text-[#BD9655]">—</span> 06
+          </span>
+
+          <div className="flex gap-3">
             <button
-              key={direction}
               type="button"
-              onClick={() => scrollByCard(direction)}
-              aria-label={
-                direction < 0 ? "Razão anterior" : "Razão seguinte"
-              }
-              className="flex size-11 items-center justify-center rounded-full border border-gold-light/20 bg-transparent text-cream transition-colors hover:border-gold hover:bg-gold hover:text-navy-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+              onClick={() => scrollByCard(-1)}
+              disabled={!canScroll.previous}
+              aria-label="Ver razões anteriores"
+              className="flex size-11 items-center justify-center border border-[#F7F7F5]/25 text-[#F7F7F5] transition-colors duration-200 hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-[#1F1E1B] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-[#F7F7F5]/25 disabled:hover:bg-transparent disabled:hover:text-[#F7F7F5] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#BD9655]"
             >
-              {direction < 0 ? "←" : "→"}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                className="size-4"
+              >
+                <path
+                  d="M15 18L9 12L15 6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
-          ))}
+
+            <button
+              type="button"
+              onClick={() => scrollByCard(1)}
+              disabled={!canScroll.next}
+              aria-label="Ver razões seguintes"
+              className="flex size-11 items-center justify-center border border-[#F7F7F5]/25 text-[#F7F7F5] transition-colors duration-200 hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-[#1F1E1B] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-[#F7F7F5]/25 disabled:hover:bg-transparent disabled:hover:text-[#F7F7F5] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#BD9655]"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                className="size-4"
+              >
+                <path
+                  d="M9 18L15 12L9 6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </section>

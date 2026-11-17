@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   },
 
   description:
-    "A PRO SOTA é uma empresa angolana de arquitectura, engenharia, construção e fiscalização. Desenvolvemos projectos e soluções integradas desde 1997.",
+    "A PRO SOTA é uma empresa angolana de arquitectura, engenharia, construção e fiscalização. Desenvolvemos projectos e soluções integradas.",
 
   applicationName: "PRO SOTA",
 
@@ -82,7 +82,7 @@ export const metadata: Metadata = {
     siteName: "PRO SOTA",
     title: "PRO SOTA | Damos forma às ideias. Construímos o futuro.",
     description:
-      "Arquitectura, Engenharia, Construção e Fiscalização em Angola. Desde 1997.",
+      "Arquitectura, Engenharia, Construção e Fiscalização em Angola.",
     images: [
       {
         url: "/images/logo-vertical.png",
@@ -97,7 +97,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "PRO SOTA | Arquitectura e Engenharia",
     description:
-      "Damos forma às ideias. Construímos o futuro. Angola · Desde 1997.",
+      "Damos forma às ideias. Construímos o futuro.",
     images: ["/images/logo-horizontal.png"],
   },
 

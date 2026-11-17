@@ -6,7 +6,7 @@ export default function ServicesSection({ services, Routes }: { services: any[],
     return (
         <section
             id="servicos"
-            className="scroll-mt-24 bg-[#f3efe6] py-24 text-[#002950] md:py-32 lg:py-26"
+            className="scroll-mt-24 bg-[#F3EFE6] py-24 md:py-32 lg:py-26"
         >
             <div className={wrap}>
                 {/* HEADER */}
@@ -19,10 +19,15 @@ export default function ServicesSection({ services, Routes }: { services: any[],
                             </p>
                         </div>
 
-                        <h2 className="max-w-xl text-[clamp(2.4rem,4.8vw,4.75rem)] font-medium leading-[1] tracking-[-0.06em] text-[#002950]">
-                            Quatro áreas,
+                        <h2
+                            id="services-title"
+                            className="max-w-xl text-[clamp(2rem,3.2vw,3rem)] font-medium leading-[1.08] tracking-[-0.04em] text-[#002950]"
+                        >
+                            As nossas
                             <br />
-                            <span>uma só visão</span>
+                            <span className="text-[#1F1E1B]">
+                                especialidades.
+                            </span>
                         </h2>
                     </div>
 

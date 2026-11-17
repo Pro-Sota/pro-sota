@@ -30,6 +30,8 @@ export default function Nav() {
   const [open, setOpen] = useState(false);
   const [navigating, setNavigating] = useState(false);
 
+  const isContactPage = pathname === "/contact";
+
   const navigationStartedAt = useRef<number | null>(null);
   const previousPathname = useRef(pathname);
 
@@ -229,10 +231,9 @@ export default function Nav() {
           min-[861px]:min-h-[84px]
           min-[861px]:px-[clamp(20px,5vw,64px)]
           transition-[background-color,box-shadow] duration-300
-          ${
-            scrolled
-              ? "bg-[#F7F7F5] shadow-[0_4px_20px_rgba(0,41,80,0.06)]"
-              : "bg-transparent shadow-none"
+       ${scrolled || isContactPage
+            ? "bg-[#F7F7F5] shadow-[0_4px_20px_rgba(0,41,80,0.06)]"
+            : "bg-transparent shadow-none"
           }
         `}
       >
@@ -294,10 +295,9 @@ export default function Nav() {
             min-[861px]:bg-transparent
             min-[861px]:px-0
             min-[861px]:transition-none
-            ${
-              open
-                ? "visible translate-x-0"
-                : "invisible translate-x-full min-[861px]:visible min-[861px]:translate-x-0"
+            ${open
+              ? "visible translate-x-0"
+              : "invisible translate-x-full min-[861px]:visible min-[861px]:translate-x-0"
             }
           `}
         >
@@ -320,10 +320,9 @@ export default function Nav() {
                   active:opacity-60
                   min-[861px]:text-[12.5px]
                   min-[861px]:whitespace-nowrap
-                  ${
-                    isActive
-                      ? "text-[#BD9655]"
-                      : "text-[#002950] hover:text-[#BD9655]"
+                  ${isActive
+                    ? "text-[#BD9655]"
+                    : "text-[#002950] hover:text-[#BD9655]"
                   }
                 `}
               >
@@ -391,10 +390,9 @@ export default function Nav() {
             className={`
               h-[2px] w-6 bg-[#002950]
               transition-all duration-300
-              ${
-                open
-                  ? "translate-y-[7px] rotate-45 !bg-[#BD9655]"
-                  : ""
+              ${open
+                ? "translate-y-[7px] rotate-45 !bg-[#BD9655]"
+                : ""
               }
             `}
           />
@@ -411,10 +409,9 @@ export default function Nav() {
             className={`
               h-[2px] w-6 bg-[#002950]
               transition-all duration-300
-              ${
-                open
-                  ? "-translate-y-[7px] -rotate-45 !bg-[#BD9655]"
-                  : ""
+              ${open
+                ? "-translate-y-[7px] -rotate-45 !bg-[#BD9655]"
+                : ""
               }
             `}
           />

@@ -29,7 +29,7 @@ const PAGE_URL = `${SITE_URL}${PATH}`;
 export const metadata: Metadata = {
   title: "Sobre nós",
   description:
-    "Conheça a PRO SOTA. Desde 1997, desenvolvemos projectos de arquitectura, engenharia, construção e fiscalização em Angola.",
+    "Conheça a PRO SOTA. desenvolvemos projectos de arquitectura, engenharia, construção e fiscalização em Angola.",
   alternates: {
     canonical: PAGE_URL,
     languages: {
@@ -92,14 +92,14 @@ const jsonLd = {
   contactPoint:
     site.phone || site.email
       ? [
-          {
-            "@type": "ContactPoint",
-            contactType: "customer service",
-            telephone: site.phone,
-            email: site.email,
-            availableLanguage: "pt",
-          },
-        ]
+        {
+          "@type": "ContactPoint",
+          contactType: "customer service",
+          telephone: site.phone,
+          email: site.email,
+          availableLanguage: "pt",
+        },
+      ]
       : undefined,
 };
 
@@ -218,7 +218,7 @@ export default function AboutPage() {
               style={delay("0.55s")}
             >
               <p className="max-w-xl text-base leading-8 text-[#5F5B54] md:text-lg md:leading-9">
-                Desde 1997, reunimos diferentes especialidades para responder
+                Reunimos diferentes especialidades para responder
                 aos desafios do ambiente construído, com uma abordagem que
                 alia conhecimento técnico e sentido de responsabilidade.
               </p>
@@ -268,16 +268,9 @@ export default function AboutPage() {
           <div className="lg:col-span-7">
             <Eyebrow>Quem somos</Eyebrow>
 
-            <H2 className="mt-4 max-w-4xl">
+            <H2 className="mt-4 max-w-4xl text-[#1F1E1B]">
               Uma prática multidisciplinar, do desenho à obra.
             </H2>
-          </div>
-
-          <div className="lg:col-span-4 lg:col-start-9 lg:pb-1">
-            <p className="text-sm leading-7 text-[#5F5B54]">
-              Um percurso construído através de diferentes projectos,
-              especialidades e desafios, em Angola e além-fronteiras.
-            </p>
           </div>
         </div>
 
@@ -313,7 +306,7 @@ export default function AboutPage() {
                 A nossa abordagem
               </span>
 
-              <h3 className="max-w-md text-2xl font-medium leading-snug tracking-tight text-[#002950] sm:text-3xl">
+              <h3 className="max-w-md text-2xl font-medium leading-snug tracking-tight text-[#1F1E1B] sm:text-3xl">
                 Cada fase exige conhecimento. Todas exigem continuidade.
               </h3>
 
@@ -337,12 +330,6 @@ export default function AboutPage() {
                 </p>
               </div>
 
-              <div className="mt-8 flex items-center gap-3 border-t border-[#1F1E1B]/15 pt-5">
-                <span className="h-px w-8 bg-[#BD9655]" />
-                <span className={`${EYEBROW} text-[#002950]`}>
-                  Desde 1997 · Angola
-                </span>
-              </div>
             </div>
           </div>
         </div>
@@ -473,68 +460,60 @@ export default function AboutPage() {
       {/* VALUES                                                            */}
       {/* ================================================================= */}
 
-      <Section>
+      <Section className="pb-8 md:pb-10">
         <div className="grid gap-6 lg:grid-cols-12 lg:items-end">
           <div className="lg:col-span-7">
-            <Eyebrow>Os nossos princípios</Eyebrow>
-            <H2 className="mt-4">Os nossos valores.</H2>
+            <Eyebrow className="text-[#1F1E1B]/60">Os nossos princípios</Eyebrow>
+            <H2 className="mt-4 text-[#1F1E1B]">Os nossos valores.</H2>
           </div>
-
-          <p className="max-w-md text-base leading-8 text-[#5F5B54] lg:col-span-4 lg:col-start-9">
-            Critérios que orientam a conduta da equipa e a forma como
-            estabelecemos relações com clientes, parceiros e comunidades.
-          </p>
         </div>
 
-        <ul className="mt-12 grid border-y border-gold bg-paper sm:grid-cols-2 lg:mt-16 lg:grid-cols-4">
-          {values.map((v, index) => (
-            <li
-              key={v.title}
-              className="group flex min-h-[16rem] flex-col justify-between border-b border-[#1F1E1B]/15 bg-paper p-7 text-[#1F1E1B] transition-colors duration-300 hover:bg-navy hover:text-paper active:bg-navy active:text-paper motion-reduce:transition-none sm:border-r sm:even:border-r-0 lg:border-b-0 lg:border-r lg:even:border-r lg:last:border-r-0 md:min-h-[19rem] md:p-8"
-            >
-              <div className="flex items-center justify-between">
-                <span
-                  aria-hidden
-                  className="block h-px w-10 bg-gold transition-all duration-300 group-hover:w-20 motion-reduce:transition-none"
-                />
+        <div className="pt-16 md:pt-20">
+          <ul className="grid border-y border-gold bg-paper sm:grid-cols-2 lg:grid-cols-4">
+            {values.map((v, index) => (
+              <li
+                key={v.title}
+                className="group flex min-h-[16rem] flex-col justify-between border-b border-[#1F1E1B]/15 bg-paper p-7 text-[#1F1E1B] transition-colors duration-300 hover:bg-navy hover:text-paper active:bg-navy active:text-paper motion-reduce:transition-none sm:border-r sm:even:border-r-0 lg:border-b-0 lg:border-r lg:even:border-r lg:last:border-r-0 md:min-h-[19rem] md:p-8"
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    aria-hidden
+                    className="block h-px w-10 bg-gold transition-all duration-300 group-hover:w-20 motion-reduce:transition-none"
+                  />
 
-                <span
-                  aria-hidden
-                  className={`${EYEBROW} text-[#8B6A2F] transition-colors group-hover:text-paper/60`}
-                >
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-              </div>
+                  <span
+                    aria-hidden
+                    className={`${EYEBROW} text-[#8B6A2F] transition-colors group-hover:text-paper/60`}
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                </div>
 
-              <div>
-                <h3 className="font-display text-2xl font-medium tracking-tight md:text-3xl">
-                  {v.title}
-                </h3>
+                <div>
+                  <h3 className="font-display text-2xl font-medium tracking-tight md:text-3xl">
+                    {v.title}
+                  </h3>
 
-                <p className="mt-4 text-sm leading-7 text-[#5F5B54] transition-colors duration-300 group-hover:text-paper/80 motion-reduce:transition-none">
-                  {v.description}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+                  <p className="mt-4 text-sm leading-7 text-[#5F5B54] transition-colors duration-300 group-hover:text-paper/80 motion-reduce:transition-none">
+                    {v.description}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       </Section>
 
       {/* ================================================================= */}
       {/* EXPERTISE                                                         */}
       {/* ================================================================= */}
 
-      <Section id="competencias" tone="stone">
+      <Section id="competencias" className="pt-8 md:pt-10">
         <div className="grid gap-6 lg:grid-cols-12 lg:items-end">
           <div className="lg:col-span-7">
-            <Eyebrow>O que fazemos</Eyebrow>
-            <H2 className="mt-4">Quatro áreas de actuação.</H2>
+            <Eyebrow className="text-[#1F1E1B]/60">O que fazemos</Eyebrow>
+            <H2 className="text-[#1F1E1B]">Quatro áreas de actuação.</H2>
           </div>
-
-          <p className="max-w-md text-base leading-8 text-[#5F5B54] lg:col-span-4 lg:col-start-9">
-            Conheça as especialidades que integram a nossa actividade e os
-            serviços que disponibilizamos em cada etapa de um empreendimento.
-          </p>
         </div>
 
         <div className="mt-12 grid gap-4 md:mt-16 md:grid-cols-12 md:gap-5">
@@ -562,7 +541,7 @@ export default function AboutPage() {
                 />
 
                 <Link
-                  href={contactHref}
+                  href={""}
                   className={`flex h-full flex-col justify-end p-7 md:p-9 ${focus} focus-visible:outline-paper`}
                 >
                   <div className="mb-5 flex items-center justify-between">
@@ -580,16 +559,6 @@ export default function AboutPage() {
                   <p className="mt-4 max-w-md text-sm leading-7 text-paper/85">
                     {item.description}
                   </p>
-
-                  <span className="mt-6 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-gold transition-colors group-hover:text-paper">
-                    Solicitar enquadramento
-                    <span
-                      aria-hidden
-                      className="text-sm transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transition-none"
-                    >
-                      ↗
-                    </span>
-                  </span>
                 </Link>
               </article>
             );
@@ -624,45 +593,25 @@ export default function AboutPage() {
           </div>
 
           <ul className="mt-12 grid gap-6 md:mt-16 md:grid-cols-3 md:gap-5">
-            {featuredProjects.slice(0, 3).map((p, index) => (
-              <li key={p.href}>
-                <Link
-                  href={p.href}
-                  className={`group block ${focus} focus-visible:outline-[#1F1E1B]`}
-                >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-stone">
-                    <Image
-                      src={p.image}
-                      alt={p.alt}
-                      fill
-                      sizes="(min-width:768px) 33vw, 100vw"
-                      className="object-cover transition-transform duration-700 group-hover:scale-[1.04] motion-reduce:transition-none"
-                    />
+            {featuredProjects.slice(0, 3).map((item, index) => (
+              <li key={item.href}>
+                <div className="flex h-full flex-col justify-end p-7 md:p-9">
+                  <div className="mb-5 flex items-center justify-between">
+                    <span className="block h-px w-10 bg-gold transition-all duration-500 group-hover:w-20 motion-reduce:transition-none" />
 
-                    <span className="absolute left-4 top-4 bg-paper px-3 py-2 text-[10px] font-semibold tracking-[0.15em] text-[#1F1E1B]">
+                    <span className={`${EYEBROW} text-paper/60`}>
                       {String(index + 1).padStart(2, "0")}
                     </span>
                   </div>
 
-                  <div className="mt-5 flex items-start justify-between gap-4 border-b border-[#1F1E1B]/15 pb-5">
-                    <div>
-                      <h3 className="font-display text-2xl font-medium tracking-tight text-[#1F1E1B] transition-colors group-hover:text-[#8B6A2F]">
-                        {p.title}
-                      </h3>
+                  <h3 className="font-display text-3xl font-medium tracking-tight md:text-4xl">
+                    {item.title}
+                  </h3>
 
-                      <p className="mt-2 text-sm text-[#5F5B54]">
-                        {p.type}
-                      </p>
-                    </div>
-
-                    <span
-                      aria-hidden
-                      className="mt-1 flex size-9 shrink-0 items-center justify-center border border-[#1F1E1B]/20 text-[#1F1E1B] transition-all duration-300 group-hover:border-gold group-hover:bg-gold motion-reduce:transition-none"
-                    >
-                      ↗
-                    </span>
-                  </div>
-                </Link>
+                  <p className="mt-4 max-w-md text-sm leading-7 text-paper/85">
+                    {item.type}
+                  </p>
+                </div>
               </li>
             ))}
           </ul>
@@ -734,9 +683,13 @@ export default function AboutPage() {
       {/* CLOSING CTA                                                       */}
       {/* ================================================================= */}
 
+      {/* ================================================================= */}
+      {/* CLOSING CTA                                                       */}
+      {/* ================================================================= */}
+
       <section
         aria-labelledby="about-cta-title"
-        className={`${pad} relative isolate overflow-hidden bg-navy py-20 text-paper md:py-32`}
+        className={`${pad} relative isolate overflow-hidden bg-[#F7F7F5] py-20 text-[#1F1E1B] md:py-32`}
       >
         <Image
           src="/images/plan.svg"
@@ -744,12 +697,12 @@ export default function AboutPage() {
           fill
           unoptimized
           sizes="100vw"
-          className="-z-20 object-cover object-center opacity-[0.06] invert"
+          className="-z-20 object-cover object-center opacity-[0.07]"
         />
 
         <div
           aria-hidden
-          className="absolute inset-0 -z-10 bg-gradient-to-r from-navy via-navy/90 to-navy/70"
+          className="absolute inset-0 -z-10 bg-gradient-to-r from-[#F7F7F5]/95 via-[#F7F7F5]/85 to-[#F7F7F5]/75"
         />
 
         <div
@@ -757,11 +710,11 @@ export default function AboutPage() {
           className={`${pad} pointer-events-none absolute inset-0 -z-[5] hidden lg:block`}
         >
           <div
-            className={`${wrap} grid h-full grid-cols-4 border-x border-paper/10`}
+            className={`${wrap} grid h-full grid-cols-4 border-x border-[#1F1E1B]/10`}
           >
-            <span className="border-r border-paper/10" />
-            <span className="border-r border-paper/10" />
-            <span className="border-r border-paper/10" />
+            <span className="border-r border-[#1F1E1B]/10" />
+            <span className="border-r border-[#1F1E1B]/10" />
+            <span className="border-r border-[#1F1E1B]/10" />
             <span />
           </div>
         </div>

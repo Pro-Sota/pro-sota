@@ -86,44 +86,49 @@ export default function Contact() {
       setBusy(false);
     }
   }
-
   const inputClass =
-    "mt-2 min-h-11 w-full rounded-sm border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-[#F7F7F5] outline-none transition-colors placeholder:text-white/35 focus:border-[#BD9655] disabled:cursor-not-allowed disabled:opacity-50";
+    "mt-2 min-h-11 w-full rounded-sm border border-white/15 bg-[#292824] px-3 py-2 text-sm text-[#F7F7F5] outline-none transition-colors duration-200 placeholder:text-[#AAB4BE]/50 focus:border-[#BD9655] focus:ring-1 focus:ring-[#BD9655]/25 disabled:cursor-not-allowed disabled:opacity-50";
 
   const labelClass =
     "block min-w-0 text-xs font-medium tracking-wide text-[#F7F7F5]/75";
 
   const contactLinkClass =
-    "block w-fit text-sm text-[#F7F7F5]/85 transition-colors hover:text-[#BD9655]";
-
-  return (
+    "block w-fit text-sm text-[#F7F7F5]/85 transition-colors duration-300 hover:text-[#D7B477] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D7B477]";
+ 
+    return (
     <section
       id="contacto"
-      className="relative isolate overflow-hidden bg-[#101D2A] text-[#F7F7F5] py-8"
-    >
+      aria-labelledby="contact-title"
+      className="relative isolate overflow-hidden bg-[#1F1E1B] pt-32 pb-12 text-[#F7F7F5] sm:pt-36 sm:pb-14" >
       {/* Architectural background grid */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.14]
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.08]
           [background-image:linear-gradient(to_right,rgba(247,247,245,0.2)_1px,transparent_1px),linear-gradient(to_bottom,rgba(247,247,245,0.2)_1px,transparent_1px)]
           [background-size:64px_64px]
           [mask-image:radial-gradient(ellipse_at_center,black_15%,transparent_85%)]"
       />
 
-      <div className="wrap relative z-10">
-        <p className="section-label !text-[#BD9655]">
+      <div className="relative z-10 mx-auto w-full max-w-[1320px] px-5 sm:px-8 lg:px-12">
+        {/* Heading */}
+        <p className="mb-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#D7B477]">
+          <span className="h-px w-7 bg-[#BD9655]" aria-hidden="true" />
           Vamos conversar
         </p>
 
-        <h2 className="mt-4 max-w-2xl text-[clamp(1.625rem,3vw,2.625rem)] font-bold uppercase leading-[1.08] tracking-[-0.035em]">
-          Prontos para construir{" "}
-          <em className="not-italic text-[#BD9655]">
-            o futuro
-          </em>{" "}
-          consigo.
+        <h2
+          id="contact-title"
+          className="mt-4 max-w-2xl text-[clamp(1.75rem,3.5vw,3rem)] font-bold uppercase leading-[1.05] tracking-[-0.035em] text-[#F7F7F5]"
+        >
+          O seu próximo projecto{" "}
+          <em className="not-italic text-[#D7B477]">
+            começa aqui.
+          </em>
         </h2>
 
+        {/* Main content */}
         <div className="mt-12 grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,1.6fr)_minmax(220px,0.65fr)] lg:gap-16 xl:gap-20">
+          {/* Form */}
           <form
             className="min-w-0"
             onSubmit={handleSubmit}
@@ -182,13 +187,24 @@ export default function Contact() {
                   <option value="" disabled>
                     Seleccione
                   </option>
-                  <option value="Arquitectura" className="text-black">Arquitectura</option>
-                  <option value="Engenharia" className="text-black">Engenharia</option>
-                  <option value="Construção" className="text-black">Construção</option>
-                  <option value="Fiscalização e consultoria" className="text-black">
+                  <option value="Arquitectura" className="text-black">
+                    Arquitectura
+                  </option>
+                  <option value="Engenharia" className="text-black">
+                    Engenharia
+                  </option>
+                  <option value="Construção" className="text-black">
+                    Construção
+                  </option>
+                  <option
+                    value="Fiscalização e consultoria"
+                    className="text-black"
+                  >
                     Fiscalização e consultoria
                   </option>
-                  <option value="Outro" className="text-black">Outro</option>
+                  <option value="Outro" className="text-black">
+                    Outro
+                  </option>
                 </CustomSelect>
               </label>
 
@@ -217,6 +233,7 @@ export default function Contact() {
                 </CustomSelect>
               </label>
 
+              {/* Optional image */}
               <div className="min-w-0">
                 <span className={labelClass}>
                   Imagem opcional
@@ -234,8 +251,7 @@ export default function Contact() {
 
                 <button
                   type="button"
-                  className="mt-2 flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm border border-dashed border-white/25 bg-white/[0.03] px-3 text-left text-sm text-[#F7F7F5]/70 transition-colors hover:border-[#BD9655] hover:text-[#BD9655] disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label={
+className="mt-2 flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm border border-dashed border-white/20 bg-[#292824] px-3 text-left text-sm text-[#AAB4BE] transition-colors duration-200 hover:border-[#BD9655] hover:text-[#D7B477] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D7B477] disabled:cursor-not-allowed disabled:opacity-50"                  aria-label={
                     imageName
                       ? `Alterar imagem: ${imageName}`
                       : "Escolher imagem opcional"
@@ -243,9 +259,10 @@ export default function Contact() {
                   disabled={busy}
                   onClick={() => imageInput.current?.click()}
                 >
-                  <span className="shrink-0 text-[#BD9655]">
+                  <span className="shrink-0 text-[#D7B477]">
                     +
                   </span>
+
                   <span className="truncate">
                     {imageName || "Escolher imagem"}
                   </span>
@@ -253,21 +270,22 @@ export default function Contact() {
               </div>
             </div>
 
+            {/* Message */}
             <label className={`${labelClass} mt-6`}>
               Mensagem (opcional)
               <textarea
-                className="mt-2 min-h-28 w-full resize-y rounded-sm border border-white/15 bg-white/[0.04] px-3 py-3 text-sm text-[#F7F7F5] outline-none transition-colors placeholder:text-white/35 focus:border-[#BD9655] disabled:cursor-not-allowed disabled:opacity-50"
-                name="message"
+className="mt-2 min-h-28 w-full resize-y rounded-sm border border-white/15 bg-[#292824] px-3 py-3 text-sm text-[#F7F7F5] outline-none transition-colors duration-200 placeholder:text-[#AAB4BE]/50 focus:border-[#BD9655] focus:ring-1 focus:ring-[#BD9655]/25 disabled:cursor-not-allowed disabled:opacity-50"                name="message"
                 rows={3}
                 maxLength={4000}
                 disabled={busy}
               />
             </label>
 
+            {/* Submit */}
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <button
                 type="submit"
-                className="inline-flex min-h-11 items-center justify-center bg-[#BD9655] px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#002950] transition-colors hover:bg-[#D0AD76] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center bg-[#BD9655] px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#051221] transition-colors duration-300 hover:bg-[#D7B477] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D7B477] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={busy}
               >
                 {busy ? "A enviar…" : "Enviar pedido →"}
@@ -283,8 +301,10 @@ export default function Contact() {
             </div>
           </form>
 
-          <aside className="grid min-w-0 border-t border-white/15 pt-8 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0 gap-y-2">
-            <p className="mb-5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#BD9655]">
+          {/* Contact information */}
+          <aside className="grid min-w-0 gap-y-2 border-t border-white/15 pt-8 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+            <p className="mb-5 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#D7B477]">
+              <span className="h-px w-6 bg-[#BD9655]" aria-hidden="true" />
               Contactos
             </p>
 
@@ -292,13 +312,14 @@ export default function Contact() {
               Estamos disponíveis para conversar.
             </h3>
 
-            <div className="grid gap-7">
-              <div className="grid gap-3">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#BD9655]">
+            <div className="grid gap-9">
+              {/* Telephone */}
+              <div className="grid gap-4">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D7B477]">
                   Telefone
                 </span>
 
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <Link
                     href="tel:+244947803610"
                     className={contactLinkClass}
@@ -315,8 +336,9 @@ export default function Contact() {
                 </div>
               </div>
 
-              <div className="grid gap-3">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#BD9655]">
+              {/* Email */}
+              <div className="grid gap-4">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D7B477]">
                   Email
                 </span>
 

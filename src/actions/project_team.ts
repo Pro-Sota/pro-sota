@@ -6,7 +6,7 @@ import {
     isUniqueRole,
     normalizeRoleName,
     type Status,
-} from "@//services/project_team";
+} from "@/services/project_team";
 
 import { cookies } from "next/headers";
 

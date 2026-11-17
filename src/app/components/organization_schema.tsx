@@ -14,7 +14,7 @@ export default function OrganizationSchema() {
     description:
       "Empresa angolana especializada em arquitectura, engenharia, construção, fiscalização e consultoria.",
 
-    foundingDate: "1997",
+    foundingDate: "2013",
 
     address: {
       "@type": "PostalAddress",
