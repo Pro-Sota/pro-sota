@@ -14,6 +14,7 @@ import {
   projectsCount,
 } from "../content/about";
 import ContactCTA from "../components/contact_cta";
+import ParallaxLayer from "../components/parallax_layer";
 
 /* -------------------------------------------------------------------------- */
 /* Configuration                                                              */
@@ -264,66 +265,54 @@ export default function AboutPage() {
       {/* ================================================================= */}
 
 
-
       <Section id="nossa-historia" className="scroll-mt-24">
-        {/* Full-width architectural drawing */}
-        <div className="w-full">
-          <div className="relative aspect-[16/9] overflow-hidden bg-[#EEECE6] sm:aspect-[2/1] lg:aspect-[21/9]">
-            <Image
-              src="/images/plan.svg"
-              alt="Planta arquitectónica de uma habitação com cotas de 24 por 16,5 metros."
-              fill
-              unoptimized
-              sizes="100vw"
-              className="object-contain p-5 sm:p-8 lg:p-12"
-            />
+        <ParallaxLayer
+          layers={[
+            {
+              src: "/images/courtyard_render.png",
+              alt: "Planta arquitectónica de uma habitação.",
+              depth: -0.2,
+              fit: "contain",
+              priority: true,
+            },
+          ]}
+          scrollRange={30}
+          mouseRange={12}
+          className="bg-[#EEECE6]"
+        >
+          <div className="bg-paper px-6 py-20 lg:px-12 lg:py-28">
+            <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-12 lg:gap-16">
+              <div className="lg:col-span-7">
+                <Eyebrow>Quem somos</Eyebrow>
+
+                <H2 className="mt-4 max-w-4xl text-ink text-[clamp(2.5rem,4vw,5rem)] leading-[0.98] tracking-[-0.045em]">
+                  Uma visão integrada de arquitectura, engenharia e construção.
+                </H2>
+              </div>
+
+              <div className="space-y-5 text-[15px] leading-[1.9] text-ink-soft lg:col-span-5 lg:pt-10">
+                <p>
+                  A nossa actividade abrange desde a concepção arquitectónica
+                  e o desenvolvimento de especialidades de engenharia até à
+                  materialização e fiscalização de empreendimentos.
+                </p>
+
+                <p>
+                  Ao longo do percurso, participámos em projectos residenciais,
+                  educativos, religiosos, hoteleiros e de saúde, assim como em
+                  iniciativas de desenvolvimento urbano.
+                </p>
+
+                <p>
+                  Esta diversidade permitiu-nos consolidar experiência em
+                  diferentes escalas de intervenção e contextos, mantendo uma
+                  atenção constante às características de cada projecto.
+                </p>
+              </div>
+            </div>
           </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-ink/15 pb-4">
-            <span className={`${EYEBROW} text-ink-soft`}>
-              O rigor começa no projecto.
-            </span>
-
-            <span className={`${EYEBROW} text-gold-dim`}>
-              Planta · 24 × 16,5 m
-            </span>
-          </div>
-        </div>
-
-        {/* Editorial content */}
-        <div className="mt-10 grid gap-8 sm:mt-12 lg:mt-16 lg:grid-cols-12 lg:gap-16">
-          {/* Title */}
-          <div className="lg:col-span-7">
-            <Eyebrow>Quem somos</Eyebrow>
-
-            <H2 className="mt-4 max-w-4xl text-ink text-[clamp(2.5rem,4vw,5rem)] leading-[0.98] tracking-[-0.045em]">
-              Uma visão integrada de arquitectura, engenharia e construção.
-            </H2>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-5 text-[15px] leading-[1.9] text-ink-soft lg:col-span-5 lg:pt-10">
-            <p>
-              A nossa actividade abrange desde a concepção arquitectónica
-              e o desenvolvimento de especialidades de engenharia até à
-              materialização e fiscalização de empreendimentos.
-            </p>
-
-            <p>
-              Ao longo do percurso, participámos em projectos residenciais,
-              educativos, religiosos, hoteleiros e de saúde, assim como em
-              iniciativas de desenvolvimento urbano.
-            </p>
-
-            <p>
-              Esta diversidade permitiu-nos consolidar experiência em
-              diferentes escalas de intervenção e contextos, mantendo uma
-              atenção constante às características de cada projecto.
-            </p>
-          </div>
-        </div>
+        </ParallaxLayer>
       </Section>
-
 
       {/* ================================================================= */}
       {/* STATISTICS                                                        */}
@@ -684,7 +673,7 @@ export default function AboutPage() {
         className={`${pad} relative isolate overflow-hidden bg-paper py-20 text-ink md:py-32`}
       >
         <Image
-          src="/images/plan.svg"
+          src="/images/cou"
           alt=""
           fill
           unoptimized
