@@ -1,6 +1,13 @@
+
 "use client";
 
-import { CSSProperties, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 
 import "../../hero.css";
 import HeroConstructionScene from "./hero_construction_scene";
@@ -13,28 +20,52 @@ const SERVICES = [
   "Fiscalização & Consultoria",
 ];
 
-/* Repeated an even number of times so the CSS ticker (translateX -50%)
-   loops without a gap, even on very wide screens. */
 const TICKER_ITEMS = Array.from({ length: 6 }, () => SERVICES).flat();
 
 export default function Hero() {
   const heroRef = useRef<HTMLElement>(null);
+  const reduceMotion = useReducedMotion();
 
-  /* Pause every CSS animation while the hero is off-screen. */
+
   useEffect(() => {
-    const el = heroRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
+    const element = heroRef.current;
+
+    if (!element) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        el.dataset.paused = String(!entry.isIntersecting);
+        element.dataset.paused = String(!entry.isIntersecting);
       },
       { threshold: 0 },
     );
 
-    observer.observe(el);
+    observer.observe(element);
+
     return () => observer.disconnect();
   }, []);
+
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+
+  // Subtle upward movement while scrolling through the hero.
+  const titleY = useTransform(
+    scrollYProgress,
+    [0, 1],
+    [0, reduceMotion ? 0 : -50],
+  );
+
+  const titleOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.75],
+    [1, 1],
+  );
+
+  const isMobile = useTransform(
+    scrollYProgress,
+    (value) => value,
+  );
 
   const GOLD_INK = "text-[#8B6A2F]";
 
@@ -58,15 +89,22 @@ export default function Hero() {
         <div className="ps-hero__content">
           <div className="ps-hero__eyebrow">
             <span className="ps-hero__pin" aria-hidden="true" />
-            <span>Angola </span>
+            <span>Angola</span>
             <span className="ps-hero__eyebrow-line" aria-hidden="true" />
           </div>
 
-          <h1 className="ps-hero__title ">
-            <span
-            >PRO</span>
-            <span className={`ps-hero__title-second ${GOLD_INK}`}>SOTA</span>
-          </h1>
+          <motion.h1
+            className="ps-hero__title"
+            style={{
+              y: titleY,
+              opacity: titleOpacity,
+            }}
+          >
+            <span>PRO</span>
+            <span className={`ps-hero__title-second ${GOLD_INK}`}>
+              SOTA
+            </span>
+          </motion.h1>
 
           <div className="ps-hero__divider" aria-hidden="true">
             <span />
@@ -118,6 +156,7 @@ export default function Hero() {
           </div>
         </div>
       </div>
+
       <Link
         href="#servicos"
         className="ps-hero__scroll"
@@ -126,7 +165,8 @@ export default function Hero() {
         <span className="ps-hero__scroll-label">Descobrir</span>
         <span className="ps-hero__scroll-icon" aria-hidden="true" />
       </Link>
-      {/* Services ticker (decorative duplicate of the services section) */}
+
+      {/* Services ticker */}
       <div className="ps-hero__strip" aria-hidden="true">
         <div className="ps-hero__strip-track">
           {TICKER_ITEMS.map((service, index) => (
