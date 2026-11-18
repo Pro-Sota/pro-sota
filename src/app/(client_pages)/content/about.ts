@@ -1,4 +1,4 @@
-export const projectsCount = "95+";
+export const projectsCount = "55+";
 export const countriesCount = "98%";
 
 export const values = [
