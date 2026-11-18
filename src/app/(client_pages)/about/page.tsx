@@ -14,7 +14,6 @@ import {
   projectsCount,
 } from "../content/about";
 import ContactCTA from "../components/contact_cta";
-import ParallaxLayer from "../components/parallax_layer";
 
 /* -------------------------------------------------------------------------- */
 /* Configuration                                                              */
@@ -265,54 +264,60 @@ export default function AboutPage() {
       {/* ================================================================= */}
 
 
+
       <Section id="nossa-historia" className="scroll-mt-24">
-        <ParallaxLayer
-          layers={[
-            {
-              src: "/images/courtyard_render.png",
-              alt: "Planta arquitectónica de uma habitação.",
-              depth: -0.2,
-              fit: "contain",
-              priority: true,
-            },
-          ]}
-          scrollRange={30}
-          mouseRange={12}
-          className="bg-[#EEECE6]"
-        >
-          <div className="bg-paper px-6 py-20 lg:px-12 lg:py-28">
-            <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-12 lg:gap-16">
-              <div className="lg:col-span-7">
-                <Eyebrow>Quem somos</Eyebrow>
+        {/* Full-width architectural drawing */}
+        <div className="w-full">
 
-                <H2 className="mt-4 max-w-4xl text-ink text-[clamp(2.5rem,4vw,5rem)] leading-[0.98] tracking-[-0.045em]">
-                  Uma visão integrada de arquitectura, engenharia e construção.
-                </H2>
-              </div>
-
-              <div className="space-y-5 text-[15px] leading-[1.9] text-ink-soft lg:col-span-5 lg:pt-10">
-                <p>
-                  A nossa actividade abrange desde a concepção arquitectónica
-                  e o desenvolvimento de especialidades de engenharia até à
-                  materialização e fiscalização de empreendimentos.
-                </p>
-
-                <p>
-                  Ao longo do percurso, participámos em projectos residenciais,
-                  educativos, religiosos, hoteleiros e de saúde, assim como em
-                  iniciativas de desenvolvimento urbano.
-                </p>
-
-                <p>
-                  Esta diversidade permitiu-nos consolidar experiência em
-                  diferentes escalas de intervenção e contextos, mantendo uma
-                  atenção constante às características de cada projecto.
-                </p>
-              </div>
-            </div>
+          <div
+            aria-hidden="true"
+            className="sticky top-0 z-0 h-svh w-full overflow-hidden"
+          >
+            <Image
+              src="/images/courtyard_render.png"
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
           </div>
-        </ParallaxLayer>
+        </div>
+
+        {/* Editorial content */}
+        <div className="mt-10 grid gap-8 sm:mt-12 lg:mt-16 lg:grid-cols-12 lg:gap-16">
+          {/* Title */}
+          <div className="lg:col-span-7">
+            <Eyebrow>Quem somos</Eyebrow>
+
+            <H2 className="mt-4 max-w-4xl text-ink text-[clamp(2.5rem,4vw,5rem)] leading-[0.98] tracking-[-0.045em]">
+              Uma visão integrada de arquitectura, engenharia e construção.
+            </H2>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-5 text-[15px] leading-[1.9] text-ink-soft lg:col-span-5 lg:pt-10">
+            <p>
+              A nossa actividade abrange desde a concepção arquitectónica
+              e o desenvolvimento de especialidades de engenharia até à
+              materialização e fiscalização de empreendimentos.
+            </p>
+
+            <p>
+              Ao longo do percurso, participámos em projectos residenciais,
+              educativos, religiosos, hoteleiros e de saúde, assim como em
+              iniciativas de desenvolvimento urbano.
+            </p>
+
+            <p>
+              Esta diversidade permitiu-nos consolidar experiência em
+              diferentes escalas de intervenção e contextos, mantendo uma
+              atenção constante às características de cada projecto.
+            </p>
+          </div>
+        </div>
       </Section>
+
 
       {/* ================================================================= */}
       {/* STATISTICS                                                        */}
@@ -546,123 +551,127 @@ export default function AboutPage() {
       {/* FEATURED PROJECTS                                                 */}
       {/* ================================================================= */}
 
-      {featuredProjects.length > 0 && (
-        <Section>
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <div>
-              <Eyebrow>O nosso trabalho</Eyebrow>
-              <H2 className="mt-4">Projectos em destaque.</H2>
+      {
+        featuredProjects.length > 0 && (
+          <Section>
+            <div className="flex flex-wrap items-end justify-between gap-6">
+              <div>
+                <Eyebrow>O nosso trabalho</Eyebrow>
+                <H2 className="mt-4">Projectos em destaque.</H2>
+              </div>
+
+              <Link
+                href="/portfolio"
+                className={`group inline-flex items-center gap-3 border-b border-ink/30 pb-2 text-sm font-semibold text-ink transition-colors hover:border-gold hover:text-gold-dim ${focus} focus-visible:outline-ink`}
+              >
+                Ver portefólio completo
+                <span
+                  aria-hidden
+                  className="text-lg transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transition-none"
+                >
+                  →
+                </span>
+              </Link>
             </div>
 
-            <Link
-              href="/portfolio"
-              className={`group inline-flex items-center gap-3 border-b border-ink/30 pb-2 text-sm font-semibold text-ink transition-colors hover:border-gold hover:text-gold-dim ${focus} focus-visible:outline-ink`}
-            >
-              Ver portefólio completo
-              <span
-                aria-hidden
-                className="text-lg transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transition-none"
-              >
-                →
-              </span>
-            </Link>
-          </div>
+            <ul className="mt-12 grid gap-6 md:mt-16 md:grid-cols-3 md:gap-5">
+              {featuredProjects.slice(0, 3).map((item, index) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`group flex h-full min-h-[16rem] flex-col justify-between border border-ink/15 bg-paper p-7 text-ink transition-colors duration-300 hover:border-navy hover:bg-navy hover:text-paper motion-reduce:transition-none md:min-h-[19rem] md:p-9 ${focus} focus-visible:outline-ink`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        aria-hidden
+                        className="block h-px w-10 bg-gold transition-all duration-500 group-hover:w-20 motion-reduce:transition-none"
+                      />
 
-          <ul className="mt-12 grid gap-6 md:mt-16 md:grid-cols-3 md:gap-5">
-            {featuredProjects.slice(0, 3).map((item, index) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`group flex h-full min-h-[16rem] flex-col justify-between border border-ink/15 bg-paper p-7 text-ink transition-colors duration-300 hover:border-navy hover:bg-navy hover:text-paper motion-reduce:transition-none md:min-h-[19rem] md:p-9 ${focus} focus-visible:outline-ink`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      aria-hidden
-                      className="block h-px w-10 bg-gold transition-all duration-500 group-hover:w-20 motion-reduce:transition-none"
-                    />
+                      <span
+                        aria-hidden
+                        className={`${EYEBROW} text-gold-dim transition-colors group-hover:text-paper/70`}
+                      >
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                    </div>
 
-                    <span
-                      aria-hidden
-                      className={`${EYEBROW} text-gold-dim transition-colors group-hover:text-paper/70`}
-                    >
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                  </div>
+                    <div>
+                      <h3 className="font-display text-3xl font-medium tracking-tight md:text-4xl">
+                        {item.title}
+                      </h3>
 
-                  <div>
-                    <h3 className="font-display text-3xl font-medium tracking-tight md:text-4xl">
-                      {item.title}
-                    </h3>
-
-                    <p className="mt-4 max-w-md text-sm leading-7 text-ink-soft transition-colors duration-300 group-hover:text-paper/85 motion-reduce:transition-none">
-                      {item.type}
-                    </p>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
+                      <p className="mt-4 max-w-md text-sm leading-7 text-ink-soft transition-colors duration-300 group-hover:text-paper/85 motion-reduce:transition-none">
+                        {item.type}
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )
+      }
 
       {/* ================================================================= */}
       {/* CREDENTIALS AND TEAM                                              */}
       {/* ================================================================= */}
 
-      {(credentials.length > 0 || team.length > 0) && (
-        <Section tone="stone">
-          <div className="grid gap-14 lg:grid-cols-2 lg:gap-20">
-            {credentials.length > 0 && (
-              <div>
-                <Eyebrow>Reconhecimento</Eyebrow>
-                <H2 className="mt-4">Certificações e registos.</H2>
+      {
+        (credentials.length > 0 || team.length > 0) && (
+          <Section tone="stone">
+            <div className="grid gap-14 lg:grid-cols-2 lg:gap-20">
+              {credentials.length > 0 && (
+                <div>
+                  <Eyebrow>Reconhecimento</Eyebrow>
+                  <H2 className="mt-4">Certificações e registos.</H2>
 
-                <ul className="mt-9 divide-y divide-ink/15 border-y border-ink/15">
-                  {credentials.map((c, index) => (
-                    <li key={c} className="flex items-start gap-5 py-5">
-                      <span className={`${EYEBROW} pt-1 text-gold-dim`}>
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-
-                      <span className="text-base leading-7 text-ink-soft">
-                        {c}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {team.length > 0 && (
-              <div>
-                <Eyebrow>As pessoas</Eyebrow>
-                <H2 className="mt-4">Liderança.</H2>
-
-                <ul className="mt-9 divide-y divide-ink/15 border-y border-ink/15">
-                  {team.map((m, index) => (
-                    <li
-                      key={m.name}
-                      className="flex items-center justify-between gap-5 py-5"
-                    >
-                      <div className="flex min-w-0 items-center gap-5">
-                        <span className={`${EYEBROW} text-gold-dim`}>
+                  <ul className="mt-9 divide-y divide-ink/15 border-y border-ink/15">
+                    {credentials.map((c, index) => (
+                      <li key={c} className="flex items-start gap-5 py-5">
+                        <span className={`${EYEBROW} pt-1 text-gold-dim`}>
                           {String(index + 1).padStart(2, "0")}
                         </span>
 
-                        <span className="font-medium text-ink">{m.name}</span>
-                      </div>
+                        <span className="text-base leading-7 text-ink-soft">
+                          {c}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-                      <span className="shrink-0 text-right text-sm text-ink-soft">
-                        {m.role}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </Section>
-      )}
+              {team.length > 0 && (
+                <div>
+                  <Eyebrow>As pessoas</Eyebrow>
+                  <H2 className="mt-4">Liderança.</H2>
+
+                  <ul className="mt-9 divide-y divide-ink/15 border-y border-ink/15">
+                    {team.map((m, index) => (
+                      <li
+                        key={m.name}
+                        className="flex items-center justify-between gap-5 py-5"
+                      >
+                        <div className="flex min-w-0 items-center gap-5">
+                          <span className={`${EYEBROW} text-gold-dim`}>
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+
+                          <span className="font-medium text-ink">{m.name}</span>
+                        </div>
+
+                        <span className="shrink-0 text-right text-sm text-ink-soft">
+                          {m.role}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </Section>
+        )
+      }
 
       {/* ================================================================= */}
       {/* CLOSING CTA                                                       */}
@@ -673,7 +682,7 @@ export default function AboutPage() {
         className={`${pad} relative isolate overflow-hidden bg-paper py-20 text-ink md:py-32`}
       >
         <Image
-          src="/images/cou"
+          src="/images/plan.svg"
           alt=""
           fill
           unoptimized
@@ -704,6 +713,6 @@ export default function AboutPage() {
           <ContactCTA />
         </div>
       </section>
-    </main>
+    </main >
   );
 }

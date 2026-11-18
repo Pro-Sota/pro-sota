@@ -1,3 +1,4 @@
+
 import "server-only";
 
 import { createClient } from "@/app/lib/supabase/server";
@@ -8,7 +9,8 @@ export type Role =
     | "coordenador"
     | "architect"
     | "engineer"
-    | "partner";
+    | "partner"
+    | (string & {});
 
 export type Status =
     | "disponível"
@@ -21,6 +23,7 @@ export type TeamMember = {
     role_id: number;
     role: Role;
     role_name: string;
+    is_unique: boolean;
     first_name: string;
     last_name: string;
     avatar_url: string;
@@ -30,7 +33,7 @@ export type TeamMember = {
 
 type ProjectMemberRow = {
     project_members_id: string;
-    profile_id: string;
+    profile_id: string | null;
     project_id: string;
     role_id: number;
 };
@@ -44,12 +47,15 @@ type ProfileRow = {
 type ProjectRoleRow = {
     role_id: number;
     name: string;
+    is_unique: boolean;
 };
 
 export function normalizeRoleName(name: string): Role {
     const normalized = name
         .trim()
         .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
         .replace(/[_\s]+/g, "-");
 
     const roleMap: Record<string, Role> = {
@@ -65,6 +71,7 @@ export function normalizeRoleName(name: string): Role {
         architect: "architect",
         architecto: "architect",
         arquiteto: "architect",
+        arquitecto: "architect",
 
         engineer: "engineer",
         engenheiro: "engineer",
@@ -73,14 +80,9 @@ export function normalizeRoleName(name: string): Role {
         parceiro: "partner",
     };
 
-    return roleMap[normalized] ?? "engineer";
-}
-
-export function isUniqueRole(role: Role): boolean {
-    return (
-        role === "project-manager" ||
-        role === "coordenador"
-    );
+    // Preserve unknown roles instead of incorrectly
+    // classifying every new role as Engineer.
+    return roleMap[normalized] ?? normalized;
 }
 
 export async function getProjectMembers(
@@ -89,6 +91,7 @@ export async function getProjectMembers(
     if (!projectId) {
         throw new Error("Project ID is required.");
     }
+
     const supabase = await createClient(await cookies());
 
     const {
@@ -110,24 +113,20 @@ export async function getProjectMembers(
             membersError,
         );
 
-        throw new Error(
-            membersError.message ||
-                "Failed to fetch project members.",
-        );
+        throw new Error(membersError.message);
     }
 
-    if (!memberRows || memberRows.length === 0) {
+    if (!memberRows?.length) {
         return [];
     }
 
-    const members =
-        memberRows as ProjectMemberRow[];
+    const members = memberRows as ProjectMemberRow[];
 
     const profileIds = [
         ...new Set(
             members
                 .map((member) => member.profile_id)
-                .filter(Boolean),
+                .filter((id): id is string => Boolean(id)),
         ),
     ];
 
@@ -135,13 +134,7 @@ export async function getProjectMembers(
         ...new Set(
             members
                 .map((member) => member.role_id)
-                .filter(
-                    (
-                        roleId,
-                    ): roleId is number =>
-                        roleId !== null &&
-                        roleId !== undefined,
-                ),
+                .filter((id): id is number => id != null),
         ),
     ];
 
@@ -149,7 +142,7 @@ export async function getProjectMembers(
         { data: profileRows, error: profilesError },
         { data: roleRows, error: rolesError },
     ] = await Promise.all([
-        profileIds.length > 0
+        profileIds.length
             ? supabase
                   .from("profiles")
                   .select(`
@@ -163,12 +156,13 @@ export async function getProjectMembers(
                   error: null,
               }),
 
-        roleIds.length > 0
+        roleIds.length
             ? supabase
                   .from("project_roles")
                   .select(`
                       role_id,
-                      name
+                      name,
+                      is_unique
                   `)
                   .in("role_id", roleIds)
             : Promise.resolve({
@@ -178,34 +172,15 @@ export async function getProjectMembers(
     ]);
 
     if (profilesError) {
-        console.error(
-            "Supabase error fetching project member profiles:",
-            profilesError,
-        );
-
-        throw new Error(
-            profilesError.message ||
-                "Failed to fetch member profiles.",
-        );
+        throw new Error(profilesError.message);
     }
 
     if (rolesError) {
-        console.error(
-            "Supabase error fetching project roles:",
-            rolesError,
-        );
-
-        throw new Error(
-            rolesError.message ||
-                "Failed to fetch project roles.",
-        );
+        throw new Error(rolesError.message);
     }
 
-    const profiles =
-        (profileRows ?? []) as ProfileRow[];
-
-    const roles =
-        (roleRows ?? []) as ProjectRoleRow[];
+    const profiles = (profileRows ?? []) as ProfileRow[];
+    const roles = (roleRows ?? []) as ProjectRoleRow[];
 
     const profileMap = new Map(
         profiles.map((profile) => [
@@ -221,59 +196,52 @@ export async function getProjectMembers(
         ]),
     );
 
-    return members.flatMap(
-        (member): TeamMember[] => {
-            const profile =
-                profileMap.get(
+    return members.flatMap((member): TeamMember[] => {
+        if (!member.profile_id) {
+            return [];
+        }
+
+        const profile = profileMap.get(member.profile_id);
+        const projectRole = roleMap.get(member.role_id);
+
+        if (!profile || !projectRole) {
+            return [];
+        }
+
+        return [
+            {
+                project_members_id:
+                    member.project_members_id,
+
+                profile_id:
                     member.profile_id,
-                );
 
-            const projectRole =
-                roleMap.get(member.role_id);
+                role_id:
+                    member.role_id,
 
-            if (!profile) {
-                return [];
-            }
+                role:
+                    normalizeRoleName(projectRole.name),
 
-            const roleName =
-                projectRole?.name ?? "Engineer";
+                role_name:
+                    projectRole.name,
 
-            return [
-                {
-                    project_members_id:
-                        member.project_members_id,
+                is_unique:
+                    projectRole.is_unique,
 
-                    profile_id:
-                        member.profile_id,
+                first_name:
+                    profile.first_name?.trim() ?? "",
 
-                    role_id:
-                        member.role_id,
+                last_name:
+                    profile.last_name?.trim() ?? "",
 
-                    role:
-                        normalizeRoleName(
-                            roleName,
-                        ),
+                avatar_url: "",
 
-                    role_name:
-                        roleName,
+                status: "ausente",
 
-                    first_name:
-                        profile.first_name?.trim() ??
-                        "",
-
-                    last_name:
-                        profile.last_name?.trim() ??
-                        "",
-
-                    avatar_url: "",
-
-                    status: "ausente",
-
-                    tasks: [],
-                },
-            ];
-        },
-    );
+                tasks: [],
+            },
+        ];
+    });
 }
 
 export async function getRoleByName(
@@ -286,7 +254,7 @@ export async function getRoleByName(
         error,
     } = await supabase
         .from("project_roles")
-        .select("role_id, name")
+        .select("role_id, name, is_unique")
         .eq("name", roleName)
         .maybeSingle();
 
