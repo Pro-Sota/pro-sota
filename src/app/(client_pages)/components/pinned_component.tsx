@@ -14,14 +14,10 @@ export default function PinnedTitle({
 }: PinnedTitleProps) {
   return (
     <div
-      className={`relative min-w-0 self-stretch ${className}`}
+      className={`sticky z-0 w-full ${className}`}
+      style={{ top: `${offset}px` }}
     >
-      <div
-        className="sticky z-0 w-full"
-        style={{ top: `${offset}px` }}
-      >
-        {children}
-      </div>
+      {children}
     </div>
   );
 }

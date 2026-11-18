@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useId } from "react";
+import PinnedTitle from "./parallax_section";
 
 export default function BriefingSection() {
   const gradientId = useId().replace(/:/g, "");
@@ -66,6 +67,7 @@ export default function BriefingSection() {
 
           {/* Architectural illustration */}
           <div className="absolute inset-0 flex items-center justify-center px-3 pb-5 pt-10 sm:px-8 sm:pb-8 sm:pt-12">
+            <PinnedTitle >
             <svg
               viewBox="0 0 620 460"
               role="img"
@@ -278,6 +280,7 @@ export default function BriefingSection() {
                 <text x="20" y="308">VOLUME</text>
               </g>
             </svg>
+            </PinnedTitle>
           </div>
 
           {/* Bottom drawing information */}
