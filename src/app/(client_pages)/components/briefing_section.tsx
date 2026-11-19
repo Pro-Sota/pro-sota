@@ -13,7 +13,7 @@ export default function BriefingSection() {
     <section
       id="briefing"
       aria-labelledby="briefing-title"
-      className="relative overflow-hidden bg-[#F7F7F5] text-[#002950]"
+      className="relative overflow-hidden bg-[#F7F7F5] font-body text-[#002950]"
     >
       <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-y-8 px-6 py-14 md:gap-y-10 md:px-12 md:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[auto_auto] lg:items-center lg:gap-x-16 lg:gap-y-5 lg:px-20">
 
@@ -32,11 +32,11 @@ export default function BriefingSection() {
             </div>
 
             <H2
-              className="font-heading max-w-2xl text-[clamp(2.25rem,4vw,3.5rem)] font-medium leading-[1.08] tracking-[-0.045em] text-[#002950]"
+              className="!font-body max-w-2xl text-[clamp(2.1rem,3.5vw,3.25rem)] font-medium leading-[1.08] tracking-[-0.045em] text-[#002950]"
             >
               Tem um projecto
               <br />
-              <span className="font-light text-[#BD9655]">
+              <span className="font-normal text-[#BD9655]">
                 em mente?
               </span>
             </H2>

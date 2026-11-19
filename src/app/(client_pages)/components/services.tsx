@@ -1,3 +1,4 @@
+
 import { services } from "./servicesData";
 
 import Link from "next/link";
@@ -7,7 +8,7 @@ import "../../styles.css";
 export default function Services() {
   return (
     <section
-      className="services relative overflow-hidden bg-cream py-[clamp(80px,12vh,120px)]"
+      className="services relative overflow-hidden bg-cream py-[clamp(80px,12vh,120px)] font-body"
       id="servicos"
     >
       <div className="mx-auto max-w-[1320px] px-[clamp(20px,5vw,64px)]">
@@ -15,7 +16,7 @@ export default function Services() {
           <div>
             <p className="section-label">Serviços prestados</p>
 
-            <h2 className="max-w-[16ch] font-display text-[clamp(28px,3.6vw,44px)] leading-none font-extrabold uppercase text-navy">
+            <h2 className="max-w-[16ch] font-body text-[clamp(26px,3.2vw,40px)] leading-[1.08] font-medium tracking-[-0.04em] text-navy">
               Quatro áreas, uma só visão
             </h2>
           </div>
@@ -31,11 +32,11 @@ export default function Services() {
               key={service.key}
               className="min-h-[230px] border border-navy/15 bg-white/35 p-5 lg:p-6"
             >
-              <span className="mb-5 block font-display text-[15px] font-extrabold text-gold-dim">
+              <span className="mb-5 block font-body text-[14px] font-medium tracking-[0.08em] text-gold-dim">
                 {service.num}
               </span>
 
-              <h3 className="mb-3 font-display text-[17px] leading-[1.25] font-extrabold uppercase text-navy">
+              <h3 className="mb-3 font-body text-[17px] leading-[1.3] font-medium tracking-[-0.02em] text-navy">
                 {service.title}
               </h3>
 
@@ -43,7 +44,7 @@ export default function Services() {
                 {service.label}
               </p>
 
-              <ul className="services__subservices mt-4 space-y-1.5 border-t border-navy/15 text-[13px] leading-[1.5] text-navy">
+              <ul className="services__subservices mt-4 space-y-1.5 border-t border-navy/15 pt-3 text-[13px] leading-[1.5] text-navy">
                 {service.items.map(([title]) => (
                   <li key={title}>{title}</li>
                 ))}
@@ -54,7 +55,7 @@ export default function Services() {
 
         <div className="mt-7 flex justify-center">
           <Link
-            className="border-b border-gold-dim pb-1 font-display text-sm font-bold tracking-[.06em] text-navy uppercase transition-colors hover:text-gold-dim"
+            className="border-b border-gold-dim pb-1 font-body text-sm font-medium tracking-[0.04em] text-navy transition-colors hover:text-gold-dim"
             href="/servicos"
           >
             Mais informações

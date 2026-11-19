@@ -143,28 +143,18 @@ export default function Hero() {
             aria-hidden="true"
           >
             <span className="ps-hero__annotation-dot" />
-            <span>ENGENHARIA · 01</span>
+            <span>ENGENHARIA</span>
           </div>
 
           <div
             className="ps-hero__annotation ps-hero__annotation--bottom"
             aria-hidden="true"
           >
-            <span>DESIGN &amp; CONSTRUÇÃO</span>
-            <span className="ps-hero__annotation-line" />
-            <span>08°50′ S · 13°14′ E</span>
+            <span className="ps-hero__annotation-dot" />
+            <span>Arquitectura &amp; CONSTRUÇÃO</span>
           </div>
         </div>
       </div>
-
-      <Link
-        href="#servicos"
-        className="ps-hero__scroll"
-        aria-label="Descer para descobrir os nossos serviços"
-      >
-        <span className="ps-hero__scroll-label">Descobrir</span>
-        <span className="ps-hero__scroll-icon" aria-hidden="true" />
-      </Link>
 
       {/* Services ticker */}
       <div className="ps-hero__strip" aria-hidden="true">

@@ -1,0 +1,46 @@
+.bp-scene { display: block; width: 100%; height: auto; }
+.bp-bubble { font-family: var(--hero-font, ui-sans-serif, system-ui, sans-serif); font-weight: 600; }
+
+/* Fades and pops are staggered with --d (seconds) */
+.bp-fade { animation: bp-fade 0.8s ease-out var(--d, 0s) both; }
+.bp-pop  { animation: bp-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) var(--d, 0s) both; transform-box: fill-box; transform-origin: center; }
+
+/* Lines draw themselves (paths carry pathLength="1") */
+.bp-draw {
+  stroke-dasharray: 1;
+  animation: bp-draw 1.3s cubic-bezier(0.3, 0, 0.2, 1) var(--d, 0s) both;
+}
+
+/* The one orchestrated moment: the scan plane turns the drawing into a building.
+   Wipe and line share timing so they stay locked together. */
+.bp-wipe {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  animation: bp-wipe var(--bp-wipe-dur, 3.6s) cubic-bezier(0.65, 0, 0.35, 1) var(--bp-wipe-delay, 2.2s) both;
+}
+.bp-scan {
+  animation: bp-scan var(--bp-wipe-dur, 3.6s) cubic-bezier(0.65, 0, 0.35, 1) var(--bp-wipe-delay, 2.2s) both;
+}
+
+/* Quiet idle motion */
+.bp-sway  { transform-origin: 365px 112px; animation: bp-sway 6s ease-in-out infinite alternate; }
+.bp-pulse { animation: bp-pulse 2.4s ease-in-out infinite; }
+
+@keyframes bp-fade  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bp-pop   { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; } }
+@keyframes bp-draw  { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes bp-wipe  { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes bp-scan  {
+  0%   { opacity: 0; transform: translateX(0); }
+  6%   { opacity: 1; }
+  94%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(var(--bp-travel, 440px)); }
+}
+@keyframes bp-sway  { from { transform: rotate(-0.8deg); } to { transform: rotate(0.8deg); } }
+@keyframes bp-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+/* Reduced motion: show the finished scene, no scan line, no idle motion */
+@media (prefers-reduced-motion: reduce) {
+  .bp-fade, .bp-pop, .bp-draw, .bp-wipe, .bp-sway, .bp-pulse { animation: none; }
+  .bp-scan { display: none; }
+}

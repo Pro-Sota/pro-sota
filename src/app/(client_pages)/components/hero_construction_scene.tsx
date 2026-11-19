@@ -1,458 +1,288 @@
-import { useId, type CSSProperties, type ReactNode } from "react";
+import { useId, type CSSProperties, type ReactNode, type SVGProps } from "react";
+import "./hero_blueprint.css";
 
-/* Colours come from the CSS tokens declared on .ps-hero (see hero.css). */
-const GOLD = "var(--hero-gold)";
-const GOLD_LIGHT = "var(--hero-gold-light)";
-const GOLD_PALE = "var(--hero-gold-pale)";
-const SAND = "var(--hero-sand)";
-const IVORY = "var(--hero-ivory)";
-const SKIN = "var(--hero-skin)";
-const NAVY = "var(--hero-navy)";
-const GRID = "var(--hero-grid-line)";
-
-/** Sets the reveal delay (seconds) read by .ps-scene__reveal / .ps-scene__draw-path */
-const delay = (seconds: number) =>
-  ({ "--ps-d": `${seconds}s` }) as CSSProperties;
-
-/* --------------------------------------------------------------------------
-   Worker — one body, drawn once. Position it with dx/dy, pose it with `arms`
-   (path data in the base worker's coordinate space) and add hand-held items
-   as children.
-   -------------------------------------------------------------------------- */
-
-type WorkerProps = {
-  dx?: number;
-  dy?: number;
-  arms: string;
-  revealAt: number;
-  children?: ReactNode;
+/* Same token names as the existing hero; fallbacks make it work standalone. */
+const C = {
+  gold: "var(--hero-gold, #C9A24B)",
+  light: "var(--hero-gold-light, #E3C77E)",
+  pale: "var(--hero-gold-pale, #F3E6BF)",
+  sand: "var(--hero-sand, #B9AE98)",
+  ivory: "var(--hero-ivory, #F7F3E8)",
+  skin: "var(--hero-skin, #D9A98A)",
+  navy: "var(--hero-navy, #0E1E33)",
+  grid: "var(--hero-grid-line, #C9A24B)",
 };
 
-function Worker({ dx = 0, dy = 0, arms, revealAt, children }: WorkerProps) {
+/* ------------------------------------------------------------- Geometry */
+const GROUND = 640;
+const FLOOR_H = 48;
+const FLOORS = 7;
+const CLADDED = 5; // floors 0-4 are finished; 5-6 are still bare frame
+const GRID_X = [330, 400, 470, 540, 610] as const;
+const BAYS = GRID_X.slice(0, -1);
+const BAY_W = 70;
+/** levels[i] = y of the underside of floor i (levels[7] is the top slab) */
+const levels = Array.from({ length: FLOORS + 1 }, (_, i) => GROUND - i * FLOOR_H);
+const TOP = levels[FLOORS];
+const floorTop = (i: number) => levels[i + 1];
+const slabSpan = (i: number) => (i === 1 ? [290, 650] : [330, 610]);
+const win = (x: number, i: number) => ({ x: x + 9, y: floorTop(i) + 11, w: 52, h: 26 });
+
+/** The scan plane sweeps this band left to right: blueprint becomes building. */
+const SCAN = { x: 250, w: 440, y1: 192, y2: 662 };
+
+/** Timeline in seconds. Retime the whole scene here. */
+const T = { draw: 0.4, wipe: 2.2, wipeDur: 3.6, crane: 0.2, people: 1.4 };
+const badgesAt = T.wipe + T.wipeDur + 0.2;
+
+const delay = (s: number) => ({ "--d": `${s}s` }) as CSSProperties;
+
+/* ------------------------------------------------------ Path generators */
+function lattice(x1: number, x2: number, yTop: number, yBot: number, step: number) {
+  let d = `M${x1} ${yTop}H${x2}M${x1} ${yBot}H${x2}`;
+  for (let x = x1, k = 0; x < x2; x += step, k++) {
+    const nx = Math.min(x + step, x2);
+    d += `M${x} ${k % 2 ? yTop : yBot}L${nx} ${k % 2 ? yBot : yTop}`;
+  }
+  return d;
+}
+function mast(x1: number, x2: number, yTop: number, yBot: number, step: number) {
+  let d = `M${x1} ${yTop}V${yBot}M${x2} ${yTop}V${yBot}`;
+  for (let y = yTop, k = 0; y < yBot; y += step, k++) {
+    const ny = Math.min(y + step, yBot);
+    d += `M${k % 2 ? x2 : x1} ${y}L${k % 2 ? x1 : x2} ${ny}`;
+  }
+  return d;
+}
+const hatch = (() => {
+  let d = "";
+  for (let x = 110; x < 840; x += 36) d += `M${x} ${GROUND}l-9 11`;
+  return d;
+})();
+
+/* ------------------------------------------------------------- Pieces */
+type DrawProps = { d: string; at: number } & SVGProps<SVGPathElement>;
+/** A line that draws itself in (pathLength normalised to 1) */
+const Draw = ({ d, at, ...rest }: DrawProps) => (
+  <path className="bp-draw" style={delay(at)} d={d} pathLength={1} {...rest} />
+);
+
+function Person({ x, arms, children }: { x: number; arms: string; children?: ReactNode }) {
   return (
-    <g
-      className="ps-scene__worker ps-scene__reveal"
-      style={delay(revealAt)}
-      transform={`translate(${dx} ${dy})`}
-    >
-      {/* Legs and boots */}
-      <path
-        d="M390 605L384 629M406 605L416 629"
-        stroke={SAND}
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M379 630H391M410 630H423"
-        stroke={GOLD}
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-
-      {/* Torso and hi-vis vest */}
-      <path
-        d="M388 565L380 603H411L407 565Z"
-        fill={GOLD}
-        fillOpacity=".88"
-        stroke={GOLD_LIGHT}
-        strokeWidth="1.5"
-      />
-      <path
-        d="M386 572L397 580L408 572M397 580V602"
-        stroke={IVORY}
-        strokeWidth="2"
-      />
-
-      {/* Arms */}
-      <path d={arms} stroke={SAND} strokeWidth="5" strokeLinecap="round" />
-
-      {/* Head and helmet */}
-      <circle cx="398" cy="552" r="11" fill={SKIN} />
-      <path
-        d="M386 549Q387 535 398 535Q409 535 410 549Z"
-        fill={GOLD}
-        stroke={GOLD_PALE}
-        strokeWidth="1.5"
-      />
-      <path
-        d="M384 550H412"
-        stroke={GOLD_PALE}
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-
-      {children}
+    <g className="bp-fade" style={delay(T.people)}>
+      <g transform={`translate(${x} ${GROUND}) scale(1.25)`}>
+        <path d="M-4 -28L-5 -4M4 -28L5 -4" stroke={C.sand} strokeWidth="5" strokeLinecap="round" />
+        <path d="M-8 -1H-2M2 -1H8" stroke={C.gold} strokeWidth="4" strokeLinecap="round" />
+        <path
+          d="M-9 -60Q0 -65 9 -60L10 -28Q0 -24 -10 -28Z"
+          fill={C.gold}
+          fillOpacity=".94"
+          stroke={C.light}
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+        />
+        <path d="M-9 -50H9M0 -43V-27" stroke={C.ivory} strokeWidth="1.8" strokeLinecap="round" />
+        <path d={arms} stroke={C.sand} strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        {children}
+        <circle cx="0" cy="-70" r="8" fill={C.skin} />
+        <path d="M-9 -72Q-9 -84 0 -84Q9 -84 9 -72Z" fill={C.gold} stroke={C.pale} strokeWidth="1.4" />
+        <path d="M-11 -72H11" stroke={C.pale} strokeWidth="2.4" strokeLinecap="round" />
+      </g>
     </g>
   );
 }
 
-export default function HeroConstructionScene() {
-  /* Unique, selector-safe ids so the component can render more than once */
-  const uid = `ps-${useId().replace(/:/g, "")}`;
-  const id = {
-    buildingFill: `${uid}-building-fill`,
-    groundFill: `${uid}-ground-fill`,
-    grid: `${uid}-blueprint-grid`,
-    outline: `${uid}-outline`,
-    slabA: `${uid}-slab-a`,
-    slabB: `${uid}-slab-b`,
-    slabC: `${uid}-slab-c`,
-  };
+export default function HeroBlueprintScene() {
+  const uid = `bp-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const id = { grid: `${uid}-grid`, clip: `${uid}-clip`, trail: `${uid}-trail` };
+
+  const sceneVars = {
+    "--bp-wipe-delay": `${T.wipe}s`,
+    "--bp-wipe-dur": `${T.wipeDur}s`,
+    "--bp-travel": `${SCAN.w}px`,
+  } as CSSProperties;
+
+  const floorsAll = Array.from({ length: FLOORS }, (_, i) => i);
+  const upperWindows = floorsAll.slice(1).flatMap((i) => BAYS.map((x) => ({ i, x })));
+  const groundGlass = [BAYS[0], BAYS[1], BAYS[3]];
+  const braceFloors = [5, 6];
+  const braceBays = [BAYS[0], BAYS[3]];
 
   return (
     <svg
-      className="ps-scene"
+      className="bp-scene"
       viewBox="0 0 900 760"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      preserveAspectRatio="xMidYMid meet"
+      shapeRendering="geometricPrecision"
       aria-hidden="true"
       focusable="false"
+      style={sceneVars}
     >
       <defs>
-        <linearGradient id={id.buildingFill} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={GOLD} stopOpacity=".12" />
-          <stop offset="100%" stopColor={GOLD} stopOpacity=".015" />
-        </linearGradient>
-
-        <linearGradient id={id.groundFill} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={GOLD} stopOpacity=".12" />
-          <stop offset="100%" stopColor={GOLD} stopOpacity="0" />
-        </linearGradient>
-
-        <pattern
-          id={id.grid}
-          width="40"
-          height="40"
-          patternUnits="userSpaceOnUse"
-        >
-          <path
-            d="M40 0H0V40"
-            stroke={GRID}
-            strokeOpacity=".13"
-            strokeWidth=".7"
-          />
-          <circle cx="0" cy="0" r="1" fill={GOLD} opacity=".3" />
+        <pattern id={id.grid} width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M40 0H0V40" stroke={C.grid} strokeOpacity=".07" strokeWidth=".7" />
+          <circle r="1" fill={C.gold} opacity=".18" />
         </pattern>
-
-        {/* Shared geometry: drawn once, reused by the building and the
-            "technical drawing" overlay. pathLength="1" normalises dash maths. */}
-        <path
-          id={id.outline}
-          d="M310 310L470 225L745 310V630H310V310Z"
-          pathLength={1}
-        />
-        <path id={id.slabA} d="M310 410L470 325L745 410" pathLength={1} />
-        <path id={id.slabB} d="M310 515L470 430L745 515" pathLength={1} />
-        <path id={id.slabC} d="M310 630L470 545L745 630" pathLength={1} />
+        <linearGradient id={id.trail} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={C.gold} stopOpacity="0" />
+          <stop offset="1" stopColor={C.gold} stopOpacity=".28" />
+        </linearGradient>
+        {/* Reveals the finished building; the rect grows with the scan line */}
+        <clipPath id={id.clip}>
+          <rect className="bp-wipe" x={SCAN.x} y="0" width={SCAN.w} height="760" />
+        </clipPath>
       </defs>
 
-      {/* Blueprint background */}
       <rect width="900" height="760" fill={`url(#${id.grid})`} />
+      <circle cx="470" cy="420" r="300" stroke={C.gold} strokeOpacity=".07" strokeDasharray="4 10" />
 
-      {/* Composition guides */}
-      <g className="ps-scene__guides" stroke={GOLD}>
-        <circle cx="505" cy="350" r="270" strokeOpacity=".13" strokeDasharray="4 9" />
-        <circle cx="505" cy="350" r="210" strokeOpacity=".12" strokeDasharray="2 8" />
-        <path d="M505 35V690M145 350H855" strokeOpacity=".15" strokeDasharray="5 9" />
+      {/* Ground */}
+      <g className="bp-fade" style={delay(0.1)}>
+        <path d={`M90 ${GROUND}H850`} stroke={C.gold} strokeWidth="2" />
+        <path d={hatch} stroke={C.gold} strokeOpacity=".3" />
       </g>
 
-      {/* Site ground */}
-      <g className="ps-scene__ground ps-scene__reveal" style={delay(0.2)}>
-        <path d="M130 640H835" stroke={GOLD} strokeWidth="2" />
-        <path d="M160 640L195 655H790L825 640" fill={`url(#${id.groundFill})`} />
-        <path d="M180 655H810" stroke={GOLD} strokeOpacity=".3" />
-        <path
-          d="M225 640V660M330 640V660M435 640V660M540 640V660M645 640V660M750 640V660"
-          stroke={GOLD}
-          strokeOpacity=".3"
-        />
+      {/* Architecture: dimension lines with architectural ticks */}
+      <g className="bp-fade" style={delay(0.5)} stroke={C.light} strokeOpacity=".7">
+        <path d={`M262 ${TOP}V${GROUND}`} />
+        <path d={levels.map((y) => `M258 ${y + 4}L266 ${y - 4}`).join("")} strokeWidth="1.5" />
+        <path d={`M330 676H610M330 672L334 680M610 672L614 680M290 696H650M290 692L294 700M650 692L654 700`} />
       </g>
 
-      {/* Crane, lifting cable, hook and load */}
-      <g className="ps-scene__lift ps-scene__reveal" style={delay(0.1)}>
-        <g className="ps-scene__crane" stroke={GOLD}>
-          <path d="M170 75H690" strokeWidth="3" />
-          <path d="M170 75L235 105H625L690 75" strokeWidth="1.5" />
+      {/* ---------- Layer 1: the drawing (always present, drawn in first) ---------- */}
+      <g stroke={C.gold} strokeOpacity=".6">
+        <Draw d={`M290 ${GROUND}V${levels[1]}H330V${TOP}H610V${levels[1]}H650V${GROUND}`} at={T.draw} strokeWidth="1.8" />
+        {levels.slice(1).map((y, k) => {
+          const [a, b] = slabSpan(k + 1);
+          return <Draw key={y} d={`M${a} ${y}H${b}`} at={T.draw + 0.3 + k * 0.1} strokeWidth="1.2" />;
+        })}
+        <path className="bp-fade" style={delay(T.draw + 1.2)} d={`M440 ${TOP}V280H500V${TOP}M470 280V232`} strokeDasharray="5 4" />
+
+        {/* Structural grid lines and bubbles */}
+        <g className="bp-fade" style={delay(T.draw + 0.2)}>
+          {GRID_X.map((x, k) => (
+            <g key={x}>
+              <path d={`M${x} ${GROUND + 10}V215`} strokeDasharray="14 4 2 4" strokeOpacity=".5" />
+              <circle cx={x} cy="203" r="11" strokeOpacity=".9" />
+              <text className="bp-bubble" x={x} y="203" dy=".35em" textAnchor="middle" fill={C.pale} stroke="none" fontSize="11">
+                {String.fromCharCode(65 + k)}
+              </text>
+            </g>
+          ))}
+        </g>
+
+        {/* Planned openings */}
+        <g className="bp-fade" style={delay(T.draw + 1.0)} strokeDasharray="3 3" strokeOpacity=".5">
+          {upperWindows.map(({ i, x }) => {
+            const w = win(x, i);
+            return <rect key={`${i}-${x}`} x={w.x} y={w.y} width={w.w} height={w.h} />;
+          })}
+        </g>
+      </g>
+
+      {/* ---------- Layer 2: the building, revealed by the scan ---------- */}
+      <g clipPath={`url(#${id.clip})`}>
+        {/* Cladding */}
+        <rect x="290" y={levels[1]} width="360" height={FLOOR_H} fill={C.gold} fillOpacity=".1" />
+        <rect x="330" y={levels[CLADDED]} width="280" height={levels[1] - levels[CLADDED]} fill={C.gold} fillOpacity=".1" />
+
+        {/* Glazing and entrance */}
+        <g fill={C.pale} fillOpacity=".16" stroke={C.gold} strokeWidth="1.4">
+          {upperWindows
+            .filter(({ i }) => i < CLADDED)
+            .map(({ i, x }) => {
+              const w = win(x, i);
+              return <rect key={`${i}-${x}`} x={w.x} y={w.y} width={w.w} height={w.h} />;
+            })}
+          {groundGlass.map((x) => (
+            <rect key={x} x={x + 9} y={levels[1] + 8} width="52" height={FLOOR_H - 8} />
+          ))}
+        </g>
+        <rect x="490" y={levels[1] + 12} width="30" height={FLOOR_H - 12} fill={C.navy} stroke={C.light} strokeWidth="1.6" />
+
+        {/* Engineering: columns, slabs, bracing on the unclad floors, rebar starters */}
+        <g stroke={C.light} strokeLinecap="round">
+          <path d={GRID_X.map((x) => `M${x} ${GROUND}V${TOP}`).join("") + `M290 ${GROUND}V${levels[1]}M650 ${GROUND}V${levels[1]}`} strokeWidth="3" />
+          <path d={levels.slice(1).map((y, k) => { const [a, b] = slabSpan(k + 1); return `M${a} ${y}H${b}`; }).join("")} strokeWidth="4" />
+          <path d={`M270 ${levels[1]}H670`} strokeWidth="5" />
           <path
-            d="M170 75L235 105L280 75L325 105L370 75L415 105L460 75L505 105L550 75L595 105L640 75L690 75"
-            strokeWidth="1.4"
+            d={braceFloors.flatMap((i) => braceBays.map((x) => `M${x} ${floorTop(i)}L${x + BAY_W} ${levels[i]}M${x + BAY_W} ${floorTop(i)}L${x} ${levels[i]}`)).join("")}
+            stroke={C.gold}
+            strokeWidth="1.6"
           />
-          <path
-            d="M235 105L280 75M325 105L370 75M415 105L460 75M505 105L550 75M595 105L640 75"
-            strokeWidth="1"
-          />
-          <path d="M235 105V620" strokeWidth="2" />
-          <path d="M235 105L205 135M235 105L265 135" strokeWidth="1.5" />
-          <path d="M220 105L235 620M250 105L235 620" strokeWidth=".8" opacity=".35" />
-          <path d="M190 620H280L260 640H210Z" strokeWidth="1.5" />
-          <path d="M210 640V655M260 640V655M195 655H275" strokeWidth="2" />
-        </g>
-
-        <g className="ps-scene__cable">
-          <path
-            d="M575 78V270"
-            stroke={GOLD_LIGHT}
-            strokeWidth="2"
-            strokeDasharray="4 3"
-          />
-        </g>
-
-        <g className="ps-scene__hook-load">
-          <path d="M568 270H582L578 282H572Z" stroke={GOLD_LIGHT} strokeWidth="2" />
-          <path d="M575 282V290" stroke={GOLD_LIGHT} strokeWidth="2" />
-          <path d="M575 290Q575 300 584 300" stroke={GOLD_LIGHT} strokeWidth="2" />
-
-          <g className="ps-scene__load">
-            <rect
-              x="542"
-              y="305"
-              width="66"
-              height="42"
-              rx="2"
-              fill={GOLD}
-              fillOpacity=".12"
-              stroke={GOLD}
-              strokeWidth="1.5"
-            />
-            <path
-              d="M542 305L575 290L608 305M553 305V347M597 305V347"
-              stroke={GOLD}
-              strokeWidth="1"
-            />
-            <path d="M550 320H600" stroke={GOLD} strokeOpacity=".5" />
-          </g>
+          <path d={GRID_X.map((x) => `M${x} ${TOP}V284M${x - 4} 292H${x + 4}M${x - 4} 298H${x + 4}`).join("")} strokeWidth="1.4" strokeDasharray="0" />
         </g>
       </g>
 
-      {/* Main building */}
-      <g className="ps-scene__building">
-        <use
-          href={`#${id.outline}`}
-          fill={`url(#${id.buildingFill})`}
-          stroke={GOLD}
-          strokeWidth="2"
-        />
-
-        {/* Floor slabs */}
-        <g
-          className="ps-scene__slabs ps-scene__reveal"
-          style={delay(0.9)}
-          stroke={GOLD}
-          strokeWidth="3"
-        >
-          <use href={`#${id.slabA}`} />
-          <use href={`#${id.slabB}`} />
-          <use href={`#${id.slabC}`} />
-        </g>
-
-        {/* Columns */}
-        <g className="ps-scene__columns ps-scene__reveal" style={delay(1.3)}>
-          <path
-            d="M310 310V630M365 280V630M470 225V545M555 260V630M645 285V630M745 310V630"
-            stroke={GOLD_LIGHT}
-            strokeWidth="3"
-          />
-        </g>
-
-        {/* Beams */}
-        <g className="ps-scene__beams ps-scene__reveal" style={delay(1.8)}>
-          <path
-            d="M365 280L645 365M470 225L745 310"
-            stroke={GOLD}
-            strokeWidth="2"
-          />
-        </g>
-
-        {/* Window openings */}
-        <g
-          className="ps-scene__windows ps-scene__reveal"
-          style={delay(2.2)}
-          stroke={GOLD}
-          strokeWidth="1.5"
-        >
-          <rect x="385" y="330" width="65" height="62" />
-          <rect x="485" y="350" width="55" height="58" />
-          <rect x="570" y="380" width="55" height="54" />
-          <rect x="655" y="405" width="55" height="62" />
-
-          <rect x="385" y="435" width="65" height="65" />
-          <rect x="485" y="460" width="55" height="55" />
-          <rect x="570" y="485" width="55" height="55" />
-          <rect x="655" y="530" width="55" height="65" />
-        </g>
-
-        {/* Window divisions */}
-        <g
-          className="ps-scene__window-details ps-scene__reveal"
-          style={delay(2.6)}
-          stroke={GOLD}
-          strokeOpacity=".45"
-        >
-          <path d="M417 330V392M385 361H450" />
-          <path d="M512 350V408M485 379H540" />
-          <path d="M597 380V434M570 407H625" />
-          <path d="M682 405V467M655 436H710" />
-        </g>
-
-        {/* Roof under construction */}
-        <g className="ps-scene__roof ps-scene__reveal" style={delay(2.9)}>
-          <path
-            d="M300 310L470 215L755 310"
-            stroke={GOLD_LIGHT}
-            strokeWidth="3"
-            strokeDasharray="7 5"
-          />
-          <path d="M470 215V185M450 215H490" stroke={GOLD} strokeWidth="2" />
+      {/* Oversight: the scan plane */}
+      <g transform={`translate(${SCAN.x} 0)`}>
+        <g className="bp-scan">
+          <rect x="-70" y={SCAN.y1} width="70" height={SCAN.y2 - SCAN.y1} fill={`url(#${id.trail})`} />
+          <path d={`M0 ${SCAN.y1}V${SCAN.y2}`} stroke={C.pale} strokeWidth="1.5" />
+          <path d={`M0 ${SCAN.y1 - 6}l5 6 -5 6 -5 -6z`} fill={C.pale} />
         </g>
       </g>
 
-      {/* Scaffolding */}
-      <g
-        className="ps-scene__scaffold ps-scene__reveal"
-        style={delay(1.5)}
-        stroke={GOLD_LIGHT}
-      >
-        <path d="M275 310V630M275 410H330M275 515H330M275 630H330" strokeWidth="1.8" />
-        <path d="M275 410L330 310M275 515L330 410M275 630L330 515" strokeWidth="1.8" />
-        <path d="M330 310V630" strokeWidth="1.8" />
-        <path
-          d="M275 355H330M275 460H330M275 570H330"
-          strokeWidth="1.2"
-          strokeDasharray="3 4"
-        />
-        <path d="M275 310H330M270 630H335" strokeWidth="3" />
-      </g>
-
-      {/* Floor labels */}
-      <g className="ps-scene__labels ps-scene__reveal" style={delay(2.4)}>
-        <text x="320" y="398">01</text>
-        <text x="320" y="503">02</text>
-        <text x="320" y="618">03</text>
-        <text x="665" y="245">A-01</text>
-      </g>
-
-      {/* Worker 1 — measurement */}
-      <Worker
-        revealAt={3.4}
-        arms="M386 574L370 589L357 581M408 574L425 588"
-      >
-        <g className="ps-scene__measuring-tool">
-          <path d="M356 581L348 550L354 548L364 580" stroke={GOLD_LIGHT} strokeWidth="2" />
-          <path d="M348 550L342 545" stroke={GOLD_LIGHT} strokeWidth="2" />
+      {/* Construction: tower crane lifting a façade panel */}
+      <g className="bp-fade" style={delay(T.crane)}>
+        <g stroke={C.gold} strokeWidth="1.3">
+          <path d={mast(735, 755, 96, GROUND, 22)} />
+          <path d={lattice(330, 830, 96, 112, 25)} />
+          <path d="M745 62L735 96M745 62L755 96M745 62L330 96M745 62L830 96" strokeWidth="1" />
+          <rect x="722" y="112" width="22" height="16" fill={C.navy} />
+          <rect x="800" y="114" width="26" height="22" fill={C.gold} fillOpacity=".18" />
+          <path d={`M718 ${GROUND}H772`} strokeWidth="2.5" />
         </g>
-      </Worker>
-
-      {/* Worker 2 — inspection */}
-      <Worker
-        dx={264}
-        revealAt={3.5}
-        arms="M387 575L373 591L361 585M409 575L422 591L433 582"
-      >
-        <g className="ps-scene__clipboard">
-          <rect x="425" y="572" width="19" height="25" rx="2" fill={NAVY} stroke={GOLD_LIGHT} />
-          <path d="M430 579H439M430 585H439M430 591H436" stroke={GOLD_LIGHT} strokeWidth="1" />
-        </g>
-      </Worker>
-
-      {/* Worker 3 — scaffolding */}
-      <Worker
-        dx={-96}
-        dy={-118}
-        revealAt={3.6}
-        arms="M387 572L376 586L369 581M408 572L422 580"
-      />
-
-      {/* Surveying equipment */}
-      <g className="ps-scene__survey ps-scene__reveal" style={delay(3.8)}>
-        <path d="M775 575L765 630M800 575L810 630M787 575V630" stroke={GOLD_LIGHT} strokeWidth="2" />
-        <path
-          d="M765 575H810L802 560H773Z"
-          fill={GOLD}
-          fillOpacity=".2"
-          stroke={GOLD_LIGHT}
-          strokeWidth="2"
-        />
-        <path d="M777 560V545H798V560" stroke={GOLD_LIGHT} strokeWidth="2" />
-        <rect x="778" y="536" width="20" height="12" rx="2" stroke={GOLD_LIGHT} strokeWidth="1.5" />
-        <circle cx="788" cy="542" r="3" fill={GOLD_LIGHT} />
-        <path d="M788 536V520" stroke={GOLD_LIGHT} strokeDasharray="2 3" />
-        <circle className="ps-scene__survey-point" cx="788" cy="520" r="5" fill={GOLD} />
-      </g>
-
-      {/* Dimensions */}
-      <g
-        className="ps-scene__dimensions ps-scene__reveal"
-        style={delay(3.2)}
-        stroke={GOLD}
-        strokeWidth="1"
-      >
-        <path d="M770 225V630M760 225H780M760 630H780" />
-        <path d="M790 225V630" strokeDasharray="3 5" />
-        <path d="M300 680H745M300 672V688M745 672V688" />
-        <path d="M300 680L310 676M300 680L310 684M745 680L735 676M745 680L735 684" />
-      </g>
-
-      {/* Technical drawing overlay — outline is drawn once, then holds */}
-      <g stroke={GOLD_PALE} strokeWidth="1.5">
-        <use
-          className="ps-scene__draw-path"
-          style={delay(0.6)}
-          href={`#${id.outline}`}
-        />
-        <use
-          className="ps-scene__draw-path"
-          style={delay(1.0)}
-          href={`#${id.slabA}`}
-        />
-        <use
-          className="ps-scene__draw-path"
-          style={delay(1.4)}
-          href={`#${id.slabB}`}
-        />
-      </g>
-
-      {/* Architectural control point */}
-      <g className="ps-scene__reveal" style={delay(3.6)}>
-        <g className="ps-scene__target">
-          <circle cx="470" cy="225" r="15" stroke={GOLD} strokeDasharray="3 4" />
-          <circle cx="470" cy="225" r="4" fill={GOLD} />
-          <path d="M450 225H490M470 205V245" stroke={GOLD} strokeWidth="1" />
+        <g className="bp-sway">
+          <rect x="357" y="112" width="16" height="7" fill={C.navy} stroke={C.light} />
+          <path d="M365 119V228M365 228L340 244M365 228L390 244" stroke={C.light} strokeWidth="1.3" strokeDasharray="4 3" />
+          <rect x="335" y="244" width="60" height="32" fill={C.gold} fillOpacity=".14" stroke={C.gold} strokeWidth="1.5" />
+          <path d="M365 244V276M335 260H395" stroke={C.gold} strokeWidth="1" strokeOpacity=".7" />
         </g>
       </g>
 
-      {/* Survey inspection line */}
-      <g
-        className="ps-scene__scan ps-scene__reveal"
-        style={delay(4.8)}
-        pointerEvents="none"
-      >
-        <path
-          className="ps-scene__scan-line"
-          d="M788 520L470 225"
-          stroke={GOLD_PALE}
-          strokeWidth="1.5"
-          opacity=".8"
-        />
-        <path d="M788 520L745 410" stroke={GOLD_PALE} strokeWidth="2" opacity=".8" />
-        <circle
-          className="ps-scene__scan-ring"
-          cx="470"
-          cy="225"
-          r="9"
-          stroke={GOLD_PALE}
-          strokeWidth="1.5"
-        />
-        <circle cx="470" cy="225" r="3" fill={GOLD_PALE} />
+      {/* Oversight: total station, inspector, engineer */}
+      <g className="bp-fade" style={delay(T.people - 0.2)}>
+        <path d={`M105 600L88 ${GROUND}M105 600L122 ${GROUND}M105 600V${GROUND}`} stroke={C.light} strokeWidth="2" strokeLinecap="round" />
+        <rect x="96" y="576" width="18" height="24" rx="2" fill={C.gold} fillOpacity=".2" stroke={C.light} strokeWidth="1.8" />
+        <circle cx="105" cy="586" r="4" fill={C.light} />
+        <path d={`M114 584L${GRID_X[0]} ${TOP}`} stroke={C.pale} strokeOpacity=".5" strokeDasharray="3 5" />
+        <circle cx={GRID_X[0]} cy={TOP} r="8" stroke={C.pale} strokeOpacity=".8" />
+        <path d={`M${GRID_X[0] - 12} ${TOP}H${GRID_X[0] + 12}M${GRID_X[0]} ${TOP - 12}V${TOP + 12}`} stroke={C.pale} strokeOpacity=".8" />
       </g>
+      <Person x={170} arms="M-9 -58L-12 -40M9 -58L15 -46L10 -44">
+        <rect x="11" y="-54" width="11" height="15" rx="1.5" fill={C.navy} stroke={C.light} />
+        <path d="M13.5 -49H19.5M13.5 -45H19.5" stroke={C.light} strokeWidth=".9" />
+      </Person>
+      <Person x={215} arms="M-9 -58L-14 -44M9 -58L20 -66L28 -74">
+        <path d="M-21 -40L-10 -53" stroke={C.ivory} strokeWidth="4" strokeLinecap="round" />
+      </Person>
 
-      {/* Ambient technical points */}
-      <g className="ps-scene__particles" fill={GOLD_LIGHT}>
-        <circle cx="160" cy="270" r="2" />
-        <circle cx="700" cy="170" r="2" />
-        <circle cx="830" cy="390" r="2" />
-        <circle cx="500" cy="690" r="2" />
-        <circle cx="350" cy="190" r="1.5" />
+      {/* Inspection record: signed off floor by floor, bottom up */}
+      <g>
+        <path className="bp-fade" style={delay(badgesAt)} d={`M690 ${TOP + 24}V${GROUND - 24}`} stroke={C.gold} strokeOpacity=".35" />
+        {floorsAll.map((i) => {
+          const cy = levels[i] - FLOOR_H / 2;
+          const done = i < CLADDED;
+          return (
+            <g key={i} transform={`translate(690 ${cy})`}>
+              <g className="bp-pop" style={delay(badgesAt + i * 0.18)}>
+              {done ? (
+                <>
+                  <circle r="10" fill={C.gold} fillOpacity=".18" stroke={C.gold} strokeWidth="1.5" />
+                  <path d="M-4.5 0L-1.5 3.5L4.5 -3.5" stroke={C.light} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </>
+              ) : (
+                <>
+                  <circle className="bp-pulse" r="10" stroke={C.pale} strokeWidth="1.5" strokeDasharray="3 3" />
+                  <circle r="2.5" fill={C.pale} />
+                </>
+              )}
+              </g>
+            </g>
+          );
+        })}
       </g>
     </svg>
   );

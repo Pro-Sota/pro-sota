@@ -1,3 +1,4 @@
+
 /*
  * Apresentação institucional e indicadores editoriais.
  * Server Component — Next.js App Router.
@@ -42,7 +43,8 @@ export default function About() {
     <section
       id="sobre"
       aria-labelledby="about-title"
-      className="relative bg-paper py-20 text-ink sm:py-24 lg:py-32"    >
+      className="relative bg-paper py-20 font-body text-ink sm:py-24 lg:py-32"
+    >
       {/* data-pin-container: the title stays frozen until this block ends.
           relative → anchors the title at the end; clip-path → the title can never show outside it. */}
       <div
@@ -51,7 +53,7 @@ export default function About() {
       >
         {/* Introduction */}
         <div className="grid grid-cols-1 items-end gap-8 pb-10 sm:pb-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
-          {/* Pinned title: frozen 128px from the window top, sits below the content layer (z-0) */}
+          {/* Pinned title */}
           <PinnedTitle offset={128}>
             <p className="mb-6 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold-dim sm:text-[11px]">
               <span className="h-px w-7 bg-gold" aria-hidden="true" />
@@ -60,7 +62,7 @@ export default function About() {
 
             <h2
               id="about-title"
-              className="max-w-[18ch] text-[clamp(2.5rem,4.2vw,3.75rem)] font-bold uppercase leading-[0.98] tracking-[-0.035em] text-ink"
+              className="max-w-[18ch] font-body text-[clamp(2.25rem,3.5vw,3.25rem)] font-medium uppercase leading-[1.05] tracking-[-0.045em] text-ink"
             >
               Confiança, funcionalidade e valor{" "}
               <em className="not-italic text-ink">duradouro.</em>
@@ -84,7 +86,7 @@ export default function About() {
           </Reveal>
         </div>
 
-        {/* Content layer: opaque and above the title (z-10), so it overlaps it on scroll */}
+        {/* Content layer */}
         <div className="relative z-10 border-t border-ink/15 bg-paper">
           {/* Statistics */}
           <div className="grid grid-cols-2 border-b border-ink/15 sm:grid-cols-4">
@@ -108,7 +110,7 @@ export default function About() {
                 <div className="mt-6">
                   <MotionCounter
                     value={stat.value}
-                    className="block min-h-[1em] whitespace-nowrap font-display text-[clamp(2.5rem,4vw,3.5rem)] font-semibold leading-none tracking-tight text-navy tabular-nums"
+                    className="block min-h-[1em] whitespace-nowrap font-body text-[clamp(2.25rem,3.5vw,3.25rem)] font-medium leading-none tracking-[-0.035em] text-navy tabular-nums"
                   />
 
                   <span className="mt-3 block min-h-[3.2em] max-w-[17ch] text-[11px] leading-[1.6] text-ink-soft sm:text-xs">
@@ -123,13 +125,13 @@ export default function About() {
           <div className="grid grid-cols-1 gap-10 py-12 sm:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20 lg:py-20">
             <div className="relative">
               <span
-                className="mb-3 block font-display text-6xl leading-[0.7] text-gold"
+                className="mb-3 block font-body text-5xl font-normal leading-[0.7] text-gold"
                 aria-hidden="true"
               >
                 &ldquo;
               </span>
 
-              <p className="max-w-[460px] text-[clamp(1.5rem,2.5vw,2.15rem)] font-medium leading-[1.25] tracking-[-0.025em] text-ink">
+              <p className="max-w-[460px] text-[clamp(1.4rem,2.2vw,1.9rem)] font-medium leading-[1.3] tracking-[-0.025em] text-ink">
                 Não entregamos apenas projectos — entregamos confiança,
                 funcionalidade e valor duradouro.
               </p>

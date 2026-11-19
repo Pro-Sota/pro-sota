@@ -1,12 +1,19 @@
+
 import Link from "next/link";
 
-export default function ServicesSection({ services, Routes }: { services: any[], Routes: any }) {
+export default function ServicesSection({
+    services,
+    Routes,
+}: {
+    services: any[];
+    Routes: any;
+}) {
     const wrap = "mx-auto w-full max-w-[1440px] px-6 md:px-12 lg:px-20";
 
     return (
         <section
             id="servicos"
-            className="scroll-mt-24 bg-[#F3EFE6] py-24 md:py-32 lg:py-26"
+            className="scroll-mt-24 bg-[#F3EFE6] py-24 font-body md:py-32 lg:py-26"
         >
             <div className={wrap}>
                 {/* HEADER */}
@@ -14,18 +21,18 @@ export default function ServicesSection({ services, Routes }: { services: any[],
                     <div>
                         <div className="mb-8 flex items-center gap-4">
                             <span className="h-px w-10 bg-[#BD9655]" />
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#002950]/60 md:text-xs">
+                            <p className="text-[10px] font-medium uppercase tracking-[0.24em] text-[#002950]/60 md:text-xs">
                                 O que fazemos
                             </p>
                         </div>
 
                         <h2
                             id="services-title"
-                            className="max-w-xl font-display text-[clamp(2rem,3.2vw,3rem)] font-medium leading-[1.08] tracking-[-0.04em] text-[#002950]"
+                            className="max-w-xl font-body text-[clamp(2rem,3vw,2.75rem)] font-medium leading-[1.08] tracking-[-0.045em] text-[#002950]"
                         >
                             As nossas
                             <br />
-                            <span className="text-[#1F1E1B]">
+                            <span className="font-normal text-[#1F1E1B]">
                                 especialidades.
                             </span>
                         </h2>
@@ -51,7 +58,8 @@ export default function ServicesSection({ services, Routes }: { services: any[],
                                     <span className="text-xs font-medium text-[#17497c] md:text-sm">
                                         {String(index + 1).padStart(2, "0")}
                                     </span>
-                                    <span className="text-xl font-medium tracking-tight text-[#0c3a68] md:text-3xl">
+
+                                    <span className="text-lg font-medium tracking-[-0.025em] text-[#0c3a68] md:text-2xl">
                                         {service.title}
                                     </span>
                                 </div>
@@ -75,7 +83,10 @@ export default function ServicesSection({ services, Routes }: { services: any[],
                                             key={title}
                                             className="flex items-center gap-3 border-b border-[#002950]/10 pb-3 text-sm text-[#5F656A]"
                                         >
-                                            <span className="h-px w-4 shrink-0 bg-gold" aria-hidden="true" />
+                                            <span
+                                                className="h-px w-4 shrink-0 bg-gold"
+                                                aria-hidden="true"
+                                            />
                                             {title}
                                         </li>
                                     ))}
@@ -87,13 +98,11 @@ export default function ServicesSection({ services, Routes }: { services: any[],
 
                 <Link
                     href={Routes.services}
-                    className="mt-10 inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-wider underline decoration-gold decoration-2 underline-offset-8 transition-colors hover:text-gold"
+                    className="mt-10 inline-flex items-center gap-3 text-xs font-medium uppercase tracking-wider underline decoration-gold decoration-2 underline-offset-8 transition-colors hover:text-gold"
                 >
                     Explorar todos os serviços
-                    <span aria-hidden="true">↗</span>
                 </Link>
             </div>
         </section>
-
-    )
+    );
 }

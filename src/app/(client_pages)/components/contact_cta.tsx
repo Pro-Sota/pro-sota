@@ -36,7 +36,6 @@ interface ContactCTAProps {
 
 export default function ContactCTA() {
   const shouldReduceMotion = useReducedMotion();
-  const whatsappDigits = site.whatsapp?.replace(/\D/g, "");
 
   return (
     <section
@@ -78,7 +77,7 @@ export default function ContactCTA() {
         </div>
 
         {/* Actions */}
-        <div className="flex w-full flex-col items-start gap-3 sm:w-auto md:items-end">
+        <div className="flex w-full flex-col items-center gap-3 sm:w-auto md:items-end">
           <Link
             href="/contact"
             className={`group flex w-full items-center justify-between gap-8 border border-[#BD9655] bg-[#BD9655] py-2 pl-5 pr-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1F1E1B] transition-colors duration-300 hover:border-[#1F1E1B] hover:bg-[#1F1E1B] hover:text-[#F7F7F5] sm:w-auto sm:min-w-[210px] ${FOCUS} focus-visible:outline-[#8B6A2F] motion-reduce:transition-none`}
@@ -92,23 +91,6 @@ export default function ContactCTA() {
               <ArrowUpRightIcon className="size-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transition-none" />
             </span>
           </Link>
-
-          {whatsappDigits && (
-            <a
-              href={`https://wa.me/${whatsappDigits}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Contactar ${site.name ?? "a nossa equipa"} pelo WhatsApp (abre num novo separador)`}
-              className={`group inline-flex items-center gap-2.5 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5F5B54] transition-colors hover:text-[#1F1E1B] ${FOCUS} focus-visible:outline-[#8B6A2F] motion-reduce:transition-none`}
-            >
-              <span
-                aria-hidden="true"
-                className="h-px w-5 bg-[#5F5B54]/40 transition-[width,background-color] duration-300 group-hover:w-8 group-hover:bg-[#BD9655] motion-reduce:transition-none"
-              />
-              <span>WhatsApp</span>
-              <ArrowUpRightIcon className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transition-none" />
-            </a>
-          )}
         </div>
       </motion.div>
     </section>

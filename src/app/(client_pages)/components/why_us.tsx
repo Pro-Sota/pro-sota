@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useRef, useState } from "react";
@@ -43,6 +44,7 @@ type Direction = -1 | 1;
 export default function WhyUs() {
   const trackRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
+
   const [canScroll, setCanScroll] = useState({
     previous: false,
     next: true,
@@ -90,17 +92,14 @@ export default function WhyUs() {
   return (
     <section
       aria-labelledby="why-us-title"
-      className="relative overflow-hidden bg-[#1F1E1B] py-[clamp(80px,10vw,120px)] text-[#F7F7F5]"
+      className="relative overflow-hidden bg-[#1F1E1B] py-[clamp(80px,10vw,120px)] font-body text-[#F7F7F5]"
     >
-      {/* data-pin-container: the title stays frozen until this block ends.
-          relative → anchors the title at the end; clip-path → the title can never show outside it. */}
       <div
         data-pin-container
         className="relative mx-auto max-w-[1320px] px-[clamp(20px,5vw,64px)] [clip-path:inset(0)]"
       >
         {/* Section heading */}
         <div className="mb-[clamp(40px,6vh,64px)] grid gap-7 md:grid-cols-[1fr_0.65fr] md:items-end">
-          {/* Pinned title: frozen 128px from the window top, below the content layer (z-0) */}
           <PinnedTitle offset={128}>
             <div className="mb-6 flex items-center gap-3">
               <span
@@ -108,18 +107,18 @@ export default function WhyUs() {
                 className="h-px w-9 bg-[#BD9655]"
               />
 
-              <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#BD9655]">
+              <span className="text-[10px] font-medium uppercase tracking-[0.24em] text-[#BD9655]">
                 O nosso compromisso
               </span>
             </div>
 
             <h2
               id="why-us-title"
-              className="max-w-[16ch] font-display text-[clamp(32px,4vw,52px)] leading-[1.08] font-bold uppercase tracking-[-0.035em] text-[#F7F7F5]"
+              className="max-w-[16ch] font-body text-[clamp(2.1rem,3.5vw,3.25rem)] leading-[1.08] font-medium tracking-[-0.045em] text-[#F7F7F5]"
             >
               A diferença está
               <br />
-              <span className="text-[#BD9655]">
+              <span className="font-normal text-[#BD9655]">
                 na forma como fazemos.
               </span>
             </h2>
@@ -131,7 +130,7 @@ export default function WhyUs() {
           </p>
         </div>
 
-        {/* Content layer: opaque and above the title (z-10), so it overlaps it on scroll */}
+        {/* Content layer */}
         <div className="relative z-10 bg-[#1F1E1B]">
           {/* Reasons carousel */}
           <div
@@ -167,7 +166,7 @@ export default function WhyUs() {
                 className="group flex min-h-[310px] w-[85%] shrink-0 snap-start flex-col border border-[#F7F7F5]/10 bg-[#292824] p-6 transition-colors duration-300 hover:border-[#BD9655]/50 hover:bg-[#33312C] sm:w-[65%] sm:p-7 lg:min-h-[330px] lg:w-[calc((100%-40px)/3)] lg:p-8"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-display text-sm font-bold tracking-[0.16em] text-[#B8B5AE]">
+                  <span className="font-body text-sm font-medium tracking-[0.16em] text-[#B8B5AE]">
                     {number}
                   </span>
 
@@ -178,7 +177,7 @@ export default function WhyUs() {
                 </div>
 
                 <div className="mt-auto pt-12">
-                  <h3 className="mb-4 max-w-[18ch] font-display text-[19px] leading-[1.2] font-bold uppercase text-[#F7F7F5] sm:text-[20px]">
+                  <h3 className="mb-4 max-w-[18ch] font-body text-[18px] leading-[1.25] font-medium tracking-[-0.02em] text-[#F7F7F5] sm:text-[19px]">
                     {title}
                   </h3>
 
@@ -190,7 +189,7 @@ export default function WhyUs() {
             ))}
           </div>
 
-          {/* Carousel navigation (pb-2 leaves room for the focus rings inside the clipped container) */}
+          {/* Carousel navigation */}
           <div className="mt-6 flex items-center justify-between border-t border-[#F7F7F5]/15 pb-2 pt-6">
             <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#F7F7F5]/50">
               01 <span className="px-1 text-[#BD9655]">—</span> 06

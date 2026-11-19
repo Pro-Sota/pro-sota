@@ -1,0 +1,44 @@
+/* Add to hero.css (or import after it).
+   Replaces the SMIL <animateTransform> animations so one
+   prefers-reduced-motion rule covers them. */
+
+/* Worker idle bob: duration and start are set per worker via CSS vars */
+.ps-scene__worker-idle {
+  animation: ps-bob var(--ps-bob-dur, 4.8s) ease-in-out var(--ps-bob-delay, 0s) infinite;
+}
+
+@keyframes ps-bob {
+  0%, 100% { transform: translateY(0); }
+  25%      { transform: translateY(-1.2px); }
+  50%      { transform: translateY(0); }
+  75%      { transform: translateY(-0.7px); }
+}
+
+/* Hook and load are lowered; the cable stretches to match.
+   Start time comes from --ps-d, set from the T.hookDrop timeline entry. */
+.ps-scene__hook-load {
+  animation: ps-hook-drop 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) var(--ps-d, 0s) both;
+}
+
+@keyframes ps-hook-drop {
+  from { transform: translateY(var(--ps-hook-drop, -30px)); }
+  to   { transform: translateY(0); }
+}
+
+.ps-scene__cable-line {
+  transform-origin: var(--ps-cable-origin, 575px 78px);
+  animation: ps-cable-lower 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) var(--ps-d-cable, 0.35s) both;
+}
+
+@keyframes ps-cable-lower {
+  from { transform: scaleY(var(--ps-cable-from, 0.84)); }
+  to   { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-scene__worker-idle,
+  .ps-scene__hook-load,
+  .ps-scene__cable-line {
+    animation: none;
+  }
+}

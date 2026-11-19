@@ -54,25 +54,19 @@ function isValidProject(
 
 function SectionHeading() {
   return (
-    <div className="mb-9 md:mb-11 lg:mb-12">
-      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8B6A2F]">
+    <div className="mb-9 font-body md:mb-11 lg:mb-12">
+      <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.24em] text-[#8B6A2F]">
         Portfólio
       </p>
 
       <h2
         id="showcase-heading"
-        className="text-[clamp(1.75rem,3vw,2.5rem)] font-light leading-tight tracking-[-0.04em] text-[#1F1E1B]"
+        className="font-body text-[clamp(1.9rem,3vw,2.75rem)] font-medium leading-[1.08] tracking-[-0.045em] text-[#1F1E1B]"
       >
         Projectos em destaque.
       </h2>
     </div>
   );
-}
-
-interface ProjectCardProps {
-  project: DisplayProject & { images: string[] };
-  priority: boolean;
-  onOpen: (projectId: string, trigger: HTMLElement) => void;
 }
 
 interface ProjectCardProps {
@@ -90,7 +84,7 @@ function ProjectCard({
 
   return (
     <motion.article
-      className="group relative"
+      className="group relative font-body"
       variants={{
         hidden: { opacity: 0, y: 28 },
         visible: {
@@ -151,18 +145,17 @@ export default function ProjectsShowcase({
   const [selectedProjectId, setSelectedProjectId] =
     useState<string | null>(null);
 
-    
-const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useReducedMotion();
 
-const galleryVariants = {
-  hidden: {},
-  visible: {
-    transition: {
-      staggerChildren: shouldReduceMotion ? 0 : 0.14,
-      delayChildren: shouldReduceMotion ? 0 : 0.1,
+  const galleryVariants = {
+    hidden: {},
+    visible: {
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.14,
+        delayChildren: shouldReduceMotion ? 0 : 0.1,
+      },
     },
-  },
-};
+  };
 
   // Restore focus to the card that opened the Lightbox.
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -221,7 +214,7 @@ const galleryVariants = {
       <section
         id="projects"
         aria-labelledby="showcase-heading"
-        className="w-full bg-[#F7F7F5] px-5 py-16 text-[#1F1E1B] sm:px-8 md:px-10 lg:px-16 2xl:px-24"
+        className="w-full bg-[#F7F7F5] px-5 py-16 font-body text-[#1F1E1B] sm:px-8 md:px-10 lg:px-16 2xl:px-24"
       >
         <div className="mx-auto w-full max-w-[1920px]">
           <SectionHeading />
@@ -239,7 +232,7 @@ const galleryVariants = {
       <section
         id="projects"
         aria-labelledby="showcase-heading"
-        className="w-full bg-[#F7F7F5] px-5 py-14 text-[#1F1E1B] sm:px-8 md:px-10 md:py-16 lg:px-16 lg:py-20 2xl:px-24"
+        className="w-full bg-[#F7F7F5] px-5 py-14 font-body text-[#1F1E1B] sm:px-8 md:px-10 md:py-16 lg:px-16 lg:py-20 2xl:px-24"
       >
         <div className="mx-auto w-full max-w-[1920px]">
           <SectionHeading />
@@ -266,16 +259,10 @@ const galleryVariants = {
           <div className="mt-12 flex justify-center md:mt-16">
             <Link
               href="/projects"
-              className={`group inline-flex items-center gap-3 border-b border-[#BD9655] pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1F1E1B] transition-colors duration-300 hover:text-[#8B6A2F] ${FOCUS_RING}`}
+              className={`group inline-flex items-center gap-3 border-b border-[#BD9655] pb-2 font-body text-[11px] font-medium uppercase tracking-[0.14em] text-[#1F1E1B] transition-colors duration-300 hover:text-[#8B6A2F] ${FOCUS_RING}`}
             >
               Ver todos os projectos
-
-              <span
-                aria-hidden="true"
-                className="text-base text-[#BD9655]"
-              >
-                ↗
-              </span>
+            
             </Link>
           </div>
         </div>
