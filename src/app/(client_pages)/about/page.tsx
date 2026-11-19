@@ -126,22 +126,18 @@ export default function AboutPage() {
     {
       value: projectsCount,
       label: "Projectos e obras concluídas",
-      index: "01",
     },
     {
       value: years,
       label: "Anos de experiência",
-      index: "02",
     },
     {
       value: expertise.length,
       label: "Áreas de especialidade",
-      index: "03",
     },
     {
       value: "98%",
       label: "Taxa de entrega dentro do prazo",
-      index: "04",
     },
   ];
 
@@ -183,7 +179,7 @@ export default function AboutPage() {
               <Reveal>
                 <div className="max-w-4xl">
                   <Eyebrow className="text-paper">
-                    PRO SOTA · Angola 
+                    PRO SOTA · Angola
                   </Eyebrow>
 
                   <h1
@@ -212,7 +208,10 @@ export default function AboutPage() {
             <div className="grid gap-8 lg:grid-cols-12 lg:gap-16">
               <Reveal className="lg:col-span-7">
                 <div className="mb-8 flex items-center gap-5">
-                  <p id="quem-somos" className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft">
+                  <p
+                    id="quem-somos"
+                    className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
+                  >
                     Quem somos
                   </p>
                   <span className="h-px flex-1 bg-ink/15" />
@@ -250,8 +249,7 @@ export default function AboutPage() {
       {/* COMPANY HISTORY                                                    */}
       {/* ================================================================== */}
 
-      <Section id="percurso" >
-        {/* Architectural drawing */}
+      <Section id="percurso">
         <Reveal>
           <div className="relative aspect-[16/9] overflow-hidden bg-stone sm:aspect-[2/1] lg:aspect-[16/9]">
             <Image
@@ -259,7 +257,6 @@ export default function AboutPage() {
               alt="Desenho técnico arquitectónico."
               fill
               unoptimized
-             
               className="object-cover"
             />
 
@@ -280,8 +277,13 @@ export default function AboutPage() {
         className={`${pad} pb-20 md:pb-28`}
       >
         <div className={wrap}>
+
           <div className="mb-8 flex items-center gap-5">
-            <p id="stats-title" className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft">
+            <span className="h-px w-12 bg-gold" />
+            <p
+              id="stats-title"
+              className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
+            >
               A nossa experiência em números
             </p>
 
@@ -292,16 +294,9 @@ export default function AboutPage() {
             <dl className="grid grid-cols-2 border-y border-ink/15 md:grid-cols-4">
               {stats.map((stat) => (
                 <div
-                  key={stat.index}
+                  key={stat.label}
                   className="flex h-48 flex-col justify-between border-t border-ink/15 px-4 py-7 odd:border-l odd:border-ink/15 [&:nth-child(-n+2)]:border-t-0 md:h-64 md:border-l md:border-t-0 md:px-7 md:py-9 md:first:border-l-0"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-gold-dim"
-                  >
-                    {stat.index}
-                  </span>
-
                   <div className="flex flex-col-reverse">
                     <dt className="mt-4 min-h-12 max-w-[12rem] text-xs leading-6 text-ink-soft md:min-h-14 md:text-sm">
                       {stat.label}
@@ -328,13 +323,6 @@ export default function AboutPage() {
       <section aria-label="Missão e visão" className="grid md:grid-cols-2">
         {/* Mission */}
         <Reveal className="relative isolate overflow-hidden bg-navy px-6 py-16 text-paper sm:px-10 md:px-12 lg:px-16 lg:py-24">
-          <span
-            aria-hidden="true"
-            className="absolute right-8 top-8 -z-10 font-display text-[10rem] font-medium leading-none text-paper/[0.04] md:right-10 md:top-10 md:text-[14rem]"
-          >
-            01
-          </span>
-
           <div className="mx-auto max-w-xl">
             <div className="flex items-center gap-4">
               <span className="h-px w-8 bg-gold" />
@@ -397,12 +385,15 @@ export default function AboutPage() {
       {/* ================================================================== */}
 
       <Section className="pb-8 md:pb-10">
-        <div className="mb-12 flex items-center gap-5">
+        <div className="mb-8 flex items-center gap-5">
           <span className="h-px w-12 bg-gold" />
-
-          <Eyebrow className="text-ink-soft">
-          Os nossos princípios
-          </Eyebrow>
+          <p
+            id="quem-somos"
+            className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
+          >
+            Os nossos princípios
+          </p>
+          <span className="h-px flex-1 bg-ink/15" />
         </div>
 
         <div className="lg:w-8/12">
@@ -416,20 +407,16 @@ export default function AboutPage() {
 
         <div className="pt-16 md:pt-20">
           <MotionStagger className="grid border-y border-gold bg-paper sm:grid-cols-2 lg:grid-cols-4">
-            {values.map((value, index) => (
+            {values.map((value) => (
               <RevealLi
                 key={value.title}
                 className="group flex min-h-[16rem] flex-col justify-between border-b border-ink/15 bg-paper p-7 text-ink transition-colors duration-300 hover:bg-navy hover:text-paper active:bg-navy active:text-paper motion-reduce:transition-none sm:border-r sm:even:border-r-0 lg:min-h-[19rem] lg:border-b-0 lg:border-r lg:even:border-r lg:last:border-r-0 md:p-8"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center">
                   <span
                     aria-hidden="true"
                     className="block h-px w-10 bg-gold transition-all duration-300 group-hover:w-20 motion-reduce:transition-none"
                   />
-
-                  <span className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-gold-dim transition-colors group-hover:text-paper/70">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
                 </div>
 
                 <div>
@@ -453,7 +440,16 @@ export default function AboutPage() {
 
       <Section id="competencias" className="scroll-mt-24 pt-8 md:pt-10">
         <div className="lg:w-7/12">
-          <Eyebrow className="text-ink-soft">O que fazemos</Eyebrow>
+          <div className="mb-8 flex items-center gap-5">
+            <span className="h-px w-12 bg-gold" />
+            <p
+              id="quem-somos"
+              className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
+            >
+              Os nossos princípios
+            </p>
+            <span className="h-px flex-1 bg-ink/15" />
+          </div>
 
           <H2 className="mt-4 text-ink">
             Quatro áreas de actuação.
@@ -466,7 +462,7 @@ export default function AboutPage() {
         </div>
 
         <div className="mt-12 grid gap-4 md:mt-16 md:grid-cols-12 md:gap-5">
-          {expertise.map((item, index) => {
+          {expertise.map((item) => {
             const isSvg = item.image.toLowerCase().endsWith(".svg");
             const contactHref = `/contact?disciplina=${encodeURIComponent(item.title)}`;
 
@@ -490,12 +486,8 @@ export default function AboutPage() {
                 />
 
                 <div className="p-7 md:p-9">
-                  <div className="mb-5 flex items-center justify-between">
+                  <div className="mb-5 flex items-center">
                     <span className="block h-px w-10 bg-gold transition-all duration-500 group-hover:w-20 motion-reduce:transition-none" />
-
-                    <span className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-paper/70">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
                   </div>
 
                   <h3 className="font-display text-3xl font-medium tracking-tight md:text-4xl">
@@ -553,21 +545,17 @@ export default function AboutPage() {
           </div>
 
           <ul className="mt-12 grid gap-6 md:mt-16 md:grid-cols-3 md:gap-5">
-            {featuredProjects.slice(0, 3).map((item, index) => (
+            {featuredProjects.slice(0, 3).map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}
                   className={`group flex h-full min-h-[16rem] flex-col justify-between border border-ink/15 bg-paper p-7 text-ink transition-colors duration-300 hover:border-navy hover:bg-navy hover:text-paper motion-reduce:transition-none md:min-h-[19rem] md:p-9 ${focus} focus-visible:outline-ink`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center">
                     <span
                       aria-hidden="true"
                       className="block h-px w-10 bg-gold transition-all duration-500 group-hover:w-20 motion-reduce:transition-none"
                     />
-
-                    <span className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-gold-dim transition-colors group-hover:text-paper/70">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
                   </div>
 
                   <div>
@@ -616,15 +604,11 @@ export default function AboutPage() {
                 </H2>
 
                 <ul className="mt-9 divide-y divide-ink/15 border-y border-ink/15">
-                  {credentials.map((credential, index) => (
+                  {credentials.map((credential) => (
                     <li
                       key={credential}
                       className="flex items-start gap-5 py-5"
                     >
-                      <span className="pt-1 font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-gold-dim">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-
                       <span className="text-base leading-7 text-ink-soft">
                         {credential}
                       </span>
@@ -643,16 +627,12 @@ export default function AboutPage() {
                 </H2>
 
                 <ul className="mt-9 divide-y divide-ink/15 border-y border-ink/15">
-                  {team.map((member, index) => (
+                  {team.map((member) => (
                     <li
                       key={member.name}
                       className="flex items-center justify-between gap-5 py-5"
                     >
-                      <div className="flex min-w-0 items-center gap-5">
-                        <span className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-gold-dim">
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-
+                      <div className="flex min-w-0 items-center">
                         <span className="font-medium text-ink">
                           {member.name}
                         </span>
