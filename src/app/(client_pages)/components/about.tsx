@@ -8,6 +8,8 @@ import Link from "next/link";
 import { site } from "../content/site";
 import { projectsCount, expertise } from "../content/about";
 import PinnedTitle from "./parallax_section";
+import MotionCounter from "./motion_counter";
+import { Reveal } from "./motion_reveal";
 
 const currentYear = new Date().getFullYear();
 const years = Math.max(1, currentYear - site.founded);
@@ -65,15 +67,21 @@ export default function About() {
             </h2>
           </PinnedTitle>
 
-          <p className="relative z-10 max-w-[570px] text-base leading-[1.85] text-ink-soft sm:text-[17px] lg:justify-self-end lg:pb-1">
-            A PRO SOTA assenta numa base sólida de conhecimento técnico e
-            prática consolidada ao longo de mais de{" "}
-            <strong className="font-semibold text-ink">
-              {years} anos de experiência
-            </strong>{" "}
-            no sector da arquitectura e construção — do planeamento
-            arquitectónico à execução rigorosa da obra.
-          </p>
+          <Reveal
+            y={16}
+            delay={0.15}
+            className="relative z-10 max-w-[570px] lg:justify-self-end"
+          >
+            <p className="text-base leading-[1.85] text-ink-soft sm:text-[17px] lg:pb-1">
+              A PRO SOTA assenta numa base sólida de conhecimento técnico e
+              prática consolidada ao longo de mais de{" "}
+              <strong className="font-semibold text-ink">
+                {years} anos de experiência
+              </strong>{" "}
+              no sector da arquitectura e construção — do planeamento
+              arquitectónico à execução rigorosa da obra.
+            </p>
+          </Reveal>
         </div>
 
         {/* Content layer: opaque and above the title (z-10), so it overlaps it on scroll */}
@@ -81,8 +89,10 @@ export default function About() {
           {/* Statistics */}
           <div className="grid grid-cols-2 border-b border-ink/15 sm:grid-cols-4">
             {stats.map((stat, index) => (
-              <div
+              <Reveal
                 key={stat.index}
+                delay={index * 0.08}
+                y={18}
                 className={[
                   "flex min-h-[150px] flex-col justify-between py-7 sm:min-h-[175px] sm:py-8",
                   "border-ink/15",
@@ -96,15 +106,16 @@ export default function About() {
                 </span>
 
                 <div className="mt-6">
-                  <b className="block font-display text-[clamp(2.5rem,4vw,3.5rem)] font-semibold leading-none tracking-tight text-navy">
-                    {stat.value}
-                  </b>
+                  <MotionCounter
+                    value={stat.value}
+                    className="block min-h-[1em] whitespace-nowrap font-display text-[clamp(2.5rem,4vw,3.5rem)] font-semibold leading-none tracking-tight text-navy tabular-nums"
+                  />
 
-                  <span className="mt-3 block max-w-[17ch] text-[11px] leading-[1.6] text-ink-soft sm:text-xs">
+                  <span className="mt-3 block min-h-[3.2em] max-w-[17ch] text-[11px] leading-[1.6] text-ink-soft sm:text-xs">
                     {stat.label}
                   </span>
                 </div>
-              </div>
+              </Reveal>
             ))}
           </div>
 

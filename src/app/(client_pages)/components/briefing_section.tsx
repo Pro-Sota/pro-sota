@@ -3,6 +3,8 @@
 
 import Link from "next/link";
 import { useId } from "react";
+import { Reveal } from "./motion_reveal";
+import { H2 } from "./section";
 
 export default function BriefingSection() {
   const gradientId = useId().replace(/:/g, "");
@@ -16,29 +18,33 @@ export default function BriefingSection() {
       <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-y-8 px-6 py-14 md:gap-y-10 md:px-12 md:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[auto_auto] lg:items-center lg:gap-x-16 lg:gap-y-5 lg:px-20">
 
         {/* Heading — first on mobile */}
-        <div className="relative z-10 lg:col-start-1 lg:row-start-1">
-          <div className="mb-6 flex items-center gap-3 sm:mb-7">
-            <span className="h-px w-8 bg-[#BD9655]" />
+        <Reveal
+          y={20}
+          className="relative z-10 lg:col-start-1 lg:row-start-1"
+        >
+          <div>
+            <div className="mb-6 flex items-center gap-3 sm:mb-7">
+              <span className="h-px w-8 bg-[#BD9655]" />
 
-            <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#BD9655]">
-              O próximo passo começa aqui
-            </span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#BD9655]">
+                O próximo passo começa aqui
+              </span>
+            </div>
+
+            <H2
+              className="font-heading max-w-2xl text-[clamp(2.25rem,4vw,3.5rem)] font-medium leading-[1.08] tracking-[-0.045em] text-[#002950]"
+            >
+              Tem um projecto
+              <br />
+              <span className="font-light text-[#BD9655]">
+                em mente?
+              </span>
+            </H2>
           </div>
-
-          <h2
-            id="briefing-title"
-            className="max-w-2xl text-[clamp(2.25rem,4vw,3.5rem)] font-medium leading-[1.08] tracking-[-0.045em] text-[#002950]"
-          >
-            Tem um projecto
-            <br />
-            <span className="font-light text-[#BD9655]">
-              em mente?
-            </span>
-          </h2>
-        </div>
+        </Reveal>
 
         {/* Architectural visual — after heading on mobile */}
-        <div className="relative min-h-[280px] overflow-hidden border border-[#002950]/10 bg-[#FDFCFA] sm:min-h-[360px] lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:min-h-[480px] lg:h-full">
+        <Reveal className="relative min-h-[280px] overflow-hidden border border-[#002950]/10 bg-[#FDFCFA] sm:min-h-[360px] lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:min-h-[480px] lg:h-full">
 
           {/* Technical drawing grid */}
           <div
@@ -296,10 +302,10 @@ export default function BriefingSection() {
               PS — 01
             </span>
           </div>
-        </div>
+        </Reveal>
 
         {/* Supporting content and CTA */}
-        <div className="relative z-10 lg:col-start-1 lg:row-start-2">
+        <Reveal className="relative z-10 lg:col-start-1 lg:row-start-2">
           <p className="max-w-lg text-sm leading-7 text-[#002950]/70 sm:text-[15px] sm:leading-8">
             Partilhe connosco a sua ideia, os seus objectivos e as
             características do projecto. A nossa equipa irá analisar as
@@ -328,7 +334,7 @@ export default function BriefingSection() {
               Um primeiro passo para concretizar a sua ideia.
             </span>
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

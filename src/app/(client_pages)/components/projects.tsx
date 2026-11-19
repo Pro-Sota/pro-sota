@@ -9,6 +9,7 @@ import { getStorageImageUrl } from "@/app/lib/supabase/storage";
 import ProjectCover from "./project_cover";
 
 import type { LightboxProject } from "./light_box";
+import { motion, useReducedMotion } from "framer-motion";
 
 // Load the Lightbox only when needed.
 const loadLightbox = () => import("./light_box");
@@ -46,8 +47,8 @@ function isValidProject(
 ): project is DisplayProject {
   return Boolean(
     project &&
-      isNonEmptyString(project.id) &&
-      isNonEmptyString(project.name)
+    isNonEmptyString(project.id) &&
+    isNonEmptyString(project.name)
   );
 }
 
@@ -88,7 +89,20 @@ function ProjectCard({
   const cover = project.images[0];
 
   return (
-    <article className="group relative">
+    <motion.article
+      className="group relative"
+      variants={{
+        hidden: { opacity: 0, y: 28 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: {
+            duration: 0.75,
+            ease: [0.22, 1, 0.36, 1],
+          },
+        },
+      }}
+    >
       {/* Project image */}
       <div className="relative aspect-[4/3] overflow-hidden bg-[#EEECE6]">
         <ProjectCover src={cover} alt="" priority={priority} />
@@ -120,7 +134,6 @@ function ProjectCard({
           )}
         </div>
 
-        {/* Static project indicator */}
         <span
           aria-hidden="true"
           className="mt-0.5 shrink-0 text-base text-[#BD9655] opacity-60"
@@ -128,7 +141,7 @@ function ProjectCard({
           ↗
         </span>
       </div>
-    </article>
+    </motion.article>
   );
 }
 
@@ -137,6 +150,19 @@ export default function ProjectsShowcase({
 }: ProjectsShowcaseProps) {
   const [selectedProjectId, setSelectedProjectId] =
     useState<string | null>(null);
+
+    
+const shouldReduceMotion = useReducedMotion();
+
+const galleryVariants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: shouldReduceMotion ? 0 : 0.14,
+      delayChildren: shouldReduceMotion ? 0 : 0.1,
+    },
+  },
+};
 
   // Restore focus to the card that opened the Lightbox.
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -219,7 +245,13 @@ export default function ProjectsShowcase({
           <SectionHeading />
 
           {/* Project gallery */}
-          <div className="grid w-full grid-cols-1 gap-x-7 gap-y-10 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-12 lg:grid-cols-4 lg:gap-x-8 lg:gap-y-14 2xl:gap-x-10">
+          <motion.div
+            variants={galleryVariants}
+            initial={shouldReduceMotion ? false : "hidden"}
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.12 }}
+            className="grid w-full grid-cols-1 gap-x-7 gap-y-10 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-12 lg:grid-cols-4 lg:gap-x-8 lg:gap-y-14 2xl:gap-x-10"
+          >
             {projectsWithImages.map((project, index) => (
               <ProjectCard
                 key={project.id}
@@ -228,7 +260,7 @@ export default function ProjectsShowcase({
                 onOpen={openLightbox}
               />
             ))}
-          </div>
+          </motion.div>
 
           {/* All projects link */}
           <div className="mt-12 flex justify-center md:mt-16">

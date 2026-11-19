@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import {
   Manrope,
@@ -18,12 +19,14 @@ import { Analytics } from "@vercel/analytics/next";
 
 const display = Manrope({
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-display-face",
   display: "swap",
 });
 
 const body = DM_Sans({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-body-face",
   display: "swap",
 });
@@ -96,8 +99,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "PRO SOTA | Arquitectura e Engenharia",
-    description:
-      "Damos forma às ideias. Construímos o futuro.",
+    description: "Damos forma às ideias. Construímos o futuro.",
     images: ["/images/logo-horizontal.png"],
   },
 
@@ -132,9 +134,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         <OrganizationSchema />
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        <ToastProvider>{children}</ToastProvider>
         <Analytics />
       </body>
     </html>

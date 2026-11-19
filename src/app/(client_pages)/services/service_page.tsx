@@ -18,6 +18,7 @@ import {
   SERVICE_KEYS,
   type ServiceKey,
 } from "../components/servicesData";
+import { motion, useReducedMotion } from "framer-motion";
 
 /* -------------------------------------------------------------------------- */
 /* Code-split pieces                                                          */
@@ -229,7 +230,61 @@ function useActiveService(
 /* -------------------------------------------------------------------------- */
 /* Service article                                                            */
 /* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/* Motion                                                                     */
+/* -------------------------------------------------------------------------- */
 
+const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+
+const HERO_VARIANTS = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.14,
+      delayChildren: 0.12,
+    },
+  },
+};
+
+const HERO_ITEM_VARIANTS = {
+  hidden: {
+    opacity: 0,
+    y: 22,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.8,
+      ease: EASE_OUT,
+    },
+  },
+};
+
+const SERVICE_VARIANTS = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.09,
+      delayChildren: 0.08,
+    },
+  },
+};
+
+const SERVICE_ITEM_VARIANTS = {
+  hidden: {
+    opacity: 0,
+    y: 20,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.65,
+      ease: EASE_OUT,
+    },
+  },
+};
 type ServiceArticleProps = {
   service: Service;
   index: number;
@@ -245,6 +300,8 @@ const ServiceArticle = memo(function ServiceArticle({
   isActive,
   stepRef,
 }: ServiceArticleProps) {
+const shouldReduceMotion = useReducedMotion();
+
   return (
     <article
       ref={stepRef}
@@ -257,57 +314,72 @@ const ServiceArticle = memo(function ServiceArticle({
         isActive ? "opacity-100" : "min-[901px]:opacity-60",
       )}
     >
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <span className="text-xs font-semibold tracking-[0.18em] text-[#8B6A2F]">
-          {service.num} / {service.label}
-        </span>
+      <motion.div
+        variants={SERVICE_VARIANTS}
+        initial={shouldReduceMotion ? false : "hidden"}
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+      >
+        <motion.div
+          variants={SERVICE_ITEM_VARIANTS}
+          className="mb-6 flex items-center justify-between gap-4"
+        >
+          <span className="text-xs font-semibold tracking-[0.18em] text-[#8B6A2F]">
+            {service.num} / {service.label}
+          </span>
 
-        <span className="text-xs tabular-nums text-[#5F5B54]">
-          {String(index + 1).padStart(2, "0")}
-          {" — "}
-          {String(total).padStart(2, "0")}
-        </span>
-      </div>
+          <span className="text-xs tabular-nums text-[#5F5B54]">
+            {String(index + 1).padStart(2, "0")}
+            {" — "}
+            {String(total).padStart(2, "0")}
+          </span>
+        </motion.div>
 
-      <h2
-        id={`${service.key}-title`}
-        className="
+        <motion.h2
+          variants={SERVICE_ITEM_VARIANTS}
+          id={`${service.key}-title`}
+          className="
           max-w-2xl font-display
           text-[clamp(1.75rem,2.8vw,2.5rem)]
           font-medium leading-[1.1]
           tracking-[-0.015em] text-[#1F1E1B]
         "
-      >
-        {service.title}
-      </h2>
+        >
+          {service.title}
+        </motion.h2>
 
-      <p className="mt-6 max-w-xl text-base leading-8 text-[#5F5B54] md:text-lg">
-        {service.intro}
-      </p>
+        <motion.p
+          variants={SERVICE_ITEM_VARIANTS}
+          className="mt-6 max-w-xl text-base leading-8 text-[#5F5B54] md:text-lg"
+        >
+          {service.intro}
+        </motion.p>
 
-      <div className="mt-10 border-t border-[#1F1E1B]/15">
-        {service.items.map(([title, description], itemIndex) => (
-          <div
-            key={title}
-            className="
+        <div className="mt-10 border-t border-[#1F1E1B]/15">
+          {service.items.map(([title, description], itemIndex) => (
+            <motion.div
+              key={title}
+              variants={SERVICE_ITEM_VARIANTS}
+              className="
               grid gap-3 border-b border-[#1F1E1B]/10
               py-6 md:grid-cols-[48px_0.8fr_1.2fr] md:gap-6
             "
-          >
-            <span className="text-xs font-medium tabular-nums text-[#8B6A2F]">
-              {String(itemIndex + 1).padStart(2, "0")}
-            </span>
+            >
+              <span className="text-xs font-medium tabular-nums text-[#8B6A2F]">
+                {String(itemIndex + 1).padStart(2, "0")}
+              </span>
 
-            <h3 className="font-body text-sm font-semibold tracking-normal text-[#1F1E1B]">
-              {title}
-            </h3>
+              <h3 className="font-body text-sm font-semibold tracking-normal text-[#1F1E1B]">
+                {title}
+              </h3>
 
-            <p className="text-sm leading-7 text-[#5F5B54]">
-              {description}
-            </p>
-          </div>
-        ))}
-      </div>
+              <p className="text-sm leading-7 text-[#5F5B54]">
+                {description}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
     </article>
   );
 });

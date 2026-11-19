@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 
 import PinnedTitle from "./parallax_section";
 
@@ -41,7 +42,7 @@ type Direction = -1 | 1;
 
 export default function WhyUs() {
   const trackRef = useRef<HTMLDivElement>(null);
-
+  const shouldReduceMotion = useReducedMotion();
   const [canScroll, setCanScroll] = useState({
     previous: false,
     next: true,
@@ -142,9 +143,27 @@ export default function WhyUs() {
             tabIndex={0}
           >
             {REASONS.map(([number, title, description]) => (
-              <article
+              <motion.article
                 key={number}
                 data-reason-card
+                initial={
+                  shouldReduceMotion
+                    ? false
+                    : { opacity: 0, y: 30 }
+                }
+                whileInView={{
+                  opacity: 1,
+                  y: 0,
+                }}
+                viewport={{
+                  once: true,
+                  amount: 0.2,
+                }}
+                transition={{
+                  duration: 0.75,
+                  delay: shouldReduceMotion ? 0 : Number(number) * 0.08,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
                 className="group flex min-h-[310px] w-[85%] shrink-0 snap-start flex-col border border-[#F7F7F5]/10 bg-[#292824] p-6 transition-colors duration-300 hover:border-[#BD9655]/50 hover:bg-[#33312C] sm:w-[65%] sm:p-7 lg:min-h-[330px] lg:w-[calc((100%-40px)/3)] lg:p-8"
               >
                 <div className="flex items-center justify-between">
@@ -167,7 +186,7 @@ export default function WhyUs() {
                     {description}
                   </p>
                 </div>
-              </article>
+              </motion.article>
             ))}
           </div>
 

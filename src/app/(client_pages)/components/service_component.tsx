@@ -21,7 +21,7 @@ export default function ServicesSection({ services, Routes }: { services: any[],
 
                         <h2
                             id="services-title"
-                            className="max-w-xl text-[clamp(2rem,3.2vw,3rem)] font-medium leading-[1.08] tracking-[-0.04em] text-[#002950]"
+                            className="max-w-xl font-display text-[clamp(2rem,3.2vw,3rem)] font-medium leading-[1.08] tracking-[-0.04em] text-[#002950]"
                         >
                             As nossas
                             <br />
