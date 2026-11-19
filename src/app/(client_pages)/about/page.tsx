@@ -279,7 +279,6 @@ export default function AboutPage() {
         <div className={wrap}>
 
           <div className="mb-8 flex items-center gap-5">
-            <span className="h-px w-12 bg-gold" />
             <p
               id="stats-title"
               className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
@@ -324,9 +323,14 @@ export default function AboutPage() {
         {/* Mission */}
         <Reveal className="relative isolate overflow-hidden bg-navy px-6 py-16 text-paper sm:px-10 md:px-12 lg:px-16 lg:py-24">
           <div className="mx-auto max-w-xl">
-            <div className="flex items-center gap-4">
-              <span className="h-px w-8 bg-gold" />
-              <Eyebrow className="text-gold">A nossa missão</Eyebrow>
+            <div className="mb-8 flex items-center gap-5">
+              <p
+                id="quem-somos"
+                className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
+              >
+                A nossa missão
+              </p>
+              <span className="h-px flex-1 bg-ink/15" />
             </div>
 
             <H2 className="mt-8 text-[clamp(2.5rem,4vw,4.5rem)] font-normal leading-[1.08] tracking-[-0.055em] text-paper">
@@ -386,7 +390,6 @@ export default function AboutPage() {
 
       <Section className="pb-8 md:pb-10">
         <div className="mb-8 flex items-center gap-5">
-          <span className="h-px w-12 bg-gold" />
           <p
             id="quem-somos"
             className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
@@ -441,12 +444,11 @@ export default function AboutPage() {
       <Section id="competencias" className="scroll-mt-24 pt-8 md:pt-10">
         <div className="lg:w-7/12">
           <div className="mb-8 flex items-center gap-5">
-            <span className="h-px w-12 bg-gold" />
             <p
               id="quem-somos"
               className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
             >
-              Os nossos princípios
+              O que fazemos
             </p>
             <span className="h-px flex-1 bg-ink/15" />
           </div>
@@ -517,7 +519,15 @@ export default function AboutPage() {
         <Section id="projectos-destaque">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <Eyebrow>O nosso trabalho</Eyebrow>
+              <div className="mb-8 flex items-center gap-5">
+                <p
+                  id="quem-somos"
+                  className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
+                >
+                  O nosso trabalho
+                </p>
+                <span className="h-px flex-1 bg-ink/15" />
+              </div>
 
               <H2 className="mt-4">
                 Projectos em destaque.
@@ -581,7 +591,15 @@ export default function AboutPage() {
       {(credentials.length > 0 || team.length > 0) && (
         <Section tone="stone" id="reconhecimento">
           <div className="mb-12 max-w-2xl">
-            <Eyebrow>Credibilidade e pessoas</Eyebrow>
+            <div className="mb-8 flex items-center gap-5">
+              <p
+                id="quem-somos"
+                className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
+              >
+                Credibilidade e pessoas
+              </p>
+              <span className="h-px flex-1 bg-ink/15" />
+            </div>
 
             <H2 className="mt-4">
               Conhecimento, competência e responsabilidade.
