@@ -207,16 +207,6 @@ export default function AboutPage() {
           <div className={`${wrap} bg-paper px-6 py-10 md:px-12 md:py-16 lg:px-16`}>
             <div className="grid gap-8 lg:grid-cols-12 lg:gap-16">
               <Reveal className="lg:col-span-7">
-                <div className="mb-8 flex items-center gap-5">
-                  <p
-                    id="quem-somos"
-                    className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
-                  >
-                    Quem somos
-                  </p>
-                  <span className="h-px flex-1 bg-ink/15" />
-                </div>
-
                 <H2 className="mt-5 max-w-4xl text-[clamp(2.5rem,4.5vw,5rem)] leading-[0.98] tracking-[-0.05em]">
                   Experiência que transforma ideias em realidade.
                 </H2>
@@ -324,6 +314,7 @@ export default function AboutPage() {
         <Reveal className="relative isolate overflow-hidden bg-navy px-6 py-16 text-paper sm:px-10 md:px-12 lg:px-16 lg:py-24">
           <div className="mx-auto max-w-xl">
             <div className="mb-8 flex items-center gap-5">
+              <span className="h-px w-8 bg-gold" />
               <p
                 id="quem-somos"
                 className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
