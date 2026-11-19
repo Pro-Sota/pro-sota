@@ -139,8 +139,8 @@ export default function AboutPage() {
       index: "03",
     },
     {
-      value: site.founded,
-      label: "Ano de fundação",
+      value: "98%",
+      label: "Taxa de entrega dentro do prazo",
       index: "04",
     },
   ];
@@ -364,13 +364,6 @@ export default function AboutPage() {
 
         {/* Vision */}
         <Reveal className="relative isolate overflow-hidden bg-stone px-6 py-16 text-ink sm:px-10 md:px-12 lg:px-16 lg:py-24">
-          <span
-            aria-hidden="true"
-            className="absolute right-8 top-8 -z-10 font-display text-[10rem] font-medium leading-none text-ink/[0.04] md:right-10 md:top-10 md:text-[14rem]"
-          >
-            02
-          </span>
-
           <div className="mx-auto max-w-xl">
             <div className="flex items-center gap-4">
               <span className="h-px w-8 bg-gold" />
@@ -408,7 +401,7 @@ export default function AboutPage() {
           <span className="h-px w-12 bg-gold" />
 
           <Eyebrow className="text-ink-soft">
-            03 / Os nossos princípios
+          Os nossos princípios
           </Eyebrow>
         </div>
 
