@@ -183,7 +183,7 @@ export default function AboutPage() {
               <Reveal>
                 <div className="max-w-4xl">
                   <Eyebrow className="text-paper">
-                    PRO SOTA · Angola · Desde {site.founded}
+                    PRO SOTA · Angola 
                   </Eyebrow>
 
                   <h1
@@ -200,16 +200,6 @@ export default function AboutPage() {
                     onde arquitectura, engenharia e construção
                     se encontram para dar forma a novas possibilidades.
                   </p>
-
-                  <Link
-                    href="/contact"
-                    className={`mt-9 inline-flex items-center gap-4 border-b border-paper/50 pb-2 text-sm font-semibold text-paper transition-colors hover:border-gold hover:text-gold ${focus} focus-visible:outline-paper`}
-                  >
-                    Conheça o nosso trabalho
-                    <span aria-hidden className="text-lg">
-                      →
-                    </span>
-                  </Link>
                 </div>
               </Reveal>
             </div>
