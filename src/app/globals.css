@@ -3,13 +3,15 @@
 @import "shadcn/tailwind.css";
 
 
+/* Tailwind CSS v4 theme directives are valid custom at-rules. */
+/* stylelint-disable at-rule-no-unknown */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
   /* Typography */
 
-  --font-heading: var(--font-display-face);
+  --font-heading: var(--font-big-shoulders);
   --font-body: var(--font-body-face);
   --font-mono: var(--font-mono-face);
 
@@ -184,6 +186,7 @@
     }
   }
 }
+/* stylelint-enable at-rule-no-unknown */
 
 .pro-sota-map-marker {
   background: transparent;

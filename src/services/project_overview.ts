@@ -5,6 +5,17 @@ import { cookies } from "next/headers";
 import { createClient } from "@/app/lib/supabase/server";
 import type { GanttPhase } from "@/app/components/gant_chart/gantt";
 import type { Deliverable } from "@/app/management/projects/[projectId]/(details)/phases/types";
+import type { DeadlineItem } from "@/app/management/projects/[projectId]/(details)/overview/components/deadlines";
+import type {
+  ChangeOrder,
+  DocumentItem,
+  IssueItem,
+  ProcurementItem,
+  SafetySummary,
+  SitePhoto,
+  SiteReport,
+  TeamMember,
+} from "@/app/management/projects/[projectId]/(details)/overview/types";
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -82,9 +93,7 @@ export interface OverviewData {
     text: string;
     severity: "high" | "medium" | "low";
   }[];
-
   activities: OverviewActivity[];
-
   deliverables: Deliverable[];
 
   rfis: {
@@ -105,6 +114,19 @@ export interface OverviewData {
     used: number;
     total: number;
   }[];
+
+  upcomingDeadlines: DeadlineItem[];
+  overdueDeadlines: DeadlineItem[];
+
+  changeOrders: ChangeOrder[];
+  teamMembers: TeamMember[];
+  documents: DocumentItem[];
+  issues: IssueItem[];
+  siteReports: SiteReport[];
+  sitePhotos: SitePhoto[];
+  safety: SafetySummary;
+  procurement: ProcurementItem[];
+  
 }
 
 /* -------------------------------------------------------------------------- */
@@ -207,10 +229,6 @@ function formatDate(value: string | null): string {
   }).format(date);
 }
 
-function normalizedStatus(value: unknown): string {
-  return stringValue(value).toLowerCase();
-}
-
 function isCompleted(status: string): boolean {
   return [
     "completed",
@@ -237,33 +255,63 @@ function taskProgress(row: Row): number {
 }
 
 function stageProgress(row: Row): number {
-  const status = normalizedStatus(row.status);
+  if (isCompleted(stringValue(row.status))) {
+    return 100;
+  }
 
-  if (isCompleted(status)) return 100;
-
-  return clampPercent(numericValue(row.progress));
+  return clampPercent(
+    numericValue(
+      row.progress_percentage ??
+      row.progress ??
+      row.completion_percentage,
+    ),
+  );
 }
 
 /* -------------------------------------------------------------------------- */
 /* Map database rows to Gantt data                                            */
 /* -------------------------------------------------------------------------- */
 
-function mapPhases(rows: Row[]): GanttPhase[] {
+function mapPhases(
+  rows: Row[],
+  stageRows: Row[] = [],
+): GanttPhase[] {
   return rows
-    .map((row, index) => ({
-      id: stringValue(row.phase_id, row.id),
-      name:
-        stringValue(
-          row.name,
-          row.phase_name,
-          row.title,
-          row.label,
-        ) || "Fase sem nome",
-      sortOrder: numericValue(
-        row.sort_order ?? row.position ?? row.order_index,
-      ),
-      originalIndex: index,
-    }))
+    .map((row, index) => {
+      const id = stringValue(row.phase_id, row.id);
+
+      const phaseStages = stageRows.filter(
+        (stage) => stringValue(stage.phase_id) === id,
+      );
+
+      const hasOwnProgress = hasNumericProgress(row);
+
+      const progress = hasOwnProgress
+        ? clampPercent(
+            numericValue(
+              row.progress_percentage ??
+              row.progress ??
+              row.completion_percentage,
+            ),
+          )
+        : calculateAverageProgress(phaseStages, stageProgress);
+
+      return {
+        id,
+        name:
+          stringValue(
+            row.name,
+            row.phase_name,
+            row.title,
+            row.label,
+          ) || "Fase sem nome",
+        sortOrder: numericValue(
+          row.sort_order ?? row.position ?? row.order_index,
+        ),
+        progress,
+        originalIndex: index,
+      };
+    })
     .filter((phase) => phase.id.length > 0)
     .sort(
       (a, b) =>
@@ -325,18 +373,13 @@ function mapPhaseStages(
 ): OverviewData["tasks"] {
   return rows
     .map((row) => {
-      const status = normalizedStatus(row.status);
-
       return {
         id: stringValue(row.stage_id),
         name: stringValue(row.name) || "Etapa sem nome",
         phaseId: stringValue(row.phase_id),
         startDate: nullableDate(row.planned_start),
         endDate: nullableDate(row.planned_end),
-        progress:
-          status === "completed"
-            ? 100
-            : clampPercent(numericValue(row.progress)),
+       progress: stageProgress(row),
       };
     })
     .filter((stage) => stage.id.length > 0 && stage.phaseId.length > 0);
@@ -360,22 +403,51 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
  * Calculate overall progress from tasks when available.
  * Fall back to phase stages when the project has no tasks.
  */
+function hasNumericProgress(row: Row): boolean {
+  const value =
+    row.progress_percentage ??
+    row.progress ??
+    row.completion_percentage;
+
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return Number.isFinite(Number(value));
+  }
+
+  return false;
+}
+
+function calculateAverageProgress(rows: Row[], getProgress: (row: Row) => number): number {
+  if (rows.length === 0) return 0;
+
+  const total = rows.reduce(
+    (sum, row) => sum + getProgress(row),
+    0,
+  );
+
+  return clampPercent(total / rows.length);
+}
+
 function calculateProgress(
   projectTasks: Row[],
   phaseStages: Row[],
 ): number {
-  if (projectTasks.length > 0) {
-    return clampPercent(
-      projectTasks.reduce((sum, task) => sum + taskProgress(task), 0) /
-        projectTasks.length,
-    );
+  // Prefer task progress when actual progress values exist.
+  const tasksHaveProgress = projectTasks.some(
+    (task) => hasNumericProgress(task) ||
+      isCompleted(stringValue(task.status, task.state)),
+  );
+
+  if (tasksHaveProgress) {
+    return calculateAverageProgress(projectTasks, taskProgress);
   }
 
+  // Otherwise, use the progress recorded in phase stages.
   if (phaseStages.length > 0) {
-    return clampPercent(
-      phaseStages.reduce((sum, stage) => sum + stageProgress(stage), 0) /
-        phaseStages.length,
-    );
+    return calculateAverageProgress(phaseStages, stageProgress);
   }
 
   return 0;
@@ -426,9 +498,12 @@ export async function getOverviewData(
     );
   }
 
-  const phaseRows = (phaseData ?? []).map(asRow);
-  const phases = uniqueById(mapPhases(phaseRows));
-  const phaseIds = phases.map((phase) => phase.id);
+const phaseRows = (phaseData ?? []).map(asRow);
+
+// Get phase IDs before loading their stages.
+const phaseIds = uniqueById(mapPhases(phaseRows)).map(
+  (phase) => phase.id,
+);
 
   /* ------------------------------------------------------------------------ */
   /* Phase stages                                                             */
@@ -453,6 +528,10 @@ export async function getOverviewData(
 
     stageRows = (stageData ?? []).map(asRow);
   }
+
+  const phases = uniqueById(
+  mapPhases(phaseRows, stageRows),
+);
 
   /* ------------------------------------------------------------------------ */
   /* Deliverables                                                             */
@@ -736,6 +815,20 @@ export async function getOverviewData(
 
   return {
     project,
+    upcomingDeadlines: [],
+    overdueDeadlines: [],
+    teamMembers: [],
+    changeOrders: [],
+    documents: [],
+    issues: [],
+    siteReports: [],
+    sitePhotos: [],
+    safety: {
+      daysSinceIncident: 0,
+      openActions: 0,
+      incidents: [],
+    },
+    procurement: [],
 
     kpis: {
       progress,

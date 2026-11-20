@@ -1,337 +1,213 @@
-
 "use client";
 
 import Link from "next/link";
-import { useId } from "react";
 import { Reveal } from "./motion_reveal";
-import { H2 } from "./section";
+
+/* ------------------------------------------------------------------ */
+/* Elevation drawing                                                   */
+/* One technical drawing: front elevation of a cantilevered volume     */
+/* over a glazed ground floor. The single gold-lit bay is the only     */
+/* accent; everything else stays in navy line work.                    */
+/* ------------------------------------------------------------------ */
+
+const NAVY = "#002950";
+const GOLD = "#BD9655";
+
+const upperBays = Array.from({ length: 12 }, (_, i) => 100 + i * 35);
+const groundBays = Array.from({ length: 6 }, (_, i) => 140 + i * 50);
+const hatch = Array.from({ length: 40 }, (_, i) => `M${40 + i * 14} 380 l-8 9`).join(" ");
+
+function ElevationDrawing() {
+  return (
+    <svg
+      viewBox="0 0 620 460"
+      role="img"
+      aria-label="Alçado de um edifício contemporâneo com volume superior em consola sobre um piso térreo envidraçado"
+      className="h-auto w-full max-w-[540px] text-[#002950]"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      fontFamily="inherit"
+    >
+      {/* Central axis */}
+      <path
+        d="M310 112 V380"
+        stroke="currentColor"
+        strokeWidth="0.8"
+        strokeDasharray="10 4 2 4"
+        opacity=".35"
+      />
+      <circle cx="310" cy="100" r="10" stroke="currentColor" strokeWidth="1" opacity=".6" />
+      <text x="310" y="104" textAnchor="middle" fontSize="11" fill="currentColor" opacity=".7">
+        A
+      </text>
+
+      {/* Rooftop volume */}
+      <rect x="330" y="130" width="120" height="30" fill="currentColor" fillOpacity=".05" stroke="currentColor" strokeWidth="1.3" />
+
+      {/* Roof slab */}
+      <rect x="92" y="160" width="436" height="10" fill="currentColor" fillOpacity=".14" stroke="currentColor" strokeWidth="1.5" />
+
+      {/* Upper volume (cantilever) */}
+      <rect x="100" y="170" width="420" height="122" fill="currentColor" fillOpacity=".04" stroke="currentColor" strokeWidth="1.6" />
+
+      {upperBays.map((x, i) => (
+        <rect
+          key={x}
+          x={x + 4}
+          y={196}
+          width={27}
+          height={68}
+          fill={i === 8 ? GOLD : "currentColor"}
+          fillOpacity={i === 8 ? 0.3 : 0.07}
+          stroke={i === 8 ? GOLD : "currentColor"}
+          strokeWidth={i === 8 ? 1.4 : 1}
+        />
+      ))}
+
+      {/* Ground floor, set back under the cantilever */}
+      <rect x="140" y="292" width="300" height="88" stroke="currentColor" strokeWidth="1.6" />
+      {groundBays.map((x, i) => (
+        <rect
+          key={x}
+          x={x + 3}
+          y={302}
+          width={44}
+          height={78}
+          fill={i === 2 ? "none" : "currentColor"}
+          fillOpacity={i === 2 ? 0 : 0.06}
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+      ))}
+      {/* Entrance */}
+      <path d="M243 380 V318 H287 V380" stroke="currentColor" strokeWidth="1.3" />
+
+      {/* Ground line and hatch */}
+      <path d="M30 380 H590" stroke="currentColor" strokeWidth="2" />
+      <path d={hatch} stroke="currentColor" strokeWidth="0.8" opacity=".4" />
+
+      {/* Vertical dimension (left) */}
+      <g stroke={GOLD} strokeWidth="1">
+        <path d="M100 170 H52 M100 292 H52" strokeDasharray="3 3" opacity=".7" />
+        <path d="M64 170 V380" />
+        <path d="M59 175 L69 165 M59 297 L69 287 M59 385 L69 375" />
+      </g>
+      <g fontSize="10" fill={NAVY} opacity=".75" textAnchor="middle">
+        <text transform="rotate(-90 55 236)" x="55" y="236">5,00</text>
+        <text transform="rotate(-90 55 336)" x="55" y="336">3,60</text>
+      </g>
+
+      {/* Horizontal dimension (bottom) */}
+      <g stroke={GOLD} strokeWidth="1">
+        <path d="M100 384 V420 M520 384 V420" strokeDasharray="3 3" opacity=".7" />
+        <path d="M100 414 H520" />
+        <path d="M95 419 L105 409 M515 419 L525 409" />
+      </g>
+      <text x="310" y="407" textAnchor="middle" fontSize="10" fill={NAVY} opacity=".75">
+        17,20 m
+      </text>
+
+      {/* Level markers (right) */}
+      <g stroke={GOLD} strokeWidth="1">
+        <path d="M520 170 H556 M520 292 H556" strokeDasharray="3 3" opacity=".7" />
+        <path d="M556 380 H590" />
+      </g>
+      <g fill={GOLD}>
+        <path d="M556 162 H566 L561 170 Z" />
+        <path d="M556 284 H566 L561 292 Z" />
+        <path d="M556 372 H566 L561 380 Z" />
+      </g>
+      <g fontSize="10" fill={NAVY} opacity=".75">
+        <text x="571" y="168">+8,60</text>
+        <text x="571" y="290">+3,60</text>
+        <text x="571" y="378">±0,00</text>
+      </g>
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Section                                                             */
+/* ------------------------------------------------------------------ */
 
 export default function BriefingSection() {
-  const gradientId = useId().replace(/:/g, "");
-
   return (
     <section
       id="briefing"
       aria-labelledby="briefing-title"
       className="relative overflow-hidden bg-[#F7F7F5] font-body text-[#002950]"
     >
-      <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-y-8 px-6 py-14 md:gap-y-10 md:px-12 md:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[auto_auto] lg:items-center lg:gap-x-16 lg:gap-y-5 lg:px-20">
+      <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-y-8 px-6 py-14 md:gap-y-10 md:px-12 md:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[auto_auto] lg:items-center lg:gap-x-16 lg:gap-y-6 lg:px-20">
+        {/* Heading (first on mobile) */}
+        <Reveal y={20} className="relative z-10 lg:col-start-1 lg:row-start-1 lg:self-end">
+          <span aria-hidden="true" className="mb-7 block h-px w-12 bg-[#BD9655]" />
 
-        {/* Heading — first on mobile */}
-        <Reveal
-          y={20}
-          className="relative z-10 lg:col-start-1 lg:row-start-1"
-        >
-          <div>
-            <div className="mb-6 flex items-center gap-3 sm:mb-7">
-              <span className="h-px w-8 bg-[#BD9655]" />
+          <h2
+            id="briefing-title"
+            className="font-heading max-w-2xl text-[clamp(2.2rem,3.5vw,3.25rem)] font-semibold leading-[1.05] tracking-[-0.02em] text-[#1F1E1B]"
+          >
+            Tudo começa com uma ideia.
+            <br />
+            <span className="font-normal text-[#9A7230]">Conte-nos a sua.</span>
+          </h2>
+        </Reveal>
 
-              <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#BD9655]">
-                O próximo passo começa aqui
-              </span>
+        {/* Drawing (after heading on mobile, spans both rows on desktop) */}
+        <Reveal className="relative min-h-[300px] overflow-hidden border border-[#002950]/15 bg-[#FDFCFA] sm:min-h-[380px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-full lg:min-h-[500px]">
+          {/* Drawing paper grid */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(to_right,#002950_1px,transparent_1px),linear-gradient(to_bottom,#002950_1px,transparent_1px)] [background-size:36px_36px]"
+          />
+
+          {/* Drawing */}
+          <div className="absolute inset-0 flex items-center justify-center px-3 pb-16 pt-6 sm:px-8 sm:pb-20 sm:pt-8">
+            <ElevationDrawing />
+          </div>
+
+          {/* Title block */}
+          <div className="absolute inset-x-0 bottom-0 flex items-stretch border-t border-[#002950]/20 bg-[#FDFCFA]/90 text-[#002950]">
+            <div className="flex-1 px-4 py-3 sm:px-6">
+              <p className="text-xs font-semibold sm:text-[13px]">Alçado principal</p>
+              <p className="mt-0.5 text-[11px] text-[#002950]/70">Escala 1:200</p>
             </div>
-
-            <H2
-              className="!font-body max-w-2xl text-[clamp(2.1rem,3.5vw,3.25rem)] font-medium leading-[1.08] tracking-[-0.045em] text-[#002950]"
-            >
-              Tem um projecto
-              <br />
-              <span className="font-normal text-[#BD9655]">
-                em mente?
-              </span>
-            </H2>
+            <div className="border-l border-[#002950]/20 px-4 py-3 text-right sm:px-6">
+              <p className="text-xs font-semibold sm:text-[13px]">Pro Sota</p>
+              <p className="mt-0.5 text-[11px] text-[#002950]/70">
+                Arquitectura, engenharia e construção
+              </p>
+            </div>
           </div>
         </Reveal>
 
-        {/* Architectural visual — after heading on mobile */}
-        <Reveal className="relative min-h-[280px] overflow-hidden border border-[#002950]/10 bg-[#FDFCFA] sm:min-h-[360px] lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:min-h-[480px] lg:h-full">
-
-          {/* Technical drawing grid */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 opacity-[0.07]
-              [background-image:linear-gradient(to_right,#002950_1px,transparent_1px),linear-gradient(to_bottom,#002950_1px,transparent_1px)]
-              [background-size:36px_36px]"
-          />
-
-          {/* Soft architectural atmosphere */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0
-              [background:radial-gradient(ellipse_at_50%_48%,rgba(189,150,85,0.12),transparent_68%)]"
-          />
-
-          {/* Drawing label */}
-          <div className="absolute left-5 top-5 z-10 flex items-center gap-2 sm:left-7 sm:top-7">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#BD9655]" />
-
-            <span className="text-[9px] font-medium uppercase tracking-[0.2em] text-[#002950]/65">
-              PRO SOTA · ESTUDO ARQUITECTÓNICO
-            </span>
-          </div>
-
-          {/* Architectural illustration */}
-          <div className="absolute inset-0 flex items-center justify-center px-3 pb-5 pt-10 sm:px-8 sm:pb-8 sm:pt-12">
-            <svg
-              viewBox="0 0 620 460"
-              role="img"
-              aria-label="Ilustração técnica de um edifício contemporâneo"
-              className="h-auto w-full max-w-[520px]"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                <linearGradient
-                  id={`${gradientId}-facade`}
-                  x1="0"
-                  y1="0"
-                  x2="1"
-                  y2="1"
-                >
-                  <stop offset="0" stopColor="#002950" stopOpacity=".025" />
-                  <stop offset="1" stopColor="#002950" stopOpacity=".12" />
-                </linearGradient>
-
-                <linearGradient
-                  id={`${gradientId}-glass`}
-                  x1="0"
-                  y1="0"
-                  x2="1"
-                  y2="1"
-                >
-                  <stop offset="0" stopColor="#BD9655" stopOpacity=".06" />
-                  <stop offset="1" stopColor="#002950" stopOpacity=".13" />
-                </linearGradient>
-              </defs>
-
-              {/* Ground and construction guides */}
-              <g stroke="#002950" strokeWidth="1" opacity=".2">
-                <path d="M55 374 L310 424 L565 374" />
-                <path d="M85 391 L310 435 L535 391" strokeDasharray="3 5" />
-                <path d="M310 55 V425" strokeDasharray="3 7" />
-                <path d="M55 225 H565" strokeDasharray="3 7" />
-              </g>
-
-              {/* Building roof */}
-              <path
-                d="M115 188 L310 82 L505 188 L310 295 Z"
-                fill="#002950"
-                fillOpacity=".035"
-                stroke="#002950"
-                strokeWidth="1.7"
-              />
-
-              {/* Main building volume */}
-              <path
-                d="M115 188 L310 295 L310 391 L115 284 Z"
-                fill={`url(#${gradientId}-facade)`}
-                stroke="#002950"
-                strokeWidth="1.5"
-              />
-
-              <path
-                d="M310 295 L505 188 L505 284 L310 391 Z"
-                fill="#002950"
-                fillOpacity=".065"
-                stroke="#002950"
-                strokeWidth="1.5"
-              />
-
-              {/* Upper volume */}
-              <path
-                d="M176 150 L310 78 L444 150 L310 223 Z"
-                fill="#FDFCFA"
-                stroke="#002950"
-                strokeWidth="1.5"
-              />
-
-              <path
-                d="M176 150 L310 223 L310 292 L176 219 Z"
-                fill={`url(#${gradientId}-facade)`}
-                stroke="#002950"
-                strokeWidth="1.3"
-              />
-
-              <path
-                d="M310 223 L444 150 L444 219 L310 292 Z"
-                fill="#002950"
-                fillOpacity=".055"
-                stroke="#002950"
-                strokeWidth="1.3"
-              />
-
-              {/* Upper left windows */}
-              <path
-                d="M194 155 L242 181 L242 229 L194 203 Z"
-                fill={`url(#${gradientId}-glass)`}
-                stroke="#002950"
-                strokeWidth="1.1"
-              />
-
-              <path
-                d="M251 186 L293 209 L293 257 L251 234 Z"
-                fill={`url(#${gradientId}-glass)`}
-                stroke="#002950"
-                strokeWidth="1.1"
-              />
-
-              {/* Upper right windows */}
-              <path
-                d="M329 209 L376 184 L376 232 L329 257 Z"
-                fill={`url(#${gradientId}-glass)`}
-                stroke="#002950"
-                strokeWidth="1.1"
-              />
-
-              <path
-                d="M389 176 L427 155 L427 203 L389 224 Z"
-                fill={`url(#${gradientId}-glass)`}
-                stroke="#002950"
-                strokeWidth="1.1"
-              />
-
-              {/* Lower left facade divisions */}
-              <path
-                d="M137 219 L180 242 L180 319 L137 296 Z"
-                fill={`url(#${gradientId}-glass)`}
-                stroke="#002950"
-                strokeWidth="1.1"
-              />
-
-              <path
-                d="M193 250 L265 289 L265 365 L193 326 Z"
-                fill={`url(#${gradientId}-glass)`}
-                stroke="#002950"
-                strokeWidth="1.1"
-              />
-
-              <path
-                d="M229 270 V346"
-                stroke="#002950"
-                strokeWidth="1"
-                opacity=".65"
-              />
-
-              {/* Lower right facade divisions */}
-              <path
-                d="M334 308 L382 282 L382 359 L334 385 Z"
-                fill={`url(#${gradientId}-glass)`}
-                stroke="#002950"
-                strokeWidth="1.1"
-              />
-
-              <path
-                d="M400 272 L482 228 L482 305 L400 350 Z"
-                fill={`url(#${gradientId}-glass)`}
-                stroke="#002950"
-                strokeWidth="1.1"
-              />
-
-              <path
-                d="M441 250 V327"
-                stroke="#002950"
-                strokeWidth="1"
-                opacity=".65"
-              />
-
-              {/* Structural details */}
-              <g stroke="#002950" strokeWidth="1.1" opacity=".65">
-                <path d="M115 188 L115 204 L310 311 L505 204 L505 188" />
-                <path d="M176 219 L310 292 L444 219" />
-                <path d="M310 295 V391" />
-                <path d="M153 207 L153 302" strokeDasharray="2 4" />
-                <path d="M465 210 L465 314" strokeDasharray="2 4" />
-              </g>
-
-              {/* Gold architectural details */}
-              <g stroke="#BD9655" strokeWidth="1.8">
-                <path d="M115 188 L310 82 L505 188" />
-                <path d="M176 150 L310 223 L444 150" />
-                <path d="M310 82 V48" />
-                <path d="M304 56 L310 48 L316 56" />
-                <path d="M310 424 V442" />
-                <path d="M303 435 L310 442 L317 435" />
-              </g>
-
-              {/* Dimension line */}
-              <g stroke="#BD9655" strokeWidth="1">
-                <path d="M75 188 V284" />
-                <path d="M68 188 H82 M68 284 H82" />
-                <path d="M115 414 L310 460 L505 414" opacity=".8" />
-              </g>
-
-              {/* Technical reference points */}
-              <g fill="#BD9655">
-                <circle cx="310" cy="82" r="3" />
-                <circle cx="115" cy="188" r="3" />
-                <circle cx="505" cy="188" r="3" />
-                <circle cx="310" cy="295" r="3" />
-              </g>
-
-              {/* Annotation leaders */}
-              <g stroke="#BD9655" strokeWidth="1" opacity=".8">
-                <path d="M444 150 L500 115 H550" />
-                <path d="M115 284 L65 314 H35" />
-              </g>
-
-              <g
-                fill="#002950"
-                fontSize="9"
-                fontFamily="Arial, sans-serif"
-                letterSpacing="1.5"
-              >
-                <text x="502" y="106">FACHADA</text>
-                <text x="20" y="308">VOLUME</text>
-              </g>
-            </svg>
-          </div>
-
-          {/* Bottom drawing information */}
-          <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between border-t border-[#002950]/15 pt-4 sm:bottom-7 sm:left-7 sm:right-7">
-            <div>
-              <p className="text-[8px] uppercase tracking-[0.2em] text-[#002950]/45">
-                Da ideia à realidade
-              </p>
-
-              <p className="mt-1 text-[10px] font-medium text-[#002950] sm:text-xs">
-                Arquitectura · Engenharia · Construção
-              </p>
-            </div>
-
-            <span className="text-[9px] tracking-widest text-[#BD9655]">
-              PS — 01
-            </span>
-          </div>
-        </Reveal>
-
-        {/* Supporting content and CTA */}
-        <Reveal className="relative z-10 lg:col-start-1 lg:row-start-2">
-          <p className="max-w-lg text-sm leading-7 text-[#002950]/70 sm:text-[15px] sm:leading-8">
-            Partilhe connosco a sua ideia, os seus objectivos e as
-            características do projecto. A nossa equipa irá analisar as
-            suas necessidades para desenvolver uma solução adequada à sua
-            visão.
+        {/* Supporting copy and CTA */}
+        <Reveal className="relative z-10 lg:col-start-1 lg:row-start-2 lg:self-start">
+          <p className="max-w-lg text-[15px] leading-7 text-[#002950]/75 sm:leading-8">
+            Partilhe connosco a sua ideia, os seus objectivos e as características do
+            projecto. A nossa equipa analisa as suas necessidades e desenvolve uma
+            solução à medida da sua visão.
           </p>
 
-          <div className="mt-7 flex flex-wrap items-center gap-5 sm:mt-9">
+          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
             <Link
               href="/project-briefing"
-              className="group inline-flex min-h-[50px] items-center gap-7 bg-[#002950] px-5 text-[13px] font-medium text-white transition-colors duration-300 hover:bg-[#BD9655] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#BD9655]"
+              className="group inline-flex min-h-[52px] items-center gap-6 bg-[#002950] px-6 text-sm font-medium text-white transition-colors duration-300 hover:bg-[#8B6A2F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8B6A2F]"
             >
               <span>Iniciar briefing</span>
-
-              <span
+              <svg
                 aria-hidden="true"
-                className="relative h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1"
+                viewBox="0 0 16 16"
+                className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
               >
-                <span className="absolute right-0 top-0 h-2.5 w-2.5 border-r border-t border-white" />
-
-                <span className="absolute bottom-[2px] right-0 h-px w-3 -rotate-45 origin-right bg-white" />
-              </span>
+                <path d="M3 13 13 3M5 3h8v8" />
+              </svg>
             </Link>
 
-            <span className="text-xs leading-5 text-[#002950]/55">
-              Um primeiro passo para concretizar a sua ideia.
+            <span className="max-w-[16rem] text-xs leading-5 text-[#002950]/70">
+              Leva poucos minutos e é o primeiro passo do seu projecto.
             </span>
           </div>
         </Reveal>

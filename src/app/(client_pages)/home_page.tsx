@@ -18,6 +18,7 @@ import { services } from "./components/servicesData";
 import "../globals.css";
 import "../styles.css";
 import "../admin.css";
+import SolutionsSection from "./components/solutions_section";
 
 interface HomeClientProps {
   projects: any[];
@@ -62,6 +63,9 @@ export default function HomeClient({
           services={services}
           Routes={ROUTES}
         />
+
+          {/* 04 — SOLUÇÕES PRO SOTA */}
+        <SolutionsSection />
 
         {/* 04 — WHY PRO SOTA */}
         <WhyUs />

@@ -28,7 +28,7 @@ export default function ServicesSection({
 
                         <h2
                             id="services-title"
-                            className="max-w-xl font-body text-[clamp(2rem,3vw,2.75rem)] font-medium leading-[1.08] tracking-[-0.045em] text-[#002950]"
+                            className="max-w-xl text-[clamp(2rem,3vw,2.75rem)] font-heading font-medium leading-[1.08] tracking-[-0.045em] text-[#002950]"
                         >
                             As nossas
                             <br />

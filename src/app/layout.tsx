@@ -11,24 +11,19 @@ import "./admin.css";
 import "./hero.css";
 import "./styles.css";
 import "leaflet/dist/leaflet.css";
+import localFont from "next/font/local";
 
 import { cn } from "@/lib/utils/utils";
 import { ToastProvider } from "./components/toast/toast_provider";
 import OrganizationSchema from "./components/organization_schema";
 import { Analytics } from "@vercel/analytics/next";
 
-const display = Manrope({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-display-face",
-  display: "swap",
-});
 
-const body = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-body-face",
-  display: "swap",
+const bigShoulders = localFont({
+    src: "../../public/fonts/BigShoulders-VariableFont_opsz,wght.ttf",
+    variable: "--font-big-shoulders",
+    display: "swap",
+    weight: "400",
 });
 
 const mono = IBM_Plex_Mono({
@@ -127,9 +122,8 @@ export default function RootLayout({
       className={cn(
         "h-full",
         "antialiased",
-        display.variable,
-        body.variable,
-        mono.variable
+        bigShoulders,
+        mono.variable,
       )}
     >
       <body className="flex min-h-full flex-col">
