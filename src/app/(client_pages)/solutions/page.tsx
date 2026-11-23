@@ -126,7 +126,7 @@ export default function SolutionsPage() {
                 {SOLUTIONS.map((solution, index) => (
                     <section
                         key={solution.id}
-                        id={`solucao-${solution.number}`}
+                        id={`${solution.slug}`}
                         className={`scroll-mt-20 border-t border-[#E6E4DE] ${index % 2 === 1 ? "bg-white" : "bg-[#F3EFE6]"
                             }`}
                     >
