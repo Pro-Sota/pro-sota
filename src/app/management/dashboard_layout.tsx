@@ -33,7 +33,7 @@ export default function DashboardLayoutClient({
       <main
         className={[
           "min-h-screen overflow-auto",
-          "transition-[margin] duration-200 ease-in-out",
+          "transition-[margin] duration-200 ease-in-out font-heading",
           collapsed
             ? "md:ml-20"
             : "md:ml-64",

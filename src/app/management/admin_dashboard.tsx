@@ -14,8 +14,9 @@ import {
   ArrowRight,
   FileText,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Database } from "../lib/supabase/models";
 import CreateMeetingModal from "./calendar/components/create_meeting_modal";
@@ -24,7 +25,7 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 type Supplier = Database["public"]["Tables"]["suppliers"]["Row"];
-type Document = Database["public"]["Tables"]["documents"]["Row"];
+type DocumentRow = Database["public"]["Tables"]["documents"]["Row"];
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
 type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
 
@@ -45,8 +46,8 @@ export interface AdminDashboardData {
   users: Profile[];
   projects: Project[];
   clients: Client[];
-  documents: Document[];
-  suppliers:Supplier[];
+  documents: DocumentRow[];
+  suppliers: Supplier[];
   tasks: Task[];
   deadlines: Task[];
   activities: Activity[];
@@ -56,6 +57,123 @@ export interface AdminDashboardData {
 interface DashboardProps {
   data: AdminDashboardData;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+const SECTION_TITLE_CLASS =
+  "text-sm font-medium tracking-tight text-[#002950] sm:text-base";
+
+const MAX_DASHBOARD_PROJECTS = 6;
+
+const COMPLETED_TASK_STATUSES = ["completed", "concluído", "concluido", "done"];
+const INACTIVE_PROJECT_STATUSES = [
+  "completed",
+  "concluído",
+  "concluido",
+  "cancelled",
+  "canceled",
+  "cancelado",
+  "archived",
+  "arquivado",
+];
+
+const isTaskCompleted = (task: Task) =>
+  COMPLETED_TASK_STATUSES.includes(task.status?.toLowerCase() ?? "");
+
+const isProjectActive = (project: Project) =>
+  !INACTIVE_PROJECT_STATUSES.includes(project.status?.toLowerCase() ?? "");
+
+type ProfileLike = Profile & {
+  id?: string;
+  user_id?: string;
+  last_name?: string | null;
+};
+
+const getProfileId = (profile: Profile) => {
+  const p = profile as ProfileLike;
+  return p.user_id ?? p.id ?? null;
+};
+
+const getProfileName = (profile: Profile) => {
+  const p = profile as ProfileLike;
+  return [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+};
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+
+  if (hour >= 5 && hour < 12) return "Bom dia";
+  if (hour >= 12 && hour < 18) return "Boa tarde";
+
+  return "Boa noite";
+};
+
+const getProjectStatus = (status: string | null) => {
+  const statusConfig = {
+    active: {
+      label: "Em curso",
+      className: "bg-green-50 text-green-700",
+      dot: "bg-green-500",
+    },
+    "on track": {
+      label: "Em curso",
+      className: "bg-green-50 text-green-700",
+      dot: "bg-green-500",
+    },
+    "at risk": {
+      label: "Em risco",
+      className: "bg-orange-50 text-orange-700",
+      dot: "bg-orange-500",
+    },
+    delayed: {
+      label: "Atrasado",
+      className: "bg-red-50 text-red-700",
+      dot: "bg-red-500",
+    },
+  };
+
+  return (
+    statusConfig[status?.toLowerCase() as keyof typeof statusConfig] ?? {
+      label: status || "Sem estado",
+      className: "bg-gray-100 text-gray-700",
+      dot: "bg-gray-400",
+    }
+  );
+};
+
+const formatDate = (value: string | null, includeYear = true) => {
+  if (!value) return null;
+
+  return new Date(value).toLocaleDateString("pt-PT", {
+    day: "2-digit",
+    month: "short",
+    ...(includeYear ? { year: "numeric" } : {}),
+  });
+};
+
+// Adjust this if your document detail route is different.
+const documentHref = (doc: DocumentRow) =>
+  `/management/documents/${doc.document_id}`;
+
+const taskHref = (task: Task) =>
+  task.project_id
+    ? `/management/projects/${task.project_id}`
+    : "/management/tasks";
+
+/* -------------------------------------------------------------------------- */
+/* Small components                                                           */
+/* -------------------------------------------------------------------------- */
 
 function EmptyState({
   icon: Icon,
@@ -101,59 +219,54 @@ function EmptyState({
   );
 }
 
-const getProjectStatus = (status: string | null) => {
-  const statusConfig = {
-    active: {
-      label: "Em curso",
-      className: "bg-green-50 text-green-700",
-      dot: "bg-green-500",
-    },
-    "on track": {
-      label: "Em curso",
-      className: "bg-green-50 text-green-700",
-      dot: "bg-green-500",
-    },
-    "at risk": {
-      label: "Em risco",
-      className: "bg-orange-50 text-orange-700",
-      dot: "bg-orange-500",
-    },
-    delayed: {
-      label: "Atrasado",
-      className: "bg-red-50 text-red-700",
-      dot: "bg-red-500",
-    },
-  };
+/** Shows a progress bar, or a short note when the project has no tasks yet. */
+function ProgressIndicator({
+  progress,
+  trackClassName,
+}: {
+  progress: number | null;
+  trackClassName: string;
+}) {
+  if (progress === null) {
+    return <span className="text-xs text-gray-400">Sem tarefas</span>;
+  }
+
+  const width = Math.min(Math.max(progress, 0), 100);
 
   return (
-    statusConfig[status?.toLowerCase() as keyof typeof statusConfig] ?? {
-      label: status || "Sem estado",
-      className: "bg-gray-100 text-gray-700",
-      dot: "bg-gray-400",
-    }
+    <div>
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-xs font-semibold text-gray-900">
+          {progress}%
+        </span>
+      </div>
+
+      <div className={`h-1.5 overflow-hidden rounded-full ${trackClassName}`}>
+        <div
+          className="h-full rounded-full bg-gray-900 transition-all"
+          style={{ width: `${width}%` }}
+        />
+      </div>
+    </div>
   );
-};
+}
 
-const formatDate = (
-  value: string | null,
-  includeYear = true,
-) => {
-  if (!value) return null;
+/* -------------------------------------------------------------------------- */
+/* Main component                                                             */
+/* -------------------------------------------------------------------------- */
 
-  return new Date(value).toLocaleDateString("pt-PT", {
-    day: "2-digit",
-    month: "short",
-    ...(includeYear ? { year: "numeric" } : {}),
-  });
-};
-
-export default function AdminDashboard({
-  data,
-}: DashboardProps) {
+export default function AdminDashboard({ data }: DashboardProps) {
   const router = useRouter();
 
-  const [isMeetingModalOpen, setIsMeetingModalOpen] =
-    useState(false);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
+
+  // Computed after mount so server and client render the same markup
+  // (the server clock/timezone may differ from the user's).
+  const [greeting, setGreeting] = useState("Olá");
+
+  useEffect(() => {
+    setGreeting(getGreeting());
+  }, []);
 
   const {
     currentUser,
@@ -168,10 +281,55 @@ export default function AdminDashboard({
     teamWorkload,
   } = data;
 
+  // Lookups so we show names instead of raw IDs
+  const projectTitleById = useMemo(() => {
+    const map: Record<string, string> = {};
+    projects.forEach((project) => {
+      map[project.project_id] = project.title;
+    });
+    return map;
+  }, [projects]);
+
+  const userNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    users.forEach((user) => {
+      const id = getProfileId(user);
+      const name = getProfileName(user);
+      if (id && name) map[id] = name;
+    });
+    return map;
+  }, [users]);
+
+  // Only active projects count and are listed
+  const activeProjects = useMemo(
+    () => projects.filter(isProjectActive),
+    [projects],
+  );
+
+  // Real progress per project: completed tasks / total tasks
+  const progressByProject = useMemo(() => {
+    const totals: Record<string, { total: number; done: number }> = {};
+
+    tasks.forEach((task) => {
+      if (!task.project_id) return;
+      const entry = (totals[task.project_id] ??= { total: 0, done: 0 });
+      entry.total += 1;
+      if (isTaskCompleted(task)) entry.done += 1;
+    });
+
+    const result: Record<string, number> = {};
+    Object.entries(totals).forEach(([projectId, { total, done }]) => {
+      result[projectId] = Math.round((done / total) * 100);
+    });
+    return result;
+  }, [tasks]);
+
+  const visibleProjects = activeProjects.slice(0, MAX_DASHBOARD_PROJECTS);
+
   const stats = [
     {
       title: "Projectos Activos",
-      value: projects.length,
+      value: activeProjects.length,
       icon: Briefcase,
       href: "/management/projects",
     },
@@ -189,11 +347,7 @@ export default function AdminDashboard({
     },
     {
       title: "Tarefas Pendentes",
-      value: tasks.filter(
-        (task) =>
-          task.status !== "completed" &&
-          task.status !== "Concluído",
-      ).length,
+      value: tasks.filter((task) => !isTaskCompleted(task)).length,
       icon: ClipboardList,
       href: "/management/tasks",
     },
@@ -230,33 +384,19 @@ export default function AdminDashboard({
     router.push(`/management/projects/${projectId}`);
   }
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-
-    if (hour >= 5 && hour < 12) {
-      return "Bom dia";
-    }
-
-    if (hour >= 12 && hour < 18) {
-      return "Boa tarde";
-    }
-
-    return "Boa noite";
-  };
-
   return (
     <div className="min-h-screen bg-[#F7F7F5]">
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
         <div className="min-w-0 space-y-8 sm:space-y-10">
           {/* Header */}
           <div className="border-b border-gray-200 pb-6">
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-              {getGreeting()}, {currentUser?.first_name || "Administrador"}
+            <h1 className="text-xl font-semibold tracking-tight text-[#002950] sm:text-2xl">
+              {greeting}, {currentUser?.first_name || "Administrador"}
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-              Bem-vindo de volta. Aqui está uma visão geral
-              da actividade do gabinete.
+              Bem-vindo de volta. Aqui está uma visão geral da actividade do
+              gabinete.
             </p>
           </div>
 
@@ -274,22 +414,21 @@ export default function AdminDashboard({
 
                   router.push(action.href);
                 }}
-                className={`group flex min-h-[82px] cursor-pointer flex-col items-start justify-between gap-3 rounded-lg px-4 py-3.5 text-left text-md font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 sm:min-h-[96px] sm:px-5 sm:py-4 ${action.variant === "primary"
-                  ? "bg-[#BD9655] text-[#002950] hover:bg-[#C8A66E] active:bg-gray-950"
-                  : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 active:bg-gray-100"
-                  }`}
+                className={`group flex min-h-[82px] cursor-pointer flex-col items-start justify-between gap-3 rounded-lg px-4 py-3.5 text-left font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 sm:min-h-[96px] sm:px-5 sm:py-4 ${
+                  action.variant === "primary"
+                    ? "bg-[#BD9655] text-[#002950] hover:bg-[#C8A66E] active:bg-[#B08A4A]"
+                    : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 active:bg-gray-100"
+                }`}
               >
                 <action.icon className="h-4 w-4 shrink-0" />
 
-                <span className="text-xs sm:text-sm">
-                  {action.label}
-                </span>
+                <span className="text-xs sm:text-sm">{action.label}</span>
               </button>
             ))}
           </div>
 
           {/* Statistics */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {stats.map((item) => (
               <button
                 key={item.title}
@@ -303,7 +442,7 @@ export default function AdminDashboard({
                       {item.title}
                     </p>
 
-                    <p className="mt-2 text-2xl font-bold text-[#002950] sm:mt-4 sm:text-4xl">
+                    <p className="mt-3 text-2xl font-semibold tracking-tight text-[#002950] sm:mt-4 sm:text-3xl">
                       {item.value}
                     </p>
                   </div>
@@ -322,34 +461,30 @@ export default function AdminDashboard({
             <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white lg:col-span-2">
               <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
                 <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-gray-900">
-                    Projectos Activos
-                  </h2>
+                  <h2 className={SECTION_TITLE_CLASS}>Projectos Activos</h2>
 
                   <p className="mt-1 truncate text-xs text-gray-500">
-                    {projects.length > 6
-                      ? `A mostrar 6 de ${projects.length} projectos`
-                      : "Projectos em que participa actualmente"}
+                    {activeProjects.length > MAX_DASHBOARD_PROJECTS
+                      ? `A mostrar ${MAX_DASHBOARD_PROJECTS} de ${activeProjects.length} projectos`
+                      : "Projectos em curso"}
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    router.push("/management/projects")
-                  }
+                  onClick={() => router.push("/management/projects")}
                   className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
                 >
                   Ver todos
                 </button>
               </div>
 
-              <div className="max-h-[900px] overflow-y-auto overscroll-contain p-4 sm:p-6 md:max-h-[560px]">
-                {projects.length === 0 ? (
+              <div className="max-h-[900px] overflow-y-auto p-4 sm:p-6 md:max-h-[560px]">
+                {visibleProjects.length === 0 ? (
                   <EmptyState
                     icon={Briefcase}
                     title="Nenhum projecto activo"
-                    description="Os projectos em que participa aparecerão aqui."
+                    description="Os projectos em curso aparecerão aqui."
                     action={{
                       label: "Ver projectos",
                       href: "/management/projects",
@@ -359,20 +494,17 @@ export default function AdminDashboard({
                   <>
                     {/* Mobile */}
                     <div className="space-y-2 md:hidden">
-                      {projects.map((project) => {
-                        const progress = 0;
-                        const config = getProjectStatus(
-                          project.status,
-                        );
+                      {visibleProjects.map((project) => {
+                        const progress =
+                          progressByProject[project.project_id] ?? null;
+                        const config = getProjectStatus(project.status);
 
                         return (
                           <button
                             key={project.project_id}
                             type="button"
                             onClick={() =>
-                              handleProjectClick(
-                                project.project_id,
-                              )
+                              handleProjectClick(project.project_id)
                             }
                             className="group w-full rounded-lg border border-gray-100 p-4 text-left transition-colors hover:border-gray-200 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
                           >
@@ -403,40 +535,23 @@ export default function AdminDashboard({
                                 <span
                                   className={`h-1.5 w-1.5 shrink-0 rounded-full ${config.dot}`}
                                 />
-                                <span className="truncate">
-                                  {config.label}
-                                </span>
+                                <span className="truncate">{config.label}</span>
                               </span>
 
                               <span className="shrink-0 text-xs font-medium text-gray-500">
-                                {formatDate(
-                                  project.end_date,
-                                ) || "Sem prazo"}
+                                {formatDate(project.end_date) || "Sem prazo"}
                               </span>
                             </div>
 
                             <div className="mt-4">
-                              <div className="mb-1.5 flex items-center justify-between">
-                                <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
-                                  Progresso
-                                </span>
+                              <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                Progresso
+                              </span>
 
-                                <span className="text-xs font-semibold text-gray-700">
-                                  {progress}%
-                                </span>
-                              </div>
-
-                              <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-                                <div
-                                  className="h-full rounded-full bg-gray-900 transition-all"
-                                  style={{
-                                    width: `${Math.min(
-                                      Math.max(progress, 0),
-                                      100,
-                                    )}%`,
-                                  }}
-                                />
-                              </div>
+                              <ProgressIndicator
+                                progress={progress}
+                                trackClassName="bg-gray-100"
+                              />
                             </div>
                           </button>
                         );
@@ -452,15 +567,12 @@ export default function AdminDashboard({
                               <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                                 Projecto
                               </th>
-
                               <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                                 Estado
                               </th>
-
                               <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                                 Progresso
                               </th>
-
                               <th className="border-b border-gray-200 px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                                 Prazo
                               </th>
@@ -468,19 +580,16 @@ export default function AdminDashboard({
                           </thead>
 
                           <tbody>
-                            {projects.map((project) => {
-                              const progress = 0;
-                              const config = getProjectStatus(
-                                project.status,
-                              );
+                            {visibleProjects.map((project) => {
+                              const progress =
+                                progressByProject[project.project_id] ?? null;
+                              const config = getProjectStatus(project.status);
 
                               return (
                                 <tr
                                   key={project.project_id}
                                   onClick={() =>
-                                    handleProjectClick(
-                                      project.project_id,
-                                    )
+                                    handleProjectClick(project.project_id)
                                   }
                                   className="group cursor-pointer transition-colors hover:bg-gray-50"
                                 >
@@ -511,41 +620,22 @@ export default function AdminDashboard({
                                       <span
                                         className={`h-1.5 w-1.5 rounded-full ${config.dot}`}
                                       />
-
                                       {config.label}
                                     </span>
                                   </td>
 
                                   <td className="border-b border-gray-100 px-4 py-4">
                                     <div className="w-32">
-                                      <div className="mb-1.5 flex items-center justify-between">
-                                        <span className="text-xs font-semibold text-gray-900">
-                                          {progress}%
-                                        </span>
-                                      </div>
-
-                                      <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
-                                        <div
-                                          className="h-full rounded-full bg-gray-900 transition-all"
-                                          style={{
-                                            width: `${Math.min(
-                                              Math.max(
-                                                progress,
-                                                0,
-                                              ),
-                                              100,
-                                            )}%`,
-                                          }}
-                                        />
-                                      </div>
+                                      <ProgressIndicator
+                                        progress={progress}
+                                        trackClassName="bg-gray-200"
+                                      />
                                     </div>
                                   </td>
 
                                   <td className="border-b border-gray-100 px-4 py-4 text-right">
                                     <span className="whitespace-nowrap text-sm font-medium text-gray-700">
-                                      {formatDate(
-                                        project.end_date,
-                                      ) || "—"}
+                                      {formatDate(project.end_date) || "—"}
                                     </span>
                                   </td>
                                 </tr>
@@ -563,12 +653,10 @@ export default function AdminDashboard({
             {/* Deadlines */}
             <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
               <div className="border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-6">
-                <h2 className="text-base font-semibold text-gray-900">
-                  Próximos Prazos
-                </h2>
+                <h2 className={SECTION_TITLE_CLASS}>Próximos Prazos</h2>
               </div>
 
-              <div className="max-h-[600px] overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
+              <div className="max-h-[600px] overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
                 {deadlines.length === 0 ? (
                   <EmptyState
                     icon={CalendarDays}
@@ -578,9 +666,10 @@ export default function AdminDashboard({
                 ) : (
                   <div className="space-y-2 sm:space-y-3">
                     {deadlines.map((item) => (
-                      <div
+                      <Link
                         key={item.task_id}
-                        className="flex gap-3 rounded-md p-3 transition-colors hover:bg-gray-50"
+                        href={taskHref(item)}
+                        className="flex gap-3 rounded-md p-3 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
                       >
                         <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
 
@@ -590,15 +679,16 @@ export default function AdminDashboard({
                           </p>
 
                           <p className="mt-0.5 truncate text-xs text-gray-500">
-                            {item.project_id || "Sem projecto"}
+                            {(item.project_id &&
+                              projectTitleById[item.project_id]) ||
+                              "Sem projecto"}
                           </p>
 
                           <p className="mt-1 text-xs font-medium text-gray-400">
-                            {formatDate(item.due_date) ||
-                              "Sem data"}
+                            {formatDate(item.due_date) || "Sem data"}
                           </p>
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -610,14 +700,13 @@ export default function AdminDashboard({
           <div className="grid min-w-0 gap-6 lg:grid-cols-3">
             <RecentActivitiesSection
               activities={activities}
+              projectTitleById={projectTitleById}
+              userNameById={userNameById}
             />
-
-            <TeamWorkloadSection
-              teamWorkload={teamWorkload}
-            />
-
+            <TeamWorkloadSection teamWorkload={teamWorkload} />
             <RecentDocumentsSection
               documents={documents}
+              projectTitleById={projectTitleById}
             />
           </div>
         </div>
@@ -625,18 +714,36 @@ export default function AdminDashboard({
 
       <CreateMeetingModal
         open={isMeetingModalOpen}
-        onClose={() => setIsMeetingModalOpen(false)} participants={data.users} 
-        clients={data.clients.map((client) => ({ ...client, name: client.name ?? "", first_name: client.first_name ?? "", last_name: client.last_name ?? "" }))} 
-        suppliers={data.suppliers.map((supplier) => ({...supplier, id:supplier.supplier_id,name:supplier.supplier_name}))} 
-        />
+        onClose={() => setIsMeetingModalOpen(false)}
+        participants={data.users}
+        clients={data.clients.map((client) => ({
+          ...client,
+          name: client.name ?? "",
+          first_name: client.first_name ?? "",
+          last_name: client.last_name ?? "",
+        }))}
+        suppliers={data.suppliers.map((supplier) => ({
+          ...supplier,
+          id: supplier.supplier_id,
+          name: supplier.supplier_name,
+        }))}
+      />
     </div>
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Sections                                                                   */
+/* -------------------------------------------------------------------------- */
+
 function RecentActivitiesSection({
   activities,
+  projectTitleById,
+  userNameById,
 }: {
   activities: Activity[];
+  projectTitleById: Record<string, string>;
+  userNameById: Record<string, string>;
 }) {
   const router = useRouter();
 
@@ -644,15 +751,13 @@ function RecentActivitiesSection({
     <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
       <div className="border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-6">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="min-w-0 truncate text-base font-semibold text-gray-900">
+          <h2 className={`min-w-0 ${SECTION_TITLE_CLASS}`}>
             Actividades Recentes
           </h2>
 
           <button
             type="button"
-            onClick={() =>
-              router.push("/management/activity")
-            }
+            onClick={() => router.push("/management/activity")}
             className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
             Ver todas
@@ -660,7 +765,7 @@ function RecentActivitiesSection({
         </div>
       </div>
 
-      <div className="max-h-[600px] overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
+      <div className="max-h-[600px] overflow-y-auto px-5 py-4 sm:px-6">
         {activities.length === 0 ? (
           <EmptyState
             icon={Inbox}
@@ -670,46 +775,52 @@ function RecentActivitiesSection({
         ) : (
           <div className="divide-y divide-gray-100">
             {activities.map((activity) => {
-              const initials = activity.user_id
-                ? activity.user_id
-                  .substring(0, 2)
-                  .toUpperCase()
-                : "?";
+              const userName = activity.user_id
+                ? userNameById[activity.user_id]
+                : undefined;
+              const initials = userName ? getInitials(userName) : "?";
+              const projectTitle = activity.project_id
+                ? projectTitleById[activity.project_id]
+                : undefined;
 
               return (
                 <div
                   key={activity.activity_id}
                   className="group flex min-w-0 gap-3 py-4 first:pt-0 last:pb-0"
                 >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
+                  <div
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600"
+                    title={userName}
+                  >
                     {initials}
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <p className="break-words text-sm leading-5 text-gray-900">
+                      {userName && (
+                        <span className="font-medium">{userName} </span>
+                      )}
                       {activity.description}
                     </p>
 
-                    {activity.project_id && (
+                    {projectTitle && (
                       <p className="mt-1 truncate text-xs text-gray-500">
-                        {activity.project_id}
+                        {projectTitle}
                       </p>
                     )}
 
                     <p className="mt-1 text-xs text-gray-400">
                       {activity.created_at
-                        ? new Date(
-                          activity.created_at,
-                        ).toLocaleDateString(
-                          "pt-PT",
-                          {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )
+                        ? new Date(activity.created_at).toLocaleDateString(
+                            "pt-PT",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )
                         : ""}
                     </p>
                   </div>
@@ -734,15 +845,13 @@ function TeamWorkloadSection({
     <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
       <div className="border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-6">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="min-w-0 truncate text-base font-semibold text-gray-900">
+          <h2 className={`min-w-0 truncate ${SECTION_TITLE_CLASS}`}>
             Carga da Equipa
           </h2>
 
           <button
             type="button"
-            onClick={() =>
-              router.push("/management/team")
-            }
+            onClick={() => router.push("/management/team")}
             className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
             Ver equipa
@@ -758,18 +867,13 @@ function TeamWorkloadSection({
             description="A distribuição de trabalho aparecerá aqui."
           />
         ) : (
-          <div className="max-h-[600px] space-y-4 overflow-y-auto overscroll-contain pr-1">
+          <div className="max-h-[600px] space-y-4 overflow-y-auto pr-1">
             {teamWorkload.map((member) => (
               <div key={member.user_id} className="min-w-0">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
-                      {member.name
-                        .split(" ")
-                        .map((name) => name[0])
-                        .join("")
-                        .slice(0, 2)
-                        .toUpperCase()}
+                      {getInitials(member.name)}
                     </div>
 
                     <div className="min-w-0">
@@ -779,9 +883,7 @@ function TeamWorkloadSection({
 
                       <p className="text-xs text-gray-500">
                         {member.total_tasks}{" "}
-                        {member.total_tasks === 1
-                          ? "tarefa"
-                          : "tarefas"}
+                        {member.total_tasks === 1 ? "tarefa" : "tarefas"}
                       </p>
                     </div>
                   </div>
@@ -795,25 +897,14 @@ function TeamWorkloadSection({
                   <div
                     className="h-full rounded-full bg-gray-900 transition-all"
                     style={{
-                      width: `${Math.min(
-                        Math.max(
-                          member.workload_percentage,
-                          0,
-                        ),
-                        100,
-                      )}%`,
+                      width: `${Math.min(Math.max(member.workload_percentage, 0), 100)}%`,
                     }}
                   />
                 </div>
 
                 <div className="mt-2 flex items-center justify-between gap-3 text-xs text-gray-400">
-                  <span>
-                    {member.completed_tasks} concluídas
-                  </span>
-
-                  <span>
-                    {member.pending_tasks} pendentes
-                  </span>
+                  <span>{member.completed_tasks} concluídas</span>
+                  <span>{member.pending_tasks} pendentes</span>
                 </div>
               </div>
             ))}
@@ -826,8 +917,10 @@ function TeamWorkloadSection({
 
 function RecentDocumentsSection({
   documents,
+  projectTitleById,
 }: {
-  documents: Document[];
+  documents: DocumentRow[];
+  projectTitleById: Record<string, string>;
 }) {
   const router = useRouter();
 
@@ -835,15 +928,13 @@ function RecentDocumentsSection({
     <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
       <div className="border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-6">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="min-w-0 truncate text-base font-semibold text-gray-900">
+          <h2 className={`min-w-0 truncate ${SECTION_TITLE_CLASS}`}>
             Documentos Recentes
           </h2>
 
           <button
             type="button"
-            onClick={() =>
-              router.push("/management/documents")
-            }
+            onClick={() => router.push("/management/documents")}
             className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
             Ver todos
@@ -851,7 +942,7 @@ function RecentDocumentsSection({
         </div>
       </div>
 
-      <div className="max-h-[600px] overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
+      <div className="max-h-[600px] overflow-y-auto px-5 py-4 sm:px-6">
         {documents.length === 0 ? (
           <EmptyState
             icon={Upload}
@@ -865,9 +956,10 @@ function RecentDocumentsSection({
         ) : (
           <div className="space-y-2 sm:space-y-3">
             {documents.map((doc) => (
-              <div
+              <Link
                 key={doc.document_id}
-                className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-md p-3 transition-colors hover:bg-gray-50"
+                href={documentHref(doc)}
+                className="group flex min-w-0 items-center gap-3 rounded-md p-3 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 transition-colors group-hover:bg-gray-200">
                   <FileText className="h-5 w-5 text-gray-600" />
@@ -879,25 +971,21 @@ function RecentDocumentsSection({
                   </p>
 
                   <p className="mt-0.5 truncate text-xs text-gray-500">
-                    {doc.project_id || "Sem projecto"}
+                    {(doc.project_id && projectTitleById[doc.project_id]) ||
+                      "Sem projecto"}
                   </p>
 
                   <p className="mt-1 text-xs text-gray-400">
                     {doc.created_at
-                      ? new Date(
-                        doc.created_at,
-                      ).toLocaleDateString(
-                        "pt-PT",
-                        {
+                      ? new Date(doc.created_at).toLocaleDateString("pt-PT", {
                           day: "2-digit",
                           month: "short",
                           year: "numeric",
-                        },
-                      )
+                        })
                       : ""}
                   </p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

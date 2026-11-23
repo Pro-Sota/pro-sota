@@ -1,19 +1,39 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-
+import { site } from "../content/site";
 import Nav from "../components/nav";
-import Footer from "../components/footer";
 import ContactCTA from "../components/contact_cta";
 import { Reveal, Stagger, StaggerItem } from "../components/stagger";
-
 import { SOLUTIONS } from "./solutions_data";
 import Image from "next/image";
 
+
+const PATH = "/solutions";
+const SITE_URL = site.url.replace(/\/$/, "");
+const PAGE_URL = `${SITE_URL}${PATH}`;
+const SHARE_DESCRIPTION = "Conheça as soluções PRO SOTA: gestão e manutenção de imóveis, assistência residencial SOS Casas e projectos completos de remodelação e construção.";
+
 export const metadata: Metadata = {
-    title: "Pacotes de Serviços | PRO SOTA",
-    description:
+   title: "Pacotes de Serviços | PRO SOTA",
+   description:
         "Conheça as soluções PRO SOTA: gestão e manutenção de imóveis, assistência residencial SOS Casas e projectos completos de remodelação e construção.",
+  alternates: {
+    canonical: PAGE_URL,
+  },
+  openGraph: {
+    title: "Pacotes de Serviços | PRO SOTA",
+    description: SHARE_DESCRIPTION,
+    url: PAGE_URL,
+    siteName: site.name,
+    locale: "pt_AO",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Pacotes de Serviços | PRO SOTA",
+    description: SHARE_DESCRIPTION,
+  },
 };
 
 function ArrowIcon() {
@@ -41,7 +61,6 @@ export default function SolutionsPage() {
             <Nav />
 
             <main className="overflow-hidden bg-[#F7F7F5] text-[#002950]">
-
                 {/* HERO */}
                 <section className="relative isolate overflow-hidden border-b border-[#E6E4DE]">
                     <div

@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import {
   Manrope,
   IBM_Plex_Mono,
+  Roboto_Condensed
 } from "next/font/google";
 import localFont from "next/font/local";
 
@@ -28,6 +29,14 @@ const manrope = Manrope({
   variable: "--font-body-face",
   display: "swap",
   weight: ["400", "500", "600", "700", "800"],
+});
+
+
+const roboto = Roboto_Condensed({
+  subsets: ["latin"],
+  style: "normal",
+  variable: "--font-body",
+  display: "swap",
 });
 
 const mono = IBM_Plex_Mono({
@@ -145,7 +154,7 @@ export default function RootLayout({
       className={[
         "min-h-full",
         "antialiased",
-        bigShoulders.variable,
+        roboto.variable,
         manrope.variable,
         mono.variable,
       ].join(" ")}
