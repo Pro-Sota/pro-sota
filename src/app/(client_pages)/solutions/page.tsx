@@ -7,116 +7,14 @@ import Footer from "../components/footer";
 import ContactCTA from "../components/contact_cta";
 import { Reveal, Stagger, StaggerItem } from "../components/stagger";
 
+import { SOLUTIONS } from "./solutions_data";
+import Image from "next/image";
+
 export const metadata: Metadata = {
     title: "Pacotes de Serviços | PRO SOTA",
     description:
-        "Conheça os pacotes PRO SOTA: manutenção e remodelação, assistência técnica emergencial e soluções completas de remodelação e construção.",
+        "Conheça as soluções PRO SOTA: gestão e manutenção de imóveis, assistência residencial SOS Casas e projectos completos de remodelação e construção.",
 };
-
-type Solution = {
-    number: string;
-    name: string;
-    category: string;
-    headline: string;
-    description: string;
-    audiences: string[];
-    services: string[];
-    visual: string;
-    visualDescription: string;
-    background: string;
-    href: string;
-    action: string;
-};
-
-const solutions: Solution[] = [
-    {
-        number: "01",
-        name: "PACOTE 360°",
-        category: "MANUTENÇÃO & REMODELAÇÃO",
-        headline:
-            "Cuidamos dos seus espaços. Preservamos e valorizamos o seu património.",
-        description:
-            "Uma solução destinada à manutenção preventiva e correctiva, bem como à remodelação de infraestruturas. Asseguramos melhores condições de conservação, segurança e funcionalidade dos imóveis através de serviços contínuos e programados.",
-        audiences: [
-            "Escolas e instituições de ensino",
-            "Moradias",
-            "Bancos e instituições financeiras",
-            "Lojas e espaços comerciais",
-        ],
-        services: [
-            "Manutenção preventiva",
-            "Manutenção correctiva",
-            "Inspecções técnicas",
-            "Reparações programadas",
-            "Remodelação de espaços",
-            "Acompanhamento de instalações",
-        ],
-        visual: "360°",
-        visualDescription: "CUIDAMOS DO SEU PATRIMÓNIO",
-        background:
-            "bg-[radial-gradient(circle_at_75%_25%,rgba(189,150,85,0.35),transparent_35%),linear-gradient(135deg,#002950,#06436b)]",
-        href: "/contact?servico=pacote-360",
-        action: "Solicitar uma proposta",
-    },
-    {
-        number: "02",
-        name: "PACOTE SOS",
-        category: "ASSISTÊNCIA EMERGENCIAL",
-        headline:
-            "Surgiu um problema? A PRO SOTA está pronta para ajudar!",
-        description:
-            "Um serviço de assistência técnica destinado a moradias e prédios, com foco na resolução de avarias e situações emergenciais que exigem intervenção rápida e especializada.",
-        audiences: [
-            "Proprietários de moradias",
-            "Condomínios",
-            "Administradores de edifícios",
-            "Inquilinos",
-        ],
-        services: [
-            "Avarias eléctricas",
-            "Problemas de canalização",
-            "Fugas de água",
-            "Infiltrações",
-            "Reparações urgentes",
-            "Intervenções técnicas em edifícios",
-        ],
-        visual: "SOS",
-        visualDescription: "ASSISTÊNCIA TÉCNICA EMERGENCIAL",
-        background:
-            "bg-[radial-gradient(circle_at_20%_80%,rgba(189,150,85,0.3),transparent_40%),linear-gradient(135deg,#051221,#002950)]",
-        href: "/contact?servico=pacote-sos",
-        action: "Solicitar assistência",
-    },
-    {
-        number: "03",
-        name: "PACOTE CHAVE NA MÃO",
-        category: "REMODELAÇÃO & CONSTRUÇÃO",
-        headline:
-            "Da transformação à construção, realizamos o seu projecto.",
-        description:
-            "Uma solução completa para a remodelação de casas existentes e construção de novas moradias desde a raiz. Integramos arquitectura, engenharia, execução de obras e acabamentos, de acordo com as necessidades de cada cliente.",
-        audiences: [
-            "Proprietários de imóveis",
-            "Particulares",
-            "Investidores imobiliários",
-            "Promotores imobiliários",
-        ],
-        services: [
-            "Remodelação integral de moradias",
-            "Reabilitação e modernização de casas",
-            "Construção de moradias desde a raiz",
-            "Projectos de arquitectura e engenharia",
-            "Execução e acompanhamento de obras",
-            "Acabamentos e entrega do imóvel",
-        ],
-        visual: "PROJECTO.",
-        visualDescription: "DA CONCEPÇÃO À ENTREGA",
-        background:
-            "bg-[radial-gradient(circle_at_80%_20%,rgba(189,150,85,0.4),transparent_38%),linear-gradient(135deg,#BD9655,#002950)]",
-        href: "/contact?servico=chave-na-mao",
-        action: "Falar sobre um projecto",
-    },
-];
 
 function ArrowIcon() {
     return (
@@ -143,6 +41,7 @@ export default function SolutionsPage() {
             <Nav />
 
             <main className="overflow-hidden bg-[#F7F7F5] text-[#002950]">
+
                 {/* HERO */}
                 <section className="relative isolate overflow-hidden border-b border-[#E6E4DE]">
                     <div
@@ -161,7 +60,7 @@ export default function SolutionsPage() {
                                 <div className="mb-7 flex items-center gap-4">
                                     <span className="h-px w-9 bg-[#BD9655]" />
                                     <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8B6A2F]">
-                                        PRO SOTA · Pacotes de serviços
+                                        PRO SOTA · Soluções
                                     </span>
                                 </div>
                             </StaggerItem>
@@ -183,39 +82,13 @@ export default function SolutionsPage() {
                             <div className="mt-10">
                                 <StaggerItem>
                                     <p className="max-w-2xl text-base leading-8 text-[#5F5B54] md:text-lg">
-                                        A PRO SOTA disponibiliza três pacotes de serviços
-                                        especializados, desenvolvidos para responder às
-                                        necessidades de manutenção, assistência técnica,
-                                        remodelação e construção. Escolha a solução adequada
-                                        ao seu imóvel e às suas necessidades.
+                                        A PRO SOTA disponibiliza três soluções complementares,
+                                        desenvolvidas para responder às necessidades de gestão
+                                        e manutenção de imóveis, assistência residencial e
+                                        execução de projectos de remodelação e construção.
                                     </p>
                                 </StaggerItem>
                             </div>
-                        </Stagger>
-
-                        {/* Solution navigation */}
-                        <Stagger className="mt-16 grid grid-cols-1 border-t border-[#DCD9D0] sm:grid-cols-3">
-                            {solutions.map((solution) => (
-                                <StaggerItem key={solution.number}>
-                                    <a
-                                        href={`#solucao-${solution.number}`}
-                                        className="group flex items-center justify-between border-b border-[#DCD9D0] py-5 transition-colors hover:text-[#8B6A2F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8B6A2F] sm:border-b-0 sm:border-r sm:px-5 sm:first:pl-0 sm:last:border-r-0"
-                                    >
-                                        <div>
-                                            <span className="mb-2 block text-[10px] tracking-[0.15em] text-[#8B6A2F]">
-                                                {solution.number}
-                                            </span>
-                                            <span className="font-heading text-xl font-medium">
-                                                {solution.name}
-                                            </span>
-                                        </div>
-
-                                        <span className="text-lg transition-transform duration-300 group-hover:translate-y-1">
-                                            ↓
-                                        </span>
-                                    </a>
-                                </StaggerItem>
-                            ))}
                         </Stagger>
                     </div>
                 </section>
@@ -225,45 +98,47 @@ export default function SolutionsPage() {
                     <div className="mx-auto grid max-w-[1440px] gap-10 px-6 md:grid-cols-2 md:items-center md:px-10 lg:px-16">
                         <Reveal>
                             <span className="mb-5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#BD9655]">
-                                Os nossos pacotes de serviços
+                                As soluções PRO SOTA
                             </span>
 
                             <h2 className="max-w-xl font-heading text-3xl font-medium leading-[1.08] tracking-[-0.04em] text-[#002950] md:text-4xl">
                                 Três soluções.
                                 <br />
                                 <span className="font-light text-[#BD9655]">
-                                    Uma resposta completa.
+                                    Um compromisso.
                                 </span>
                             </h2>
                         </Reveal>
 
                         <Reveal delay={0.15}>
                             <p className="max-w-xl text-sm leading-8 text-[#5F5B54] md:text-base">
-                                Pode contar com a PRO SOTA para cuidar e valorizar
-                                o seu imóvel, resolver uma situação urgente ou
-                                transformar uma casa através de uma remodelação
-                                integral ou de uma construção de raiz.
+                                Seja para cuidar de um imóvel, resolver uma emergência
+                                residencial ou concretizar um projecto de construção,
+                                a PRO SOTA disponibiliza soluções que combinam
+                                conhecimento técnico, acompanhamento e qualidade
+                                de execução.
                             </p>
                         </Reveal>
                     </div>
                 </section>
 
                 {/* SOLUTION DETAILS */}
-                {solutions.map((solution, index) => (
+                {SOLUTIONS.map((solution, index) => (
                     <section
-                        key={solution.number}
+                        key={solution.id}
                         id={`solucao-${solution.number}`}
-                        className={`scroll-mt-20 border-t border-[#E6E4DE] ${
-                            index % 2 === 1 ? "bg-white" : "bg-[#F3EFE6]"
-                        }`}
+                        className={`scroll-mt-20 border-t border-[#E6E4DE] ${index % 2 === 1 ? "bg-white" : "bg-[#F3EFE6]"
+                            }`}
                     >
                         <div className="mx-auto max-w-[1440px] px-6 py-16 md:px-10 md:py-20 lg:px-16">
                             <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16">
+
                                 {/* Visual */}
                                 <Reveal distance={30}>
                                     <div
-                                        className={`group relative flex min-h-[300px] items-center justify-center overflow-hidden md:min-h-[380px] ${solution.background}`}
+                                        className={`group relative min-h-[300px] overflow-hidden md:min-h-[380px] ${solution.visual.gradient}`}
                                     >
+                                        {/* Decorative circles */}
                                         <div
                                             aria-hidden="true"
                                             className="absolute -right-24 -top-24 h-96 w-96 rounded-full border border-white/20"
@@ -279,21 +154,32 @@ export default function SolutionsPage() {
                                             className="absolute -bottom-28 -left-20 h-72 w-72 rounded-full border border-white/20"
                                         />
 
-                                        <span className="absolute left-7 top-7 text-[11px] tracking-[0.2em] text-white/60">
-                                            {solution.number} / 03
-                                        </span>
+                                        {solution.image ? (
+                                            <Image
+                                                src={solution.image}
+                                                alt=""
+                                                fill
+                                                aria-hidden="true"
+                                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                                            />
+                                        ) : (
+                                            <div className="relative text-center text-white">
+                                                <span className="block font-heading text-[clamp(3.5rem,7vw,5.5rem)] font-medium leading-none tracking-[-0.07em]">
+                                                    {solution.visual.title}
+                                                </span>
+                                                <span className="mt-5 block text-[10px] font-medium uppercase tracking-[0.22em] text-white/70">
+                                                    {solution.visual.subtitle}
+                                                </span>
+                                            </div>
+                                        )}
 
-                                        <div className="relative text-center text-white transition-transform duration-700 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100">
-                                            <span className="block font-heading text-[clamp(3.5rem,7vw,5.5rem)] font-medium leading-none tracking-[-0.07em]">
-                                                {solution.visual}
+                                        {solution.status === "development" && (
+                                            <span className="absolute left-6 top-6 border border-white/30 bg-[#002950]/85 px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-white">
+                                                Em desenvolvimento
                                             </span>
+                                        )}
 
-                                            <span className="mt-5 block text-[10px] font-medium uppercase tracking-[0.22em] text-white/70">
-                                                {solution.visualDescription}
-                                            </span>
-                                        </div>
-
-                                        <span className="absolute bottom-7 right-7 text-[10px] font-semibold tracking-[0.2em] text-white/45">
+                                        <span className="absolute bottom-7 right-7 text-[10px] font-semibold tracking-[0.2em] text-white/60">
                                             PRO SOTA
                                         </span>
                                     </div>
@@ -302,9 +188,17 @@ export default function SolutionsPage() {
                                 {/* Information */}
                                 <Stagger className="flex flex-col justify-center">
                                     <StaggerItem>
-                                        <span className="mb-5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8B6A2F]">
-                                            {solution.category}
-                                        </span>
+                                        <div className="mb-5 flex flex-wrap items-center gap-3">
+                                            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8B6A2F]">
+                                                {solution.category}
+                                            </span>
+
+                                            {solution.status === "development" && (
+                                                <span className="border border-[#BD9655]/40 bg-[#BD9655]/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#8B6A2F]">
+                                                    Em desenvolvimento
+                                                </span>
+                                            )}
+                                        </div>
                                     </StaggerItem>
 
                                     <StaggerItem>
@@ -324,6 +218,29 @@ export default function SolutionsPage() {
                                             {solution.description}
                                         </p>
                                     </StaggerItem>
+
+                                    {/* SOS Casas response information */}
+                                    {solution.id === "sos-casas" && (
+                                        <StaggerItem>
+                                            <div className="mt-6 flex gap-4 border-l-2 border-[#BD9655] bg-white/70 px-5 py-4">
+                                                <span
+                                                    aria-hidden="true"
+                                                    className="font-heading text-2xl text-[#BD9655]"
+                                                >
+                                                    24
+                                                </span>
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#002950]">
+                                                        Resposta no próprio dia ou no dia seguinte
+                                                    </p>
+                                                    <p className="mt-1 text-xs leading-6 text-[#5F5B54]">
+                                                        O prazo previsto depende da hora em que o pedido
+                                                        for submetido e da disponibilidade operacional.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </StaggerItem>
+                                    )}
 
                                     {/* Target audience */}
                                     <StaggerItem>
@@ -349,7 +266,9 @@ export default function SolutionsPage() {
                                     <StaggerItem>
                                         <div className="mt-8">
                                             <h4 className="mb-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#002950]">
-                                                Principais serviços
+                                                {solution.id === "sos-casas"
+                                                    ? "Principais funcionalidades e serviços"
+                                                    : "Principais serviços"}
                                             </h4>
 
                                             <ul className="grid gap-3 sm:grid-cols-2">
@@ -358,7 +277,10 @@ export default function SolutionsPage() {
                                                         key={service}
                                                         className="flex items-start gap-3 text-sm text-[#5F5B54]"
                                                     >
-                                                        <span className="mt-1 text-[#BD9655]">
+                                                        <span
+                                                            aria-hidden="true"
+                                                            className="mt-0.5 text-[#BD9655]"
+                                                        >
                                                             ↗
                                                         </span>
                                                         {service}
@@ -368,6 +290,7 @@ export default function SolutionsPage() {
                                         </div>
                                     </StaggerItem>
 
+                                    {/* CTA */}
                                     <StaggerItem>
                                         <div className="mt-10">
                                             <Link
@@ -390,7 +313,7 @@ export default function SolutionsPage() {
                     <div className="mx-auto max-w-[1440px] px-6 md:px-10 lg:px-16">
                         <Reveal>
                             <span className="mb-5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-[#BD9655]">
-                                Enquadramento comercial
+                                Enquadramento das soluções
                             </span>
 
                             <h2 className="max-w-2xl font-heading text-3xl font-medium leading-[1.08] tracking-[-0.04em] text-[#002950] md:text-4xl">
@@ -407,48 +330,40 @@ export default function SolutionsPage() {
                                 <table className="w-full min-w-[640px] border-collapse text-left">
                                     <thead>
                                         <tr className="border-y border-[#DCD9D0] text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8B6A2F]">
-                                            <th className="py-5 pr-6">Pacote</th>
+                                            <th className="py-5 pr-6">Solução</th>
                                             <th className="py-5 pr-6">Área de actuação</th>
                                             <th className="py-5">Público-alvo</th>
                                         </tr>
                                     </thead>
 
                                     <tbody className="text-sm text-[#5F5B54]">
-                                        <tr className="border-b border-[#E6E4DE]">
-                                            <td className="py-6 pr-6 font-semibold text-[#002950]">
-                                                360°
-                                            </td>
-                                            <td className="py-6 pr-6">
-                                                Manutenção e Remodelação
-                                            </td>
-                                            <td className="py-6">
-                                                Escolas, moradias, bancos e lojas
-                                            </td>
-                                        </tr>
+                                        {SOLUTIONS.map((solution) => (
+                                            <tr
+                                                key={solution.id}
+                                                className="border-b border-[#E6E4DE]"
+                                            >
+                                                <td className="py-6 pr-6">
+                                                    <div className="font-semibold text-[#002950]">
+                                                        {solution.name}
+                                                    </div>
+                                                    {solution.status === "development" && (
+                                                        <span className="mt-1 inline-block text-[9px] font-semibold uppercase tracking-[0.12em] text-[#8B6A2F]">
+                                                            Em desenvolvimento
+                                                        </span>
+                                                    )}
+                                                </td>
 
-                                        <tr className="border-b border-[#E6E4DE]">
-                                            <td className="py-6 pr-6 font-semibold text-[#002950]">
-                                                SOS
-                                            </td>
-                                            <td className="py-6 pr-6">
-                                                Assistência Emergencial
-                                            </td>
-                                            <td className="py-6">
-                                                Moradias e prédios
-                                            </td>
-                                        </tr>
+                                                <td className="py-6 pr-6">
+                                                    {solution.category}
+                                                </td>
 
-                                        <tr className="border-b border-[#E6E4DE]">
-                                            <td className="py-6 pr-6 font-semibold text-[#002950]">
-                                                Chave na Mão
-                                            </td>
-                                            <td className="py-6 pr-6">
-                                                Remodelação e Construção
-                                            </td>
-                                            <td className="py-6">
-                                                Proprietários e investidores imobiliários
-                                            </td>
-                                        </tr>
+                                                <td className="py-6">
+                                                    {solution.audiences
+                                                        .slice(0, 3)
+                                                        .join(", ")}
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
