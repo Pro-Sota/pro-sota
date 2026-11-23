@@ -1,29 +1,33 @@
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import {
   Manrope,
-  DM_Sans,
   IBM_Plex_Mono,
 } from "next/font/google";
+import localFont from "next/font/local";
 
 import "./globals.css";
 import "./admin.css";
 import "./hero.css";
 import "./styles.css";
 import "leaflet/dist/leaflet.css";
-import localFont from "next/font/local";
 
-import { cn } from "@/lib/utils/utils";
 import { ToastProvider } from "./components/toast/toast_provider";
 import OrganizationSchema from "./components/organization_schema";
 import { Analytics } from "@vercel/analytics/next";
 
-
 const bigShoulders = localFont({
-    src: "../../public/fonts/BigShoulders-VariableFont_opsz,wght.ttf",
-    variable: "--font-big-shoulders",
-    display: "swap",
-    weight: "400",
+  src: "../../public/fonts/BigShoulders-VariableFont_opsz,wght.ttf",
+  variable: "--font-big-shoulders",
+  display: "swap",
+  weight: "100 900",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-body-face",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const mono = IBM_Plex_Mono({
@@ -34,6 +38,21 @@ const mono = IBM_Plex_Mono({
 });
 
 const SITE_URL = "https://prosota.ao";
+
+/* -------------------------------------------------------------------------- */
+/* Viewport                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#002950",
+};
+
+/* -------------------------------------------------------------------------- */
+/* SEO Metadata                                                               */
+/* -------------------------------------------------------------------------- */
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -111,6 +130,10 @@ export const metadata: Metadata = {
   },
 };
 
+/* -------------------------------------------------------------------------- */
+/* Root Layout                                                                */
+/* -------------------------------------------------------------------------- */
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -119,16 +142,21 @@ export default function RootLayout({
   return (
     <html
       lang="pt-AO"
-      className={cn(
-        "h-full",
+      className={[
+        "min-h-full",
         "antialiased",
-        bigShoulders,
+        bigShoulders.variable,
+        manrope.variable,
         mono.variable,
-      )}
+      ].join(" ")}
     >
-      <body className="flex min-h-full flex-col">
+      <body className="flex min-h-svh flex-col font-body">
         <OrganizationSchema />
-        <ToastProvider>{children}</ToastProvider>
+
+        <ToastProvider>
+          {children}
+        </ToastProvider>
+
         <Analytics />
       </body>
     </html>
