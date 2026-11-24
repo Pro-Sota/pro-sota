@@ -124,3 +124,28 @@ export type UpdateProjectInput = ProjectPayload;
 export type ActionResult =
     | { success: true }
     | { success: false; error: string };
+
+
+export type ActivityLog = {
+    activity_id: string;
+    user_id: string | null;
+    project_id: string | null;
+    action: string;
+    entity_type: string;
+    entity_id: string | null;
+    description: string | null;
+    metadata: Record<string, unknown> | null;
+    created_at: string;
+};
+
+export type ActivityProfile = {
+    profile_id: string;
+    first_name: string | null;
+    last_name: string | null;
+};
+
+export type ProjectActivityData = {
+    activities: ActivityLog[];
+    profiles: ActivityProfile[];
+    totalCount: number;
+};

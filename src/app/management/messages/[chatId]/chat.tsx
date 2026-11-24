@@ -1,5 +1,5 @@
-
 "use client";
+
 import { useOnlineUsersContext } from "@/app/hooks/online_users_context";
 import {
     useCallback,
@@ -11,7 +11,10 @@ import {
 
 import {
     Check,
+    CheckCheck,
     Clock3,
+    Download,
+    FileText,
     Loader2,
     RotateCcw,
 } from "lucide-react";
@@ -19,10 +22,12 @@ import {
 import Loader from "@/app/components/loader";
 import type {
     ChatSummary,
+    MessageAttachment,
     MessageView,
 } from "@/services/messages";
 import type { ProjectSidebarData } from "@/services/project_sidebar";
 
+import { getMessageByIdAction } from "@/actions/message";
 import MessageHeader from "../components/message_header";
 import MessageInput from "../components/message_input";
 import ProjectSideBar from "../components/project_sidebar";
@@ -37,7 +42,12 @@ interface RealtimeMessage {
     created_at: string | null;
 }
 
-type DeliveryStatus = "sending" | "sent" | "delivered" | "read" | "failed";
+type DeliveryStatus =
+    | "sending"
+    | "sent"
+    | "delivered"
+    | "read"
+    | "failed";
 
 interface OptimisticMessageDetail {
     tempId: string;
@@ -58,12 +68,14 @@ interface FailedMessageDetail {
     content: string;
     createdAt: string;
     error?: string;
+    files?: File[];
 }
 
 interface RetryMessageDetail {
     tempId: string;
     conversationId: string;
     content: string;
+    files?: File[];
 }
 
 interface ChatViewProps {
@@ -77,27 +89,107 @@ interface ChatViewProps {
 function asRecord(
     value: unknown,
 ): Record<string, unknown> | null {
-    if (
-        typeof value !== "object" ||
-        value === null
-    ) {
+    if (typeof value !== "object" || value === null) {
         return null;
     }
 
     return value as Record<string, unknown>;
 }
 
-import { CheckCheck, } from "lucide-react";
+function getPersistedMessage(
+    value: unknown,
+    currentUserId: string,
+): MessageView | null {
+    const record = asRecord(value);
 
+    if (!record) return null;
 
-function MessageStatus({ status }: { status: DeliveryStatus }) {
+    const id = record.id ?? record.message_id;
+    const content = record.content ?? record.message;
+    const senderId = record.senderId ?? record.sender_id;
+    const timestamp =
+        record.timestamp ??
+        record.created_at ??
+        record.createdAt;
+
+    if (
+        typeof id !== "string" ||
+        typeof content !== "string" ||
+        typeof timestamp !== "string"
+    ) {
+        return null;
+    }
+
+    const normalizedSenderId =
+        typeof senderId === "string"
+            ? senderId
+            : currentUserId;
+
+    return {
+        id,
+        content,
+        senderId: normalizedSenderId,
+        senderName:
+            typeof record.senderName === "string"
+                ? record.senderName
+                : typeof record.sender_name === "string"
+                    ? record.sender_name
+                    : "Utilizador",
+        timestamp,
+        isOwn:
+            typeof record.isOwn === "boolean"
+                ? record.isOwn
+                : normalizedSenderId === currentUserId,
+        attachments: Array.isArray(record.attachments)
+            ? record.attachments as MessageAttachment[]
+            : [],
+    };
+}
+
+function dispatchRetry(message: RetryMessageDetail) {
+    window.dispatchEvent(
+        new CustomEvent("message:retry", {
+            detail: message,
+        }),
+    );
+}
+
+function formatFileSize(bytes: number): string {
+    if (!Number.isFinite(bytes) || bytes <= 0) {
+        return "Ficheiro";
+    }
+
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function MessageStatus({
+    status,
+}: {
+    status: DeliveryStatus;
+}) {
     if (status === "sending") {
-        return <Clock3 className="h-3.5 w-3.5 text-white/60" aria-label="A enviar" />;
+        return (
+            <Clock3
+                className="h-3.5 w-3.5 text-white/60"
+                aria-label="A enviar"
+            />
+        );
     }
 
     if (status === "failed") {
         return (
-            <span className="text-xs text-red-300" role="status">
+            <span
+                className="text-xs font-medium text-red-300"
+                role="status"
+            >
                 Falhou
             </span>
         );
@@ -129,71 +221,125 @@ function MessageStatus({ status }: { status: DeliveryStatus }) {
     );
 }
 
-function getPersistedMessage(
-    value: unknown,
-    currentUserId: string,
-): MessageView | null {
-    const record = asRecord(value);
+/*
+ * --------------------------------------------------
+ * MESSAGE ATTACHMENTS
+ * --------------------------------------------------
+ */
 
-    if (!record) return null;
+function MessageAttachments({
+    attachments,
+    isOwn,
+}: {
+    attachments: MessageAttachment[];
+    isOwn: boolean;
+}) {
+    if (!attachments.length) return null;
 
-    // Supports either the MessageView shape or a raw
-    // Supabase messages row returned by the server action.
-    const id =
-        record.id ??
-        record.message_id;
+    return (
+        <div className="mt-2 space-y-2">
+            {attachments.map((attachment) => {
+                const isImage =
+                    attachment.mimeType.startsWith("image/");
 
-    const content =
-        record.content ??
-        record.message;
+                if (isImage) {
+                    return (
+                        <a
+                            key={attachment.id}
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group block max-w-full overflow-hidden rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                            aria-label={`Abrir imagem ${attachment.fileName}`}
+                        >
+                            <img
+                                src={attachment.url}
+                                alt={attachment.fileName}
+                                loading="lazy"
+                                className="max-h-72 max-w-full rounded-lg object-contain transition-opacity group-hover:opacity-90"
+                            />
 
-    const senderId =
-        record.senderId ??
-        record.sender_id;
+                            <span
+                                className={`mt-1 block truncate text-[11px] ${
+                                    isOwn
+                                        ? "text-white/65"
+                                        : "text-slate-500"
+                                }`}
+                            >
+                                {attachment.fileName}
+                            </span>
+                        </a>
+                    );
+                }
 
-    const timestamp =
-        record.timestamp ??
-        record.created_at ??
-        record.createdAt;
+                return (
+                    <a
+                        key={attachment.id}
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 transition-colors ${
+                            isOwn
+                                ? "border-white/15 bg-white/10 hover:bg-white/15"
+                                : "border-slate-200 bg-white hover:bg-slate-50"
+                        }`}
+                    >
+                        <span
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                                isOwn
+                                    ? "bg-white/10 text-white"
+                                    : "bg-slate-100 text-slate-600"
+                            }`}
+                        >
+                            <FileText
+                                size={19}
+                                aria-hidden="true"
+                            />
+                        </span>
 
-    if (
-        typeof id !== "string" ||
-        typeof content !== "string" ||
-        typeof timestamp !== "string"
-    ) {
-        return null;
-    }
+                        <span className="min-w-0 flex-1">
+                            <span
+                                className={`block truncate text-xs font-medium ${
+                                    isOwn
+                                        ? "text-white"
+                                        : "text-slate-800"
+                                }`}
+                            >
+                                {attachment.fileName}
+                            </span>
 
-    return {
-        id,
-        content,
-        senderId:
-            typeof senderId === "string"
-                ? senderId
-                : currentUserId,
-        senderName:
-            typeof record.senderName === "string"
-                ? record.senderName
-                : typeof record.sender_name === "string"
-                    ? record.sender_name
-                    : "Utilizador",
-        timestamp,
-        isOwn:
-            typeof record.isOwn === "boolean"
-                ? record.isOwn
-                : senderId === currentUserId,
-    };
-}
+                            <span
+                                className={`mt-0.5 block text-[11px] ${
+                                    isOwn
+                                        ? "text-white/60"
+                                        : "text-slate-500"
+                                }`}
+                            >
+                                {formatFileSize(attachment.fileSize)}
+                            </span>
+                        </span>
 
-function dispatchRetry(
-    message: RetryMessageDetail,
-) {
-    window.dispatchEvent(
-        new CustomEvent("message:retry", {
-            detail: message,
-        }),
+                        <Download
+                            size={16}
+                            className={`shrink-0 ${
+                                isOwn
+                                    ? "text-white/70"
+                                    : "text-slate-500"
+                            }`}
+                            aria-hidden="true"
+                        />
+                    </a>
+                );
+            })}
+        </div>
     );
 }
+
+/*
+ * --------------------------------------------------
+ * CHAT VIEW
+ * --------------------------------------------------
+ */
 
 export default function ChatView({
     chatId,
@@ -216,6 +362,7 @@ export default function ChatView({
     const [error, setError] = useState<string | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
     const { isOnline } = useOnlineUsersContext();
 
     const liveConversation = useMemo(
@@ -241,7 +388,15 @@ export default function ChatView({
 
                 if (existingIndex !== -1) {
                     const next = [...current];
-                    next[existingIndex] = message;
+
+                    next[existingIndex] = {
+                        ...next[existingIndex],
+                        ...message,
+                        attachments:
+                            message.attachments?.length
+                                ? message.attachments
+                                : next[existingIndex].attachments ?? [],
+                    };
 
                     return next.sort(
                         (a, b) =>
@@ -283,6 +438,7 @@ export default function ChatView({
                 senderName: "Eu",
                 timestamp: detail.createdAt,
                 isOwn: true,
+                attachments: [],
             };
 
             setDeliveryStatuses((current) => ({
@@ -342,9 +498,14 @@ export default function ChatView({
 
                 if (existingIndex !== -1) {
                     const next = [...withoutTemporary];
+
                     next[existingIndex] = {
                         ...next[existingIndex],
                         ...persisted,
+                        attachments:
+                            persisted.attachments?.length
+                                ? persisted.attachments
+                                : next[existingIndex].attachments ?? [],
                     };
 
                     return next.sort(
@@ -365,8 +526,6 @@ export default function ChatView({
                 const next = { ...current };
 
                 delete next[detail.tempId];
-
-                // The server confirmed that the message was saved.
                 next[persisted.id] = "sent";
 
                 return next;
@@ -444,7 +603,7 @@ export default function ChatView({
 
     /*
      * --------------------------------------------------
-     * OPTIMISTIC EVENTS
+     * MESSAGE EVENTS
      * --------------------------------------------------
      */
 
@@ -503,16 +662,13 @@ export default function ChatView({
      * --------------------------------------------------
      */
 
-    // Reset only when switching conversations.
     useEffect(() => {
         setMessages(initialMessages);
         setDeliveryStatuses({});
         setFailedMessages({});
         setError(null);
-    }, [chatId]); // Intentionally reset only when chatId changes.
+    }, [chatId]);
 
-    // Merge refreshed server data without removing messages
-    // already displayed locally.
     useEffect(() => {
         setMessages((current) => {
             const merged = new Map<string, MessageView>();
@@ -527,6 +683,10 @@ export default function ChatView({
                 merged.set(message.id, {
                     ...existing,
                     ...message,
+                    attachments:
+                        message.attachments?.length
+                            ? message.attachments
+                            : existing?.attachments ?? [],
                 });
             }
 
@@ -569,6 +729,51 @@ export default function ChatView({
                     ) {
                         return;
                     }
+
+                    /*
+                     * Fetch the complete message from the server.
+                     * This also retrieves its signed attachment URLs.
+                     */
+                    try {
+                        const fullMessage =
+                            await getMessageByIdAction(newMessage.id);
+
+                        if (cancelled) return;
+
+                        const hydratedMessage = getPersistedMessage(
+                            fullMessage,
+                            currentUserId,
+                        );
+
+                        if (hydratedMessage) {
+                            addOrReplaceMessage(hydratedMessage);
+
+                            if (hydratedMessage.isOwn) {
+                                setDeliveryStatuses((current) => ({
+                                    ...current,
+                                    [hydratedMessage.id]:
+                                        current[hydratedMessage.id] === "read" ||
+                                        current[hydratedMessage.id] === "delivered"
+                                            ? current[hydratedMessage.id]
+                                            : "sent",
+                                }));
+                            }
+
+                            return;
+                        }
+                    } catch (fetchError) {
+                        console.error(
+                            "Error loading complete realtime message:",
+                            fetchError,
+                        );
+                    }
+
+                    /*
+                     * Fallback if the server action fails.
+                     * The message remains visible, but attachments
+                     * will be loaded when the conversation refreshes.
+                     */
+                    if (cancelled) return;
 
                     let senderName = "Utilizador";
 
@@ -615,54 +820,17 @@ export default function ChatView({
                             new Date().toISOString(),
                         isOwn:
                             newMessage.sender_id === currentUserId,
+                        attachments: [],
                     };
 
                     addOrReplaceMessage(realtimeMessage);
 
-                    // Realtime can arrive before the send action
-                    // resolves. Reconcile the optimistic copy.
                     if (realtimeMessage.isOwn) {
-                        setMessages((current) => {
-                            const temporary = current.find(
-                                (message) =>
-                                    message.id !== realtimeMessage.id &&
-                                    message.id.startsWith("optimistic:") &&
-                                    message.senderId === currentUserId &&
-                                    message.content ===
-                                    realtimeMessage.content,
-                            );
-
-                            if (!temporary) return current;
-
-                            const next = current
-                                .filter(
-                                    (message) =>
-                                        message.id !== temporary.id,
-                                )
-                                .map((message) =>
-                                    message.id === realtimeMessage.id
-                                        ? {
-                                            ...message,
-                                            ...realtimeMessage,
-                                        }
-                                        : message,
-                                );
-
-                            return next.sort(
-                                (a, b) =>
-                                    new Date(a.timestamp).getTime() -
-                                    new Date(b.timestamp).getTime(),
-                            );
-                        });
-
-                        // The database row confirms that the
-                        // message exists, even if the action has
-                        // not resolved yet.
                         setDeliveryStatuses((current) => ({
                             ...current,
                             [realtimeMessage.id]:
                                 current[realtimeMessage.id] === "read" ||
-                                    current[realtimeMessage.id] === "delivered"
+                                current[realtimeMessage.id] === "delivered"
                                     ? current[realtimeMessage.id]
                                     : "sent",
                         }));
@@ -673,6 +841,7 @@ export default function ChatView({
         channel.subscribe((status) => {
             if (status === "SUBSCRIBED") {
                 if (!cancelled) setError(null);
+
                 console.log("Realtime connected:", chatId);
             }
 
@@ -721,6 +890,7 @@ export default function ChatView({
                 tempId: failed.tempId,
                 conversationId: failed.conversationId,
                 content: failed.content,
+                files: failed.files ?? [],
             });
         },
         [failedMessages],
@@ -825,8 +995,11 @@ function MessageList({
     failedMessages,
     onRetry,
 }: MessageListProps) {
-    const getDateKey = (timestamp: string) => {
-        const date = new Date(timestamp);
+    const getDateKey = (value: string | Date) => {
+        const date =
+            value instanceof Date
+                ? value
+                : new Date(value);
 
         return [
             date.getFullYear(),
@@ -839,12 +1012,12 @@ function MessageList({
         const date = new Date(timestamp);
         const now = new Date();
 
-        const todayKey = getDateKey(now.toISOString());
-        const yesterday = new Date(now);
+        const todayKey = getDateKey(now);
 
+        const yesterday = new Date(now);
         yesterday.setDate(yesterday.getDate() - 1);
 
-        const yesterdayKey = getDateKey(yesterday.toISOString());
+        const yesterdayKey = getDateKey(yesterday);
         const messageDateKey = getDateKey(timestamp);
 
         if (messageDateKey === todayKey) return "Hoje";
@@ -871,6 +1044,11 @@ function MessageList({
                 const status = deliveryStatuses[message.id];
                 const failed = failedMessages[message.id];
 
+                const attachments = message.attachments ?? [];
+
+                const hasContent =
+                    message.content.trim().length > 0;
+
                 return (
                     <div key={message.id}>
                         {showDateDivider && (
@@ -886,20 +1064,23 @@ function MessageList({
                         )}
 
                         <div
-                            className={`flex ${message.isOwn
-                                ? "justify-end"
-                                : "justify-start"
-                                }`}
+                            className={`flex ${
+                                message.isOwn
+                                    ? "justify-end"
+                                    : "justify-start"
+                            }`}
                         >
                             <div className="flex max-w-[90%] items-end gap-2 sm:max-w-[85%]">
                                 <div
-                                    className={`min-w-0 max-w-full rounded-lg px-4 py-2 sm:max-w-xs lg:max-w-md xl:max-w-lg ${message.isOwn
-                                        ? "rounded-br-none bg-[#002950] text-white"
-                                        : "rounded-bl-none bg-[#F1F5F9] text-slate-900"
-                                        } ${status === "failed"
+                                    className={`min-w-0 max-w-full rounded-lg px-4 py-2 sm:max-w-xs lg:max-w-md xl:max-w-lg ${
+                                        message.isOwn
+                                            ? "rounded-br-none bg-[#002950] text-white"
+                                            : "rounded-bl-none bg-[#F1F5F9] text-slate-900"
+                                    } ${
+                                        status === "failed"
                                             ? "ring-1 ring-red-400"
                                             : ""
-                                        }`}
+                                    }`}
                                 >
                                     {!message.isOwn && (
                                         <p className="mb-1 text-xs font-semibold opacity-75">
@@ -907,15 +1088,23 @@ function MessageList({
                                         </p>
                                     )}
 
-                                    <p className="break-words text-sm">
-                                        {message.content}
-                                    </p>
+                                    {hasContent && (
+                                        <p className="break-words whitespace-pre-wrap text-sm">
+                                            {message.content}
+                                        </p>
+                                    )}
+
+                                    <MessageAttachments
+                                        attachments={attachments}
+                                        isOwn={message.isOwn}
+                                    />
 
                                     <div
-                                        className={`mt-1 flex items-center justify-end gap-1 text-xs ${message.isOwn
-                                            ? "text-slate-300"
-                                            : "text-slate-600"
-                                            }`}
+                                        className={`mt-1 flex items-center justify-end gap-1 text-xs ${
+                                            message.isOwn
+                                                ? "text-slate-300"
+                                                : "text-slate-600"
+                                        }`}
                                     >
                                         <span>
                                             {new Date(
@@ -926,30 +1115,8 @@ function MessageList({
                                             })}
                                         </span>
 
-                                        {status === "sending" && (
-                                            <>
-                                                <Loader2
-                                                    size={12}
-                                                    className="animate-spin"
-                                                    aria-hidden="true"
-                                                />
-                                                <span className="sr-only">
-                                                    A enviar
-                                                </span>
-                                            </>
-                                        )}
-
-                                        {status === "sent" && (
-                                            <Check
-                                                size={13}
-                                                aria-label="Enviada"
-                                            />
-                                        )}
-
-                                        {status === "failed" && (
-                                            <span className="font-medium text-red-300">
-                                                Falhou
-                                            </span>
+                                        {message.isOwn && status && (
+                                            <MessageStatus status={status} />
                                         )}
                                     </div>
                                 </div>
@@ -966,6 +1133,7 @@ function MessageList({
                                             size={14}
                                             aria-hidden="true"
                                         />
+
                                         <span className="hidden sm:inline">
                                             Repetir
                                         </span>

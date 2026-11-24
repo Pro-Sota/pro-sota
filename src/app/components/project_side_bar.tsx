@@ -17,34 +17,37 @@ export default function ProjectNavbar({
 
   const basePath = `/management/projects/${projectId}`;
 
-  const tabMenu = [
-    {
-      name: "Overview",
-      href: `${basePath}/overview`,
-    },
-    {
-      name: "Fases",
-      href: `${basePath}/phases`,
-    },
-    {
-      name: "Tarefas",
-      href: `${basePath}/tasks`,
-    },
-    {
-      name: "Documentos",
-      href: `${basePath}/documents?view=list`,
-      matchPath: `${basePath}/documents`,
-    },
-    {
-      name: "Aprovações e Comentários",
-      href: `${basePath}/approvals-and-reviews`,
-    },
-    {
-      name: "Equipa",
-      href: `${basePath}/team`,
-    },
-  ];
-
+const tabMenu = [
+  {
+    name: "Overview",
+    href: `${basePath}/overview`,
+  },
+  {
+    name: "Fases",
+    href: `${basePath}/phases`,
+  },
+  {
+    name: "Tarefas",
+    href: `${basePath}/tasks`,
+  },
+  {
+    name: "Documentos",
+    href: `${basePath}/documents?view=list`,
+    matchPath: `${basePath}/documents`,
+  },
+  {
+    name: "Aprovações e Comentários",
+    href: `${basePath}/approvals-and-reviews`,
+  },
+  {
+    name: "Equipa",
+    href: `${basePath}/team`,
+  },
+  {
+    name: "Actividades",
+    href: `${basePath}/activities`,
+  },
+];
   const prefetchPage = useCallback(
     (href: string) => {
       router.prefetch(href);

@@ -18,7 +18,7 @@ export default function ActivitiesSection({ data }: { data: OverviewData }) {
               className="py-3 first:pt-0 last:pb-0"
             >
               <p className="text-sm text-gray-700">
-                {activity.description || activity.activity_type}
+                {activity.description || activity.entity_type}
               </p>
               <p className="mt-1 text-xs text-gray-500">
                 {activity.user_name || LABELS.unknownUser} ·{" "}

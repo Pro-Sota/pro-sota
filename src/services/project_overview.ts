@@ -30,17 +30,18 @@ export interface OverviewProject {
   status: string;
   startDate: string | null;
   endDate: string | null;
-  municipality:string | null;
-  country:string| null;
-  type:string | null;
+  municipality: string | null;
+  country: string | null;
+  type: string | null;
 }
 
 export interface OverviewActivity {
   activity_id: string;
   project_id: string | null;
   user_id: string | null;
-  task_id: string | null;
-  activity_type: string;
+  entity_id: string | null;
+  action: string;
+  entity_type: string;
   description: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
@@ -126,7 +127,7 @@ export interface OverviewData {
   sitePhotos: SitePhoto[];
   safety: SafetySummary;
   procurement: ProcurementItem[];
-  
+
 }
 
 /* -------------------------------------------------------------------------- */
@@ -248,8 +249,8 @@ function taskProgress(row: Row): number {
   return clampPercent(
     numericValue(
       row.progress_percentage ??
-        row.progress ??
-        row.completion_percentage,
+      row.progress ??
+      row.completion_percentage,
     ),
   );
 }
@@ -288,12 +289,12 @@ function mapPhases(
 
       const progress = hasOwnProgress
         ? clampPercent(
-            numericValue(
-              row.progress_percentage ??
-              row.progress ??
-              row.completion_percentage,
-            ),
-          )
+          numericValue(
+            row.progress_percentage ??
+            row.progress ??
+            row.completion_percentage,
+          ),
+        )
         : calculateAverageProgress(phaseStages, stageProgress);
 
       return {
@@ -379,7 +380,7 @@ function mapPhaseStages(
         phaseId: stringValue(row.phase_id),
         startDate: nullableDate(row.planned_start),
         endDate: nullableDate(row.planned_end),
-       progress: stageProgress(row),
+        progress: stageProgress(row),
       };
     })
     .filter((stage) => stage.id.length > 0 && stage.phaseId.length > 0);
@@ -498,12 +499,12 @@ export async function getOverviewData(
     );
   }
 
-const phaseRows = (phaseData ?? []).map(asRow);
+  const phaseRows = (phaseData ?? []).map(asRow);
 
-// Get phase IDs before loading their stages.
-const phaseIds = uniqueById(mapPhases(phaseRows)).map(
-  (phase) => phase.id,
-);
+  // Get phase IDs before loading their stages.
+  const phaseIds = uniqueById(mapPhases(phaseRows)).map(
+    (phase) => phase.id,
+  );
 
   /* ------------------------------------------------------------------------ */
   /* Phase stages                                                             */
@@ -530,8 +531,8 @@ const phaseIds = uniqueById(mapPhases(phaseRows)).map(
   }
 
   const phases = uniqueById(
-  mapPhases(phaseRows, stageRows),
-);
+    mapPhases(phaseRows, stageRows),
+  );
 
   /* ------------------------------------------------------------------------ */
   /* Deliverables                                                             */
@@ -578,20 +579,20 @@ const phaseIds = uniqueById(mapPhases(phaseRows)).map(
   /* ------------------------------------------------------------------------ */
 
   const { data: activityData, error: activityError } = await supabase
-    .from("activities")
+    .from("activity_logs")
     .select(`
-      activity_id,
-      project_id,
-      user_id,
-      task_id,
-      activity_type,
-      description,
-      metadata,
-      created_at
-    `)
+    activity_id,
+    user_id,
+    project_id,
+    action,
+    entity_type,
+    entity_id,
+    description,
+    metadata,
+    created_at
+  `)
     .eq("project_id", projectId)
-    .order("created_at", { ascending: false })
-    .limit(10);
+    .order("created_at", { ascending: false });
 
   if (activityError) {
     throw new Error(
@@ -616,9 +617,9 @@ const phaseIds = uniqueById(mapPhases(phaseRows)).map(
   const { data: profileData, error: profileError } =
     activityUserIds.length > 0
       ? await supabase
-          .from("profiles")
-          .select("profile_id, first_name, last_name")
-          .in("profile_id", activityUserIds)
+        .from("profiles")
+        .select("profile_id, first_name, last_name")
+        .in("profile_id", activityUserIds)
       : { data: [], error: null };
 
   if (profileError) {
@@ -754,6 +755,10 @@ const phaseIds = uniqueById(mapPhases(phaseRows)).map(
   /* Activities model                                                         */
   /* ------------------------------------------------------------------------ */
 
+  /* -------------------------------------------------------------------------- */
+  /* Activities model                                                           */
+  /* -------------------------------------------------------------------------- */
+
   const activities: OverviewActivity[] = activityRows.map((row) => {
     const userId = stringValue(row.user_id) || null;
 
@@ -761,13 +766,14 @@ const phaseIds = uniqueById(mapPhases(phaseRows)).map(
       activity_id: stringValue(row.activity_id),
       project_id: stringValue(row.project_id) || null,
       user_id: userId,
-      task_id: stringValue(row.task_id) || null,
-      activity_type: stringValue(row.activity_type),
+      entity_id: stringValue(row.entity_id) || null,
+      action: stringValue(row.action) || "unknown",
+      entity_type: stringValue(row.entity_type) || "unknown",
       description: stringValue(row.description) || null,
       metadata:
         row.metadata &&
-        typeof row.metadata === "object" &&
-        !Array.isArray(row.metadata)
+          typeof row.metadata === "object" &&
+          !Array.isArray(row.metadata)
           ? (row.metadata as Record<string, unknown>)
           : null,
       created_at: stringValue(row.created_at),

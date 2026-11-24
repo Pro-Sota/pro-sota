@@ -91,6 +91,9 @@ export function useUnreadCounts(): UnreadCounts {
         const onFocus = () => {
             scheduleRefresh();
         };
+        const onManualRefresh = () => {
+            scheduleRefresh();
+        };
 
         const initialise = async () => {
             const { data, error } = await supabase.auth.getUser();
@@ -125,6 +128,7 @@ export function useUnreadCounts(): UnreadCounts {
             channel.subscribe();
 
             window.addEventListener("focus", onFocus);
+            window.addEventListener("unread-counts:refresh", onManualRefresh);
 
             // Fetch the initial counts after Realtime is configured.
             await refresh(userId);
@@ -142,6 +146,7 @@ export function useUnreadCounts(): UnreadCounts {
             }
 
             window.removeEventListener("focus", onFocus);
+            window.removeEventListener("unread-counts:refresh", onManualRefresh);
 
             if (channel) {
                 void supabase.removeChannel(channel);

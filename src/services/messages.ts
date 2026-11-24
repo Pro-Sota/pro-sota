@@ -18,13 +18,24 @@ export type ChatSummary = {
   profileId: string | null;
 };
 
+
+export interface MessageAttachment {
+    id: string;
+    fileName: string;
+    storagePath: string;
+    mimeType: string;
+    fileSize: number;
+    url: string;
+}
+
 export interface MessageView {
-  id: string;
-  content: string;
-  senderId: string;
-  senderName: string;
-  timestamp: string;
-  isOwn: boolean;
+    id: string;
+    content: string;
+    senderId: string;
+    senderName: string;
+    timestamp: string;
+    isOwn: boolean;
+    attachments?: MessageAttachment[];
 }
 
 export interface Recipient {
@@ -882,30 +893,16 @@ export async function getMessages(
     cursor,
   } = options;
 
-  validateId(
-    conversationId,
-    "Conversation ID",
-  );
+  validateId(conversationId, "Conversation ID");
 
   const safeLimit = Math.min(
-    Math.max(
-      Number(limit) || 50,
-      1,
-    ),
+    Math.max(Number(limit) || 50, 1),
     100,
   );
 
   const { supabase, user } =
     await getAuthenticatedClient();
 
-  /*
-   * IMPORTANT:
-   *
-   * assertParticipant now reuses the same
-   * authenticated Supabase client.
-   *
-   * Previously this caused another auth request.
-   */
   await assertParticipant(
     supabase,
     conversationId,
@@ -914,149 +911,119 @@ export async function getMessages(
 
   let query = supabase
     .from("messages")
-    .select(
-      "id, content, sender_id, created_at",
-    )
-    .eq(
-      "conversation_id",
-      conversationId,
-    )
-    .order("created_at", {
-      ascending: false,
-    })
+    .select("id, content, sender_id, created_at")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
     .limit(safeLimit + 1);
 
   if (cursor) {
-    query = query.lt(
-      "created_at",
-      cursor,
-    );
+    query = query.lt("created_at", cursor);
   }
 
-  const {
-    data: messages,
-    error,
-  } = await query;
+  const { data: messages, error } = await query;
 
   if (error) {
-    console.error(
-      "GET MESSAGES SUPABASE ERROR",
-      {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        conversationId,
-      },
-    );
+    console.error("GET MESSAGES SUPABASE ERROR", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      conversationId,
+    });
 
     throw new Error(
       `Failed to load messages: ${error.message}`,
     );
   }
 
-  const messageList =
-    messages ?? [];
+  const messageList = messages ?? [];
 
   const paginatedMessages =
     messageList.length > safeLimit
-      ? messageList.slice(
-          0,
-          safeLimit,
-        )
+      ? messageList.slice(0, safeLimit)
       : messageList;
+
+  if (paginatedMessages.length === 0) {
+    return [];
+  }
 
   const senderIds = [
     ...new Set(
       paginatedMessages
-        .map(
-          (message) =>
-            message.sender_id,
-        )
+        .map((message) => message.sender_id)
         .filter(
-          (
-            senderId,
-          ): senderId is string =>
+          (senderId): senderId is string =>
             Boolean(senderId),
         ),
     ),
   ];
 
-  const profilesById =
-    new Map<
-      string,
-      Pick<
-        Profile,
-        "first_name" | "last_name"
-      >
-    >();
+  const messageIds = paginatedMessages.map(
+    (message) => message.id,
+  );
 
-  if (senderIds.length > 0) {
-    const {
-      data: profiles,
-      error: profilesError,
-    } = await supabase
-      .from("profiles")
-      .select(
-        "profile_id, first_name, last_name",
-      )
-      .in(
-        "profile_id",
-        senderIds,
-      );
+  const [
+    { data: profiles, error: profilesError },
+    attachmentsByMessage,
+  ] = await Promise.all([
+    senderIds.length > 0
+      ? supabase
+          .from("profiles")
+          .select("profile_id, first_name, last_name")
+          .in("profile_id", senderIds)
+      : Promise.resolve({
+          data: [],
+          error: null,
+        }),
 
-    if (profilesError) {
-      throw new Error(
-        `Failed to load sender profiles: ${profilesError.message}`,
-      );
-    }
+    getAttachmentsForMessages(
+      supabase,
+      messageIds,
+    ),
+  ]);
 
-    for (const profile of
-      profiles ?? []) {
-      profilesById.set(
-        profile.profile_id,
-        {
-          first_name:
-            profile.first_name,
-          last_name:
-            profile.last_name,
-        },
-      );
-    }
+  if (profilesError) {
+    throw new Error(
+      `Failed to load sender profiles: ${profilesError.message}`,
+    );
   }
 
-  return paginatedMessages
-    .reverse()
-    .map((message) => {
-      const sender =
-        message.sender_id
-          ? profilesById.get(
-              message.sender_id,
-            )
-          : undefined;
+  const profilesById = new Map<
+    string,
+    Pick<Profile, "first_name" | "last_name">
+  >();
 
-      const senderName = sender
-        ? `${sender.first_name ?? ""} ${
-            sender.last_name ?? ""
-          }`.trim() ||
-          "Utilizador desconhecido"
-        : "Utilizador desconhecido";
-
-      return {
-        id: message.id,
-        content:
-          message.content ?? "",
-        senderId:
-          message.sender_id ?? "",
-        senderName,
-        timestamp:
-          message.created_at ??
-          new Date(0).toISOString(),
-        isOwn:
-          message.sender_id ===
-          user.id,
-      };
+  for (const profile of profiles ?? []) {
+    profilesById.set(profile.profile_id, {
+      first_name: profile.first_name,
+      last_name: profile.last_name,
     });
+  }
+
+  return paginatedMessages.reverse().map((message) => {
+    const sender = message.sender_id
+      ? profilesById.get(message.sender_id)
+      : undefined;
+
+    const senderName = sender
+      ? `${sender.first_name ?? ""} ${
+          sender.last_name ?? ""
+        }`.trim() || "Utilizador desconhecido"
+      : "Utilizador desconhecido";
+
+    return {
+      id: message.id,
+      content: message.content ?? "",
+      senderId: message.sender_id ?? "",
+      senderName,
+      timestamp:
+        message.created_at ??
+        new Date(0).toISOString(),
+      isOwn: message.sender_id === user.id,
+      attachments:
+        attachmentsByMessage.get(message.id) ?? [],
+    };
+  });
 }
 
 export async function sendMessage(
@@ -1202,4 +1169,357 @@ export async function getMessageRecipients(): Promise<
       isOnline: false,
     }),
   );
+}
+
+
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+const MAX_ATTACHMENTS = 5;
+
+const ALLOWED_ATTACHMENT_TYPES = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+
+function validateAttachments(files: File[]) {
+    if (files.length > MAX_ATTACHMENTS) {
+        throw new Error("Pode anexar no máximo 5 ficheiros.");
+    }
+
+    for (const file of files) {
+        if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
+            throw new Error(
+                `Formato não permitido: ${file.name}`,
+            );
+        }
+
+        if (file.size > MAX_ATTACHMENT_SIZE) {
+            throw new Error(
+                `O ficheiro ${file.name} ultrapassa 10 MB.`,
+            );
+        }
+
+        if (file.size <= 0) {
+            throw new Error(
+                `O ficheiro ${file.name} está vazio.`,
+            );
+        }
+    }
+}
+
+function safeFileName(name: string) {
+    return name
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "_")
+        .slice(0, 120);
+}
+
+async function getAttachmentsForMessages(
+  supabase: Awaited<
+    ReturnType<typeof getAuthenticatedClient>
+  >["supabase"],
+  messageIds: string[],
+): Promise<Map<string, MessageAttachment[]>> {
+  const result = new Map<string, MessageAttachment[]>();
+
+  if (messageIds.length === 0) {
+    return result;
+  }
+
+  const { data, error } = await supabase
+    .from("message_attachments")
+    .select(
+      "id, message_id, file_name, storage_path, mime_type, file_size",
+    )
+    .in("message_id", messageIds)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(
+      `Failed to load attachments: ${error.message}`,
+    );
+  }
+
+  const attachments = data ?? [];
+
+  const signedAttachments = await Promise.all(
+    attachments.map(async (attachment) => {
+      const { data: signed, error: signedError } =
+        await supabase.storage
+          .from("chat-attachments")
+          .createSignedUrl(
+            attachment.storage_path,
+            3600,
+          );
+
+      if (signedError || !signed?.signedUrl) {
+        console.error(
+          "Failed to create attachment URL:",
+          {
+            attachmentId: attachment.id,
+            error: signedError?.message,
+          },
+        );
+
+        return null;
+      }
+
+      return {
+        messageId: attachment.message_id,
+        attachment: {
+          id: attachment.id,
+          fileName: attachment.file_name,
+          storagePath: attachment.storage_path,
+          mimeType: attachment.mime_type,
+          fileSize: Number(attachment.file_size),
+          url: signed.signedUrl,
+        } satisfies MessageAttachment,
+      };
+    }),
+  );
+
+  for (const item of signedAttachments) {
+    if (!item) continue;
+
+    const existing =
+      result.get(item.messageId) ?? [];
+
+    existing.push(item.attachment);
+
+    result.set(item.messageId, existing);
+  }
+
+  return result;
+}
+
+export async function sendMessageWithAttachments(
+    conversationId: string,
+    content: string,
+    files: File[],
+): Promise<MessageView> {
+    validateId(conversationId, "Conversation ID");
+    validateAttachments(files);
+
+    const trimmedContent = content.trim();
+
+    if (!trimmedContent && files.length === 0) {
+        throw new Error(
+            "Escreva uma mensagem ou seleccione um ficheiro.",
+        );
+    }
+
+    if (trimmedContent.length > 4000) {
+        throw new Error("A mensagem é demasiado longa.");
+    }
+
+    const { supabase, user } =
+        await getAuthenticatedClient();
+
+    await assertParticipant(
+        supabase,
+        conversationId,
+        user.id,
+    );
+
+    const { data: profile, error: profileError } =
+        await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("profile_id", user.id)
+            .maybeSingle();
+
+    if (profileError) {
+        throw new Error(profileError.message);
+    }
+
+    const senderName =
+        `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`
+            .trim() || "Utilizador";
+
+    const { data: message, error: messageError } =
+        await supabase
+            .from("messages")
+            .insert({
+                conversation_id: conversationId,
+                sender_id: user.id,
+                content: trimmedContent,
+            })
+            .select(
+                "id, content, sender_id, created_at",
+            )
+            .single();
+
+    if (messageError || !message) {
+        throw new Error(
+            messageError?.message ??
+            "Não foi possível criar a mensagem.",
+        );
+    }
+
+    const uploadedPaths: string[] = [];
+
+    try {
+        for (const file of files) {
+            const path = [
+                conversationId,
+                user.id,
+                message.id,
+                `${crypto.randomUUID()}-${safeFileName(file.name)}`,
+            ].join("/");
+
+            const { error: uploadError } =
+                await supabase.storage
+                    .from("chat-attachments")
+                    .upload(path, file, {
+                        contentType: file.type,
+                        upsert: false,
+                    });
+
+            if (uploadError) {
+                throw new Error(
+                    `Falha ao carregar ${file.name}: ${uploadError.message}`,
+                );
+            }
+
+            uploadedPaths.push(path);
+
+            const { error: attachmentError } =
+                await supabase
+                    .from("message_attachments")
+                    .insert({
+                        message_id: message.id,
+                        conversation_id: conversationId,
+                        file_name: file.name,
+                        storage_path: path,
+                        mime_type: file.type,
+                        file_size: file.size,
+                    });
+
+            if (attachmentError) {
+                throw new Error(
+                    `Falha ao registar ${file.name}: ${attachmentError.message}`,
+                );
+            }
+        }
+
+        const attachmentsMap =
+            await getAttachmentsForMessages(
+                supabase,
+                [message.id],
+            );
+
+        return {
+            id: message.id,
+            content: message.content ?? "",
+            senderId: message.sender_id ?? user.id,
+            senderName,
+            timestamp:
+                message.created_at ??
+                new Date().toISOString(),
+            isOwn: true,
+            attachments:
+                attachmentsMap.get(message.id) ?? [],
+        };
+    } catch (error) {
+        if (uploadedPaths.length) {
+            await supabase.storage
+                .from("chat-attachments")
+                .remove(uploadedPaths);
+        }
+
+        await supabase
+            .from("messages")
+            .delete()
+            .eq("id", message.id);
+
+        throw error;
+    }
+}
+
+export async function getMessageById(
+  messageId: string,
+): Promise<MessageView | null> {
+  validateId(messageId, "Message ID");
+
+  const { supabase, user } =
+    await getAuthenticatedClient();
+
+  const { data: message, error } = await supabase
+    .from("messages")
+    .select(
+      "id, conversation_id, content, sender_id, created_at",
+    )
+    .eq("id", messageId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to load message: ${error.message}`,
+    );
+  }
+
+  if (!message) {
+    return null;
+  }
+
+  if (!message.conversation_id) {
+    throw new Error(
+      "Message does not have a valid conversation.",
+    );
+  }
+
+  await assertParticipant(
+    supabase,
+    message.conversation_id,
+    user.id,
+  );
+
+  const [
+    attachmentsByMessage,
+    { data: profile, error: profileError },
+  ] = await Promise.all([
+    getAttachmentsForMessages(
+      supabase,
+      [message.id],
+    ),
+
+    message.sender_id
+      ? supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("profile_id", message.sender_id)
+          .maybeSingle()
+      : Promise.resolve({
+          data: null,
+          error: null,
+        }),
+  ]);
+
+  if (profileError) {
+    throw new Error(
+      `Failed to load message sender: ${profileError.message}`,
+    );
+  }
+
+  return {
+    id: message.id,
+    content: message.content ?? "",
+    senderId: message.sender_id ?? "",
+    senderName:
+      `${profile?.first_name ?? ""} ${
+        profile?.last_name ?? ""
+      }`.trim() || "Utilizador",
+    timestamp:
+      message.created_at ?? new Date().toISOString(),
+    isOwn: message.sender_id === user.id,
+    attachments:
+      attachmentsByMessage.get(message.id) ?? [],
+  };
 }

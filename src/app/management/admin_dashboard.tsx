@@ -1885,7 +1885,7 @@ export default function AdminDashboard({
           <Panel
             title="Actividades recentes"
             subtitle="Últimas actualizações do gabinete"
-            href="/management/activity"
+            href="/management/activities"
             className="max-h-[480px]"
           >
             {activities.length === 0 ? (
