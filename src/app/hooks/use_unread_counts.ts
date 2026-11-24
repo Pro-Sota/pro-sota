@@ -52,10 +52,25 @@ export function useUnreadCounts(): UnreadCounts {
         ]);
 
         if (all.error || messages.error) {
-            console.error(
-                "Unread counts failed:",
-                all.error ?? messages.error,
-            );
+            console.error("Unread counts query errors:", {
+                all: all.error
+                    ? {
+                        message: all.error.message,
+                        code: all.error.code,
+                        details: all.error.details,
+                        hint: all.error.hint,
+                    }
+                    : null,
+                messages: messages.error
+                    ? {
+                        message: messages.error.message,
+                        code: messages.error.code,
+                        details: messages.error.details,
+                        hint: messages.error.hint,
+                    }
+                    : null,
+            });
+
             return;
         }
 
