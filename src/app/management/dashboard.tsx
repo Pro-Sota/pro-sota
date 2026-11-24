@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -6,7 +7,9 @@ import {
   Building2,
   CalendarDays,
   CalendarPlus,
+  CheckCircle2,
   ClipboardList,
+  Clock,
   FileText,
   Inbox,
   Plus,
@@ -16,9 +19,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import CreateMeetingModal from "./calendar/components/create_meeting_modal";
-import { Database } from "../lib/supabase/models";
-
 import UploadDocument from "./projects/[projectId]/(details)/documents/components/upload_document";
+
+import { Database } from "../lib/supabase/models";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Project = Database["public"]["Tables"]["projects"]["Row"];
@@ -29,7 +32,7 @@ type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
 interface DashboardData {
   currentUser: Profile | null;
   users: Profile[];
-  projects: Project[]; 
+  projects: Project[];
   documents: Document[];
   tasks: Task[];
   deadlines: Task[];
@@ -57,12 +60,12 @@ function EmptyState({
   const router = useRouter();
 
   return (
-    <div className="flex min-h-[180px] flex-col items-center justify-center px-4 py-8 text-center">
-      <div className="mb-4 rounded-full bg-gray-100 p-4">
-        <Icon className="h-6 w-6 text-gray-400" />
+    <div className="flex min-h-[160px] flex-col items-center justify-center px-4 py-8 text-center">
+      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100">
+        <Icon className="h-5 w-5 text-gray-400" />
       </div>
 
-      <h3 className="text-sm font-semibold text-gray-900">
+      <h3 className="text-sm font-normal text-gray-900">
         {title}
       </h3>
 
@@ -74,7 +77,7 @@ function EmptyState({
         <button
           type="button"
           onClick={() => router.push(action.href)}
-          className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-gray-900 transition-colors hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
+          className="mt-4 inline-flex items-center gap-2 text-sm text-[#002950] transition-colors hover:text-[#BD9655] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
         >
           {action.label}
           <ArrowRight className="h-4 w-4" />
@@ -84,50 +87,124 @@ function EmptyState({
   );
 }
 
-const getProjectStatus = (status: string | null) => {
-  const statusConfig = {
+function getProjectStatus(status: string | null) {
+  const statusConfig: Record<
+    string,
+    { label: string; className: string; dot: string }
+  > = {
     active: {
       label: "Em curso",
-      className: "bg-green-50 text-green-700",
-      dot: "bg-green-500",
+      className: "bg-emerald-50 text-emerald-700",
+      dot: "bg-emerald-500",
     },
     "on track": {
       label: "Em curso",
-      className: "bg-green-50 text-green-700",
-      dot: "bg-green-500",
+      className: "bg-emerald-50 text-emerald-700",
+      dot: "bg-emerald-500",
     },
     "at risk": {
       label: "Em risco",
-      className: "bg-orange-50 text-orange-700",
-      dot: "bg-orange-500",
+      className: "bg-amber-50 text-amber-700",
+      dot: "bg-amber-500",
     },
     delayed: {
       label: "Atrasado",
       className: "bg-red-50 text-red-700",
       dot: "bg-red-500",
     },
+    completed: {
+      label: "Concluído",
+      className: "bg-gray-100 text-gray-600",
+      dot: "bg-gray-400",
+    },
   };
 
   return (
-    statusConfig[
-      status?.toLowerCase() as keyof typeof statusConfig
-    ] ?? {
+    statusConfig[status?.toLowerCase() ?? ""] ?? {
       label: status || "Sem estado",
-      className: "bg-gray-100 text-gray-700",
+      className: "bg-gray-100 text-gray-600",
       dot: "bg-gray-400",
     }
   );
-};
+}
 
-const formatDate = (value: string | null) => {
+function isTaskCompleted(task: Task) {
+  const status = task.status?.toLowerCase();
+
+  return (
+    status === "concluído" ||
+    status === "concluido" ||
+    status === "completed" ||
+    status === "done"
+  );
+}
+
+function formatDate(value: string | null) {
   if (!value) return null;
 
-  return new Date(value).toLocaleDateString("pt-PT", {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toLocaleDateString("pt-PT", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
-};
+}
+
+function isOverdue(task: Task) {
+  if (!task.due_date || isTaskCompleted(task)) return false;
+
+  const dueDate = new Date(task.due_date);
+  if (Number.isNaN(dueDate.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  dueDate.setHours(0, 0, 0, 0);
+
+  return dueDate < today;
+}
+
+function SectionHeader({
+  title,
+  description,
+  href,
+  actionLabel = "Ver todos",
+}: {
+  title: string;
+  description?: string;
+  href?: string;
+  actionLabel?: string;
+}) {
+  const router = useRouter();
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 sm:px-6">
+      <div className="min-w-0">
+        <h2 className="text-base font-normal text-[#002950]">
+          {title}
+        </h2>
+
+        {description && (
+          <p className="mt-1 text-xs leading-5 text-gray-500">
+            {description}
+          </p>
+        )}
+      </div>
+
+      {href && (
+        <button
+          type="button"
+          onClick={() => router.push(href)}
+          className="shrink-0 text-sm text-gray-500 transition-colors hover:text-[#BD9655] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function Dashboard({ data }: DashboardProps) {
   const router = useRouter();
@@ -145,81 +222,41 @@ export default function Dashboard({ data }: DashboardProps) {
   const activities = data.activities ?? [];
   const documents = data.documents ?? [];
 
-  const completedTasks = tasks.filter(
-    (task) =>
-      task.status === "Concluído" ||
-      task.status === "completed" ||
-      task.status === "done",
-  ).length;
-
-  const openTasks = Math.max(
-    tasks.length - completedTasks,
-    0,
-  );
+  const completedTasks = tasks.filter(isTaskCompleted);
+  const openTasks = tasks.filter((task) => !isTaskCompleted(task));
+  const overdueTasks = openTasks.filter(isOverdue);
 
   const firstName =
     currentUser?.first_name?.trim() ||
     currentUser?.email?.split("@")[0]?.trim() ||
     "utilizador";
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
+  const hour = new Date().getHours();
 
-    if (hour >= 5 && hour < 12) {
-      return "Bom dia";
-    }
-
-    if (hour >= 12 && hour < 18) {
-      return "Boa tarde";
-    }
-
-    return "Boa noite";
-  };
-
-  const quickActions = [
-    {
-      label: "Nova tarefa",
-      icon: Plus,
-      href: "/management/tasks",
-      variant: "primary" as const,
-    },
-    {
-      label: "Carregar documento",
-      icon: Upload,
-      href: "",
-      variant: "secondary" as const,
-    },
-    {
-      label: "Agendar reunião",
-      icon: CalendarPlus,
-      href: "",
-      variant: "secondary" as const,
-    },
-    {
-      label: "Ver calendário",
-      icon: CalendarDays,
-      href: "/management/calendar",
-      variant: "secondary" as const,
-    },
-  ];
+  const greeting =
+    hour >= 5 && hour < 12
+      ? "Bom dia"
+      : hour >= 12 && hour < 18
+        ? "Boa tarde"
+        : "Boa noite";
 
   const stats = [
     {
-      title: "Projectos activos",
+      title: "Os meus projectos",
       value: projects.length,
       icon: Briefcase,
       href: "/management/projects",
     },
     {
       title: "Tarefas em aberto",
-      value: openTasks,
+      value: openTasks.length,
       icon: ClipboardList,
       href: "/management/tasks",
     },
     {
-      title: "Prazos próximos",
-      value: deadlines.length,
-      icon: CalendarDays,
+      title: "Tarefas em atraso",
+      value: overdueTasks.length,
+      icon: Clock,
       href: "/management/tasks",
     },
     {
@@ -230,58 +267,99 @@ export default function Dashboard({ data }: DashboardProps) {
     },
   ];
 
+  const quickActions = [
+    {
+      label: "Nova tarefa",
+      icon: Plus,
+      onClick: () => router.push("/management/tasks"),
+      primary: true,
+    },
+    {
+      label: "Carregar documento",
+      icon: Upload,
+      onClick: () => setIsUploadModalOpen(true),
+      primary: false,
+    },
+    {
+      label: "Agendar reunião",
+      icon: CalendarPlus,
+      onClick: () => setIsMeetingModalOpen(true),
+      primary: false,
+    },
+    {
+      label: "Ver calendário",
+      icon: CalendarDays,
+      onClick: () => router.push("/management/calendar"),
+      primary: false,
+    },
+  ];
+
   function handleProjectClick(projectId: string) {
     router.push(`/management/projects/${projectId}`);
   }
 
+  function handleTaskClick(task: Task) {
+    if (task.project_id) {
+      router.push(
+        `/management/projects/${task.project_id}/tasks`,
+      );
+      return;
+    }
+
+    router.push("/management/tasks");
+  }
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#F7F7F5]">
-      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-        <div className="min-w-0 space-y-6 sm:space-y-8">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div className="min-w-0 space-y-7">
 
           {/* Header */}
           <header className="border-b border-gray-200 pb-6">
-            <div className="flex min-w-0 flex-col gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
-                {getGreeting()}, {firstName}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs uppercase tracking-[0.16em] text-[#BD9655]">
+                Espaço de trabalho pessoal
+              </p>
+
+              <h1 className="text-2xl font-normal tracking-tight text-[#002950] sm:text-3xl">
+                {greeting}, {firstName}
               </h1>
 
-              <p className="max-w-2xl text-sm leading-6 text-gray-600">
-                Aqui está uma visão geral do seu trabalho no gabinete de
-                arquitetura.
+              <p className="max-w-2xl text-sm leading-6 text-gray-500">
+                Acompanhe as suas tarefas, projectos e compromissos.
               </p>
             </div>
           </header>
 
-          {/* Quick Actions */}
+          {/* Quick actions */}
           <section>
+            <div className="mb-3">
+              <h2 className="text-sm font-normal text-[#002950]">
+                Acesso rápido
+              </h2>
+            </div>
+
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {quickActions.map((action) => (
                 <button
                   key={action.label}
                   type="button"
-                  onClick={() => {
-                    if (action.label === "Agendar reunião") {
-                      setIsMeetingModalOpen(true);
-                      return;
-                    }
-
-                    if (action.label === "Carregar documento") {
-                      setIsUploadModalOpen(true);
-                      return;
-                    }
-
-                    router.push(action.href);
-                  }}
-                  className={`group flex min-h-[88px] cursor-pointer flex-col items-start justify-between rounded-lg px-4 py-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 sm:min-h-[104px] sm:px-5 sm:py-5 ${
-                    action.variant === "primary"
-                      ? "bg-[#BD9655] text-[#002950] hover:bg-[#C8A66E]"
-                      : "border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 hover:shadow-sm"
+                  onClick={action.onClick}
+                  className={`group flex min-h-[82px] flex-col items-start justify-between rounded-lg px-4 py-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 sm:min-h-[92px] sm:px-5 ${
+                    action.primary
+                      ? "bg-[#002950] text-white hover:bg-[#003B70]"
+                      : "border border-gray-200 bg-white text-gray-700 hover:border-[#BD9655]/50 hover:bg-gray-50"
                   }`}
                 >
-                  <action.icon className="h-5 w-5 shrink-0" />
+                  <action.icon
+                    className={`h-5 w-5 ${
+                      action.primary
+                        ? "text-[#BD9655]"
+                        : "text-[#002950]"
+                    }`}
+                  />
 
-                  <span className="text-xs font-medium sm:text-sm">
+                  <span className="text-xs sm:text-sm">
                     {action.label}
                   </span>
                 </button>
@@ -289,352 +367,312 @@ export default function Dashboard({ data }: DashboardProps) {
             </div>
           </section>
 
-          {/* Statistics */}
+          {/* Personal overview */}
           <section>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <div className="mb-3">
+              <h2 className="text-sm font-normal text-[#002950]">
+                Visão geral
+              </h2>
+
+              <p className="mt-1 text-xs text-gray-500">
+                Resumo da sua actividade actual.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {stats.map((item) => (
                 <button
                   key={item.title}
                   type="button"
                   onClick={() => router.push(item.href)}
-                  className="group min-w-0 cursor-pointer rounded-lg border border-gray-200 bg-white p-4 text-left transition-all duration-200 hover:border-gray-300 hover:bg-gray-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 sm:p-5 lg:p-6"
+                  className="group min-w-0 rounded-lg border border-gray-200 bg-white p-4 text-left transition-colors hover:border-[#BD9655]/50 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2 sm:p-5"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium leading-5 text-gray-600 sm:text-sm">
-                        {item.title}
-                      </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 text-xs leading-5 text-gray-500 sm:text-sm">
+                      {item.title}
+                    </p>
 
-                      <p className="mt-2 text-2xl font-bold text-[#002950] sm:mt-3 sm:text-3xl">
-                        {item.value}
-                      </p>
-                    </div>
-
-                    <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 transition-colors group-hover:bg-gray-200 sm:flex">
-                      <item.icon className="h-5 w-5 text-[#002950]" />
-                    </div>
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#BD9655]/10 text-[#BD9655]">
+                      <item.icon className="h-4 w-4" />
+                    </span>
                   </div>
+
+                  <p className="mt-3 text-2xl font-normal tabular-nums text-[#002950] sm:text-3xl">
+                    {item.value}
+                  </p>
                 </button>
               ))}
             </div>
           </section>
 
-          {/* Main Dashboard Grid */}
-          <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.8fr)]">
+          {/* Personal work */}
+          <section className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <SectionHeader
+              title="O meu trabalho"
+              description="Tarefas que estão sob a sua responsabilidade."
+              href="/management/tasks"
+            />
 
-            {/* Projects */}
-            <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
-              <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-gray-900">
-                    Projectos Activos
-                  </h2>
+            <div className="grid divide-y divide-gray-100 md:grid-cols-3 md:divide-x md:divide-y-0">
+              <div className="p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500">
+                      Em aberto
+                    </p>
+                    <p className="mt-1 text-2xl font-normal tabular-nums text-[#002950]">
+                      {openTasks.length}
+                    </p>
+                  </div>
 
-                  <p className="mt-1 truncate text-xs text-gray-500">
-                    {projects.length > 6
-                      ? `${projects.length} projectos disponíveis`
-                      : "Projectos em que participa actualmente"}
-                  </p>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#002950]/5 text-[#002950]">
+                    <ClipboardList className="h-4 w-4" />
+                  </span>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push("/management/projects")
-                  }
-                  className="ml-2 shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
-                >
-                  Ver todos
-                </button>
               </div>
 
-              <div className="p-4 sm:p-6">
+              <div className="p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500">
+                      Concluídas
+                    </p>
+                    <p className="mt-1 text-2xl font-normal tabular-nums text-[#002950]">
+                      {completedTasks.length}
+                    </p>
+                  </div>
+
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500">
+                      Em atraso
+                    </p>
+                    <p className="mt-1 text-2xl font-normal tabular-nums text-[#002950]">
+                      {overdueTasks.length}
+                    </p>
+                  </div>
+
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+                    <Clock className="h-4 w-4" />
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 p-4 sm:p-5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-normal text-[#002950]">
+                  Tarefas por acompanhar
+                </h3>
+
+                <span className="text-xs text-gray-400">
+                  {openTasks.length} pendentes
+                </span>
+              </div>
+
+              {openTasks.length === 0 ? (
+                <EmptyState
+                  icon={CheckCircle2}
+                  title="Está tudo em dia"
+                  description="Não tem tarefas pendentes neste momento."
+                />
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {openTasks.slice(0, 5).map((task) => {
+                    const overdue = isOverdue(task);
+
+                    return (
+                      <button
+                        key={task.task_id}
+                        type="button"
+                        onClick={() => handleTaskClick(task)}
+                        className="group flex w-full min-w-0 items-center gap-3 rounded-md px-2 py-3 text-left transition-colors hover:bg-gray-50"
+                      >
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                            overdue
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {overdue ? (
+                            <Clock className="h-4 w-4" />
+                          ) : (
+                            <ClipboardList className="h-4 w-4" />
+                          )}
+                        </span>
+
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm text-gray-800">
+                            {task.title}
+                          </span>
+
+                          <span className="mt-1 block truncate text-xs text-gray-400">
+                            {task.project_id || "Tarefa independente"}
+                          </span>
+                        </span>
+
+                        <span className="hidden shrink-0 text-right sm:block">
+                          <span
+                            className={`block text-xs ${
+                              overdue
+                                ? "text-amber-700"
+                                : "text-gray-500"
+                            }`}
+                          >
+                            {overdue ? "Em atraso" : "Prazo"}
+                          </span>
+
+                          <span className="mt-1 block text-xs text-gray-400">
+                            {formatDate(task.due_date) || "Sem data"}
+                          </span>
+                        </span>
+
+                        <ArrowRight className="h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#BD9655]" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {openTasks.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => router.push("/management/tasks")}
+                  className="mt-3 text-sm text-[#002950] transition-colors hover:text-[#BD9655]"
+                >
+                  Ver todas as tarefas
+                  <ArrowRight className="ml-1 inline h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* Projects and deadlines */}
+          <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)]">
+
+            {/* My projects */}
+            <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
+              <SectionHeader
+                title="Os meus projectos"
+                description="Projectos em que participa actualmente."
+                href="/management/projects"
+              />
+
+              <div className="p-4 sm:p-5">
                 {projects.length === 0 ? (
                   <EmptyState
                     icon={Briefcase}
-                    title="Nenhum projecto activo"
-                    description="Os projectos em que participa aparecerão aqui."
-                    action={{
-                      label: "Ver projectos",
-                      href: "/management/projects",
-                    }}
+                    title="Ainda não participa em projectos"
+                    description="Os projectos que lhe forem atribuídos aparecerão aqui."
                   />
                 ) : (
-                  <>
-                    {/* Mobile project cards */}
-                    <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1 md:hidden">
-                      {projects.map((project) => {
-                        const progress = 0;
-                        const config = getProjectStatus(
-                          project.status,
-                        );
+                  <div className="max-h-[430px] space-y-2 overflow-y-auto pr-1">
+                    {projects.map((project) => {
+                      const config = getProjectStatus(project.status);
 
-                        return (
-                          <button
-                            key={project.project_id}
-                            type="button"
-                            onClick={() =>
-                              handleProjectClick(
-                                project.project_id,
-                              )
-                            }
-                            className="group w-full rounded-lg border border-gray-100 p-4 text-left transition-colors hover:border-gray-200 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2"
-                          >
-                            <div className="flex min-w-0 items-start gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-                                <Building2 className="h-4 w-4" />
-                              </div>
+                      return (
+                        <button
+                          key={project.project_id}
+                          type="button"
+                          onClick={() =>
+                            handleProjectClick(project.project_id)
+                          }
+                          className="group w-full rounded-lg border border-gray-100 p-4 text-left transition-colors hover:border-[#BD9655]/40 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
+                        >
+                          <div className="flex min-w-0 items-start gap-3">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#002950]/5 text-[#002950]">
+                              <Building2 className="h-4 w-4" />
+                            </span>
 
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-gray-900">
-                                  {project.title}
-                                </p>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm text-gray-800">
+                                {project.title}
+                              </span>
 
-                                <p className="mt-0.5 truncate text-xs text-gray-500">
-                                  {project.project_code}
-                                  {project.address_line_1 &&
-                                    ` · ${project.address_line_1}`}
-                                </p>
-                              </div>
+                              <span className="mt-1 block truncate text-xs text-gray-400">
+                                {project.project_code || "Projecto"}
+                                {project.address_line_1 &&
+                                  ` · ${project.address_line_1}`}
+                              </span>
+                            </span>
 
-                              <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-500" />
-                            </div>
+                            <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#BD9655]" />
+                          </div>
 
-                            <div className="mt-4 flex min-w-0 items-center justify-between gap-3">
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                            <span
+                              className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs ${config.className}`}
+                            >
                               <span
-                                className={`inline-flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${config.className}`}
-                              >
-                                <span
-                                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${config.dot}`}
-                                />
+                                className={`h-1.5 w-1.5 rounded-full ${config.dot}`}
+                              />
+                              {config.label}
+                            </span>
 
-                                <span className="truncate">
-                                  {config.label}
-                                </span>
-                              </span>
-
-                              <span className="shrink-0 text-xs font-medium text-gray-500">
-                                {formatDate(project.end_date) ||
-                                  "Sem prazo"}
-                              </span>
-                            </div>
-
-                            <div className="mt-4">
-                              <div className="mb-1.5 flex items-center justify-between">
-                                <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
-                                  Progresso
-                                </span>
-
-                                <span className="text-xs font-semibold text-gray-700">
-                                  {progress}%
-                                </span>
-                              </div>
-
-                              <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-                                <div
-                                  className="h-full rounded-full bg-gray-900 transition-all"
-                                  style={{
-                                    width: `${Math.min(
-                                      Math.max(progress, 0),
-                                      100,
-                                    )}%`,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Desktop / Tablet */}
-                    <div className="hidden md:block">
-                      <div className="max-h-[420px] overflow-auto">
-                        <table className="w-full min-w-[620px] border-separate border-spacing-0 text-sm">
-                          <thead className="sticky top-0 z-10">
-                            <tr className="bg-gray-50">
-                              <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                                Projecto
-                              </th>
-
-                              <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                                Estado
-                              </th>
-
-                              <th className="border-b border-gray-200 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                                Progresso
-                              </th>
-
-                              <th className="border-b border-gray-200 px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                                Prazo
-                              </th>
-                            </tr>
-                          </thead>
-
-                          <tbody>
-                            {projects.map((project) => {
-                              const progress = 0;
-                              const config = getProjectStatus(
-                                project.status,
-                              );
-
-                              return (
-                                <tr
-                                  key={project.project_id}
-                                  onClick={() =>
-                                    handleProjectClick(
-                                      project.project_id,
-                                    )
-                                  }
-                                  className="group cursor-pointer transition-colors hover:bg-gray-50"
-                                >
-                                  <td className="max-w-[320px] border-b border-gray-100 px-4 py-4">
-                                    <div className="flex items-center gap-3">
-                                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-                                        <Building2 className="h-4 w-4" />
-                                      </div>
-
-                                      <div className="min-w-0">
-                                        <p className="truncate font-semibold text-gray-900">
-                                          {project.title}
-                                        </p>
-
-                                        <p className="mt-0.5 truncate text-xs text-gray-500">
-                                          {project.project_code}
-                                          {project.address_line_1 &&
-                                            ` · ${project.address_line_1}`}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </td>
-
-                                  <td className="border-b border-gray-100 px-4 py-4">
-                                    <span
-                                      className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${config.className}`}
-                                    >
-                                      <span
-                                        className={`h-1.5 w-1.5 rounded-full ${config.dot}`}
-                                      />
-
-                                      {config.label}
-                                    </span>
-                                  </td>
-
-                                  <td className="border-b border-gray-100 px-4 py-4">
-                                    <div className="w-32">
-                                      <div className="mb-1.5 flex items-center justify-between">
-                                        <span className="text-xs font-semibold text-gray-900">
-                                          {progress}%
-                                        </span>
-                                      </div>
-
-                                      <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
-                                        <div
-                                          className="h-full rounded-full bg-gray-900 transition-all"
-                                          style={{
-                                            width: `${Math.min(
-                                              Math.max(
-                                                progress,
-                                                0,
-                                              ),
-                                              100,
-                                            )}%`,
-                                          }}
-                                        />
-                                      </div>
-                                    </div>
-                                  </td>
-
-                                  <td className="border-b border-gray-100 px-4 py-4 text-right">
-                                    <span className="whitespace-nowrap text-sm font-medium text-gray-700">
-                                      {formatDate(
-                                        project.end_date,
-                                      ) || "—"}
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </>
+                            <span className="text-xs text-gray-400">
+                              {formatDate(project.end_date) ||
+                                "Sem prazo definido"}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </section>
 
             {/* Deadlines */}
             <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
-              <div className="border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
-                <div className="flex min-w-0 items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <h2 className="text-base font-semibold text-gray-900">
-                      Próximos Prazos
-                    </h2>
+              <SectionHeader
+                title="Próximos prazos"
+                description="Datas que deve acompanhar."
+                href="/management/tasks"
+              />
 
-                    <p className="mt-1 truncate text-xs text-gray-500">
-                      Tarefas com datas próximas
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push("/management/tasks")
-                    }
-                    className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
-                  >
-                    Ver
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-4 sm:p-6">
+              <div className="p-4 sm:p-5">
                 {deadlines.length === 0 ? (
                   <EmptyState
                     icon={CalendarDays}
-                    title="Sem prazos agendados"
-                    description="Os prazos aparecerão aqui à medida que forem atribuídos."
+                    title="Sem prazos próximos"
+                    description="Os seus próximos prazos aparecerão aqui."
                   />
                 ) : (
-                  <div className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
-                    {deadlines.map((item) => (
+                  <div className="max-h-[430px] space-y-1 overflow-y-auto pr-1">
+                    {deadlines.map((task) => (
                       <button
+                        key={task.task_id}
                         type="button"
-                        key={item.task_id}
-                        onClick={() =>
-                          item.project_id
-                            ? router.push(
-                                `/management/projects/${item.project_id}/tasks`,
-                              )
-                            : router.push(
-                                "/management/tasks",
-                              )
-                        }
+                        onClick={() => handleTaskClick(task)}
                         className="group flex w-full min-w-0 gap-3 rounded-lg p-3 text-left transition-colors hover:bg-gray-50"
                       >
-                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                          <CalendarDays className="h-4 w-4 text-gray-500" />
-                        </div>
+                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#BD9655]/10 text-[#BD9655]">
+                          <CalendarDays className="h-4 w-4" />
+                        </span>
 
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-gray-900">
-                            {item.title}
-                          </p>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm text-gray-800">
+                            {task.title}
+                          </span>
 
-                          <p className="mt-0.5 truncate text-xs text-gray-500">
-                            {item.project_id ||
-                              "Sem projecto"}
-                          </p>
+                          <span className="mt-1 block truncate text-xs text-gray-400">
+                            {task.project_id || "Tarefa independente"}
+                          </span>
 
-                          <p className="mt-1 text-xs font-medium text-gray-400">
-                            {formatDate(item.due_date) ||
-                              "Sem data"}
-                          </p>
-                        </div>
+                          <span className="mt-2 block text-xs text-gray-500">
+                            {formatDate(task.due_date) || "Sem data"}
+                          </span>
+                        </span>
 
-                        <ArrowRight className="mt-2 hidden h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 sm:block" />
+                        <ArrowRight className="mt-2 h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#BD9655]" />
                       </button>
                     ))}
                   </div>
@@ -643,15 +681,10 @@ export default function Dashboard({ data }: DashboardProps) {
             </section>
           </div>
 
-          {/* Activity + Documents */}
+          {/* Activity and documents */}
           <div className="grid min-w-0 gap-6 lg:grid-cols-2">
-            <RecentActivitiesSection
-              activities={activities}
-            />
-
-            <RecentDocumentsSection
-              documents={documents}
-            />
+            <RecentActivitiesSection activities={activities} />
+            <RecentDocumentsSection documents={documents} />
           </div>
         </div>
       </div>
@@ -671,7 +704,11 @@ export default function Dashboard({ data }: DashboardProps) {
       {/* Meeting */}
       <CreateMeetingModal
         open={isMeetingModalOpen}
-        onClose={() => setIsMeetingModalOpen(false)} participants={data.users} clients={[]} suppliers={[]}      />
+        onClose={() => setIsMeetingModalOpen(false)}
+        participants={data.users}
+        clients={[]}
+        suppliers={[]}
+      />
     </div>
   );
 }
@@ -685,84 +722,67 @@ function RecentActivitiesSection({
 
   return (
     <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
-      <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
-        <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-gray-900">
-            Actividades Recentes
-          </h2>
+      <SectionHeader
+        title="A minha actividade"
+        description="Registo das suas actividades recentes."
+        href="/management/activity"
+        actionLabel="Ver todas"
+      />
 
-          <p className="mt-1 truncate text-xs text-gray-500">
-            Actividade recente no sistema
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            router.push("/management/activity")
-          }
-          className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
-        >
-          Ver todas
-        </button>
-      </div>
-
-      <div className="p-5 sm:p-6">
+      <div className="p-4 sm:p-5">
         {activities.length === 0 ? (
           <EmptyState
             icon={Inbox}
-            title="Sem actividade"
-            description="A actividade da equipa aparecerá aqui."
+            title="Sem actividade recente"
+            description="As suas actividades aparecerão aqui."
           />
         ) : (
           <div className="max-h-[360px] divide-y divide-gray-100 overflow-y-auto pr-1">
-            {activities.map((activity) => {
-              const initials = activity.user_id
-                ? activity.user_id
-                    .substring(0, 2)
-                    .toUpperCase()
-                : "?";
+            {activities.map((activity) => (
+              <div
+                key={activity.activity_id}
+                className="flex min-w-0 gap-3 py-4 first:pt-0 last:pb-0"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#002950]/5 text-xs text-[#002950]">
+                  <Clock className="h-4 w-4" />
+                </span>
 
-              return (
-                <div
-                  key={activity.activity_id}
-                  className="flex min-w-0 gap-3 py-4 first:pt-0 last:pb-0"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
-                    {initials}
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm leading-5 text-gray-800">
+                    {activity.description}
+                  </p>
 
-                  <div className="min-w-0 flex-1">
-                    <p className="break-words text-sm leading-5 text-gray-900">
-                      {activity.description}
-                    </p>
+                  {activity.project_id && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/management/projects/${activity.project_id}`,
+                        )
+                      }
+                      className="mt-1 truncate text-left text-xs text-gray-500 transition-colors hover:text-[#BD9655]"
+                    >
+                      {activity.project_id}
+                    </button>
+                  )}
 
-                    {activity.project_id && (
-                      <p className="mt-1 truncate text-xs text-gray-500">
-                        {activity.project_id}
-                      </p>
-                    )}
-
-                    <p className="mt-1 text-xs text-gray-400">
-                      {activity.created_at
-                        ? new Date(
-                            activity.created_at,
-                          ).toLocaleDateString(
-                            "pt-PT",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )
-                        : ""}
-                    </p>
-                  </div>
+                  <p className="mt-1 text-xs text-gray-400">
+                    {activity.created_at
+                      ? new Date(activity.created_at).toLocaleDateString(
+                          "pt-PT",
+                          {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )
+                      : ""}
+                  </p>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -779,76 +799,56 @@ function RecentDocumentsSection({
 
   return (
     <section className="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
-      <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 sm:px-6 sm:py-5">
-        <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-gray-900">
-            Documentos Recentes
-          </h2>
+      <SectionHeader
+        title="Documentos recentes"
+        description="Documentos disponíveis no seu espaço de trabalho."
+        href="/management/documents"
+      />
 
-          <p className="mt-1 truncate text-xs text-gray-500">
-            Documentos adicionados recentemente
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            router.push("/management/documents")
-          }
-          className="shrink-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
-        >
-          Ver todos
-        </button>
-      </div>
-
-      <div className="p-5 sm:p-6">
+      <div className="p-4 sm:p-5">
         {documents.length === 0 ? (
           <EmptyState
             icon={Upload}
-            title="Sem documentos"
-            description="Os documentos aparecerão aqui após o envio."
+            title="Sem documentos recentes"
+            description="Os documentos disponíveis aparecerão aqui."
             action={{
-              label: "Carregar",
-              href: "/management/documents/upload",
+              label: "Ver documentos",
+              href: "/management/documents",
             }}
           />
         ) : (
           <div className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
             {documents.map((doc) => (
               <button
-                type="button"
                 key={doc.document_id}
+                type="button"
                 onClick={() => {
                   if (doc.project_id) {
                     router.push(
                       `/management/projects/${doc.project_id}/documents`,
                     );
                   } else {
-                    router.push(
-                      "/management/documents",
-                    );
+                    router.push("/management/documents");
                   }
                 }}
-                className="group flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-gray-50"
+                className="group flex w-full min-w-0 items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-gray-50"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 transition-colors group-hover:bg-gray-200">
-                  <FileText className="h-5 w-5 text-gray-600" />
-                </div>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#002950]/5 text-[#002950]">
+                  <FileText className="h-5 w-5" />
+                </span>
 
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm text-gray-800">
                     {doc.name || doc.file_path}
-                  </p>
+                  </span>
 
-                  <p className="mt-0.5 truncate text-xs text-gray-500">
-                    {doc.project_id || "Sem projecto"}
-                  </p>
+                  <span className="mt-1 block truncate text-xs text-gray-400">
+                    {doc.project_id || "Documento geral"}
+                  </span>
 
-                  <p className="mt-1 text-xs text-gray-400">
+                  <span className="mt-1 block text-xs text-gray-400">
                     {doc.created_at
-                      ? new Date(
-                          doc.created_at,
-                        ).toLocaleDateString(
+                      ? new Date(doc.created_at).toLocaleDateString(
                           "pt-PT",
                           {
                             day: "2-digit",
@@ -857,10 +857,10 @@ function RecentDocumentsSection({
                           },
                         )
                       : ""}
-                  </p>
-                </div>
+                  </span>
+                </span>
 
-                <ArrowRight className="hidden h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 sm:block" />
+                <ArrowRight className="hidden h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#BD9655] sm:block" />
               </button>
             ))}
           </div>

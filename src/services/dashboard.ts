@@ -1,4 +1,3 @@
-// src/services/dashboard.ts
 
 import "server-only";
 
@@ -18,6 +17,14 @@ type Supplier = Database["public"]["Tables"]["suppliers"]["Row"];
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 type Task = Database["public"]["Tables"]["tasks"]["Row"];
 type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
+
+type Lead = Database["public"]["Tables"]["leads"]["Row"];
+type ProjectBrief = Database["public"]["Tables"]["project_briefs"]["Row"];
+type AttendanceRecord = Database["public"]["Tables"]["attendance_records"]["Row"];
+type Resource = Database["public"]["Tables"]["resources"]["Row"];
+type CalendarEvent = Database["public"]["Tables"]["calendar_events"]["Row"];
+type ProjectPhase = Database["public"]["Tables"]["project_phases"]["Row"];
+type PhaseStage = Database["public"]["Tables"]["phase_stages"]["Row"];
 
 export type TeamWorkload = {
   user_id: string;
@@ -43,8 +50,6 @@ export interface DashboardData {
 }
 
 export interface AdminDashboardData extends DashboardData {
-  // Full records are returned because the admin dashboard may display
-  // supplier contact, address, category, and identification information.
   suppliers: Supplier[];
   participants: {
     profile_id: Profile["profile_id"];
@@ -52,6 +57,14 @@ export interface AdminDashboardData extends DashboardData {
     email: string | null;
   }[];
   teamWorkload: TeamWorkload[];
+
+  leads: Lead[];
+  projectBriefs: ProjectBrief[];
+  attendance: AttendanceRecord[];
+  resources: Resource[];
+  calendarEvents: CalendarEvent[];
+  projectPhases: ProjectPhase[];
+  phaseStages: PhaseStage[];
 }
 
 type QueryError = {
@@ -61,9 +74,6 @@ type QueryError = {
   hint?: string;
 } | null;
 
-/**
- * Log query errors without exposing access tokens, refresh tokens, or cookies.
- */
 function logQueryErrors(
   scope: string,
   queries: Array<{ name: string; error: QueryError }>,
@@ -84,21 +94,44 @@ function logQueryErrors(
   return failures.map(({ name }) => name);
 }
 
+function getLuandaDate() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Luanda",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 async function getAuthenticatedUser() {
   const supabase = await getSupabase();
+
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser();
 
   if (error) {
-    console.error("Failed to get authenticated user:", {
-      message: error.message,
-      status: error.status,
-      code: error.code,
-    });
-    throw new Error("Failed to get authenticated user");
-  }
+  console.error("Failed to get authenticated user:", error);
+  console.error("Auth error details:", {
+    name: error.name,
+    message: error.message,
+    status: error.status,
+    code: error.code,
+    cause: error.cause,
+    details: Object.getOwnPropertyNames(error),
+  });
+
+  throw new Error(
+    `Authentication failed: ${error.message || error.name || "Unknown Supabase auth error"}`
+  );
+}
 
   if (!user) {
     throw new Error("Utilizador não autenticado.");
@@ -128,29 +161,23 @@ export async function getDashboardData(): Promise<DashboardData> {
       .eq("profile_id", user.id)
       .maybeSingle(),
 
-    // Only projects where the authenticated user is a project member.
     supabase
       .from("projects")
       .select("*, project_members!inner(*)")
       .eq("project_members.profile_id", user.id),
 
-    // RLS remains the authority for which client records are visible.
     supabase.from("clients").select("*"),
 
-    // Documents uploaded by the authenticated user.
     supabase
       .from("documents")
       .select("*")
       .eq("uploaded_by", user.id),
 
-    // Assignments are represented by task_members, not tasks.assigned_to.
     supabase
       .from("task_members")
       .select("task_id, tasks(*)")
       .eq("profile_id", user.id),
 
-    // Recent activity records. RLS must restrict rows to those this user
-    // is permitted to see.
     supabase
       .from("activity_logs")
       .select("*")
@@ -205,7 +232,9 @@ export async function getDashboardData(): Promise<DashboardData> {
   return {
     currentUser,
     users: [],
-    projects: (projectsResult.data ?? []).map(({ project_members: _members, ...project }) => project as Project),
+    projects: (projectsResult.data ?? []).map(
+      ({ project_members: _members, ...project }) => project as Project,
+    ),
     clients: clientsResult.data ?? [],
     documents: documentsResult.data ?? [],
     tasks,
@@ -221,7 +250,6 @@ export async function getDashboardData(): Promise<DashboardData> {
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const { supabase, user } = await getAuthenticatedUser();
 
-  // Verify the authenticated user's profile and role before loading admin data.
   const { data: currentUser, error: profileError } = await supabase
     .from("profiles")
     .select("*")
@@ -232,6 +260,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     logQueryErrors("Admin dashboard", [
       { name: "currentUser", error: profileError },
     ]);
+
     throw new Error("Failed to fetch current user");
   }
 
@@ -243,6 +272,13 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     throw new Error("Acesso não autorizado.");
   }
 
+  const now = new Date();
+  const nextSevenDays = new Date(
+    now.getTime() + 7 * 24 * 60 * 60 * 1000,
+  );
+
+  const today = getLuandaDate();
+
   const [
     usersResult,
     projectsResult,
@@ -252,19 +288,28 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     tasksResult,
     deadlinesResult,
     activitiesResult,
+    leadsResult,
+    projectBriefsResult,
+    attendanceResult,
+    resourcesResult,
+    calendarEventsResult,
+    projectPhasesResult,
+    phaseStagesResult,
     teamWorkload,
   ] = await Promise.all([
     supabase.from("profiles").select("*"),
+
     supabase.from("projects").select("*"),
+
     supabase.from("clients").select("*"),
 
-    // Full supplier rows keep this return type compatible with the admin UI.
     supabase
       .from("suppliers")
       .select("*")
       .order("supplier_name", { ascending: true }),
 
     supabase.from("documents").select("*"),
+
     supabase.from("tasks").select("*"),
 
     supabase
@@ -279,6 +324,50 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       .order("created_at", { ascending: false })
       .limit(20),
 
+    supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(12),
+
+    supabase
+      .from("project_briefs")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(12),
+
+    supabase
+      .from("attendance_records")
+      .select("*")
+      .eq("attendance_date", today),
+
+    supabase
+      .from("resources")
+      .select("*")
+      .order("name", { ascending: true }),
+
+    supabase
+      .from("calendar_events")
+      .select("*")
+      .gte("start_at", now.toISOString())
+      .lte("start_at", nextSevenDays.toISOString())
+      .order("start_at", { ascending: true })
+      .limit(12),
+
+    supabase
+      .from("project_phases")
+      .select("*")
+      .not("planned_end", "is", null)
+      .order("planned_end", { ascending: true })
+      .limit(20),
+
+    supabase
+      .from("phase_stages")
+      .select("*")
+      .not("planned_end", "is", null)
+      .order("planned_end", { ascending: true })
+      .limit(20),
+
     getTeamWorkload(),
   ]);
 
@@ -291,6 +380,13 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     { name: "tasks", error: tasksResult.error },
     { name: "deadlines", error: deadlinesResult.error },
     { name: "activities", error: activitiesResult.error },
+    { name: "leads", error: leadsResult.error },
+    { name: "projectBriefs", error: projectBriefsResult.error },
+    { name: "attendance", error: attendanceResult.error },
+    { name: "resources", error: resourcesResult.error },
+    { name: "calendarEvents", error: calendarEventsResult.error },
+    { name: "projectPhases", error: projectPhasesResult.error },
+    { name: "phaseStages", error: phaseStagesResult.error },
   ]);
 
   if (failedQueries.length > 0) {
@@ -298,6 +394,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   }
 
   const users = usersResult.data ?? [];
+
   const participants = users.map((profile) => ({
     profile_id: profile.profile_id,
     first_name: profile.first_name ?? null,
@@ -316,6 +413,14 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     deadlines: deadlinesResult.data ?? [],
     activities: activitiesResult.data ?? [],
     teamWorkload,
+
+    leads: leadsResult.data ?? [],
+    projectBriefs: projectBriefsResult.data ?? [],
+    attendance: attendanceResult.data ?? [],
+    resources: resourcesResult.data ?? [],
+    calendarEvents: calendarEventsResult.data ?? [],
+    projectPhases: projectPhasesResult.data ?? [],
+    phaseStages: phaseStagesResult.data ?? [],
   };
 }
 
@@ -364,8 +469,8 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
 
     if (!task) continue;
 
-    // Prevent duplicate join rows from inflating workload totals.
     const assignmentKey = `${member.profile_id}:${task.task_id}`;
+
     if (seenAssignments.has(assignmentKey)) continue;
     seenAssignments.add(assignmentKey);
 
@@ -378,10 +483,17 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
       `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() ||
       "Utilizador";
 
-    const estimatedHours = Math.max(0, Number(task.estimated_hours ?? 0) || 0);
-    const actualHours = Math.max(0, Number(task.actual_hours ?? 0) || 0);
-    const isCompleted = task.completed === true;
+    const estimatedHours = Math.max(
+      0,
+      Number(task.estimated_hours ?? 0) || 0,
+    );
 
+    const actualHours = Math.max(
+      0,
+      Number(task.actual_hours ?? 0) || 0,
+    );
+
+    const isCompleted = task.completed === true;
     const workload = members.get(member.profile_id);
 
     if (workload) {
@@ -393,7 +505,10 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
         workload.completed_tasks += 1;
       } else {
         workload.pending_tasks += 1;
-        workload.hours_remaining += Math.max(0, estimatedHours - actualHours);
+        workload.hours_remaining += Math.max(
+          0,
+          estimatedHours - actualHours,
+        );
       }
     } else {
       members.set(member.profile_id, {
@@ -413,6 +528,7 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
   }
 
   const workload = Array.from(members.values());
+
   const totalRemainingHours = workload.reduce(
     (total, member) => total + member.hours_remaining,
     0,
@@ -421,10 +537,15 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
   for (const member of workload) {
     member.workload_percentage =
       totalRemainingHours > 0
-        ? Math.round((member.hours_remaining / totalRemainingHours) * 100)
+        ? Math.round(
+            (member.hours_remaining / totalRemainingHours) * 100,
+          )
         : 0;
   }
 
-  workload.sort((a, b) => b.workload_percentage - a.workload_percentage);
+  workload.sort(
+    (a, b) => b.workload_percentage - a.workload_percentage,
+  );
+
   return workload;
 }
