@@ -96,7 +96,7 @@ export default function WhyUs() {
     >
       <div
         data-pin-container
-        className="relative mx-auto max-w-[1320px] px-[clamp(20px,5vw,64px)] [clip-path:inset(0)]"
+        className="relative mx-auto max-w-[1320px] px-[clamp(20px,5vw,64px)]"
       >
         {/* Section heading */}
         <div className="mb-[clamp(40px,6vh,64px)] grid gap-7 md:grid-cols-[1fr_0.65fr] md:items-end">

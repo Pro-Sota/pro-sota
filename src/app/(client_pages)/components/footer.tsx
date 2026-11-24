@@ -1,4 +1,5 @@
 
+import { ArrowUpRight, LockKeyhole, MapPin } from "lucide-react";
 import Link from "next/link";
 
 const navigation = [
@@ -20,7 +21,7 @@ export default function Footer() {
           <div className="space-y-4">
             <Link
               href="/"
-              className="inline-block text-2xl font-bold tracking-[0.16em] text-[#F7F7F5] transition-colors duration-300 hover:text-[#D7B477]"
+              className="inline-block text-2xl tracking-[0.16em] text-[#F7F7F5] transition-colors duration-300 hover:text-[#D7B477]"
             >
               PRO SOTA
             </Link>
@@ -34,7 +35,7 @@ export default function Footer() {
 
           {/* Navigation */}
           <nav aria-label="Navegação do rodapé">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[#BD9655]">
+            <h2 className="mb-4 text-sm uppercase tracking-wider text-[#BD9655]">
               Navegação
             </h2>
 
@@ -54,7 +55,7 @@ export default function Footer() {
 
           {/* Location */}
           <div>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[#BD9655]">
+            <h2 className="mb-4 text-sm uppercase tracking-wider text-[#BD9655]">
               Onde estamos
             </h2>
 
@@ -64,23 +65,36 @@ export default function Footer() {
               Luanda, Angola
             </address>
 
-            <a
+            <Link
               href="https://maps.app.goo.gl/T8EU7FDNXQE1LPqc9"
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex text-sm font-medium text-[#BD9655] transition-colors duration-300 hover:text-[#D7B477] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D7B477]"
+              className="mt-3 inline-flex items-center gap-2 text-sm text-[#BD9655] transition-colors duration-300 hover:text-[#D7B477] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D7B477]"
             >
-              Ver localização
-              <span className="ml-1" aria-hidden="true">↗</span>
-            </a>
+              <MapPin
+                size={14}
+                strokeWidth={1.5}
+                aria-hidden="true"
+                className="shrink-0"
+              />
+              <span>Ver localização</span>
+            </Link>
           </div>
         </div>
 
-        {/* Copyright */}
-        <div className="mt-10 border-t border-[#F7F7F5]/15 pt-6">
+        {/* Copyright & Reserved Area */}
+        <div className="mt-10 flex flex-col gap-4 border-t border-[#F7F7F5]/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs leading-5 text-[#F7F7F5]/50">
             © {year} PRO SOTA. Todos os direitos reservados.
           </p>
+
+          <Link
+            href="/management"
+            className="inline-flex w-fit items-center gap-2 text-xs text-[#F7F7F5]/50 transition-colors duration-300 hover:text-[#D7B477] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D7B477]"
+          >
+            <LockKeyhole size={13} strokeWidth={1.5} aria-hidden="true" />
+            Área Reservada
+          </Link>
         </div>
       </div>
     </footer>

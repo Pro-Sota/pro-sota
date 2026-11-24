@@ -1,7 +1,18 @@
 /* ==========================================================================
-   PRO SOTA — HERO SYSTEM (v2)
+   PRO SOTA — HERO SYSTEM (v3)
    Refined palette: Charcoal · Bronze · Cream · Subtle Navy
    Architecture · Engineering · Construction · Supervision
+
+   REQUIRED HTML CHANGE (for the masked title reveal):
+   wrap each title line's text in <b>:
+     <h1 class="ps-hero__title">
+       <span><b>PRO</b></span>
+       <span class="ps-hero__title-second"><b>SOTA</b></span>
+     </h1>
+   Without the <b> wrappers the title simply shows without the reveal.
+
+   Pair with pro-sota-hero.js (pause off-screen, ticker speed, pointer depth,
+   pathLength on draw paths).
    ========================================================================== */
 
 .about {
@@ -11,7 +22,7 @@
 .ps-hero {
   /* Colour tokens */
   --hero-navy: #002950;
-  --hero-navy-hover: #8B6A2F;
+  --hero-bronze-hover: #8B6A2F;
 
   --hero-gold: #8B6A2F;
   --hero-gold-light: #B69A6A;
@@ -35,7 +46,7 @@
   --hero-font-body: var(--font-body-face, "Helvetica Neue"), Arial, sans-serif;
   --hero-font-mono: var(--font-mono-face, ui-monospace), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-  /* Layout tokens — unchanged */
+  /* Layout tokens */
   --hero-pad: 56px;
   --hero-max: 1440px;
   --strip-h: 58px;
@@ -52,18 +63,18 @@
   color: var(--hero-charcoal);
 }
 
-/* Off-screen pause */
-.ps-hero[data-paused="true"] *,
-.ps-hero[data-paused="true"] *::before,
-.ps-hero[data-paused="true"] *::after {
-  animation-play-state: paused !important;
-}
-
 /* Visible keyboard focus */
 .ps-hero a:focus-visible {
   outline: 2px solid var(--hero-bronze);
   outline-offset: 4px;
   box-shadow: 0 0 0 5px rgba(139, 106, 47, .25);
+}
+
+/* Pause every animation while the hero is off-screen (class set by JS) */
+.ps-hero.is-paused *,
+.ps-hero.is-paused *::before,
+.ps-hero.is-paused *::after {
+  animation-play-state: paused !important;
 }
 
 /* ==========================================================================
@@ -96,6 +107,17 @@
       rgba(139, 106, 47, .12) 0%,
       rgba(139, 106, 47, .055) 35%,
       transparent 70%);
+}
+
+.ps-hero__annotation--right {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+}
+
+.ps-hero__annotation--left {
+  bottom: 12%;
+  left: 0;
 }
 
 .ps-hero__scan {
@@ -139,7 +161,7 @@
 }
 
 /* ==========================================================================
-   02. MAIN GRID — ORIGINAL LAYOUT PRESERVED
+   02. MAIN GRID
    ========================================================================== */
 
 .ps-hero__inner {
@@ -183,9 +205,10 @@
   max-width: 570px;
   min-width: 0;
   padding-block: 24px;
-  animation: ps-hero-content-enter 1s var(--hero-ease) both;
+  /* entrance is now staggered per child (see below) */
 }
 
+/* Shared entrance keyframes */
 @keyframes ps-hero-content-enter {
   from {
     opacity: 0;
@@ -197,6 +220,22 @@
     transform: translate3d(0, 0, 0);
   }
 }
+
+/* Staggered entrance — each block uses --i for its order */
+.ps-hero__eyebrow,
+.ps-hero__divider,
+.ps-hero__tagline,
+.ps-hero__actions,
+.ps-hero__stats {
+  animation: ps-hero-content-enter .9s var(--hero-ease) both;
+  animation-delay: calc(var(--i, 0) * 90ms + 120ms);
+}
+
+.ps-hero__eyebrow { --i: 0; }
+.ps-hero__divider { --i: 3; }
+.ps-hero__tagline { --i: 4; }
+.ps-hero__actions { --i: 5; }
+.ps-hero__stats   { --i: 6; }
 
 /* Eyebrow */
 
@@ -257,6 +296,8 @@
 /* Main title */
 
 .ps-hero__title {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -271,8 +312,33 @@
   text-transform: uppercase;
 }
 
+/* Masked slide-up per line. Padding/negative margin gives the clip box
+   breathing room so caps, descenders and the text-stroke are not cut. */
 .ps-hero__title>span {
   display: block;
+  overflow: clip;
+  padding: .06em .05em;
+  margin: -.06em -.05em;
+}
+
+.ps-hero__title>span>b {
+  display: block;
+  font: inherit;
+  animation: ps-line-up 1s var(--hero-ease) both;
+  animation-delay: calc(var(--i, 1) * 90ms + 120ms);
+}
+
+.ps-hero__title>span:nth-child(1) { --i: 1; }
+.ps-hero__title>span:nth-child(2) { --i: 2; }
+
+@keyframes ps-line-up {
+  from {
+    transform: translateY(125%);
+  }
+
+  to {
+    transform: none;
+  }
 }
 
 .ps-hero__title-second {
@@ -282,27 +348,96 @@
   paint-order: stroke fill;
 }
 
+/* --------------------------------------------------------------------------
+   Compass "A" — an architect's drafting compass replaces the letter A.
+   Inline SVG (viewBox 0 0 76 72) sized from the title's font-size, so it
+   scales with the text. Stroke width is in SVG units: a 1.5px text-stroke
+   on a ~184px title is roughly .85 units.
+   -------------------------------------------------------------------------- */
+
+.ps-compass {
+  --compass-h: .72em;             /* ≈ cap height of the display font */
+  --compass-stroke: .85;
+
+  display: inline-block;
+  width: calc(var(--compass-h) * 76 / 72);
+  height: var(--compass-h);
+  margin: -.06em 0 0 .02em;       /* negative top margin: no line-box growth */
+  vertical-align: baseline;
+  overflow: visible;
+
+  fill: none;
+  stroke: var(--hero-bronze);
+  stroke-width: var(--compass-stroke);
+  stroke-linejoin: miter;
+  stroke-linecap: butt;
+
+  /* gentle drafting sway, hinged at the pivot */
+  transform-origin: 50% 15%;
+  animation: ps-compass-sway 6s ease-in-out 3s infinite alternate;
+}
+
+/* each path draws itself, staggered via --k */
+.ps-compass path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: ps-compass-draw 1.5s var(--hero-ease) both;
+  animation-delay: calc(.9s + var(--k, 0) * .12s);
+}
+
+.ps-compass .ps-compass__leg-l { --k: 0; }
+.ps-compass .ps-compass__leg-r { --k: 1; }
+.ps-compass .ps-compass__arc   { --k: 2; }
+.ps-compass .ps-compass__lead  { --k: 3; }
+.ps-compass .ps-compass__grip  { --k: 4; }
+
+/* hinge sits on top and hides the leg overlap behind it */
+.ps-compass .ps-compass__hinge {
+  --k: 5;
+  fill: var(--hero-cream);
+}
+
+.ps-compass .ps-compass__dot {
+  fill: var(--hero-bronze);
+  stroke: none;
+  animation: ps-reveal .6s ease 2s both;
+}
+
+@keyframes ps-compass-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes ps-compass-sway {
+  from { transform: rotate(-2.2deg); }
+  to   { transform: rotate(2.2deg); }
+}
+
+@media (max-width: 1100px) {
+  .ps-compass { --compass-stroke: 1.1; }
+}
+
+@media (max-width: 520px) {
+  .ps-compass { --compass-stroke: 1.4; }
+}
+
 /* ==========================================================================
-   HERO TITLE — SCROLL PARALLAX
+   HERO TITLE — SCROLL PARALLAX (scroll-driven, runs off the main thread)
+   Unsupported browsers just show a static title.
    ========================================================================== */
 
-.ps-hero__title {
-  position: relative;
-  z-index: 2;
-  will-change: transform, opacity;
-  transform: translateZ(0);
-}
-
-/* Keep the title readable during movement */
-@media (max-width: 800px) {
+@supports (animation-timeline: scroll()) {
   .ps-hero__title {
-    will-change: auto;
+    animation: ps-title-parallax linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 0 90svh;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .ps-hero__title {
-    will-change: auto;
+  @keyframes ps-title-parallax {
+    to {
+      transform: translate3d(0, 60px, 0);
+      opacity: .35;
+    }
   }
 }
 
@@ -314,7 +449,7 @@
   }
 }
 
-/* Title divider */
+/* Title divider — draws itself */
 
 .ps-hero__divider {
   display: flex;
@@ -331,6 +466,8 @@
   display: block;
   height: 2px;
   background: var(--hero-gold);
+  transform-origin: left;
+  animation: ps-grow .7s var(--hero-ease) .5s both;
 }
 
 .ps-hero__divider span:nth-child(1) {
@@ -340,11 +477,19 @@
 .ps-hero__divider span:nth-child(2) {
   width: 24px;
   opacity: .55;
+  animation-delay: .62s;
 }
 
 .ps-hero__divider span:nth-child(3) {
   width: 9px;
   opacity: .3;
+  animation-delay: .74s;
+}
+
+@keyframes ps-grow {
+  from {
+    transform: scaleX(0);
+  }
 }
 
 /* Tagline and CTAs */
@@ -376,16 +521,18 @@
   gap: 12px;
 }
 
-/* CTA — Base / Secondary */
+/* CTA — Base / Secondary, with fill-wipe hover */
 
 .ps-hero__cta {
   position: relative;
+  z-index: 0;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
   gap: 34px;
   min-height: 52px;
   padding: 0 19px;
+  overflow: hidden;
 
   border: 1px solid rgba(31, 30, 27, .25);
   color: var(--hero-charcoal);
@@ -398,20 +545,34 @@
   text-decoration: none;
 
   transition:
-    color .3s ease,
-    background .3s ease,
-    border-color .3s ease,
-    transform .3s ease;
+    color .3s ease .08s,
+    border-color .3s ease;
 }
 
-.ps-hero__cta:hover {
-  transform: translateY(-2px);
+.ps-hero__cta::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background: var(--hero-charcoal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .45s var(--hero-ease);
+}
+
+.ps-hero__cta:hover,
+.ps-hero__cta:focus-visible {
   border-color: var(--hero-charcoal);
   color: #FFFFFF;
-  background: var(--hero-charcoal);
+  background: transparent;
 }
 
-/* Primary CTA — Charcoal */
+.ps-hero__cta:hover::before,
+.ps-hero__cta:focus-visible::before {
+  transform: scaleX(1);
+}
+
+/* Primary CTA — Charcoal base, bronze wipe */
 
 .ps-hero__cta--solid {
   border-color: var(--hero-charcoal);
@@ -419,10 +580,15 @@
   background: var(--hero-charcoal);
 }
 
-.ps-hero__cta--solid:hover {
+.ps-hero__cta--solid::before {
+  background: var(--hero-bronze);
+}
+
+.ps-hero__cta--solid:hover,
+.ps-hero__cta--solid:focus-visible {
   border-color: var(--hero-bronze);
   color: #FFFFFF;
-  background: var(--hero-bronze);
+  background: var(--hero-charcoal);
 }
 
 .ps-hero__cta-arrow {
@@ -518,7 +684,7 @@
 }
 
 /* ==========================================================================
-   04. ILLUSTRATION COLUMN — LAYOUT UNCHANGED
+   04. ILLUSTRATION COLUMN
    ========================================================================== */
 
 .ps-hero__visual {
@@ -542,6 +708,8 @@
   aspect-ratio: 900 / 760;
   margin-inline: auto;
   animation: ps-hero-scene-enter 1.25s .12s var(--hero-ease) both;
+  /* pointer-depth uses the individual `translate` property (set by JS)
+     so it never fights the `transform` used by the entrance animation */
 }
 
 .ps-scene {
@@ -625,6 +793,10 @@
   border-top: 1px solid rgba(31, 30, 27, .12);
   border-bottom: 1px solid rgba(31, 30, 27, .12);
   background: rgba(247, 247, 245, .82);
+
+  /* soft edge fade */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
 }
 
 .ps-hero__strip-track {
@@ -632,11 +804,14 @@
   align-items: center;
   width: max-content;
   min-width: max-content;
-  animation: ps-hero-ticker 45s linear infinite;
+  /* --ticker-duration is set by JS from the real content width,
+     45s is the fallback */
+  animation: ps-hero-ticker var(--ticker-duration, 45s) linear infinite;
   will-change: transform;
 }
 
-.ps-hero__strip:hover .ps-hero__strip-track {
+.ps-hero__strip:hover .ps-hero__strip-track,
+.ps-hero__strip:focus-within .ps-hero__strip-track {
   animation-play-state: paused;
 }
 
@@ -736,12 +911,18 @@
 }
 
 /* ==========================================================================
-   07. SVG ANIMATION SYSTEM — UNCHANGED
+   07. SVG ANIMATION SYSTEM
    ========================================================================== */
 
 .ps-scene {
-  --ps-lift-px: 29px;
-  --ps-lift-scale: 1.151;
+  /* Crane: ONE source of truth.
+     --ps-lift       = hook travel in SVG units
+     --ps-cable-len  = resting cable length in SVG units
+     The cable scale is derived (1 + lift / length), so the cable end
+     always stays attached to the hook. Update --ps-cable-len if the art
+     changes. */
+  --ps-lift: 29;
+  --ps-cable-len: 192;
 }
 
 .ps-scene__reveal {
@@ -776,6 +957,7 @@
   }
 }
 
+/* Requires pathLength="1" on each path (JS sets it if missing) */
 .ps-scene__draw-path {
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
@@ -814,7 +996,7 @@
   }
 
   to {
-    transform: scaleY(var(--ps-lift-scale));
+    transform: scaleY(calc(1 + var(--ps-lift) / var(--ps-cable-len)));
   }
 }
 
@@ -824,7 +1006,7 @@
   }
 
   to {
-    transform: translateY(var(--ps-lift-px));
+    transform: translateY(calc(var(--ps-lift) * 1px));
   }
 }
 
@@ -981,15 +1163,6 @@
   animation-delay: 2s;
 }
 
-@keyframes ps-construction-loop {
-
-  0%,
-  99.99%,
-  100% {
-    visibility: visible;
-  }
-}
-
 @keyframes ps-particle-float {
 
   0%,
@@ -1088,19 +1261,17 @@
     left: 1%;
   }
 
+  /* Heavy / decorative effects off on small screens.
+     .ps-scene__load (a cheap opacity pulse) is kept on purpose so the
+     scene never feels static on mobile, along with the pin pulse. */
   .ps-scene__particles,
-  .ps-hero__glow {
-    display: none;
-  }
-
-  .ps-scene__guides,
-  .ps-scene__load,
-  .ps-hero__scan i {
-    animation: none;
-  }
-
+  .ps-hero__glow,
   .ps-hero__scan {
     display: none;
+  }
+
+  .ps-scene__guides {
+    animation: none;
   }
 }
 
@@ -1247,7 +1418,7 @@
 }
 
 /* ==========================================================================
-   11. ACCESSIBILITY — REDUCED MOTION
+   11. ACCESSIBILITY — REDUCED MOTION (single source of truth)
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1258,6 +1429,19 @@
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+
+  .ps-hero__title,
+  .ps-hero__scan i,
+  .ps-hero__strip-track {
+    will-change: auto;
+  }
+
+  /* Let people scroll the ticker manually instead of freezing it half-visible */
+  .ps-hero__strip {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
   }
 
   .ps-hero__strip-track {

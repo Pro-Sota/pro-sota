@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Reveal } from "./motion_reveal";
+import { ArrowUpRight } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* Elevation drawing                                                   */
@@ -194,16 +195,12 @@ export default function BriefingSection() {
               className="group inline-flex min-h-[52px] items-center gap-6 bg-[#002950] px-6 text-sm font-medium text-white transition-colors duration-300 hover:bg-[#8B6A2F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8B6A2F]"
             >
               <span>Iniciar briefing</span>
-              <svg
+              <ArrowUpRight
+                size={15}
+                strokeWidth={1.5}
                 aria-hidden="true"
-                viewBox="0 0 16 16"
-                className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M3 13 13 3M5 3h8v8" />
-              </svg>
+                className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transition-none"
+              />
             </Link>
 
             <span className="max-w-[16rem] text-xs leading-5 text-[#002950]/70">

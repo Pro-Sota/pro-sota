@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from "framer-motion";
 
 import { SOLUTIONS } from "../solutions/solutions_data";
 import SolutionCard from "./solution_card";
+import { ArrowRight } from "lucide-react";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
@@ -138,19 +139,11 @@ export default function SolutionsSection() {
                             aria-hidden="true"
                             className="flex h-9 w-9 items-center justify-center rounded-full border border-[#D8D1C4] transition-all duration-300 group-hover:border-[#BD9655] group-hover:bg-[#BD9655] group-hover:text-white"
                         >
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"
-                            >
-                                <path
-                                    d="M5 12h14m-6-6 6 6-6 6"
-                                    stroke="currentColor"
-                                    strokeWidth="1.5"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                />
-                            </svg>
+                            <ArrowRight
+                                size={16}
+                                strokeWidth={1.5}
+                                className="transition-transform duration-300 group-hover:translate-x-0.5"
+                            />
                         </span>
                     </Link>
                 </motion.div>

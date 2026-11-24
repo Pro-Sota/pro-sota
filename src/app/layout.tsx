@@ -165,7 +165,6 @@ export default function RootLayout({
         <ToastProvider>
           {children}
         </ToastProvider>
-
         <Analytics />
       </body>
     </html>

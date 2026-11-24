@@ -10,6 +10,7 @@ import ProjectCover from "./project_cover";
 
 import type { LightboxProject } from "./light_box";
 import { motion, useReducedMotion } from "framer-motion";
+import { Eye } from "lucide-react";
 
 // Load the Lightbox only when needed.
 const loadLightbox = () => import("./light_box");
@@ -127,14 +128,7 @@ function ProjectCard({
             </p>
           )}
         </div>
-
-        <span
-          aria-hidden="true"
-          className="mt-0.5 shrink-0 text-base text-[#BD9655] opacity-60"
-        >
-          ↗
-        </span>
-      </div>
+        </div>
     </motion.article>
   );
 }
@@ -262,7 +256,7 @@ export default function ProjectsShowcase({
               className={`group inline-flex items-center gap-3 border-b border-[#BD9655] pb-2 font-body text-[11px] font-medium uppercase tracking-[0.14em] text-[#1F1E1B] transition-colors duration-300 hover:text-[#8B6A2F] ${FOCUS_RING}`}
             >
               Ver todos os projectos
-            
+
             </Link>
           </div>
         </div>

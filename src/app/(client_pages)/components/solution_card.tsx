@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import type { Solution } from "../solutions/solutions_data";
+import { ArrowUpRight } from "lucide-react";
 
 type SolutionCardProps = {
     solution: Solution;
@@ -56,21 +57,13 @@ export default function SolutionCard({
                 {/* Image arrow */}
                 <span
                     aria-hidden="true"
-                    className="absolute bottom-5 right-5 flex h-10 w-10 items-center justify-center rounded-full border border-white/50 text-white transition-all duration-300 group-hover:border-[#BD9655] group-hover:bg-[#BD9655]"
+                    className="absolute bottom-5 right-5 flex size-10 items-center justify-center rounded-full border border-white/50 text-white transition-all duration-300 group-hover:border-[#BD9655] group-hover:bg-[#BD9655]"
                 >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                    >
-                        <path
-                            d="M7 17 17 7M7 7h10v10"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        />
-                    </svg>
+                    <ArrowUpRight
+                        size={17}
+                        strokeWidth={1.5}
+                        className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                    />
                 </span>
             </Link>
 
@@ -80,10 +73,10 @@ export default function SolutionCard({
             </span>
 
             {/* Title */}
-            <h3 className="font-heading text-[clamp(1.7rem,2.5vw,2.2rem)] font-medium leading-[1.1] tracking-[-0.045em] text-[#002950] transition-colors duration-300 group-hover:text-[#8B6A2F]">
+            <h3 className="font-heading text-[clamp(1.7rem,2.5vw,2.2rem)] font-medium leading-[1.1] tracking-[-0.045em] text-[#002950] ">
                 <Link
                     href={detailsHref}
-                    className="outline-none focus-visible:text-[#8B6A2F] focus-visible:underline"
+                    className="outline-none focus-visible:underline"
                 >
                     {name}
                 </Link>
