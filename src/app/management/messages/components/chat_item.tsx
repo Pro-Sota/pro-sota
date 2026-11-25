@@ -1,3 +1,4 @@
+
 import type { ChatSummary } from "@/services/messages";
 
 export type ConversationWithDetails = ChatSummary;
@@ -30,21 +31,29 @@ export default function ChatItem({
       onClick={() => onSelect(chat.id)}
       aria-current={isSelected ? "page" : undefined}
       aria-label={`${chat.displayName} - ${
-        chat.lastMessage || "Sem mensagens"
+        hasUnread
+          ? `${chat.unreadCount} mensagens não lidas`
+          : chat.lastMessage || "Sem mensagens"
       }`}
       className="group w-full px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#BD9655]"
     >
       <div
         className={`relative flex items-center gap-3 rounded-xl border px-3 py-3 transition-all duration-150 ${
-          isSelected
-            ? "border-slate-200 bg-slate-100 shadow-sm"
-            : "border-transparent hover:bg-slate-50 active:bg-slate-100"
+          hasUnread && !isSelected
+            ? "border-[#D7E3ED] bg-[#EFF5FA] hover:bg-[#E7F0F7]"
+            : isSelected
+              ? "border-slate-200 bg-slate-100 shadow-sm"
+              : "border-transparent hover:bg-slate-50 active:bg-slate-100"
         }`}
       >
         {/* Active accent */}
-        {isSelected && (
+        {(isSelected || hasUnread) && (
           <span
-            className="absolute left-1 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-[#BD9655]"
+            className={`absolute left-1 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full ${
+              hasUnread && !isSelected
+                ? "bg-[#002950]"
+                : "bg-[#BD9655]"
+            }`}
             aria-hidden="true"
           />
         )}
@@ -53,9 +62,11 @@ export default function ChatItem({
         <div className="relative shrink-0">
           <div
             className={`flex h-11 w-11 items-center justify-center rounded-full transition-all duration-150 ${
-              isSelected
+              hasUnread && !isSelected
                 ? "bg-[#002950] text-white"
-                : "bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-slate-700 group-hover:shadow-sm"
+                : isSelected
+                  ? "bg-[#002950] text-white"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-slate-700 group-hover:shadow-sm"
             }`}
           >
             {icon}
@@ -69,6 +80,13 @@ export default function ChatItem({
               title="Online"
             />
           )}
+
+          {hasUnread && (
+            <span
+              className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-[#BD9655]"
+              aria-hidden="true"
+            />
+          )}
         </div>
 
         {/* Content */}
@@ -76,10 +94,10 @@ export default function ChatItem({
           <div className="flex min-w-0 items-center gap-2">
             <h3
               className={`min-w-0 flex-1 truncate text-[13px] leading-5 ${
-                isSelected
-                  ? "font-semibold text-[#002950]"
-                  : hasUnread
-                    ? "font-semibold text-slate-950"
+                hasUnread
+                  ? "font-bold text-[#002950]"
+                  : isSelected
+                    ? "font-semibold text-[#002950]"
                     : "font-medium text-slate-800"
               }`}
             >
@@ -90,11 +108,9 @@ export default function ChatItem({
               <time
                 dateTime={chat.lastMessageAt ?? undefined}
                 className={`shrink-0 text-[10px] leading-5 ${
-                  isSelected
-                    ? "font-medium text-slate-500"
-                    : hasUnread
-                      ? "font-medium text-slate-700"
-                      : "text-slate-400"
+                  hasUnread
+                    ? "font-semibold text-[#002950]"
+                    : "text-slate-400"
                 }`}
               >
                 {displayTime}
@@ -103,29 +119,27 @@ export default function ChatItem({
           </div>
 
           <div className="mt-0.5 flex min-w-0 items-center gap-2">
-            <p
-              className={`min-w-0 flex-1 truncate text-xs leading-5 ${
-                isSelected
-                  ? "text-slate-500"
-                  : hasUnread
-                    ? "font-medium text-slate-600"
-                    : "text-slate-400"
-              }`}
-            >
-              {chat.lastMessage || "Sem mensagens"}
-            </p>
+            <div className="min-w-0 flex-1">
+              {hasUnread ? (
+                <p className="truncate text-[11px] font-semibold leading-5 text-[#002950]">
+                  Nova mensagem
+                </p>
+              ) : (
+                <p className="truncate text-xs leading-5 text-slate-400">
+                  {chat.lastMessage || "Sem mensagens"}
+                </p>
+              )}
+            </div>
 
             {hasUnread && (
               <span
                 role="status"
                 aria-label={`${chat.unreadCount} mensagens não lidas`}
-                className={`flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold leading-none ${
-                  isSelected
-                    ? "bg-[#002950] text-white"
-                    : "bg-[#002950] text-white"
-                }`}
+                className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#002950] px-1.5 text-[10px] font-bold leading-none text-white"
               >
-                {chat.unreadCount > 9 ? "9+" : chat.unreadCount}
+                {chat.unreadCount > 99
+                  ? "99+"
+                  : chat.unreadCount}
               </span>
             )}
           </div>

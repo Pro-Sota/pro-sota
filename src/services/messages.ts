@@ -20,22 +20,22 @@ export type ChatSummary = {
 
 
 export interface MessageAttachment {
-    id: string;
-    fileName: string;
-    storagePath: string;
-    mimeType: string;
-    fileSize: number;
-    url: string;
+  id: string;
+  fileName: string;
+  storagePath: string;
+  mimeType: string;
+  fileSize: number;
+  url: string;
 }
 
 export interface MessageView {
-    id: string;
-    content: string;
-    senderId: string;
-    senderName: string;
-    timestamp: string;
-    isOwn: boolean;
-    attachments?: MessageAttachment[];
+  id: string;
+  content: string;
+  senderId: string;
+  senderName: string;
+  timestamp: string;
+  isOwn: boolean;
+  attachments?: MessageAttachment[];
 }
 
 export interface Recipient {
@@ -102,6 +102,66 @@ async function getAuthenticatedClient() {
     supabase,
     user,
   };
+}
+
+async function isAdmin(
+  supabase: Awaited<
+    ReturnType<typeof getAuthenticatedClient>
+  >["supabase"],
+  userId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role_id")
+    .eq("profile_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to verify user role: ${error.message}`,
+    );
+  }
+
+  return Number(data?.role_id) === 1;
+}
+
+async function assertCanReadConversation(
+  supabase: Awaited<
+    ReturnType<typeof getAuthenticatedClient>
+  >["supabase"],
+  conversationId: string,
+  userId: string,
+) {
+  const { data: conversation, error } = await supabase
+    .from("conversations")
+    .select("id, conversation_type")
+    .eq("id", conversationId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to verify conversation: ${error.message}`,
+    );
+  }
+
+  if (!conversation) {
+    throw new Error("Conversation not found");
+  }
+
+  // Admin can read every project conversation without membership.
+  if (
+    conversation.conversation_type === "project" &&
+    await isAdmin(supabase, userId)
+  ) {
+    return;
+  }
+
+  // All other conversations require participant membership.
+  await assertParticipant(
+    supabase,
+    conversationId,
+    userId,
+  );
 }
 
 async function assertParticipant(
@@ -272,9 +332,8 @@ export async function getOrCreateConversation(
     !conversation
   ) {
     throw new Error(
-      `Failed to create conversation: ${
-        conversationError?.message ??
-        "Unknown error"
+      `Failed to create conversation: ${conversationError?.message ??
+      "Unknown error"
       }`,
     );
   }
@@ -334,66 +393,54 @@ export async function getChats(
     limit = 20,
   } = options;
 
-  const {
-    data: participantRows,
-    error: participantError,
-  } = await supabase
-    .from("conversation_participants")
-    .select("conversation_id")
-    .eq("profile_id", user.id);
+  const isProjectAdmin =
+    conversationType === "project" &&
+    await isAdmin(supabase, user.id);
 
-  if (participantError) {
-    throw new Error(
-      `Failed to load user conversations: ${participantError.message}`,
-    );
-  }
+  let conversationIds: string[] = [];
 
-  const ids =
-    participantRows
-      ?.map(
-        (row) => row.conversation_id,
-      )
-      .filter(Boolean) ?? [];
-
-  if (ids.length === 0) {
-    return [];
-  }
-
-  /*
-   * Load conversations and participants in parallel.
-   */
-  const [
-    {
-      data: conversations,
-      error: conversationsError,
-    },
-    {
-      data: participants,
-      error: participantsError,
-    },
-  ] = await Promise.all([
-    supabase
-      .from("conversations")
-      .select(
-        "id, project_id, created_at",
-      )
-      .in("id", ids)
-      .eq(
-        "conversation_type",
-        conversationType,
-      )
-      .order("created_at", {
-        ascending: false,
-      })
-      .limit(limit),
-
-    supabase
+  // Non-admins and all direct-chat queries require membership.
+  if (!isProjectAdmin) {
+    const {
+      data: participantRows,
+      error: participantError,
+    } = await supabase
       .from("conversation_participants")
-      .select(
-        "conversation_id, profile_id",
-      )
-      .in("conversation_id", ids),
-  ]);
+      .select("conversation_id")
+      .eq("profile_id", user.id);
+
+    if (participantError) {
+      throw new Error(
+        `Failed to load user conversations: ${participantError.message}`,
+      );
+    }
+
+    conversationIds =
+      participantRows
+        ?.map((row) => row.conversation_id)
+        .filter(Boolean) ?? [];
+
+    if (conversationIds.length === 0) {
+      return [];
+    }
+  }
+
+  let conversationsQuery = supabase
+    .from("conversations")
+    .select("id, project_id, created_at")
+    .eq("conversation_type", conversationType)
+    .order("created_at", { ascending: false })
+    .limit(Math.min(Math.max(limit, 1), 100));
+
+  if (!isProjectAdmin) {
+    conversationsQuery =
+      conversationsQuery.in("id", conversationIds);
+  }
+
+  const {
+    data: conversations,
+    error: conversationsError,
+  } = await conversationsQuery;
 
   if (conversationsError) {
     throw new Error(
@@ -401,38 +448,35 @@ export async function getChats(
     );
   }
 
+  const conversationList = conversations ?? [];
+
+  if (conversationList.length === 0) {
+    return [];
+  }
+
+  const selectedConversationIds =
+    conversationList.map((conversation) => conversation.id);
+
+  const {
+    data: participants,
+    error: participantsError,
+  } = await supabase
+    .from("conversation_participants")
+    .select("conversation_id, profile_id")
+    .in("conversation_id", selectedConversationIds);
+
   if (participantsError) {
     throw new Error(
       `Failed to load participants: ${participantsError.message}`,
     );
   }
 
-  const conversationList =
-    conversations ?? [];
+  const participantList = participants ?? [];
 
-  if (conversationList.length === 0) {
-    return [];
-  }
-
-  const participantList =
-    participants ?? [];
-
-  const conversationIds =
-    conversationList.map(
-      (conversation) =>
-        conversation.id,
-    );
-
-  /*
-   * Load messages and profiles in parallel.
-   */
   const profileIds = [
     ...new Set(
       participantList
-        .map(
-          (participant) =>
-            participant.profile_id,
-        )
+        .map((participant) => participant.profile_id)
         .filter(Boolean),
     ),
   ];
@@ -440,75 +484,38 @@ export async function getChats(
   const projectIds = [
     ...new Set(
       conversationList
-        .map(
-          (conversation) =>
-            conversation.project_id,
-        )
+        .map((conversation) => conversation.project_id)
         .filter(
-          (
-            projectId,
-          ): projectId is string =>
+          (projectId): projectId is string =>
             Boolean(projectId),
         ),
     ),
   ];
 
   const [
-    {
-      data: messages,
-      error: messagesError,
-    },
-    {
-      data: profiles,
-      error: profilesError,
-    },
-    {
-      data: projects,
-      error: projectsError,
-    },
+    { data: messages, error: messagesError },
+    { data: profiles, error: profilesError },
+    { data: projects, error: projectsError },
   ] = await Promise.all([
     supabase
       .from("messages")
-      .select(
-        "conversation_id, content, created_at",
-      )
-      .in(
-        "conversation_id",
-        conversationIds,
-      )
-      .order("created_at", {
-        ascending: false,
-      }),
+      .select("conversation_id, content, created_at")
+      .in("conversation_id", selectedConversationIds)
+      .order("created_at", { ascending: false }),
 
     profileIds.length > 0
       ? supabase
-          .from("profiles")
-          .select(
-            "profile_id, first_name, last_name",
-          )
-          .in(
-            "profile_id",
-            profileIds,
-          )
-      : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+        .from("profiles")
+        .select("profile_id, first_name, last_name")
+        .in("profile_id", profileIds)
+      : Promise.resolve({ data: [], error: null }),
 
     projectIds.length > 0
       ? supabase
-          .from("projects")
-          .select(
-            "project_id, title",
-          )
-          .in(
-            "project_id",
-            projectIds,
-          )
-      : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+        .from("projects")
+        .select("project_id, title")
+        .in("project_id", projectIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (messagesError) {
@@ -529,49 +536,33 @@ export async function getChats(
     );
   }
 
-  const latestMessages =
-    new Map<
-      string,
-      {
-        content: string;
-        created_at: string | null;
-      }
-    >();
+  const latestMessages = new Map<
+    string,
+    { content: string; created_at: string | null }
+  >();
 
   for (const message of messages ?? []) {
     if (
       message.conversation_id &&
-      !latestMessages.has(
-        message.conversation_id,
-      )
+      !latestMessages.has(message.conversation_id)
     ) {
-      latestMessages.set(
-        message.conversation_id,
-        {
-          content:
-            message.content ?? "",
-          created_at:
-            message.created_at,
-        },
-      );
+      latestMessages.set(message.conversation_id, {
+        content: message.content ?? "",
+        created_at: message.created_at,
+      });
     }
   }
 
-  const profilesById =
-    new Map<
-      string,
-      ProfilePreview
-    >();
+  const profilesById = new Map<
+    string,
+    ProfilePreview
+  >();
 
   for (const profile of profiles ?? []) {
-    profilesById.set(
-      profile.profile_id,
-      profile,
-    );
+    profilesById.set(profile.profile_id, profile);
   }
 
-  const projectNames =
-    new Map<string, string>();
+  const projectNames = new Map<string, string>();
 
   for (const project of projects ?? []) {
     projectNames.set(
@@ -589,9 +580,7 @@ export async function getChats(
         participant.conversation_id,
       ) ?? [];
 
-    list.push(
-      participant.profile_id,
-    );
+    list.push(participant.profile_id);
 
     participantsByConversation.set(
       participant.conversation_id,
@@ -602,39 +591,29 @@ export async function getChats(
   return conversationList
     .map((conversation) => {
       const conversationParticipants =
-        participantsByConversation.get(
-          conversation.id,
-        ) ?? [];
+        participantsByConversation.get(conversation.id) ?? [];
 
       const otherParticipantId =
         conversationParticipants.find(
-          (profileId) =>
-            profileId !== user.id,
+          (profileId) => profileId !== user.id,
         );
 
-      const otherProfile =
-        otherParticipantId
-          ? profilesById.get(
-              otherParticipantId,
-            )
-          : undefined;
-
-      const latestMessage =
-        latestMessages.get(
-          conversation.id,
-        );
+      const otherProfile = otherParticipantId
+        ? profilesById.get(otherParticipantId)
+        : undefined;
 
       const firstName =
-        otherProfile?.first_name?.trim() ??
-        "";
+        otherProfile?.first_name?.trim() ?? "";
 
       const lastName =
-        otherProfile?.last_name?.trim() ??
-        "";
+        otherProfile?.last_name?.trim() ?? "";
 
       const otherName =
         `${firstName} ${lastName}`.trim() ||
         "Conversa direta";
+
+      const latestMessage =
+        latestMessages.get(conversation.id);
 
       return {
         id: conversation.id,
@@ -643,23 +622,16 @@ export async function getChats(
             ? otherParticipantId ?? null
             : null,
         conversationType,
-        projectId:
-          conversation.project_id ??
-          null,
+        projectId: conversation.project_id ?? null,
         displayName:
           conversationType === "project"
             ? projectNames.get(
-                conversation.project_id ??
-                  "",
-              ) ??
-              "Projeto sem nome"
+              conversation.project_id ?? "",
+            ) ?? "Projeto sem nome"
             : otherName,
-        // Realtime Presence determines live online status on the client.
         isOnline: false,
         unreadCount: 0,
-        lastMessage:
-          latestMessage?.content ??
-          "",
+        lastMessage: latestMessage?.content ?? "",
         lastMessageAt:
           latestMessage?.created_at ??
           conversation.created_at,
@@ -667,15 +639,11 @@ export async function getChats(
     })
     .sort((a, b) => {
       const dateA = a.lastMessageAt
-        ? new Date(
-            a.lastMessageAt,
-          ).getTime()
+        ? new Date(a.lastMessageAt).getTime()
         : 0;
 
       const dateB = b.lastMessageAt
-        ? new Date(
-            b.lastMessageAt,
-          ).getTime()
+        ? new Date(b.lastMessageAt).getTime()
         : 0;
 
       return dateB - dateA;
@@ -732,10 +700,6 @@ export async function getConversation(
     );
   }
 
-  if (!participant) {
-    return null;
-  }
-
   if (conversationError) {
     throw new Error(
       `Failed to load conversation: ${conversationError.message}`,
@@ -744,6 +708,16 @@ export async function getConversation(
 
   if (!conversation) {
     return null;
+  }
+
+  if (!participant) {
+    const canAdminRead =
+      conversation.conversation_type === "project" &&
+      await isAdmin(supabase, user.id);
+
+    if (!canAdminRead) {
+      return null;
+    }
   }
 
   /*
@@ -807,76 +781,77 @@ export async function getConversation(
     );
 
 
-let displayName = "Conversa direta";
-let isOnline = false;
-let profileId: string | null = null;
+  let displayName = "Conversa direta";
+  let isOnline = false;
+  let profileId: string | null = null;
 
-if (conversation.conversation_type === "project") {
-  if (conversation.project_id) {
+  if (conversation.conversation_type === "project") {
+    if (conversation.project_id) {
+      const {
+        data: project,
+        error: projectError,
+      } = await supabase
+        .from("projects")
+        .select("project_id, title")
+        .eq("project_id", conversation.project_id)
+        .maybeSingle();
+
+      if (projectError) {
+        throw new Error(
+          `Failed to load conversation project: ${projectError.message}`,
+        );
+      }
+
+      displayName = project?.title ?? "Projeto sem nome";
+    } else {
+      displayName = "Projeto sem nome";
+    }
+  } else if (otherParticipantId) {
     const {
-      data: project,
-      error: projectError,
+      data: profile,
+      error: profileError,
     } = await supabase
-      .from("projects")
-      .select("project_id, title")
-      .eq("project_id", conversation.project_id)
+      .from("profiles")
+      .select("profile_id, first_name, last_name")
+      .eq("profile_id", otherParticipantId)
       .maybeSingle();
 
-    if (projectError) {
+    if (profileError) {
       throw new Error(
-        `Failed to load conversation project: ${projectError.message}`,
+        `Failed to load conversation profile: ${profileError.message}`,
       );
     }
 
-    displayName = project?.title ?? "Projeto sem nome";
-  } else {
-    displayName = "Projeto sem nome";
-  }
-} else if (otherParticipantId) {
-  const {
-    data: profile,
-    error: profileError,
-  } = await supabase
-    .from("profiles")
-    .select("profile_id, first_name, last_name")
-    .eq("profile_id", otherParticipantId)
-    .maybeSingle();
+    const firstName = profile?.first_name?.trim() ?? "";
+    const lastName = profile?.last_name?.trim() ?? "";
 
-  if (profileError) {
-    throw new Error(
-      `Failed to load conversation profile: ${profileError.message}`,
-    );
+    displayName =
+      `${firstName} ${lastName}`.trim() || "Conversa direta";
+
+    // Use the actual profile primary key for Realtime Presence.
+    profileId = profile?.profile_id ?? otherParticipantId;
+
+    // Live online status is determined by the client-side
+    // Supabase Realtime Presence hook, not this database query.
+    isOnline = false;
   }
 
-  const firstName = profile?.first_name?.trim() ?? "";
-  const lastName = profile?.last_name?.trim() ?? "";
-
-  displayName =
-    `${firstName} ${lastName}`.trim() || "Conversa direta";
-
-  // Use the actual profile primary key for Realtime Presence.
-  profileId = profile?.profile_id ?? otherParticipantId;
-
-  // Live online status is determined by the client-side
-  // Supabase Realtime Presence hook, not this database query.
-  isOnline = false;
+  return {
+    id: conversation.id,
+    profileId,
+    conversationType:
+      conversation.conversation_type === "project"
+        ? "project"
+        : "direct",
+    projectId: conversation.project_id ?? null,
+    displayName,
+    isOnline,
+    unreadCount: 0,
+    lastMessage: latestMessage?.content ?? "",
+    lastMessageAt:
+      latestMessage?.created_at ?? conversation.created_at,
+  };
 }
-
-return {
-  id: conversation.id,
-  profileId,
-  conversationType:
-    conversation.conversation_type === "project"
-      ? "project"
-      : "direct",
-  projectId: conversation.project_id ?? null,
-  displayName,
-  isOnline,
-  unreadCount: 0,
-  lastMessage: latestMessage?.content ?? "",
-  lastMessageAt:
-    latestMessage?.created_at ?? conversation.created_at,
-};}
 
 export interface GetMessagesOptions {
   conversationId: string;
@@ -903,7 +878,7 @@ export async function getMessages(
   const { supabase, user } =
     await getAuthenticatedClient();
 
-  await assertParticipant(
+  await assertCanReadConversation(
     supabase,
     conversationId,
     user.id,
@@ -968,13 +943,13 @@ export async function getMessages(
   ] = await Promise.all([
     senderIds.length > 0
       ? supabase
-          .from("profiles")
-          .select("profile_id, first_name, last_name")
-          .in("profile_id", senderIds)
+        .from("profiles")
+        .select("profile_id, first_name, last_name")
+        .in("profile_id", senderIds)
       : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+        data: [],
+        error: null,
+      }),
 
     getAttachmentsForMessages(
       supabase,
@@ -1006,8 +981,7 @@ export async function getMessages(
       : undefined;
 
     const senderName = sender
-      ? `${sender.first_name ?? ""} ${
-          sender.last_name ?? ""
+      ? `${sender.first_name ?? ""} ${sender.last_name ?? ""
         }`.trim() || "Utilizador desconhecido"
       : "Utilizador desconhecido";
 
@@ -1108,9 +1082,8 @@ export async function sendMessage(
   }
 
   const senderName =
-    `${senderProfile?.first_name ?? ""} ${
-      senderProfile?.last_name ?? ""
-    }`.trim() ||
+    `${senderProfile?.first_name ?? ""} ${senderProfile?.last_name ?? ""
+      }`.trim() ||
     "Utilizador";
 
   return {
@@ -1159,9 +1132,8 @@ export async function getMessageRecipients(): Promise<
       profileId:
         profile.profile_id,
       name:
-        `${profile.first_name ?? ""} ${
-          profile.last_name ?? ""
-        }`.trim() ||
+        `${profile.first_name ?? ""} ${profile.last_name ?? ""
+          }`.trim() ||
         "Utilizador",
       department:
         profile.department ?? null,
@@ -1177,48 +1149,48 @@ const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 const MAX_ATTACHMENTS = 5;
 
 const ALLOWED_ATTACHMENT_TYPES = new Set([
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]);
 
 function validateAttachments(files: File[]) {
-    if (files.length > MAX_ATTACHMENTS) {
-        throw new Error("Pode anexar no máximo 5 ficheiros.");
+  if (files.length > MAX_ATTACHMENTS) {
+    throw new Error("Pode anexar no máximo 5 ficheiros.");
+  }
+
+  for (const file of files) {
+    if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
+      throw new Error(
+        `Formato não permitido: ${file.name}`,
+      );
     }
 
-    for (const file of files) {
-        if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
-            throw new Error(
-                `Formato não permitido: ${file.name}`,
-            );
-        }
-
-        if (file.size > MAX_ATTACHMENT_SIZE) {
-            throw new Error(
-                `O ficheiro ${file.name} ultrapassa 10 MB.`,
-            );
-        }
-
-        if (file.size <= 0) {
-            throw new Error(
-                `O ficheiro ${file.name} está vazio.`,
-            );
-        }
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      throw new Error(
+        `O ficheiro ${file.name} ultrapassa 10 MB.`,
+      );
     }
+
+    if (file.size <= 0) {
+      throw new Error(
+        `O ficheiro ${file.name} está vazio.`,
+      );
+    }
+  }
 }
 
 function safeFileName(name: string) {
-    return name
-        .normalize("NFKD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-zA-Z0-9._-]/g, "_")
-        .slice(0, 120);
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .slice(0, 120);
 }
 
 async function getAttachmentsForMessages(
@@ -1300,147 +1272,147 @@ async function getAttachmentsForMessages(
 }
 
 export async function sendMessageWithAttachments(
-    conversationId: string,
-    content: string,
-    files: File[],
+  conversationId: string,
+  content: string,
+  files: File[],
 ): Promise<MessageView> {
-    validateId(conversationId, "Conversation ID");
-    validateAttachments(files);
+  validateId(conversationId, "Conversation ID");
+  validateAttachments(files);
 
-    const trimmedContent = content.trim();
+  const trimmedContent = content.trim();
 
-    if (!trimmedContent && files.length === 0) {
-        throw new Error(
-            "Escreva uma mensagem ou seleccione um ficheiro.",
-        );
-    }
+  if (!trimmedContent && files.length === 0) {
+    throw new Error(
+      "Escreva uma mensagem ou seleccione um ficheiro.",
+    );
+  }
 
-    if (trimmedContent.length > 4000) {
-        throw new Error("A mensagem é demasiado longa.");
-    }
+  if (trimmedContent.length > 4000) {
+    throw new Error("A mensagem é demasiado longa.");
+  }
 
-    const { supabase, user } =
-        await getAuthenticatedClient();
+  const { supabase, user } =
+    await getAuthenticatedClient();
 
-    await assertParticipant(
-        supabase,
+  await assertParticipant(
+    supabase,
+    conversationId,
+    user.id,
+  );
+
+  const { data: profile, error: profileError } =
+    await supabase
+      .from("profiles")
+      .select("first_name, last_name")
+      .eq("profile_id", user.id)
+      .maybeSingle();
+
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+
+  const senderName =
+    `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`
+      .trim() || "Utilizador";
+
+  const { data: message, error: messageError } =
+    await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: trimmedContent,
+      })
+      .select(
+        "id, content, sender_id, created_at",
+      )
+      .single();
+
+  if (messageError || !message) {
+    throw new Error(
+      messageError?.message ??
+      "Não foi possível criar a mensagem.",
+    );
+  }
+
+  const uploadedPaths: string[] = [];
+
+  try {
+    for (const file of files) {
+      const path = [
         conversationId,
         user.id,
-    );
+        message.id,
+        `${crypto.randomUUID()}-${safeFileName(file.name)}`,
+      ].join("/");
 
-    const { data: profile, error: profileError } =
-        await supabase
-            .from("profiles")
-            .select("first_name, last_name")
-            .eq("profile_id", user.id)
-            .maybeSingle();
+      const { error: uploadError } =
+        await supabase.storage
+          .from("chat-attachments")
+          .upload(path, file, {
+            contentType: file.type,
+            upsert: false,
+          });
 
-    if (profileError) {
-        throw new Error(profileError.message);
-    }
-
-    const senderName =
-        `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`
-            .trim() || "Utilizador";
-
-    const { data: message, error: messageError } =
-        await supabase
-            .from("messages")
-            .insert({
-                conversation_id: conversationId,
-                sender_id: user.id,
-                content: trimmedContent,
-            })
-            .select(
-                "id, content, sender_id, created_at",
-            )
-            .single();
-
-    if (messageError || !message) {
+      if (uploadError) {
         throw new Error(
-            messageError?.message ??
-            "Não foi possível criar a mensagem.",
+          `Falha ao carregar ${file.name}: ${uploadError.message}`,
         );
-    }
+      }
 
-    const uploadedPaths: string[] = [];
+      uploadedPaths.push(path);
 
-    try {
-        for (const file of files) {
-            const path = [
-                conversationId,
-                user.id,
-                message.id,
-                `${crypto.randomUUID()}-${safeFileName(file.name)}`,
-            ].join("/");
-
-            const { error: uploadError } =
-                await supabase.storage
-                    .from("chat-attachments")
-                    .upload(path, file, {
-                        contentType: file.type,
-                        upsert: false,
-                    });
-
-            if (uploadError) {
-                throw new Error(
-                    `Falha ao carregar ${file.name}: ${uploadError.message}`,
-                );
-            }
-
-            uploadedPaths.push(path);
-
-            const { error: attachmentError } =
-                await supabase
-                    .from("message_attachments")
-                    .insert({
-                        message_id: message.id,
-                        conversation_id: conversationId,
-                        file_name: file.name,
-                        storage_path: path,
-                        mime_type: file.type,
-                        file_size: file.size,
-                    });
-
-            if (attachmentError) {
-                throw new Error(
-                    `Falha ao registar ${file.name}: ${attachmentError.message}`,
-                );
-            }
-        }
-
-        const attachmentsMap =
-            await getAttachmentsForMessages(
-                supabase,
-                [message.id],
-            );
-
-        return {
-            id: message.id,
-            content: message.content ?? "",
-            senderId: message.sender_id ?? user.id,
-            senderName,
-            timestamp:
-                message.created_at ??
-                new Date().toISOString(),
-            isOwn: true,
-            attachments:
-                attachmentsMap.get(message.id) ?? [],
-        };
-    } catch (error) {
-        if (uploadedPaths.length) {
-            await supabase.storage
-                .from("chat-attachments")
-                .remove(uploadedPaths);
-        }
-
+      const { error: attachmentError } =
         await supabase
-            .from("messages")
-            .delete()
-            .eq("id", message.id);
+          .from("message_attachments")
+          .insert({
+            message_id: message.id,
+            conversation_id: conversationId,
+            file_name: file.name,
+            storage_path: path,
+            mime_type: file.type,
+            file_size: file.size,
+          });
 
-        throw error;
+      if (attachmentError) {
+        throw new Error(
+          `Falha ao registar ${file.name}: ${attachmentError.message}`,
+        );
+      }
     }
+
+    const attachmentsMap =
+      await getAttachmentsForMessages(
+        supabase,
+        [message.id],
+      );
+
+    return {
+      id: message.id,
+      content: message.content ?? "",
+      senderId: message.sender_id ?? user.id,
+      senderName,
+      timestamp:
+        message.created_at ??
+        new Date().toISOString(),
+      isOwn: true,
+      attachments:
+        attachmentsMap.get(message.id) ?? [],
+    };
+  } catch (error) {
+    if (uploadedPaths.length) {
+      await supabase.storage
+        .from("chat-attachments")
+        .remove(uploadedPaths);
+    }
+
+    await supabase
+      .from("messages")
+      .delete()
+      .eq("id", message.id);
+
+    throw error;
+  }
 }
 
 export async function getMessageById(
@@ -1475,7 +1447,7 @@ export async function getMessageById(
     );
   }
 
-  await assertParticipant(
+  await assertCanReadConversation(
     supabase,
     message.conversation_id,
     user.id,
@@ -1492,14 +1464,14 @@ export async function getMessageById(
 
     message.sender_id
       ? supabase
-          .from("profiles")
-          .select("first_name, last_name")
-          .eq("profile_id", message.sender_id)
-          .maybeSingle()
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("profile_id", message.sender_id)
+        .maybeSingle()
       : Promise.resolve({
-          data: null,
-          error: null,
-        }),
+        data: null,
+        error: null,
+      }),
   ]);
 
   if (profileError) {
@@ -1513,9 +1485,8 @@ export async function getMessageById(
     content: message.content ?? "",
     senderId: message.sender_id ?? "",
     senderName:
-      `${profile?.first_name ?? ""} ${
-        profile?.last_name ?? ""
-      }`.trim() || "Utilizador",
+      `${profile?.first_name ?? ""} ${profile?.last_name ?? ""
+        }`.trim() || "Utilizador",
     timestamp:
       message.created_at ?? new Date().toISOString(),
     isOwn: message.sender_id === user.id,

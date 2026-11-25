@@ -725,7 +725,7 @@ function RecentActivitiesSection({
       <SectionHeader
         title="A minha actividade"
         description="Registo das suas actividades recentes."
-        href="/management/activity"
+        href="/management/activities"
         actionLabel="Ver todas"
       />
 

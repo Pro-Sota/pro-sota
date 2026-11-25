@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -6,14 +7,17 @@ import {
     User,
     Plus,
 } from "lucide-react";
+
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { createClient } from "@/app/lib/supabase/client";
+import { useOnlineUsers } from "@/app/hooks/use_online_users";
 
 import { LABELS } from "./chat_labels";
 import ChatSection from "./chat_section";
 import type { ConversationWithDetails } from "./chat_item";
 import NewConversationModal from "./new_message_modal";
-import { useOnlineUsers } from "@/app/hooks/use_online_users";
 
 interface MessageSideBarProps {
     projectConversations: ConversationWithDetails[];
@@ -29,6 +33,21 @@ interface MessagesUpdatedDetail {
     isOnline: boolean;
 }
 
+interface RealtimeMessage {
+    id: string;
+    conversation_id: string;
+    content: string | null;
+    sender_id: string | null;
+    created_at: string | null;
+}
+
+interface ReceivedMessageDetail {
+    messageId: string;
+    conversationId: string;
+    content: string;
+    createdAt: string;
+}
+
 export default function MessageSideBar({
     projectConversations,
     directConversations,
@@ -36,15 +55,10 @@ export default function MessageSideBar({
 }: MessageSideBarProps) {
     const params = useParams();
 
+    const supabase = useMemo(() => createClient(), []);
+
     const [showNewConversationModal, setShowNewConversationModal] =
         useState(false);
-
-    const chatId =
-        typeof params.chatId === "string"
-            ? params.chatId
-            : Array.isArray(params.chatId)
-                ? params.chatId[0]
-                : undefined;
 
     const [projectChats, setProjectChats] =
         useState(projectConversations);
@@ -54,6 +68,101 @@ export default function MessageSideBar({
 
     const { onlineUserIds } = useOnlineUsers(currentUserId);
 
+    const chatId =
+        typeof params.chatId === "string"
+            ? params.chatId
+            : Array.isArray(params.chatId)
+                ? params.chatId[0]
+                : undefined;
+
+    /*
+     * --------------------------------------------------
+     * REALTIME - ALL INCOMING MESSAGES
+     * --------------------------------------------------
+     *
+     * This subscription monitors messages across all
+     * conversations accessible to the authenticated user.
+     *
+     * ChatSection receives message:received and updates
+     * the corresponding conversation preview and unread count.
+     */
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const channel = supabase
+            .channel(`sidebar-messages:${currentUserId}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "messages",
+                },
+                (payload) => {
+                    if (cancelled) return;
+
+                    const message =
+                        payload.new as RealtimeMessage;
+
+                    if (
+                        !message.id ||
+                        !message.conversation_id ||
+                        !message.sender_id ||
+                        message.sender_id === currentUserId
+                    ) {
+                        return;
+                    }
+
+                    const detail: ReceivedMessageDetail = {
+                        messageId: message.id,
+                        conversationId: message.conversation_id,
+                        content: message.content ?? "",
+                        createdAt:
+                            message.created_at ??
+                            new Date().toISOString(),
+                    };
+
+                    window.dispatchEvent(
+                        new CustomEvent<ReceivedMessageDetail>(
+                            "message:received",
+                            { detail },
+                        ),
+                    );
+                },
+            );
+
+        channel.subscribe((status) => {
+            if (status === "SUBSCRIBED") {
+                console.log(
+                    "Sidebar messages realtime connected:",
+                    currentUserId,
+                );
+            }
+
+            if (
+                status === "CHANNEL_ERROR" ||
+                status === "TIMED_OUT"
+            ) {
+                console.error(
+                    "Sidebar messages realtime error:",
+                    status,
+                );
+            }
+        });
+
+        return () => {
+            cancelled = true;
+            void supabase.removeChannel(channel);
+        };
+    }, [supabase, currentUserId]);
+
+    /*
+     * --------------------------------------------------
+     * SYNC SERVER DATA
+     * --------------------------------------------------
+     */
+
     useEffect(() => {
         setProjectChats(projectConversations);
     }, [projectConversations]);
@@ -61,6 +170,12 @@ export default function MessageSideBar({
     useEffect(() => {
         setDirectChats(directConversations);
     }, [directConversations]);
+
+    /*
+     * --------------------------------------------------
+     * NEW / UPDATED DIRECT CONVERSATIONS
+     * --------------------------------------------------
+     */
 
     useEffect(() => {
         const handleMessagesUpdated = (event: Event) => {
@@ -82,6 +197,8 @@ export default function MessageSideBar({
                         {
                             ...existing,
                             displayName: detail.name,
+                            profileId:
+                                detail.userId ?? existing.profileId,
                         },
                         ...currentChats.filter(
                             (chat) => chat.id !== detail.conversationId,
@@ -89,8 +206,6 @@ export default function MessageSideBar({
                     ];
                 }
 
-                // A newly created conversation should ideally provide
-                // the other participant's profileId in this event.
                 const newChat: ConversationWithDetails = {
                     id: detail.conversationId,
                     conversationType: "direct",
@@ -107,7 +222,10 @@ export default function MessageSideBar({
             });
         };
 
-        window.addEventListener("messages:updated", handleMessagesUpdated);
+        window.addEventListener(
+            "messages:updated",
+            handleMessagesUpdated,
+        );
 
         return () => {
             window.removeEventListener(
@@ -117,7 +235,12 @@ export default function MessageSideBar({
         };
     }, []);
 
-    // Derive online status from live Presence, not profiles.status.
+    /*
+     * --------------------------------------------------
+     * LIVE PRESENCE
+     * --------------------------------------------------
+     */
+
     const liveProjectChats = projectChats.map((chat) => ({
         ...chat,
         isOnline: false,
@@ -126,9 +249,16 @@ export default function MessageSideBar({
     const liveDirectChats = directChats.map((chat) => ({
         ...chat,
         isOnline: Boolean(
-            chat.profileId && onlineUserIds.has(chat.profileId),
+            chat.profileId &&
+            onlineUserIds.has(chat.profileId),
         ),
     }));
+
+    /*
+     * --------------------------------------------------
+     * RENDER
+     * --------------------------------------------------
+     */
 
     return (
         <aside className="hidden h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white lg:flex">

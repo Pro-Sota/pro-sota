@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useOnlineUsersContext } from "@/app/hooks/online_users_context";
@@ -15,7 +16,6 @@ import {
     Clock3,
     Download,
     FileText,
-    Loader2,
     RotateCcw,
 } from "lucide-react";
 
@@ -260,11 +260,10 @@ function MessageAttachments({
                             />
 
                             <span
-                                className={`mt-1 block truncate text-[11px] ${
-                                    isOwn
+                                className={`mt-1 block truncate text-[11px] ${isOwn
                                         ? "text-white/65"
                                         : "text-slate-500"
-                                }`}
+                                    }`}
                             >
                                 {attachment.fileName}
                             </span>
@@ -278,18 +277,16 @@ function MessageAttachments({
                         href={attachment.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 transition-colors ${
-                            isOwn
+                        className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 transition-colors ${isOwn
                                 ? "border-white/15 bg-white/10 hover:bg-white/15"
                                 : "border-slate-200 bg-white hover:bg-slate-50"
-                        }`}
+                            }`}
                     >
                         <span
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                                isOwn
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isOwn
                                     ? "bg-white/10 text-white"
                                     : "bg-slate-100 text-slate-600"
-                            }`}
+                                }`}
                         >
                             <FileText
                                 size={19}
@@ -299,21 +296,19 @@ function MessageAttachments({
 
                         <span className="min-w-0 flex-1">
                             <span
-                                className={`block truncate text-xs font-medium ${
-                                    isOwn
+                                className={`block truncate text-xs font-medium ${isOwn
                                         ? "text-white"
                                         : "text-slate-800"
-                                }`}
+                                    }`}
                             >
                                 {attachment.fileName}
                             </span>
 
                             <span
-                                className={`mt-0.5 block text-[11px] ${
-                                    isOwn
+                                className={`mt-0.5 block text-[11px] ${isOwn
                                         ? "text-white/60"
                                         : "text-slate-500"
-                                }`}
+                                    }`}
                             >
                                 {formatFileSize(attachment.fileSize)}
                             </span>
@@ -321,11 +316,10 @@ function MessageAttachments({
 
                         <Download
                             size={16}
-                            className={`shrink-0 ${
-                                isOwn
+                            className={`shrink-0 ${isOwn
                                     ? "text-white/70"
                                     : "text-slate-500"
-                            }`}
+                                }`}
                             aria-hidden="true"
                         />
                     </a>
@@ -753,7 +747,7 @@ export default function ChatView({
                                     ...current,
                                     [hydratedMessage.id]:
                                         current[hydratedMessage.id] === "read" ||
-                                        current[hydratedMessage.id] === "delivered"
+                                            current[hydratedMessage.id] === "delivered"
                                             ? current[hydratedMessage.id]
                                             : "sent",
                                 }));
@@ -830,7 +824,7 @@ export default function ChatView({
                             ...current,
                             [realtimeMessage.id]:
                                 current[realtimeMessage.id] === "read" ||
-                                current[realtimeMessage.id] === "delivered"
+                                    current[realtimeMessage.id] === "delivered"
                                     ? current[realtimeMessage.id]
                                     : "sent",
                         }));
@@ -1064,23 +1058,20 @@ function MessageList({
                         )}
 
                         <div
-                            className={`flex ${
-                                message.isOwn
+                            className={`flex ${message.isOwn
                                     ? "justify-end"
                                     : "justify-start"
-                            }`}
+                                }`}
                         >
                             <div className="flex max-w-[90%] items-end gap-2 sm:max-w-[85%]">
                                 <div
-                                    className={`min-w-0 max-w-full rounded-lg px-4 py-2 sm:max-w-xs lg:max-w-md xl:max-w-lg ${
-                                        message.isOwn
+                                    className={`min-w-0 max-w-full rounded-lg px-4 py-2 sm:max-w-xs lg:max-w-md xl:max-w-lg ${message.isOwn
                                             ? "rounded-br-none bg-[#002950] text-white"
                                             : "rounded-bl-none bg-[#F1F5F9] text-slate-900"
-                                    } ${
-                                        status === "failed"
+                                        } ${status === "failed"
                                             ? "ring-1 ring-red-400"
                                             : ""
-                                    }`}
+                                        }`}
                                 >
                                     {!message.isOwn && (
                                         <p className="mb-1 text-xs font-semibold opacity-75">
@@ -1100,11 +1091,10 @@ function MessageList({
                                     />
 
                                     <div
-                                        className={`mt-1 flex items-center justify-end gap-1 text-xs ${
-                                            message.isOwn
+                                        className={`mt-1 flex items-center justify-end gap-1 text-xs ${message.isOwn
                                                 ? "text-slate-300"
                                                 : "text-slate-600"
-                                        }`}
+                                            }`}
                                     >
                                         <span>
                                             {new Date(

@@ -3,17 +3,6 @@ import { cookies } from "next/headers";
 import { createClient } from "@/app/lib/supabase/server";
 import type { Database } from "@/app/lib/supabase/models";
 
-type ProjectPhase =
-    Database["public"]["Tables"]["project_phases"]["Row"];
-
-type Deliverable =
-    Database["public"]["Tables"]["deliverables"]["Row"];
-
-type Stage =
-    Database["public"]["Tables"]["phase_stages"]["Row"];
-
-type Milestone =
-    Database["public"]["Tables"]["milestones"]["Row"];
 
 /* -------------------------------------------------------------------------- */
 /* Supabase helper                                                            */
