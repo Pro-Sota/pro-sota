@@ -201,9 +201,8 @@ function FadeImage({
       draggable={false}
       onLoad={() => setLoaded(true)}
       onError={() => setFailed(true)}
-      className={`object-cover transition-opacity duration-500 motion-reduce:transition-none ${
-        loaded ? "opacity-100" : "opacity-0"
-      } ${className}`}
+      className={`object-cover transition-opacity duration-500 motion-reduce:transition-none ${loaded ? "opacity-100" : "opacity-0"
+        } ${className}`}
     />
   );
 }
@@ -332,19 +331,17 @@ function ProjectList({
                 type="button"
                 onClick={() => onSelect(project.id)}
                 aria-current={isActive ? "true" : undefined}
-                className={`group relative flex w-full flex-col border-b py-4 text-left transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#BD9655] ${
-                  isActive
+                className={`group relative flex w-full flex-col border-b py-4 text-left transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#BD9655] ${isActive
                     ? "border-[#BD9655]"
                     : "border-[#1F1E1B]/10 hover:border-[#1F1E1B]/30"
-                }`}
+                  }`}
               >
                 <span className="mb-3 flex items-center justify-between">
                   <span
-                    className={`text-[11px] tabular-nums ${
-                      isActive
+                    className={`text-[11px] tabular-nums ${isActive
                         ? "text-[#8B6A2F]"
                         : "text-[#5F5B54]"
-                    }`}
+                      }`}
                   >
                     {pad(index + 1)}
                   </span>
@@ -358,11 +355,10 @@ function ProjectList({
                 </span>
 
                 <span
-                  className={`text-sm font-semibold leading-snug tracking-[-0.02em] transition-colors ${
-                    isActive
-                      ? "text-[#1F1E1B]"
-                      : "text-[#5F5B54] group-hover:text-[#1F1E1B]"
-                  }`}
+                  className={`text-sm font-semibold leading-snug tracking-[-0.02em] transition-colors ${isActive
+                      ? "text-[#002950]"
+                      : "text-[#64748B] group-hover:text-[#002950]"
+                    }`}
                 >
                   {project.name}
                 </span>
@@ -637,9 +633,8 @@ function MobileProjectSelector({
                         type="button"
                         onClick={() => handleSelect(project.id)}
                         aria-current={isActive ? "true" : undefined}
-                        className={`flex w-full items-center gap-4 py-4 text-left transition-colors ${
-                          isActive ? "bg-[#BD9655]/[0.07]" : ""
-                        }`}
+                        className={`flex w-full items-center gap-4 py-4 text-left transition-colors ${isActive ? "bg-[#BD9655]/[0.07]" : ""
+                          }`}
                       >
                         <div className="relative size-[76px] shrink-0 overflow-hidden bg-[#EEECE6]">
                           {thumbnail ? (
@@ -672,11 +667,10 @@ function MobileProjectSelector({
                         </span>
 
                         <span
-                          className={`flex size-7 shrink-0 items-center justify-center border transition-colors ${
-                            isActive
+                          className={`flex size-7 shrink-0 items-center justify-center border transition-colors ${isActive
                               ? "border-[#BD9655] bg-[#BD9655] text-[#1F1E1B]"
                               : "border-[#1F1E1B]/20 text-transparent"
-                          }`}
+                            }`}
                         >
                           {isActive && (
                             <svg
@@ -769,16 +763,6 @@ function ProjectViewer({
       ref={containerRef}
       className="flex min-w-0 scroll-mt-28 flex-col lg:h-full lg:min-h-0"
     >
-      <div className="mb-4 hidden shrink-0 items-center justify-between lg:flex">
-        <Label>Imagem principal</Label>
-
-        <span className="text-[11px] tabular-nums text-[#5F5B54]">
-          {pad(images.length === 0 ? 0 : activeIndex + 1)}
-          {" / "}
-          {pad(images.length)}
-        </span>
-      </div>
-
       <div className="group relative overflow-hidden bg-[#EEECE6] lg:min-h-0 lg:flex-1">
         {activeImage ? (
           <button
@@ -962,11 +946,10 @@ function ProjectDetails({
                   onClick={() => onSelectImage(index)}
                   aria-label={`Ver imagem ${index + 1}`}
                   aria-current={isActive ? "true" : undefined}
-                  className={`group relative w-[88px] shrink-0 overflow-hidden border-2 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] sm:w-[105px] ${
-                    isActive
+                  className={`group relative w-[88px] shrink-0 overflow-hidden border-2 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#BD9655] sm:w-[105px] ${isActive
                       ? "border-[#BD9655]"
                       : "border-transparent opacity-65 hover:opacity-100"
-                  }`}
+                    }`}
                 >
                   <span className="relative block aspect-[4/3] overflow-hidden bg-[#EEECE6]">
                     <FadeImage
@@ -1001,7 +984,7 @@ function ProjectDetails({
           {project.category}
         </Label>
 
-        <h2 className="text-2xl font-semibold leading-[1.08] tracking-[-0.045em] text-[#1F1E1B] sm:text-3xl lg:text-[clamp(25px,2.2vw,38px)]">
+        <h2 className="text-2xl font-semibold leading-[1.08] tracking-[-0.045em] text-[#002950] sm:text-3xl lg:text-[clamp(25px,2.2vw,38px)]">
           {project.name}
           <span className="text-[#BD9655]">.</span>
         </h2>
@@ -1125,7 +1108,7 @@ export default function ProjectsPage({
         case "oldest":
           return (
             (Number(a.year) || Infinity) -
-              (Number(b.year) || Infinity) ||
+            (Number(b.year) || Infinity) ||
             a.name.localeCompare(b.name, "pt-PT")
           );
 
@@ -1140,7 +1123,7 @@ export default function ProjectsPage({
           return (
             Number(b.featured) - Number(a.featured) ||
             displayProjects.indexOf(a) -
-              displayProjects.indexOf(b)
+            displayProjects.indexOf(b)
           );
       }
     });
@@ -1290,7 +1273,7 @@ export default function ProjectsPage({
               PRO SOTA · ANGOLA
             </Label>
 
-            <h1 className="text-2xl font-semibold tracking-[-0.045em] text-[#1F1E1B] sm:text-3xl">
+            <h1 className="text-2xl font-semibold tracking-[-0.045em] text-[#002950] sm:text-3xl">
               Projectos<span className="text-[#BD9655]">.</span>
             </h1>
           </div>

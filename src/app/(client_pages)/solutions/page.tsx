@@ -85,7 +85,7 @@ export default function SolutionsPage() {
                             </StaggerItem>
 
                             <StaggerItem>
-                                <h1 className="max-w-4xl font-heading text-[clamp(2.5rem,5vw,3.75rem)] font-medium leading-[1.02] tracking-[-0.045em] text-[#1F1E1B]">
+                                <h1 className="max-w-4xl font-heading text-[clamp(2.5rem,5vw,3.75rem)] font-medium leading-[1.02] tracking-[-0.045em] text-[#002950]">
                                     Diferentes desafios.
                                     <br />
                                     <span className="relative inline-block font-light text-[#BD9655]">

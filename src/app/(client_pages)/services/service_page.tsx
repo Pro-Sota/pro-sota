@@ -19,6 +19,7 @@ import {
   type ServiceKey,
 } from "../components/servicesData";
 import { motion, useReducedMotion } from "framer-motion";
+import Image from "next/image";
 
 /* -------------------------------------------------------------------------- */
 /* Code-split pieces                                                          */
@@ -675,7 +676,7 @@ export default function ServicesOverview() {
               md:w-[65%] lg:w-[68%]
             "
           >
-            <img
+            <Image
               src="/images/services_hero.svg"
               alt=""
               width={1600}
@@ -746,7 +747,7 @@ export default function ServicesOverview() {
                 className="
                 font-display text-[clamp(3.5rem,4.5vw,6rem)]
                 font-medium leading-[0.98]
-                tracking-[-0.055em] text-[#1F1E1B]
+                tracking-[-0.055em] text-[#002950]
                 motion-safe:animate-[hero-enter_.8s_ease-out_both]
               "
               >
