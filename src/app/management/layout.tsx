@@ -1,3 +1,4 @@
+
 import DashboardLayoutClient from "./dashboard_layout";
 
 import { getCurrentUserPermissions } from "@/app/lib/permissions/server";
@@ -29,6 +30,7 @@ export default async function ManagementLayout({
 
   return (
     <PermissionProvider permissions={permissions}>
+
       <DashboardLayoutClient
         userRole={auth.role}
         userDepartment={auth.department}

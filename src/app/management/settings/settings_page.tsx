@@ -3,6 +3,7 @@
 
 import {
     Bell,
+    BellRing,
     Building2,
     CalendarDays,
     Check,
@@ -13,7 +14,7 @@ import {
     Settings2,
 } from "lucide-react";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import {
     saveOrganisationNotificationSettingsAction,
@@ -241,7 +242,7 @@ const PERSONAL_FIELDS: Record<SettingsSection, FieldDefinition[]> = {
             label: "Notificações por e-mail",
             description: "Receber também as notificações por e-mail.",
             type: "toggle",
-            group: "Canais",
+            group: "Canais de entrega",
         },
     ],
 };
@@ -445,6 +446,130 @@ function getOrganisationValues(
         channel_in_app: values.channel_in_app,
         channel_email: values.channel_email,
     };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Browser notification permission                                           */
+/* -------------------------------------------------------------------------- */
+
+function BrowserNotificationSetting() {
+    const [permission, setPermission] = useState<
+        NotificationPermission | "unsupported"
+    >("default");
+    const [isRequesting, setIsRequesting] = useState(false);
+
+    useEffect(() => {
+        function syncPermission() {
+            if (!("Notification" in window)) {
+                setPermission("unsupported");
+                return;
+            }
+
+            setPermission(Notification.permission);
+        }
+
+        syncPermission();
+        window.addEventListener("focus", syncPermission);
+
+        return () => {
+            window.removeEventListener("focus", syncPermission);
+        };
+    }, []);
+
+    async function enableBrowserNotifications() {
+        if (!("Notification" in window) || isRequesting) return;
+
+        setIsRequesting(true);
+
+        try {
+            const result = await Notification.requestPermission();
+            setPermission(result);
+        } catch (error) {
+            console.error(
+                "[Settings] Browser notification permission failed:",
+                error,
+            );
+            setPermission(Notification.permission);
+        } finally {
+            setIsRequesting(false);
+        }
+    }
+
+    const isGranted = permission === "granted";
+    const isDenied = permission === "denied";
+    const isUnsupported = permission === "unsupported";
+
+    return (
+        <div className="border-t border-gray-100 px-5 py-6 sm:px-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#002950]/[0.06] text-[#002950]">
+                        <BellRing size={17} />
+                    </span>
+
+                    <div className="min-w-0 space-y-1">
+                        <p className="text-sm font-medium text-gray-900">
+                            Notificações do navegador
+                        </p>
+
+                        <p className="text-sm leading-5 text-gray-500">
+                            Permita que o Pro-Sota apresente avisos no
+                            ambiente de trabalho, mesmo quando estiver
+                            noutra separação do navegador.
+                        </p>
+
+                        {isGranted ? (
+                            <p className="inline-flex items-center gap-1.5 pt-1 text-xs font-medium text-green-700">
+                                <Check size={13} />
+                                Permissão concedida neste navegador.
+                            </p>
+                        ) : isDenied ? (
+                            <p className="pt-1 text-xs leading-5 text-amber-700">
+                                A permissão foi bloqueada. Altere-a nas
+                                definições de permissões deste site no
+                                navegador e actualize a página.
+                            </p>
+                        ) : isUnsupported ? (
+                            <p className="pt-1 text-xs leading-5 text-gray-500">
+                                Este navegador não suporta notificações
+                                nativas.
+                            </p>
+                        ) : (
+                            <p className="pt-1 text-xs text-gray-500">
+                                Ainda não autorizadas neste navegador.
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {!isUnsupported && !isGranted && !isDenied && (
+                    <button
+                        type="button"
+                        onClick={enableBrowserNotifications}
+                        disabled={isRequesting}
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#002950] px-4 py-2.5 text-sm font-medium text-white shadow-sm outline-none transition hover:bg-[#003968] focus-visible:ring-4 focus-visible:ring-[#002950]/30 disabled:cursor-wait disabled:opacity-60"
+                    >
+                        {isRequesting ? (
+                            <LoaderCircle
+                                size={15}
+                                className="animate-spin"
+                            />
+                        ) : (
+                            <BellRing size={15} />
+                        )}
+                        Activar notificações
+                    </button>
+                )}
+
+                {isGranted && (
+                    <span className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3.5 py-2.5 text-sm font-medium text-green-700">
+                        <Check size={15} />
+                        Activas
+                    </span>
+                )}
+            </div>
+        </div>
+    );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1130,6 +1255,10 @@ export default function Settings({
                             );
                         })}
                     </div>
+
+                    {activeTab === "notifications" && (
+                        <BrowserNotificationSetting />
+                    )}
 
                     {/* Footer */}
                     <div className="flex flex-col gap-4 border-t border-gray-100 bg-gray-50/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
