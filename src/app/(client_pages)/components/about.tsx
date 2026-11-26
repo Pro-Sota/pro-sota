@@ -43,7 +43,7 @@ export default function About() {
     <section
       id="sobre"
       aria-labelledby="about-title"
-      className="relative bg-paper py-20 font-body text-ink sm:py-24 lg:py-32"
+      className="relative bg-paper py-20 hero-font-body text-ink sm:py-24 lg:py-32 [&_*]:[font-family:inherit!important]"
     >
       {/* data-pin-container: the title stays frozen until this block ends.
           relative → anchors the title at the end; clip-path → the title can never show outside it. */}
@@ -62,7 +62,7 @@ export default function About() {
 
             <h2
               id="about-title"
-              className="max-w-[18ch] font-body text-[clamp(2.25rem,3.5vw,3.25rem)] font-medium uppercase leading-[1.05] tracking-[-0.045em] text-ink"
+              className="max-w-[18ch] text-[clamp(2.25rem,3.5vw,3.25rem)] font-medium uppercase leading-[1.05] tracking-[-0.045em] text-ink"
             >
               Confiança, funcionalidade e valor{" "}
               <em className="not-italic text-ink">duradouro.</em>
@@ -131,13 +131,13 @@ export default function About() {
                 &ldquo;
               </span>
 
-              <p className="max-w-[460px] text-[clamp(1.4rem,2.2vw,1.9rem)] font-medium leading-[1.3] tracking-[-0.025em] text-ink">
+              <p className="font-body max-w-[460px] text-[clamp(1.4rem,2.2vw,1.9rem)] font-medium leading-[1.3] tracking-[-0.025em] text-ink">
                 Não entregamos apenas projectos — entregamos confiança,
                 funcionalidade e valor duradouro.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 content-center gap-6 text-sm leading-[1.9] text-ink-soft sm:grid-cols-2 sm:gap-8 sm:text-[15px]">
+            <div className="grid grid-cols-1 content-center gap-6 text-md hero-font-body leading-[1.9] text-ink-soft sm:grid-cols-2 sm:gap-8 sm:text-[15px]">
               <p>
                 Somos uma empresa angolana especializada em arquitectura,
                 engenharia, construção e fiscalização, comprometida com a
@@ -156,7 +156,7 @@ export default function About() {
           </div>
 
           {/* Sign-off */}
-          <div className="flex flex-col gap-5 border-t border-ink/15 pb-2 pt-7 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col hero-font-body gap-5 border-t border-ink/15 pb-2 pt-7 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-1">
               <b className="text-sm font-semibold tracking-wide text-ink">
                 Arquitecto Társis Soma

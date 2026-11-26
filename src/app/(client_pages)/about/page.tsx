@@ -141,7 +141,7 @@ export default function AboutPage() {
   return (
     <main
       id="main"
-      className="relative z-0 bg-paper font-body text-ink"
+      className="relative z-0 bg-paper hero-hero-font-body text-ink"
     >
       <JsonLd data={jsonLd} />
 
@@ -180,14 +180,14 @@ export default function AboutPage() {
                 <div className="max-w-4xl">
                   <h1
                     id="about-title"
-                    className="mt-7 font-body text-[clamp(2.75rem,5.5vw,5rem)] font-medium leading-[0.94] tracking-[-0.055em] text-paper"
+                    className="mt-7 hero-hero-font-body text-[clamp(2.75rem,5.5vw,5rem)] font-medium leading-[0.94] tracking-[-0.055em] text-paper"
                   >
                     Construímos
                     <br />
                     <span className="text-gold">com visão.</span>
                   </h1>
 
-                  <p className="mt-7 max-w-xl font-body text-sm leading-7 text-paper/85 md:text-base md:leading-8">
+                  <p className="mt-7 max-w-xl hero-hero-font-body text-sm leading-7 text-paper/85 md:text-base md:leading-8">
                     Uma visão integrada do ambiente construído,
                     onde arquitectura, engenharia e construção
                     se encontram para dar forma a novas possibilidades.
@@ -203,13 +203,13 @@ export default function AboutPage() {
           <div className={`${wrap} bg-paper px-6 py-10 md:px-12 md:py-16 lg:px-16`}>
             <div className="grid gap-8 lg:grid-cols-12 lg:gap-16">
               <Reveal className="lg:col-span-7">
-                <H2 className="!font-body mt-5 max-w-4xl text-[clamp(2rem,3.2vw,3.25rem)] font-medium leading-[1.05] tracking-[-0.045em]">
+                <H2 className="hero-hero-font-body mt-5 max-w-4xl text-[clamp(2rem,3.2vw,3.25rem)] font-medium leading-[1.05] tracking-[-0.045em]">
                   Experiência que transforma ideias em realidade.
                 </H2>
               </Reveal>
 
               <Reveal
-                className="space-y-5 font-body text-[15px] leading-[1.9] text-ink-soft lg:col-span-5 lg:pt-10"
+                className="space-y-5 hero-hero-font-body text-[15px] leading-[1.9] text-ink-soft lg:col-span-5 lg:pt-10"
                 delay={0.12}
               >
                 <p>
@@ -266,7 +266,7 @@ export default function AboutPage() {
           <div className="mb-8">
             <p
               id="stats-title"
-              className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
+              className="hero-hero-font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft"
             >
               A nossa experiência em números
             </p>
@@ -280,14 +280,14 @@ export default function AboutPage() {
                   className="flex h-48 flex-col justify-between border-t border-ink/15 px-4 py-7 odd:border-l odd:border-ink/15 [&:nth-child(-n+2)]:border-t-0 md:h-64 md:border-l md:border-t-0 md:px-7 md:py-9 md:first:border-l-0"
                 >
                   <div className="flex flex-col-reverse">
-                    <dt className="mt-4 min-h-12 max-w-[12rem] font-body text-xs leading-6 text-ink-soft md:min-h-14 md:text-sm">
+                    <dt className="mt-4 min-h-12 max-w-[12rem] hero-hero-font-body text-xs leading-6 text-ink-soft md:min-h-14 md:text-sm">
                       {stat.label}
                     </dt>
 
                     <dd>
                       <MotionCounter
                         value={stat.value}
-                        className="font-body text-5xl font-medium leading-none tracking-[-0.04em] text-ink tabular-nums md:text-6xl lg:text-7xl"
+                        className="hero-hero-font-body text-5xl font-medium leading-none tracking-[-0.04em] text-ink tabular-nums md:text-6xl lg:text-7xl"
                       />
                     </dd>
                   </div>
@@ -309,19 +309,19 @@ export default function AboutPage() {
             <div className="mb-8">
               <p
                 id="quem-somos"
-                className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-paper/70"
+                className="hero-font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-paper/70"
               >
                 A nossa missão
               </p>
             </div>
 
-            <H2 className="!font-body mt-8 text-[clamp(1.9rem,3vw,3rem)] font-medium leading-[1.08] tracking-[-0.045em] text-paper">
+            <H2 className="!hero-font-body mt-8 text-[clamp(1.9rem,3vw,3rem)] font-medium leading-[1.08] tracking-[-0.045em] text-paper">
               Criar valor
               <br />
               em cada obra.
             </H2>
 
-            <p className="mt-7 font-body text-base leading-8 text-paper/80">
+            <p className="mt-7 hero-font-body text-base leading-8 text-paper/80">
               Desenvolver soluções que conciliem as necessidades
               dos clientes, a viabilidade técnica e a responsabilidade
               na utilização dos recursos, contribuindo para espaços
@@ -334,18 +334,18 @@ export default function AboutPage() {
         <Reveal className="relative isolate overflow-hidden bg-stone px-6 py-16 text-ink sm:px-10 md:px-12 lg:px-16 lg:py-24">
           <div className="mx-auto max-w-xl">
             <div>
-              <Eyebrow className="font-body text-ink-soft">
+              <Eyebrow className="hero-font-body text-ink-soft">
                 A nossa visão
               </Eyebrow>
             </div>
 
-            <H2 className="!font-body mt-8 text-[clamp(1.9rem,3vw,3rem)] font-medium leading-[1.08] tracking-[-0.045em] text-ink">
+            <H2 className="!hero-font-body mt-8 text-[clamp(1.9rem,3vw,3rem)] font-medium leading-[1.08] tracking-[-0.045em] text-ink">
               Ser uma referência
               <br />
               no sector.
             </H2>
 
-            <p className="mt-7 font-body text-base leading-8 text-ink-soft">
+            <p className="mt-7 hero-font-body text-base leading-8 text-ink-soft">
               Consolidar a posição da PRO SOTA como uma empresa
               de referência em Angola, reconhecida pela competência
               técnica, consistência dos resultados e capacidade
@@ -361,13 +361,13 @@ export default function AboutPage() {
 
       <Section className="pb-8 md:pb-10">
         <div className="mb-8">
-          <p className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft">
+          <p className="hero-font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft">
             Os nossos princípios
           </p>
         </div>
 
         <div className="lg:w-8/12">
-          <H2 className="!font-body mt-4 text-[clamp(1.85rem,2.6vw,3rem)] font-medium leading-[1.05] tracking-[-0.045em] text-ink">
+          <H2 className="!hero-font-body mt-4 text-[clamp(1.85rem,2.6vw,3rem)] font-medium leading-[1.05] tracking-[-0.045em] text-ink">
             Aquilo que orienta
             <span className="block text-gold-dim">
               cada decisão.
@@ -390,11 +390,11 @@ export default function AboutPage() {
                 </div>
 
                 <div>
-                  <h3 className="font-body text-2xl font-medium tracking-[-0.025em] md:text-3xl">
+                  <h3 className="hero-font-body text-2xl font-medium tracking-[-0.025em] md:text-3xl">
                     {value.title}
                   </h3>
 
-                  <p className="mt-4 font-body text-sm leading-7 text-ink-soft transition-colors duration-300 group-hover:text-paper/80 motion-reduce:transition-none">
+                  <p className="mt-4 hero-font-body text-sm leading-7 text-ink-soft transition-colors duration-300 group-hover:text-paper/80 motion-reduce:transition-none">
                     {value.description}
                   </p>
                 </div>
@@ -411,16 +411,16 @@ export default function AboutPage() {
       <Section id="competencias" className="scroll-mt-24 pt-8 md:pt-10">
         <div className="lg:w-7/12">
           <div className="mb-8">
-            <p className="font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft">
+            <p className="hero-hero-font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-soft">
               O que fazemos
             </p>
           </div>
 
-          <H2 className="!font-body mt-4 max-w-3xl text-[clamp(2rem,3.2vw,3.25rem)] font-medium leading-[1.08] tracking-[-0.04em] text-ink">
+          <H2 className="hero-hero-font-body mt-4 max-w-3xl text-[clamp(2rem,3.2vw,3.25rem)] font-medium leading-[1.08] tracking-[-0.04em] text-ink">
             Quatro áreas de actuação.
           </H2>
 
-          <p className="mt-5 max-w-lg font-body text-sm leading-7 text-ink-soft">
+          <p className="mt-5 max-w-lg hero-hero-font-body text-sm leading-7 text-ink-soft">
             Integramos diferentes disciplinas para acompanhar
             os projectos desde a concepção até à sua concretização.
           </p>
@@ -455,7 +455,7 @@ export default function AboutPage() {
                     <span className="block h-px w-10 bg-gold transition-all duration-500 group-hover:w-20 motion-reduce:transition-none" />
                   </div>
 
-                  <h3 className="font-body text-2xl font-medium tracking-[-0.025em] md:text-3xl">
+                  <h3 className="hero-hero-font-body text-2xl font-medium tracking-[-0.025em] md:text-3xl">
                     <Link
                       href={contactHref}
                       className="outline-none after:absolute after:inset-0 focus-visible:after:outline focus-visible:after:outline-2 focus-visible:after:-outline-offset-8 focus-visible:after:outline-paper"
@@ -464,7 +464,7 @@ export default function AboutPage() {
                     </Link>
                   </h3>
 
-                  <p className="mt-4 max-w-md font-body text-sm leading-7 text-paper/85">
+                  <p className="mt-4 max-w-md hero-hero-font-body text-sm leading-7 text-paper/85">
                     {item.description}
                   </p>
                 </div>
@@ -480,17 +480,17 @@ export default function AboutPage() {
 
       <section
         aria-labelledby="integrated-approach-title"
-        className="relative overflow-hidden bg-navy py-16 font-body text-paper md:py-24"
+        className="!hero-hero-font-body relative overflow-hidden bg-navy py-16 text-paper md:py-24"
       >
         <div className={`${pad} ${wrap}`}>
           <div className="grid gap-10 lg:grid-cols-12 lg:items-end lg:gap-16">
             <Reveal className="lg:col-span-7">
-              <Eyebrow className="font-body text-gold">
+              <Eyebrow className="hero-hero-font-body text-gold">
                 Soluções PRO SOTA
               </Eyebrow>
 
               <H2
-                className="!font-body mt-7 max-w-3xl text-[clamp(2rem,3.2vw,3.25rem)] font-medium leading-[1.05] tracking-[-0.045em] text-paper"
+                className="hero-hero-font-body mt-7 max-w-3xl text-[clamp(2rem,3.2vw,3.25rem)] font-medium leading-[1.05] tracking-[-0.045em] text-paper"
               >
                 Competência técnica.
                 <span className="block font-light text-gold">
@@ -503,7 +503,7 @@ export default function AboutPage() {
               className="lg:col-span-5 lg:pb-2"
               delay={0.12}
             >
-              <p className="max-w-xl font-body text-sm leading-8 text-paper/75 md:text-base">
+              <p className="max-w-xl hero-hero-font-body text-sm leading-8 text-paper/75 md:text-base">
                 Aplicamos as nossas competências a diferentes necessidades,
                 desde a gestão e manutenção de imóveis à reabilitação e
                 concretização de projectos de arquitectura e construção.
@@ -511,7 +511,7 @@ export default function AboutPage() {
 
               <Link
                 href="/solutions"
-                className={`group mt-8 inline-flex items-center gap-4 border-b border-gold/60 pb-3 font-body text-[10px] font-semibold uppercase tracking-[0.16em] text-paper transition-colors hover:text-gold ${focus} focus-visible:outline-paper`}
+                className={`group mt-8 inline-flex items-center gap-4 border-b border-gold/60 pb-3 hero-font-body text-[10px] font-semibold uppercase tracking-[0.16em] text-paper transition-colors hover:text-gold ${focus} focus-visible:outline-paper`}
               >
                 Conheça as nossas soluções
 
@@ -533,7 +533,7 @@ export default function AboutPage() {
 
       <section
         aria-label="Entre em contacto com a PRO SOTA"
-        className={`${pad} relative isolate overflow-hidden bg-paper pb-24 font-body text-ink md:pb-24`}
+        className={`${pad} relative isolate overflow-hidden bg-paper pb-24 hero-font-body text-ink md:pb-24`}
       >
         <div className="relative z-10 px-18">
           <ContactCTA />

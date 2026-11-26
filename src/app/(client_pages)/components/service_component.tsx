@@ -13,7 +13,7 @@ export default function ServicesSection({
     return (
         <section
             id="servicos"
-            className="scroll-mt-24 bg-[#F3EFE6] py-24 font-body md:py-32 lg:py-26"
+            className="scroll-mt-24 bg-[#F3EFE6] py-24 hero-font-body md:py-32 lg:py-26"
         >
             <div className={wrap}>
                 {/* HEADER */}

@@ -135,7 +135,7 @@ export default function WhyUs() {
   return (
     <section
       aria-labelledby="why-us-title"
-      className="relative overflow-x-clip bg-[#002950] py-[clamp(80px,10vw,120px)] font-body text-[#F7F7F5]"
+      className="relative overflow-x-clip bg-[#002950] py-[clamp(80px,10vw,120px)] hero-font-body text-[#F7F7F5]"
     >
       <div
         data-pin-container

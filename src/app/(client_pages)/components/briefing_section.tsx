@@ -136,7 +136,7 @@ export default function BriefingSection() {
     <section
       id="briefing"
       aria-labelledby="briefing-title"
-      className="relative overflow-hidden bg-[#F7F7F5] font-body text-[#002950]"
+      className="relative overflow-hidden bg-[#F7F7F5] hero-font-body text-[#002950]"
     >
       <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-y-8 px-6 py-14 md:gap-y-10 md:px-12 md:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[auto_auto] lg:items-center lg:gap-x-16 lg:gap-y-6 lg:px-20">
         {/* Heading (first on mobile) */}
