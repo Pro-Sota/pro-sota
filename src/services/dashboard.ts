@@ -118,20 +118,20 @@ async function getAuthenticatedUser() {
   } = await supabase.auth.getUser();
 
   if (error) {
-  console.error("Failed to get authenticated user:", error);
-  console.error("Auth error details:", {
-    name: error.name,
-    message: error.message,
-    status: error.status,
-    code: error.code,
-    cause: error.cause,
-    details: Object.getOwnPropertyNames(error),
-  });
+    console.error("Failed to get authenticated user:", error);
+    console.error("Auth error details:", {
+      name: error.name,
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      cause: error.cause,
+      details: Object.getOwnPropertyNames(error),
+    });
 
-  throw new Error(
-    `Authentication failed: ${error.message || error.name || "Unknown Supabase auth error"}`
-  );
-}
+    throw new Error(
+      `Authentication failed: ${error.message || error.name || "Unknown Supabase auth error"}`
+    );
+  }
 
   if (!user) {
     throw new Error("Utilizador não autenticado.");
@@ -171,16 +171,20 @@ export async function getDashboardData(): Promise<DashboardData> {
     supabase
       .from("documents")
       .select("*")
-      .eq("uploaded_by", user.id),
+      .eq("uploaded_by", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
 
     supabase
       .from("task_members")
       .select("task_id, tasks(*)")
       .eq("profile_id", user.id),
 
+    // Personal activity only
     supabase
       .from("activity_logs")
       .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20),
   ]);
@@ -538,8 +542,8 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     member.workload_percentage =
       totalRemainingHours > 0
         ? Math.round(
-            (member.hours_remaining / totalRemainingHours) * 100,
-          )
+          (member.hours_remaining / totalRemainingHours) * 100,
+        )
         : 0;
   }
 

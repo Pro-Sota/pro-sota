@@ -1,8 +1,6 @@
-
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import PinnedTitle from "./parallax_section";
 
@@ -43,56 +41,101 @@ type Direction = -1 | 1;
 
 export default function WhyUs() {
   const trackRef = useRef<HTMLDivElement>(null);
-  const shouldReduceMotion = useReducedMotion();
 
+  const [activeIndex, setActiveIndex] = useState(0);
   const [canScroll, setCanScroll] = useState({
     previous: false,
-    next: true,
+    next: false,
   });
 
   const updateScrollState = useCallback(() => {
     const track = trackRef.current;
-
     if (!track) return;
 
-    const maxScroll = track.scrollWidth - track.clientWidth;
+    const cards = Array.from(
+      track.querySelectorAll<HTMLElement>("[data-reason-card]"),
+    );
 
+    const maxScroll = Math.max(
+      0,
+      track.scrollWidth - track.clientWidth,
+    );
+
+    const position = Math.max(0, track.scrollLeft);
+    const trackLeft = track.getBoundingClientRect().left;
+
+    let nearestIndex = 0;
+    let nearestDistance = Infinity;
+
+    cards.forEach((card, index) => {
+      const distance = Math.abs(
+        card.getBoundingClientRect().left - trackLeft,
+      );
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+
+    setActiveIndex(nearestIndex);
     setCanScroll({
-      previous: track.scrollLeft > 2,
-      next: track.scrollLeft < maxScroll - 2,
+      previous: position > 2,
+      next: position < maxScroll - 2,
     });
   }, []);
 
-  const scrollByCard = useCallback((direction: Direction) => {
+  useEffect(() => {
     const track = trackRef.current;
-
     if (!track) return;
 
-    const card = track.querySelector<HTMLElement>(
-      "[data-reason-card]",
+    updateScrollState();
+
+    const observer = new ResizeObserver(updateScrollState);
+    observer.observe(track);
+
+    return () => observer.disconnect();
+  }, [updateScrollState]);
+
+  const scrollByCard = useCallback((direction: -1 | 1) => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    const cards = Array.from(
+      track.querySelectorAll<HTMLElement>("[data-reason-card]"),
     );
 
-    if (!card) return;
+    const trackLeft = track.getBoundingClientRect().left;
+    const position = track.scrollLeft;
 
-    const gap =
-      Number.parseFloat(window.getComputedStyle(track).columnGap) || 0;
+    const offsets = cards.map(
+      (card) =>
+        position + card.getBoundingClientRect().left - trackLeft,
+    );
 
-    const distance = card.getBoundingClientRect().width + gap;
+    const target =
+      direction === 1
+        ? offsets.find((offset) => offset > position + 2)
+        : [...offsets]
+            .reverse()
+            .find((offset) => offset < position - 2);
 
-    const prefersReducedMotion = window.matchMedia(
+    if (target === undefined) return;
+
+    const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
-    track.scrollBy({
-      left: distance * direction,
-      behavior: prefersReducedMotion ? "auto" : "smooth",
+    track.scrollTo({
+      left: target,
+      behavior: reduceMotion ? "instant" : "smooth",
     });
   }, []);
 
   return (
     <section
       aria-labelledby="why-us-title"
-      className="relative overflow-hidden bg-[#1F1E1B] py-[clamp(80px,10vw,120px)] font-body text-[#F7F7F5]"
+      className="relative overflow-x-clip bg-[#002950] py-[clamp(80px,10vw,120px)] font-body text-[#F7F7F5]"
     >
       <div
         data-pin-container
@@ -114,7 +157,7 @@ export default function WhyUs() {
 
             <h2
               id="why-us-title"
-              className="max-w-[16ch] font-body text-[clamp(2.1rem,3.5vw,3.25rem)] leading-[1.08] font-medium tracking-[-0.045em] text-[#F7F7F5]"
+              className="max-w-[16ch] text-[clamp(2.1rem,3.5vw,3.25rem)] font-medium leading-[1.08] tracking-[-0.045em]"
             >
               A diferença está
               <br />
@@ -124,123 +167,139 @@ export default function WhyUs() {
             </h2>
           </PinnedTitle>
 
-          <p className="relative z-10 max-w-[42ch] text-[14px] leading-[1.8] text-[#F7F7F5]/70 md:justify-self-end md:text-[15px]">
+          <p className="relative z-10 max-w-[42ch] text-[14px] leading-[1.8] text-[#F7F7F5]/75 md:justify-self-end md:text-[15px]">
             Seis razões pelas quais os nossos clientes confiam o seu
             projecto à PRO SOTA, da concepção à execução e entrega da obra.
           </p>
         </div>
 
-        {/* Content layer */}
-        <div className="relative z-10 bg-[#1F1E1B]">
-          {/* Reasons carousel */}
+        {/* Reasons carousel */}
+        <div className="relative z-10">
           <div
             ref={trackRef}
             onScroll={updateScrollState}
-            className="-mx-[clamp(20px,5vw,64px)] flex snap-x snap-proximity gap-4 overflow-x-auto px-[clamp(20px,5vw,64px)] pt-1 pb-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#BD9655] md:gap-5"
             role="region"
+            aria-roledescription="carousel"
             aria-label="Razões para escolher a PRO SOTA"
             tabIndex={0}
+            className="
+              flex items-stretch gap-4 md:gap-5
+              overflow-x-auto overflow-y-hidden
+              overscroll-x-contain snap-x snap-mandatory
+              pt-1 pb-5
+              [scrollbar-width:none]
+              [&::-webkit-scrollbar]:hidden
+              focus-visible:outline-2
+              focus-visible:outline-offset-2
+              focus-visible:outline-[#BD9655]
+            "
           >
             {REASONS.map(([number, title, description]) => (
-              <motion.article
+              <article
                 key={number}
                 data-reason-card
-                initial={
-                  shouldReduceMotion
-                    ? false
-                    : { opacity: 0, y: 30 }
-                }
-                whileInView={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                viewport={{
-                  once: true,
-                  amount: 0.2,
-                }}
-                transition={{
-                  duration: 0.75,
-                  delay: shouldReduceMotion ? 0 : Number(number) * 0.08,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                className="group flex min-h-[310px] w-[85%] shrink-0 snap-start flex-col border border-[#F7F7F5]/10 bg-[#292824] p-6 transition-colors duration-300 hover:border-[#BD9655]/50 hover:bg-[#33312C] sm:w-[65%] sm:p-7 lg:min-h-[330px] lg:w-[calc((100%-40px)/3)] lg:p-8"
+                className="
+                  group flex min-h-[310px] w-full shrink-0
+                  snap-start flex-col
+                  border border-[#F7F7F5]/15
+                  bg-[#07365F] p-6
+                  transition-colors duration-300
+                  hover:border-[#BD9655]/60
+                  hover:bg-[#0B416F]
+                  sm:w-[65%] sm:p-7
+                  lg:min-h-[330px]
+                  lg:w-[calc((100%-40px)/3)] lg:p-8
+                "
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-body text-sm font-medium tracking-[0.16em] text-[#B8B5AE]">
+                  <span className="text-sm font-medium tracking-[0.16em] text-[#F7F7F5]/70">
                     {number}
                   </span>
 
                   <span
                     aria-hidden="true"
-                    className="h-px w-9 bg-[#BD9655]/45 transition-all duration-300 group-hover:w-14 group-hover:bg-[#BD9655]"
+                    className="
+                      h-px w-9 bg-[#BD9655]/45
+                      transition-all duration-300
+                      group-hover:w-14
+                      group-hover:bg-[#BD9655]
+                    "
                   />
                 </div>
 
                 <div className="mt-auto pt-12">
-                  <h3 className="mb-4 max-w-[18ch] font-body text-[18px] leading-[1.25] font-medium tracking-[-0.02em] text-[#F7F7F5] sm:text-[19px]">
+                  <h3 className="mb-4 max-w-[18ch] text-[18px] font-medium leading-[1.25] tracking-[-0.02em] sm:text-[19px]">
                     {title}
                   </h3>
 
-                  <p className="max-w-[38ch] text-[13px] leading-[1.75] text-[#F7F7F5]/70 sm:text-[13.5px]">
+                  <p className="max-w-[38ch] text-[13px] leading-[1.75] text-[#F7F7F5]/75 sm:text-[13.5px]">
                     {description}
                   </p>
                 </div>
-              </motion.article>
+              </article>
             ))}
           </div>
 
           {/* Carousel navigation */}
           <div className="mt-6 flex items-center justify-between border-t border-[#F7F7F5]/15 pb-2 pt-6">
-            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#F7F7F5]/50">
-              01 <span className="px-1 text-[#BD9655]">—</span> 06
+            <span
+              aria-live="polite"
+              className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#F7F7F5]/60"
+            >
+              {String(activeIndex + 1).padStart(2, "0")}
+              <span className="px-1 text-[#BD9655]">—</span>
+              {String(REASONS.length).padStart(2, "0")}
             </span>
 
             <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => scrollByCard(-1)}
-                disabled={!canScroll.previous}
-                aria-label="Ver razões anteriores"
-                className="flex size-11 items-center justify-center border border-[#F7F7F5]/25 text-[#F7F7F5] transition-colors duration-200 hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-[#1F1E1B] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-[#F7F7F5]/25 disabled:hover:bg-transparent disabled:hover:text-[#F7F7F5] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#BD9655]"
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  className="size-4"
+              {([-1, 1] as const).map((direction) => (
+                <button
+                  key={direction}
+                  type="button"
+                  onClick={() => scrollByCard(direction)}
+                  disabled={
+                    direction === -1
+                      ? !canScroll.previous
+                      : !canScroll.next
+                  }
+                  aria-label={
+                    direction === -1
+                      ? "Ver razões anteriores"
+                      : "Ver razões seguintes"
+                  }
+                  className="
+                    flex size-11 items-center justify-center
+                    border border-[#F7F7F5]/25 text-[#F7F7F5]
+                    transition-colors duration-200
+                    enabled:hover:border-[#BD9655]
+                    enabled:hover:bg-[#BD9655]
+                    enabled:hover:text-[#002950]
+                    disabled:cursor-not-allowed disabled:opacity-30
+                    focus-visible:outline-2
+                    focus-visible:outline-offset-3
+                    focus-visible:outline-[#BD9655]
+                  "
                 >
-                  <path
-                    d="M15 18L9 12L15 6"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => scrollByCard(1)}
-                disabled={!canScroll.next}
-                aria-label="Ver razões seguintes"
-                className="flex size-11 items-center justify-center border border-[#F7F7F5]/25 text-[#F7F7F5] transition-colors duration-200 hover:border-[#BD9655] hover:bg-[#BD9655] hover:text-[#1F1E1B] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-[#F7F7F5]/25 disabled:hover:bg-transparent disabled:hover:text-[#F7F7F5] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#BD9655]"
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  className="size-4"
-                >
-                  <path
-                    d="M9 18L15 12L9 6"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="size-4"
+                  >
+                    <path
+                      d={
+                        direction === -1
+                          ? "M15 18L9 12L15 6"
+                          : "M9 18L15 12L9 6"
+                      }
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              ))}
             </div>
           </div>
         </div>

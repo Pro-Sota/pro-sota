@@ -87,19 +87,21 @@ export default function Contact() {
     }
   }
   const inputClass =
-    "mt-2 min-h-11 w-full rounded-sm border border-white/15 bg-[#292824] px-3 py-2 text-sm text-[#F7F7F5] outline-none transition-colors duration-200 placeholder:text-[#AAB4BE]/50 focus:border-[#BD9655] focus:ring-1 focus:ring-[#BD9655]/25 disabled:cursor-not-allowed disabled:opacity-50";
+  "mt-2 min-h-11 w-full rounded-sm border border-white/20 bg-[#07365F] px-3 py-2 text-sm text-[#F7F7F5] outline-none transition-colors duration-200 placeholder:text-[#AAB4BE]/50 focus:border-[#BD9655] focus:ring-1 focus:ring-[#BD9655]/25 disabled:cursor-not-allowed disabled:opacity-50";
 
   const labelClass =
     "block min-w-0 text-xs font-medium tracking-wide text-[#F7F7F5]/75";
 
   const contactLinkClass =
     "block w-fit text-sm text-[#F7F7F5]/85 transition-colors duration-300 hover:text-[#D7B477] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D7B477]";
- 
-    return (
+
+  return (
+    // Contact section
     <section
       id="contacto"
       aria-labelledby="contact-title"
-      className="relative isolate overflow-hidden bg-[#1F1E1B] pt-32 pb-12 text-[#F7F7F5] sm:pt-36 sm:pb-14" >
+      className="relative isolate overflow-hidden bg-[#002950] pt-32 pb-12 text-[#F7F7F5] sm:pt-36 sm:pb-14"
+    >
       {/* Architectural background grid */}
       <div
         aria-hidden="true"
@@ -251,7 +253,7 @@ export default function Contact() {
 
                 <button
                   type="button"
-className="mt-2 flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm border border-dashed border-white/20 bg-[#292824] px-3 text-left text-sm text-[#AAB4BE] transition-colors duration-200 hover:border-[#BD9655] hover:text-[#D7B477] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D7B477] disabled:cursor-not-allowed disabled:opacity-50"                  aria-label={
+                  className="mt-2 flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm border border-dashed border-white/20 bg-[#07365F] px-3 text-left text-sm text-[#AAB4BE] transition-colors duration-200 hover:border-[#BD9655] hover:text-[#D7B477] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D7B477] disabled:cursor-not-allowed disabled:opacity-50" aria-label={
                     imageName
                       ? `Alterar imagem: ${imageName}`
                       : "Escolher imagem opcional"
@@ -274,7 +276,7 @@ className="mt-2 flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm borde
             <label className={`${labelClass} mt-6`}>
               Mensagem (opcional)
               <textarea
-className="mt-2 min-h-28 w-full resize-y rounded-sm border border-white/15 bg-[#292824] px-3 py-3 text-sm text-[#F7F7F5] outline-none transition-colors duration-200 placeholder:text-[#AAB4BE]/50 focus:border-[#BD9655] focus:ring-1 focus:ring-[#BD9655]/25 disabled:cursor-not-allowed disabled:opacity-50"                name="message"
+                className="mt-2 min-h-28 w-full resize-y rounded-sm border border-white/15 bg-[#07365F] px-3 py-3 text-sm text-[#F7F7F5] outline-none transition-colors duration-200 placeholder:text-[#AAB4BE]/50 focus:border-[#BD9655] focus:ring-1 focus:ring-[#BD9655]/25 disabled:cursor-not-allowed disabled:opacity-50" name="message"
                 rows={3}
                 maxLength={4000}
                 disabled={busy}
@@ -285,7 +287,7 @@ className="mt-2 min-h-28 w-full resize-y rounded-sm border border-white/15 bg-[#
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <button
                 type="submit"
-                className="inline-flex min-h-11 items-center justify-center bg-[#BD9655] px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#051221] transition-colors duration-300 hover:bg-[#D7B477] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D7B477] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center bg-[#BD9655] px-6 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#051221] transition-colors duration-300 hover:bg-[#D7B477] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D7B477] disabled:cursor-not-allowed disabled:opacity-50 hover:bg-[#0B416F] hover:border-[#BD9655]"
                 disabled={busy}
               >
                 {busy ? "A enviar…" : "Enviar pedido →"}

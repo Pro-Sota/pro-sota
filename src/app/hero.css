@@ -280,7 +280,7 @@
   flex-direction: column;
   align-items: flex-start;
   margin: 0;
-  color: var(--hero-charcoal);
+  color: var(--hero-navy);
 
   font-family: var(--hero-font-display);
   font-size: clamp(104px, 12.2vw, 184px);
