@@ -406,8 +406,8 @@
   min-height: 52px;
   padding: 0 19px;
 
-  border: 1px solid rgba(31, 30, 27, .25);
-  color: var(--hero-charcoal);
+  border: 1px solid var(--hero-navy);
+  color: var(--hero-navy);
   background: transparent;
 
   font-family: var(--hero-font-body);
@@ -425,23 +425,23 @@
 
 .ps-hero__cta:hover {
   transform: translateY(-2px);
-  border-color: var(--hero-charcoal);
+  border-color: var(--hero-navy-hover);
   color: #FFFFFF;
-  background: var(--hero-charcoal);
+  background: var(--hero-navy-hover);
 }
 
 /* Primary CTA — Charcoal */
 
 .ps-hero__cta--solid {
-  border-color: var(--hero-charcoal);
+  border-color: var(--hero-navy);
   color: var(--hero-cream);
-  background: var(--hero-charcoal);
+  background: var(--hero-navy);
 }
 
 .ps-hero__cta--solid:hover {
-  border-color: var(--hero-bronze);
+  border-color: var(--hero-navy-hover);
   color: #FFFFFF;
-  background: var(--hero-bronze);
+  background: var(--hero-navy-hover);
 }
 
 .ps-hero__cta-arrow {
