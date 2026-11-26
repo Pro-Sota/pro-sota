@@ -163,7 +163,7 @@ export default function About() {
               </b>
 
               <span className="text-xs text-ink-soft">
-                Responsável técnico, PRO SOTA
+                Director Geral , PRO SOTA
               </span>
             </div>
 
