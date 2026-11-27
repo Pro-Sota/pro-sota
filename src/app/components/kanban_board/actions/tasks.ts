@@ -7,6 +7,11 @@ import {
   updateTask,
 } from "../services/tasks";
 
+import {
+  submitTaskWork,
+  reviewTaskWork,
+} from "../services/task_submissions";
+
 import type {
   CreateTaskInput,
   TaskScope,
@@ -41,4 +46,19 @@ export async function reorderTasksAction({
   orderedTaskIds: string[];
 }) {
   return reorderTasks(scope, columnId, orderedTaskIds);
+}
+
+export async function submitTaskWorkAction(
+  taskId: string,
+  notes: string,
+) {
+  return submitTaskWork(taskId, notes);
+}
+
+export async function reviewTaskWorkAction(
+  submissionId: string,
+  decision: "approved" | "changes_requested",
+  notes: string,
+) {
+  return reviewTaskWork(submissionId, decision, notes);
 }

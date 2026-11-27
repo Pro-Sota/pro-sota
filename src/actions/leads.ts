@@ -89,7 +89,7 @@ const VALID_REMINDER_STATUSES: LeadReminderStatus[] = [
 /* -------------------------------------------------------------------------- */
 
 async function getSupabase() {
-    return createClient(await cookies());
+    return createClient();
 }
 
 async function verifyLeadAccess() {
@@ -108,25 +108,39 @@ async function verifyLeadAccess() {
         .from("profiles")
         .select("profile_id, role_id, department")
         .eq("profile_id", user.id)
-        .single();
+        .maybeSingle();
 
-    if (error || !profile) {
+    if (error) {
+        console.error("Erro ao consultar o perfil:", error.message);
+        throw new Error("Não foi possível verificar as permissões.");
+    }
+
+    if (!profile) {
         throw new Error("Perfil do utilizador não encontrado.");
     }
 
-    const isAdmin = profile.role_id === 1;
-
     const department = String(profile.department ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
         .trim()
-        .toLowerCase();
+        .toLowerCase()
+        .replace(/\s+/g, " ");
 
-    const isCommercial =
-        department === "comercial" ||
-        department === "commercial";
+    const isAdmin = Number(profile.role_id) === 1;
+
+    const isCommercial = [
+        "comercial",
+        "commercial",
+        "departamento comercial",
+        "departamento de comercial",
+        "departamento de vendas",
+        "vendas",
+        "sales",
+    ].includes(department);
 
     if (!isAdmin && !isCommercial) {
         throw new Error(
-            "Não tem permissão para aceder aos leads."
+            "Não tem permissão para aceder aos leads.",
         );
     }
 

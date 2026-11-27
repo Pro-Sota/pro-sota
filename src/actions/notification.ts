@@ -15,7 +15,7 @@ const NOTIFICATIONS_PATH = "/management/notifications";
 const MESSAGES_PATH = "/management/messages";
 
 async function getAuthenticated() {
-  const supabase = await createClient(await cookies());
+  const supabase = await createClient();
 
   const {
     data: { user },

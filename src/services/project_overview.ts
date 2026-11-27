@@ -1,11 +1,14 @@
 
 import "server-only";
 
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@/app/lib/supabase/server";
+
 import type { GanttPhase } from "@/app/components/gant_chart/gantt";
 import type { Deliverable } from "@/app/management/projects/[projectId]/(details)/phases/types";
 import type { DeadlineItem } from "@/app/management/projects/[projectId]/(details)/overview/components/deadlines";
+
 import type {
   ChangeOrder,
   DocumentItem,
@@ -18,6 +21,19 @@ import type {
 } from "@/app/management/projects/[projectId]/(details)/overview/types";
 
 /* -------------------------------------------------------------------------- */
+/* Configuration                                                              */
+/* -------------------------------------------------------------------------- */
+
+const ACTIVITY_LIMIT = 50;
+const SUBMISSION_LIMIT = 20;
+
+/**
+ * Enable temporary query diagnostics in production or development.
+ * Set PROJECT_OVERVIEW_DEBUG=true to enable.
+ */
+const DEBUG = process.env.PROJECT_OVERVIEW_DEBUG === "true";
+
+/* -------------------------------------------------------------------------- */
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 
@@ -25,7 +41,7 @@ type Row = Record<string, unknown>;
 
 export interface OverviewProject {
   id: string;
-  name: string;
+  title: string;
   code: string | null;
   status: string;
   startDate: string | null;
@@ -94,6 +110,7 @@ export interface OverviewData {
     text: string;
     severity: "high" | "medium" | "low";
   }[];
+
   activities: OverviewActivity[];
   deliverables: Deliverable[];
 
@@ -104,11 +121,8 @@ export interface OverviewData {
     due: string;
   }[];
 
-  /** All project submissions, including drafts and reviewed submissions. */
   submittals: OverviewSubmission[];
-
-  /** Submissions awaiting review, excluding drafts. */
-  approvals: OverviewSubmission[];
+  approvalIds: string[];
 
   budgetByPhase: {
     phase: string;
@@ -127,7 +141,6 @@ export interface OverviewData {
   sitePhotos: SitePhoto[];
   safety: SafetySummary;
   procurement: ProcurementItem[];
-
 }
 
 /* -------------------------------------------------------------------------- */
@@ -135,68 +148,59 @@ export interface OverviewData {
 /* -------------------------------------------------------------------------- */
 
 function asRow(value: unknown): Row {
-  if (Array.isArray(value)) {
-    return value.length > 0 ? asRow(value[0]) : {};
-  }
+  if (Array.isArray(value)) return asRow(value[0]);
 
-  return value && typeof value === "object" ? (value as Row) : {};
+  return value && typeof value === "object"
+    ? (value as Row)
+    : {};
 }
 
-function stringValue(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
+function asRows(value: unknown): Row[] {
+  return Array.isArray(value) ? value.map(asRow) : [];
+}
 
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return String(value);
-    }
+function str(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
   }
 
   return "";
 }
 
-function nullableDate(...values: unknown[]): string | null {
-  for (const value of values) {
-    if (typeof value !== "string" || !value.trim()) {
-      continue;
-    }
+function num(value: unknown): number {
+  const n =
+    typeof value === "string" && value.trim()
+      ? Number(value)
+      : value;
 
-    const normalized = value.trim();
-
-    // Preserve date-only values to avoid timezone shifts.
-    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-      return normalized;
-    }
-
-    const date = new Date(normalized);
-
-    if (!Number.isNaN(date.getTime())) {
-      return date.toISOString();
-    }
-  }
-
-  return null;
+  return typeof n === "number" && Number.isFinite(n)
+    ? n
+    : 0;
 }
 
-function numericValue(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return 0;
-}
-
-function clampPercent(value: number): number {
+function pct(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+/**
+ * Keeps date-only values unchanged to prevent timezone shifts.
+ */
+function toDate(value: unknown): string | null {
+  const s = str(value);
+
+  if (!s) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return s;
+  }
+
+  const date = new Date(s);
+
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toISOString();
 }
 
 function dayDifference(from: Date, to: Date): number {
@@ -215,12 +219,14 @@ function dayDifference(from: Date, to: Date): number {
   return Math.ceil((end - start) / 86_400_000);
 }
 
-function formatDate(value: string | null): string {
+export function formatDate(value: string | null): string {
   if (!value) return "Sem prazo";
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return "Sem prazo";
+  if (Number.isNaN(date.getTime())) {
+    return "Sem prazo";
+  }
 
   return new Intl.DateTimeFormat("pt-PT", {
     day: "2-digit",
@@ -230,198 +236,50 @@ function formatDate(value: string | null): string {
   }).format(date);
 }
 
-function isCompleted(status: string): boolean {
-  return [
-    "completed",
-    "complete",
-    "done",
-    "concluído",
-    "concluido",
-    "terminado",
-  ].includes(status.trim().toLowerCase());
-}
+/* -------------------------------------------------------------------------- */
+/* Progress                                                                   */
+/* -------------------------------------------------------------------------- */
 
-function taskProgress(row: Row): number {
-  const status = stringValue(row.status, row.state);
+const DONE_STATUSES = new Set([
+  "completed",
+  "complete",
+  "done",
+  "concluído",
+  "concluido",
+  "terminado",
+]);
 
-  if (isCompleted(status)) return 100;
+/**
+ * A task is completed only after approval.
+ */
+const isApproved = (row: Row): boolean =>
+  str(row.review_status).toLowerCase() === "approved";
 
-  return clampPercent(
-    numericValue(
+const taskProgress = (row: Row): number =>
+  isApproved(row) ? 100 : 0;
+
+function storedProgress(row: Row): number {
+  return pct(
+    num(
       row.progress_percentage ??
-      row.progress ??
-      row.completion_percentage,
+        row.progress ??
+        row.completion_percentage,
     ),
   );
 }
 
 function stageProgress(row: Row): number {
-  if (isCompleted(stringValue(row.status))) {
-    return 100;
-  }
-
-  return clampPercent(
-    numericValue(
-      row.progress_percentage ??
-      row.progress ??
-      row.completion_percentage,
-    ),
-  );
+  return DONE_STATUSES.has(
+    str(row.status).toLowerCase(),
+  )
+    ? 100
+    : storedProgress(row);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Map database rows to Gantt data                                            */
-/* -------------------------------------------------------------------------- */
-
-function mapPhases(
+function averageProgress(
   rows: Row[],
-  stageRows: Row[] = [],
-): GanttPhase[] {
-  return rows
-    .map((row, index) => {
-      const id = stringValue(row.phase_id, row.id);
-
-      const phaseStages = stageRows.filter(
-        (stage) => stringValue(stage.phase_id) === id,
-      );
-
-      const hasOwnProgress = hasNumericProgress(row);
-
-      const progress = hasOwnProgress
-        ? clampPercent(
-          numericValue(
-            row.progress_percentage ??
-            row.progress ??
-            row.completion_percentage,
-          ),
-        )
-        : calculateAverageProgress(phaseStages, stageProgress);
-
-      return {
-        id,
-        name:
-          stringValue(
-            row.name,
-            row.phase_name,
-            row.title,
-            row.label,
-          ) || "Fase sem nome",
-        sortOrder: numericValue(
-          row.sort_order ?? row.position ?? row.order_index,
-        ),
-        progress,
-        originalIndex: index,
-      };
-    })
-    .filter((phase) => phase.id.length > 0)
-    .sort(
-      (a, b) =>
-        a.sortOrder - b.sortOrder ||
-        a.originalIndex - b.originalIndex,
-    )
-    .map(({ originalIndex: _originalIndex, ...phase }) => phase);
-}
-
-/**
- * Project tasks remain separate from phase_stages.
- * A task is associated with a phase only when its row contains a valid
- * phase_id or a related phase object.
- */
-function mapProjectTasks(
-  rows: Row[],
-): OverviewData["tasks"] {
-  return rows
-    .map((row) => {
-      const phase = asRow(row.phase);
-      const projectPhase = asRow(row.project_phase);
-
-      return {
-        id: stringValue(row.task_id, row.id),
-        name:
-          stringValue(row.title, row.name, row.task_name) ||
-          "Tarefa sem título",
-        phaseId: stringValue(
-          row.phase_id,
-          phase.phase_id,
-          phase.id,
-          projectPhase.phase_id,
-          projectPhase.id,
-        ),
-        startDate: nullableDate(
-          row.start_date,
-          row.starts_at,
-          row.start_at,
-          row.scheduled_start,
-        ),
-        endDate: nullableDate(
-          row.end_date,
-          row.due_date,
-          row.ends_at,
-          row.end_at,
-          row.deadline,
-        ),
-        progress: taskProgress(row),
-      };
-    })
-    .filter((task) => task.id.length > 0 && task.phaseId.length > 0);
-}
-
-/**
- * phase_stages uses stage_id, phase_id, planned_start and planned_end.
- */
-function mapPhaseStages(
-  rows: Row[],
-): OverviewData["tasks"] {
-  return rows
-    .map((row) => {
-      return {
-        id: stringValue(row.stage_id),
-        name: stringValue(row.name) || "Etapa sem nome",
-        phaseId: stringValue(row.phase_id),
-        startDate: nullableDate(row.planned_start),
-        endDate: nullableDate(row.planned_end),
-        progress: stageProgress(row),
-      };
-    })
-    .filter((stage) => stage.id.length > 0 && stage.phaseId.length > 0);
-}
-
-/**
- * Prevent duplicate IDs from reaching the Gantt component.
- */
-function uniqueById<T extends { id: string }>(items: T[]): T[] {
-  const seen = new Set<string>();
-
-  return items.filter((item) => {
-    if (!item.id || seen.has(item.id)) return false;
-
-    seen.add(item.id);
-    return true;
-  });
-}
-
-/**
- * Calculate overall progress from tasks when available.
- * Fall back to phase stages when the project has no tasks.
- */
-function hasNumericProgress(row: Row): boolean {
-  const value =
-    row.progress_percentage ??
-    row.progress ??
-    row.completion_percentage;
-
-  if (typeof value === "number") {
-    return Number.isFinite(value);
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    return Number.isFinite(Number(value));
-  }
-
-  return false;
-}
-
-function calculateAverageProgress(rows: Row[], getProgress: (row: Row) => number): number {
+  getProgress: (row: Row) => number,
+): number {
   if (rows.length === 0) return 0;
 
   const total = rows.reduce(
@@ -429,432 +287,545 @@ function calculateAverageProgress(rows: Row[], getProgress: (row: Row) => number
     0,
   );
 
-  return clampPercent(total / rows.length);
+  return pct(total / rows.length);
 }
 
-function calculateProgress(
-  projectTasks: Row[],
-  phaseStages: Row[],
-): number {
-  // Prefer task progress when actual progress values exist.
-  const tasksHaveProgress = projectTasks.some(
-    (task) => hasNumericProgress(task) ||
-      isCompleted(stringValue(task.status, task.state)),
-  );
+/* -------------------------------------------------------------------------- */
+/* Diagnostics and errors                                                     */
+/* -------------------------------------------------------------------------- */
 
-  if (tasksHaveProgress) {
-    return calculateAverageProgress(projectTasks, taskProgress);
+async function timed<T>(
+  name: string,
+  operation: PromiseLike<T>,
+): Promise<T> {
+  if (!DEBUG) return operation;
+
+  const start = performance.now();
+
+  try {
+    return await operation;
+  } finally {
+    console.info("[PROJECT_OVERVIEW]", {
+      query: name,
+      durationMs: Math.round(performance.now() - start),
+    });
   }
-
-  // Otherwise, use the progress recorded in phase stages.
-  if (phaseStages.length > 0) {
-    return calculateAverageProgress(phaseStages, stageProgress);
-  }
-
-  return 0;
 }
+
+function fail(
+  label: string,
+  error: { message: string } | null,
+): void {
+  if (error) {
+    throw new Error(
+      `Não foi possível carregar ${label}: ${error.message}`,
+    );
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Mappers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function groupTasksByPhase(
+  tasks: Row[],
+): Map<string, Row[]> {
+  const map = new Map<string, Row[]>();
+
+  for (const task of tasks) {
+    const phaseId = str(task.phase_id);
+
+    if (!phaseId) continue;
+
+    const existing = map.get(phaseId);
+
+    if (existing) {
+      existing.push(task);
+    } else {
+      map.set(phaseId, [task]);
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Task approval progress is authoritative when tasks exist.
+ * Otherwise, use the stored phase progress.
+ */
+function mapPhases(
+  rows: Row[],
+  tasksByPhase: Map<string, Row[]>,
+): GanttPhase[] {
+  return rows
+    .map((row) => {
+      const id = str(row.phase_id);
+
+      const phaseTasks = tasksByPhase.get(id) ?? [];
+
+      return {
+        id,
+        name: str(row.name) || "Fase sem nome",
+        sortOrder: num(row.sort_order),
+
+        progress:
+          phaseTasks.length > 0
+            ? averageProgress(phaseTasks, taskProgress)
+            : storedProgress(row),
+      };
+    })
+    .filter((phase) => phase.id);
+}
+
+function mapTasks(rows: Row[]): OverviewData["tasks"] {
+  return rows
+    .filter(
+      (row) =>
+        str(row.task_id) &&
+        str(row.phase_id),
+    )
+    .map((row) => ({
+      id: `task:${str(row.task_id)}`,
+      name: str(row.title) || "Tarefa sem título",
+      phaseId: str(row.phase_id),
+      startDate: toDate(row.start_date),
+      endDate: toDate(row.due_date),
+      progress: taskProgress(row),
+    }));
+}
+
+function mapStages(rows: Row[]): OverviewData["tasks"] {
+  return rows
+    .filter(
+      (row) =>
+        str(row.stage_id) &&
+        str(row.phase_id),
+    )
+    .map((row) => ({
+      id: `stage:${str(row.stage_id)}`,
+      name: str(row.name) || "Etapa sem nome",
+      phaseId: str(row.phase_id),
+      startDate: toDate(row.planned_start),
+      endDate: toDate(row.planned_end),
+      progress: stageProgress(row),
+    }));
+}
+
+function mapDeliverable(row: Row): Deliverable {
+  return {
+    id: str(row.id),
+    phase_id: str(row.phase_id),
+    title: str(row.title) || "Entregável sem título",
+    description: str(row.description) || null,
+    status: (
+      str(row.status) || "not_started"
+    ) as Deliverable["status"],
+    progress: num(row.progress),
+    start_date: str(row.start_date) || null,
+    due_date: str(row.due_date) || null,
+    completed_at: str(row.completed_at) || null,
+    sort_order: num(row.sort_order),
+  } as Deliverable;
+}
+
+function mapActivity(row: Row): OverviewActivity {
+  const profile = asRow(row.profiles);
+
+  const fullName = [
+    str(profile.first_name),
+    str(profile.last_name),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const metadata =
+    row.metadata &&
+    typeof row.metadata === "object" &&
+    !Array.isArray(row.metadata)
+      ? (row.metadata as Record<string, unknown>)
+      : null;
+
+  return {
+    activity_id: str(row.activity_id),
+    project_id: str(row.project_id) || null,
+    user_id: str(row.user_id) || null,
+    entity_id: str(row.entity_id) || null,
+    action: str(row.action) || "unknown",
+    entity_type: str(row.entity_type) || "unknown",
+    description: str(row.description) || null,
+    metadata,
+    created_at: str(row.created_at),
+    user_name: fullName || "Utilizador desconhecido",
+  };
+}
+
+function mapSubmission(row: Row): OverviewSubmission {
+  return {
+    submission_id: str(row.submission_id),
+    project_id: str(row.project_id),
+    title: str(row.title) || "Submissão sem título",
+    description: str(row.description) || null,
+    type: str(row.type) || "other",
+    status: str(row.status) || "pending",
+    submitted_by: str(row.submitted_by),
+    submitted_at: str(row.submitted_at),
+    due_date: str(row.due_date) || null,
+    reviewed_by: str(row.reviewed_by) || null,
+    reviewed_at: str(row.reviewed_at) || null,
+    notes: str(row.notes) || null,
+    revision_number: num(row.revision_number) || 1,
+    created_at: str(row.created_at),
+    updated_at: str(row.updated_at),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Query definitions                                                          */
+/* -------------------------------------------------------------------------- */
+
+const PROJECT_SELECT = `
+  project_id,
+  title,
+  project_code,
+  status,
+  start_date,
+  end_date,
+  municipality,
+  country,
+  type
+`;
+
+const PHASES_SELECT = `
+  phase_id,
+  name,
+  sort_order,
+  progress,
+
+  phase_stages (
+    stage_id,
+    phase_id,
+    name,
+    status,
+    progress,
+    planned_start,
+    planned_end,
+    sort_order
+  ),
+
+  deliverables (
+    id,
+    phase_id,
+    title,
+    description,
+    status,
+    progress,
+    start_date,
+    due_date,
+    completed_at,
+    sort_order
+  )
+`;
+
+const TASKS_SELECT = `
+  task_id,
+  phase_id,
+  title,
+  start_date,
+  due_date,
+  review_status
+`;
+
+const ACTIVITY_SELECT = `
+  activity_id,
+  user_id,
+  project_id,
+  action,
+  entity_type,
+  entity_id,
+  description,
+  metadata,
+  created_at,
+
+  profiles (
+    first_name,
+    last_name
+  )
+`;
+
+const SUBMISSION_SELECT = `
+  submission_id,
+  project_id,
+  title,
+  description,
+  type,
+  status,
+  submitted_by,
+  submitted_at,
+  due_date,
+  reviewed_by,
+  reviewed_at,
+  notes,
+  revision_number,
+  created_at,
+  updated_at
+`;
 
 /* -------------------------------------------------------------------------- */
 /* Server-side overview data                                                  */
 /* -------------------------------------------------------------------------- */
 
-export async function getOverviewData(
-  projectId: string,
-): Promise<OverviewData | null> {
-  const supabase = await createClient(await cookies());
-
-  /* ------------------------------------------------------------------------ */
-  /* Project                                                                  */
-  /* ------------------------------------------------------------------------ */
-
-  const { data: projectData, error: projectError } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("project_id", projectId)
-    .maybeSingle();
-
-  if (projectError) {
-    throw new Error(
-      `Não foi possível carregar o projecto: ${projectError.message}`,
-    );
-  }
-
-  if (!projectData) return null;
-
-  const projectRow = asRow(projectData);
-
-  /* ------------------------------------------------------------------------ */
-  /* Project phases                                                           */
-  /* ------------------------------------------------------------------------ */
-
-  const { data: phaseData, error: phaseError } = await supabase
-    .from("project_phases")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("sort_order", { ascending: true });
-
-  if (phaseError) {
-    throw new Error(
-      `Não foi possível carregar as fases do projecto: ${phaseError.message}`,
-    );
-  }
-
-  const phaseRows = (phaseData ?? []).map(asRow);
-
-  // Get phase IDs before loading their stages.
-  const phaseIds = uniqueById(mapPhases(phaseRows)).map(
-    (phase) => phase.id,
-  );
-
-  /* ------------------------------------------------------------------------ */
-  /* Phase stages                                                             */
-  /* ------------------------------------------------------------------------ */
-
-  let stageRows: Row[] = [];
-
-  if (phaseIds.length > 0) {
-    const { data: stageData, error: stageError } = await supabase
-      .from("phase_stages")
-      .select(
-        "stage_id, phase_id, name, status, progress, planned_start, planned_end, sort_order",
-      )
-      .in("phase_id", phaseIds)
-      .order("sort_order", { ascending: true });
-
-    if (stageError) {
-      throw new Error(
-        `Não foi possível carregar as etapas das fases: ${stageError.message}`,
-      );
+/**
+ * React cache deduplicates this function within the same server request.
+ *
+ * Independent database queries execute concurrently.
+ * Nested relationships avoid unnecessary additional requests.
+ */
+export const getOverviewData = cache(
+  async (
+    projectId: string,
+  ): Promise<OverviewData | null> => {
+    if (!projectId?.trim()) {
+      return null;
     }
 
-    stageRows = (stageData ?? []).map(asRow);
-  }
+    const supabase = await createClient();
 
-  const phases = uniqueById(
-    mapPhases(phaseRows, stageRows),
-  );
+    /* ---------------------------------------------------------------------- */
+    /* Parallel database queries                                              */
+    /* ---------------------------------------------------------------------- */
 
-  /* ------------------------------------------------------------------------ */
-  /* Deliverables                                                             */
-  /* ------------------------------------------------------------------------ */
+    const [
+      project_,
+      phases_,
+      tasks_,
+      activities_,
+      submissions_,
+    ] = await Promise.all([
+      timed(
+        "project",
+        supabase
+          .from("projects")
+          .select(PROJECT_SELECT)
+          .eq("project_id", projectId)
+          .maybeSingle(),
+      ),
 
-  let deliverableRows: Row[] = [];
+      timed(
+        "phases",
+        supabase
+          .from("project_phases")
+          .select(PHASES_SELECT)
+          .eq("project_id", projectId)
+          .order("sort_order", {
+            ascending: true,
+          })
+          .order("sort_order", {
+            ascending: true,
+            referencedTable: "phase_stages",
+          })
+          .order("sort_order", {
+            ascending: true,
+            referencedTable: "deliverables",
+          }),
+      ),
 
-  if (phaseIds.length > 0) {
-    const { data: deliverableData, error: deliverableError } =
-      await supabase
-        .from("deliverables")
-        .select("*")
-        .in("phase_id", phaseIds)
-        .order("sort_order", { ascending: true });
+      timed(
+        "tasks",
+        supabase
+          .from("tasks")
+          .select(TASKS_SELECT)
+          .eq("project_id", projectId),
+      ),
 
-    if (deliverableError) {
-      throw new Error(
-        `Não foi possível carregar os entregáveis: ${deliverableError.message}`,
-      );
+      timed(
+        "activities",
+        supabase
+          .from("activity_logs")
+          .select(ACTIVITY_SELECT)
+          .eq("project_id", projectId)
+          .order("created_at", {
+            ascending: false,
+          })
+          .limit(ACTIVITY_LIMIT),
+      ),
+
+      timed(
+        "submissions",
+        supabase
+          .from("submissions")
+          .select(SUBMISSION_SELECT)
+          .eq("project_id", projectId)
+          .order("created_at", {
+            ascending: false,
+          })
+          .limit(SUBMISSION_LIMIT),
+      ),
+    ]);
+
+    /* ---------------------------------------------------------------------- */
+    /* Error handling                                                         */
+    /* ---------------------------------------------------------------------- */
+
+    fail("o projecto", project_.error);
+    fail("as fases do projecto", phases_.error);
+    fail("as tarefas", tasks_.error);
+    fail("as actividades", activities_.error);
+    fail("as submissões", submissions_.error);
+
+    if (!project_.data) {
+      return null;
     }
 
-    deliverableRows = (deliverableData ?? []).map(asRow);
-  }
+    /* ---------------------------------------------------------------------- */
+    /* Normalize database results                                             */
+    /* ---------------------------------------------------------------------- */
 
-  /* ------------------------------------------------------------------------ */
-  /* Project tasks                                                            */
-  /* ------------------------------------------------------------------------ */
+    const projectRow = asRow(project_.data);
+    const phaseRows = asRows(phases_.data);
+    const taskRows = asRows(tasks_.data);
+    const activityRows = asRows(activities_.data);
+    const submissionRows = asRows(submissions_.data);
 
-  const { data: taskData, error: taskError } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("project_id", projectId);
+    /* ---------------------------------------------------------------------- */
+    /* Project                                                                */
+    /* ---------------------------------------------------------------------- */
 
-  if (taskError) {
-    throw new Error(
-      `Não foi possível carregar as tarefas: ${taskError.message}`,
-    );
-  }
-
-  const taskRows = (taskData ?? []).map(asRow);
-
-  /* ------------------------------------------------------------------------ */
-  /* Project activities                                                       */
-  /* ------------------------------------------------------------------------ */
-
-  const { data: activityData, error: activityError } = await supabase
-    .from("activity_logs")
-    .select(`
-    activity_id,
-    user_id,
-    project_id,
-    action,
-    entity_type,
-    entity_id,
-    description,
-    metadata,
-    created_at
-  `)
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false });
-
-  if (activityError) {
-    throw new Error(
-      `Não foi possível carregar as actividades: ${activityError.message}`,
-    );
-  }
-
-  const activityRows = (activityData ?? []).map(asRow);
-
-  /* ------------------------------------------------------------------------ */
-  /* Activity authors                                                         */
-  /* ------------------------------------------------------------------------ */
-
-  const activityUserIds = [
-    ...new Set(
-      activityRows
-        .map((row) => stringValue(row.user_id))
-        .filter(Boolean),
-    ),
-  ];
-
-  const { data: profileData, error: profileError } =
-    activityUserIds.length > 0
-      ? await supabase
-        .from("profiles")
-        .select("profile_id, first_name, last_name")
-        .in("profile_id", activityUserIds)
-      : { data: [], error: null };
-
-  if (profileError) {
-    throw new Error(
-      `Não foi possível carregar os autores das actividades: ${profileError.message}`,
-    );
-  }
-
-  const profileNameById = new Map<string, string>(
-    (profileData ?? []).map((profile) => {
-      const firstName = stringValue(profile.first_name);
-      const lastName = stringValue(profile.last_name);
-      const fullName = [firstName, lastName].filter(Boolean).join(" ");
-
-      return [
-        profile.profile_id,
-        fullName || "Utilizador desconhecido",
-      ];
-    }),
-  );
-
-  /* ------------------------------------------------------------------------ */
-  /* Project submissions                                                      */
-  /* ------------------------------------------------------------------------ */
-
-  const { data: submissionData, error: submissionError } = await supabase
-    .from("submissions")
-    .select(`
-      submission_id,
-      project_id,
-      title,
-      description,
-      type,
-      status,
-      submitted_by,
-      submitted_at,
-      due_date,
-      reviewed_by,
-      reviewed_at,
-      notes,
-      revision_number,
-      created_at,
-      updated_at
-    `)
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false });
-
-  if (submissionError) {
-    throw new Error(
-      `Não foi possível carregar as submissões: ${submissionError.message}`,
-    );
-  }
-
-  const submissionRows = (submissionData ?? []).map(asRow);
-
-  /* ------------------------------------------------------------------------ */
-  /* Project model                                                            */
-  /* ------------------------------------------------------------------------ */
-
-  const project: OverviewProject = {
-    id: stringValue(projectRow.project_id) || projectId,
-    name: stringValue(
-      projectRow.name,
-      projectRow.project_name,
-      projectRow.title
-    ) || "Projecto sem nome",
-    code: stringValue(projectRow.project_code) || null,
-    status: stringValue(projectRow.status) || "Sem estado",
-    startDate: nullableDate(
-      projectRow.start_date,
-      projectRow.started_at
-    ),
-    endDate: nullableDate(
-      projectRow.end_date,
-      projectRow.due_date,
-      projectRow.deadline
-    ),
-    municipality: stringValue(projectRow.municipality) || null,
-    country: stringValue(projectRow.country) || null,
-    type: stringValue(projectRow.type) || null
-  };
-
-  /* ------------------------------------------------------------------------ */
-  /* KPIs                                                                     */
-  /* ------------------------------------------------------------------------ */
-
-  const completedTasks = taskRows.filter((row) =>
-    isCompleted(stringValue(row.status, row.state)),
-  ).length;
-
-  const progress = calculateProgress(taskRows, stageRows);
-
-  const remainingDays = project.endDate
-    ? dayDifference(new Date(), new Date(project.endDate))
-    : null;
-
-  /* ------------------------------------------------------------------------ */
-  /* Gantt                                                                    */
-  /* ------------------------------------------------------------------------ */
-
-  const ganttTasks = uniqueById([
-    ...mapProjectTasks(taskRows).map((task) => ({
-      ...task,
-      id: `task:${task.id}`,
-    })),
-    ...mapPhaseStages(stageRows).map((stage) => ({
-      ...stage,
-      id: `stage:${stage.id}`,
-    })),
-  ]);
-
-  /* ------------------------------------------------------------------------ */
-  /* Deliverables model                                                       */
-  /* ------------------------------------------------------------------------ */
-
-  const deliverables: Deliverable[] = deliverableRows.map((row) => ({
-    ...row,
-    id: stringValue(row.id),
-    phase_id: stringValue(row.phase_id),
-    title: stringValue(row.title) || "Entregável sem título",
-    description: stringValue(row.description) || null,
-    status: (
-      stringValue(row.status) || "not_started"
-    ) as Deliverable["status"],
-    progress: numericValue(row.progress),
-    start_date: stringValue(row.start_date) || null,
-    due_date: stringValue(row.due_date) || null,
-    completed_at: stringValue(row.completed_at) || null,
-    sort_order: numericValue(row.sort_order),
-  }));
-
-  /* ------------------------------------------------------------------------ */
-  /* Activities model                                                         */
-  /* ------------------------------------------------------------------------ */
-
-  /* -------------------------------------------------------------------------- */
-  /* Activities model                                                           */
-  /* -------------------------------------------------------------------------- */
-
-  const activities: OverviewActivity[] = activityRows.map((row) => {
-    const userId = stringValue(row.user_id) || null;
-
-    return {
-      activity_id: stringValue(row.activity_id),
-      project_id: stringValue(row.project_id) || null,
-      user_id: userId,
-      entity_id: stringValue(row.entity_id) || null,
-      action: stringValue(row.action) || "unknown",
-      entity_type: stringValue(row.entity_type) || "unknown",
-      description: stringValue(row.description) || null,
-      metadata:
-        row.metadata &&
-          typeof row.metadata === "object" &&
-          !Array.isArray(row.metadata)
-          ? (row.metadata as Record<string, unknown>)
-          : null,
-      created_at: stringValue(row.created_at),
-      user_name: userId
-        ? profileNameById.get(userId) ?? "Utilizador desconhecido"
-        : "Utilizador desconhecido",
+    const project: OverviewProject = {
+      id: str(projectRow.project_id) || projectId,
+      title: str(projectRow.title) || "Projecto sem nome",
+      code: str(projectRow.project_code) || null,
+      status: str(projectRow.status) || "Sem estado",
+      startDate: toDate(projectRow.start_date),
+      endDate: toDate(projectRow.end_date),
+      municipality: str(projectRow.municipality) || null,
+      country: str(projectRow.country) || null,
+      type: str(projectRow.type) || null,
     };
-  });
 
-  /* ------------------------------------------------------------------------ */
-  /* Submissions model                                                        */
-  /* ------------------------------------------------------------------------ */
+    /* ---------------------------------------------------------------------- */
+    /* Phases, stages and deliverables                                        */
+    /* ---------------------------------------------------------------------- */
 
-  const submittals: OverviewSubmission[] = submissionRows.map((row) => ({
-    submission_id: stringValue(row.submission_id),
-    project_id: stringValue(row.project_id),
-    title: stringValue(row.title) || "Submissão sem título",
-    description: stringValue(row.description) || null,
-    type: stringValue(row.type) || "other",
-    status: stringValue(row.status) || "pending",
-    submitted_by: stringValue(row.submitted_by),
-    submitted_at: stringValue(row.submitted_at),
-    due_date: stringValue(row.due_date) || null,
-    reviewed_by: stringValue(row.reviewed_by) || null,
-    reviewed_at: stringValue(row.reviewed_at) || null,
-    notes: stringValue(row.notes) || null,
-    revision_number: numericValue(row.revision_number) || 1,
-    created_at: stringValue(row.created_at),
-    updated_at: stringValue(row.updated_at),
-  }));
+    const tasksByPhase = groupTasksByPhase(taskRows);
 
-  /* ------------------------------------------------------------------------ */
-  /* Approvals: submissions awaiting review, excluding drafts                 */
-  /* ------------------------------------------------------------------------ */
+    const phases = mapPhases(
+      phaseRows,
+      tasksByPhase,
+    );
 
-  const approvals = submittals.filter(
-    (submission) =>
-      submission.status.toLowerCase() !== "draft" &&
-      submission.reviewed_at === null,
-  );
+    const stageRows = phaseRows.flatMap(
+      (phase) => asRows(phase.phase_stages),
+    );
 
-  /* ------------------------------------------------------------------------ */
-  /* Return                                                                   */
-  /* ------------------------------------------------------------------------ */
+    const deliverables = phaseRows
+      .flatMap(
+        (phase) => asRows(phase.deliverables),
+      )
+      .map(mapDeliverable);
 
-  return {
-    project,
-    upcomingDeadlines: [],
-    overdueDeadlines: [],
-    teamMembers: [],
-    changeOrders: [],
-    documents: [],
-    issues: [],
-    siteReports: [],
-    sitePhotos: [],
-    safety: {
-      daysSinceIncident: 0,
-      openActions: 0,
-      incidents: [],
-    },
-    procurement: [],
+    /* ---------------------------------------------------------------------- */
+    /* Gantt tasks                                                             */
+    /* ---------------------------------------------------------------------- */
 
-    kpis: {
-      progress,
-      remainingDays,
-      openQuestions: 0,
-      completedTasks,
-      totalTasks: taskRows.length,
-      pendingApprovals: approvals.length,
-    },
+    const tasks = [
+      ...mapTasks(taskRows),
+      ...mapStages(stageRows),
+    ];
 
-    phases,
-    tasks: ganttTasks,
-    deliverables,
-    risks: [],
-    activities,
-    rfis: [],
-    submittals,
-    approvals,
-    budgetByPhase: [],
-  };
-}
+    /* ---------------------------------------------------------------------- */
+    /* Activities and submissions                                             */
+    /* ---------------------------------------------------------------------- */
 
-export { formatDate };
+    const activities = activityRows.map(mapActivity);
+
+    const submittals = submissionRows.map(mapSubmission);
+
+    const approvalIds = submittals
+      .filter(
+        (submission) =>
+          submission.status.toLowerCase() !== "draft" &&
+          submission.reviewed_at === null,
+      )
+      .map(
+        (submission) => submission.submission_id,
+      );
+
+    /* ---------------------------------------------------------------------- */
+    /* KPIs                                                                    */
+    /* ---------------------------------------------------------------------- */
+
+    const completedTasks = taskRows.filter(isApproved).length;
+
+    const remainingDays = project.endDate
+      ? dayDifference(
+          new Date(),
+          new Date(`${project.endDate}T00:00:00`),
+        )
+      : null;
+
+    /* ---------------------------------------------------------------------- */
+    /* Final response                                                         */
+    /* ---------------------------------------------------------------------- */
+
+    const result: OverviewData = {
+      project,
+
+      kpis: {
+        progress: averageProgress(
+          taskRows,
+          taskProgress,
+        ),
+
+        remainingDays,
+
+        openQuestions: 0,
+
+        completedTasks,
+
+        totalTasks: taskRows.length,
+
+        pendingApprovals: approvalIds.length,
+      },
+
+      phases,
+      tasks,
+      deliverables,
+      activities,
+      submittals,
+      approvalIds,
+
+      risks: [],
+      rfis: [],
+      budgetByPhase: [],
+      upcomingDeadlines: [],
+      overdueDeadlines: [],
+      teamMembers: [],
+      changeOrders: [],
+      documents: [],
+      issues: [],
+      siteReports: [],
+      sitePhotos: [],
+      procurement: [],
+
+      safety: {
+        daysSinceIncident: 0,
+        openActions: 0,
+        incidents: [],
+      },
+    };
+
+    if (DEBUG) {
+      console.info("[PROJECT_OVERVIEW] completed", {
+        projectId,
+        phases: phases.length,
+        tasks: taskRows.length,
+        stages: stageRows.length,
+        deliverables: deliverables.length,
+        activities: activities.length,
+        submissions: submittals.length,
+      });
+    }
+
+    return result;
+  },
+);

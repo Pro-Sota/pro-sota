@@ -27,8 +27,7 @@ export type ResourceMovementFormInput = {
 export async function createResourceMovement(
   input: ResourceMovementFormInput,
 ) {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
+  const supabase = await createClient();
 
   if (!input.resource_id) {
     throw new Error("O recurso é obrigatório.");

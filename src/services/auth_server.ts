@@ -6,20 +6,19 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 export async function getProfile() {
   try {
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);;
+    const supabase = createClient();;
 
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser();
+    } = await (await supabase).auth.getUser();
 
     if (userError) throw userError;
 
     if (!user) {
       throw new Error("No authenticated user");
     }
-    const { data, error } = await supabase
+    const { data, error } = await (await supabase)
       .from("profiles")
       .select("*")
       .eq("profile_id", user.id)
@@ -37,10 +36,9 @@ export async function getProfile() {
 
 
 export async function getAllUsers() {
-    const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const supabase = createClient();
 
-    const { data, error } = await supabase
+    const { data, error } = await (await supabase)
       .from("profiles")
       .select("*");
 
@@ -52,13 +50,12 @@ export async function getAllUsers() {
 
 export async function getSession() {
   try {
-     const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const supabase = createClient();
 
     const {
       data: { session },
       error,
-    } = await supabase.auth.getSession();
+    } = await (await supabase).auth.getSession();
 
     if (error) throw error;
 

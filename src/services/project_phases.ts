@@ -1,604 +1,430 @@
-import { createClient } from "@/app/lib/supabase/server";
-import { Database } from "@/app/lib/supabase/models";
-import { cookies } from "next/headers";
 
-type Phase = Database["public"]["Tables"]["project_phases"]["Row"];
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { createClient } from "@/app/lib/supabase/server";
+import type { Database } from "../../models";
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
+
+export type SaveTaskInput = {
+  id?: string;
+  projectId: string;
+  phaseId: string;
+  stageId: string | null;
+  title: string;
+  description: string | null;
+  startDate: string | null;
+  dueDate: string | null;
+  position: number;
+};
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-async function getSupabase() {
-  const cookieStore = await cookies();
-  return createClient(cookieStore);
+function validateDate(value: string | null, field: string) {
+  if (value === null) return;
+
+  // The tasks table uses PostgreSQL DATE columns (YYYY-MM-DD).
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error(`A data de "${field}" é inválida.`);
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throw new Error(`A data de "${field}" é inválida.`);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
-/* Phases                                                                     */
+/* Save Task                                                                  */
 /* -------------------------------------------------------------------------- */
 
-// Get all phases for a project
-export async function getProjectPhases(projectId: string) {
-  const supabase = await getSupabase();
+export async function saveTask(input: SaveTaskInput) {
+  const supabase = await createClient();
+
+  /* ------------------------------------------------------------------------ */
+  /* 1. Authentication                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error("A sessão expirou. Inicie sessão novamente.");
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* 2. Validate input                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  if (!input.projectId || !input.phaseId) {
+    throw new Error("O projecto e a fase são obrigatórios.");
+  }
+
+  const title = input.title.trim();
+
+  if (!title) {
+    throw new Error("O título é obrigatório.");
+  }
+
+  if (title.length > 200) {
+    throw new Error("O título não pode exceder 200 caracteres.");
+  }
+
+  if (!Number.isInteger(input.position) || input.position < 0) {
+    throw new Error(
+      "A ordem deve ser um número inteiro igual ou superior a zero.",
+    );
+  }
+
+  validateDate(input.startDate, "início");
+  validateDate(input.dueDate, "entrega");
+
+  if (
+    input.startDate &&
+    input.dueDate &&
+    input.startDate > input.dueDate
+  ) {
+    throw new Error(
+      "A data de início não pode ser posterior à data de entrega.",
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* 3. Validate phase                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  const { data: phase, error: phaseError } = await supabase
+    .from("project_phases")
+    .select("phase_id")
+    .eq("phase_id", input.phaseId)
+    .eq("project_id", input.projectId)
+    .maybeSingle();
+
+  if (phaseError) {
+    console.error("[saveTask] Phase lookup failed:", phaseError);
+
+    throw new Error(
+      `Não foi possível validar a fase: ${phaseError.message}`,
+    );
+  }
+
+  if (!phase) {
+    throw new Error(
+      "A fase não existe ou não pertence a este projecto.",
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* 4. Validate stage                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  if (input.stageId) {
+    const { data: stage, error: stageError } = await supabase
+      .from("phase_stages")
+      .select("stage_id")
+      .eq("stage_id", input.stageId)
+      .eq("phase_id", input.phaseId)
+      .maybeSingle();
+
+    if (stageError) {
+      console.error("[saveTask] Stage lookup failed:", stageError);
+
+      throw new Error(
+        `Não foi possível validar a etapa: ${stageError.message}`,
+      );
+    }
+
+    if (!stage) {
+      throw new Error(
+        "A etapa seleccionada não existe ou não pertence a esta fase.",
+      );
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* 5. Prepare payload                                                       */
+  /* ------------------------------------------------------------------------ */
+
+  const payload = {
+    project_id: input.projectId,
+    phase_id: input.phaseId,
+    stage_id: input.stageId,
+    title,
+    description: input.description?.trim() || null,
+    start_date: input.startDate,
+    due_date: input.dueDate,
+    position: input.position,
+    updated_at: new Date().toISOString(),
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /* 6. Update existing task                                                  */
+  /* ------------------------------------------------------------------------ */
+
+  if (input.id) {
+    const { data, error } = await supabase
+      .from("tasks")
+      .update(payload)
+      .eq("task_id", input.id)
+      .eq("project_id", input.projectId)
+      .eq("phase_id", input.phaseId)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("[saveTask] Update failed:", error);
+
+      throw new Error(
+        `Não foi possível actualizar o entregável: ${error.message}`,
+      );
+    }
+
+    if (!data) {
+      throw new Error(
+        "O entregável não foi actualizado. Verifique se existe e se tem permissão para o editar.",
+      );
+    }
+
+    revalidatePath(`/management/projects/${input.projectId}`);
+
+    return {
+      success: true,
+      task: data,
+    };
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* 7. Insert new task                                                       */
+  /* ------------------------------------------------------------------------ */
 
   const { data, error } = await supabase
-    .from("project_phases")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("sort_order", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get a single phase
-export async function getPhase(phaseId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("project_phases")
-    .select("*")
-    .eq("phase_id", phaseId)
+    .from("tasks")
+    .insert({
+      ...payload,
+      completed: false,
+      review_status: "not_submitted",
+      created_by: user.id,
+    })
+    .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("[saveTask] Insert failed:", error);
 
-  return data;
-}
+    throw new Error(
+      `Não foi possível adicionar o entregável: ${error.message}`,
+    );
+  }
 
-/* -------------------------------------------------------------------------- */
-/* Phase detail                                                               */
-/* -------------------------------------------------------------------------- */
+  if (!data) {
+    throw new Error("O Supabase não devolveu o entregável criado.");
+  }
 
-// Get everything needed by the phase detail page
-//
-// The phase detail page contains only:
-// - Phase
-// - Milestones
-// - Deliverables
-//
-// Tasks, documents and Stages are intentionally not loaded here.
-export async function getPhaseDetail(
-  projectId: string,
-  phaseId: string,
-) {
-  const supabase = await getSupabase();
-
-  const [phaseResult, milestonesResult, deliverablesResult, projectResult] =
-    await Promise.all([
-      supabase
-        .from("project_phases")
-        .select("*")
-        .eq("phase_id", phaseId)
-        .eq("project_id", projectId)
-        .single(),
-
-      supabase
-        .from("milestones")
-        .select("*")
-        .eq("phase_id", phaseId)
-        .order("date", { ascending: true }),
-
-      supabase
-        .from("deliverables")
-        .select("*")
-        .eq("phase_id", phaseId)
-        .order("sort_order", { ascending: true }),
-
-      supabase
-        .from("projects")
-        .select("project_id, title, project_code")
-        .eq("project_id", projectId)
-        .single(),
-    ]);
-
-  if (phaseResult.error) throw phaseResult.error;
-  if (milestonesResult.error) throw milestonesResult.error;
-  if (deliverablesResult.error) throw deliverablesResult.error;
-  if (projectResult.error) throw projectResult.error;
+  revalidatePath(`/management/projects/${input.projectId}`);
 
   return {
-    phase: phaseResult.data,
-    project: projectResult.data,
-    milestones: milestonesResult.data ?? [],
-    deliverables: deliverablesResult.data ?? [],
+    success: true,
+    task: data,
   };
 }
 
 /* -------------------------------------------------------------------------- */
-/* Phase + deliverables                                                       */
+/* Project Phase Board                                                        */
 /* -------------------------------------------------------------------------- */
 
-// Get phases with their deliverables
-export async function getProjectPhasesWithDeliverables(
-  projectId: string,
-) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("project_phases")
-    .select(`
-      *,
-      deliverables (*)
-    `)
-    .eq("project_id", projectId)
-    .order("sort_order", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
 /* -------------------------------------------------------------------------- */
-/* Deliverables                                                               */
+/* Project Phase Board                                                        */
 /* -------------------------------------------------------------------------- */
-
-// Get deliverables for a phase
-export async function getPhaseDeliverables(phaseId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("deliverables")
-    .select("*")
-    .eq("phase_id", phaseId)
-    .order("sort_order", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get a single deliverable
-export async function getDeliverable(deliverableId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("deliverables")
-    .select("*")
-    .eq("id", deliverableId)
-    .single();
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get deliverables with their Stages
-export async function getDeliverablesWithStages(phaseId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("deliverables")
-    .select(`
-      *,
-      Stages (*)
-    `)
-    .eq("phase_id", phaseId)
-    .order("sort_order", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Stages                                                                      */
-/* -------------------------------------------------------------------------- */
-
-// Get Stages for a deliverable
-export async function getDeliverableStages(deliverableId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("Stages")
-    .select("*")
-    .eq("deliverable_id", deliverableId)
-    .order("position", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get a single Stage
-export async function getStage(StageId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("Stages")
-    .select("*")
-    .eq("id", StageId)
-    .single();
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get all Stages belonging to a phase
-export async function getPhaseStages(phaseId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("Stages")
-    .select(`
-      *,
-      deliverables!inner (
-        id,
-        phase_id
-      )
-    `)
-    .eq("deliverables.phase_id", phaseId)
-    .order("position", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get all project Stages
-export async function getProjectStages(projectId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("Stages")
-    .select(`
-      *,
-      deliverables!inner (
-        id,
-        phase_id,
-        project_phases!inner (
-          phase_id,
-          project_id
-        )
-      )
-    `)
-    .eq("deliverables.project_phases.project_id", projectId)
-    .order("position", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get incomplete Stages for a project
-export async function getIncompleteProjectStages(projectId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("Stages")
-    .select(`
-      *,
-      deliverables!inner (
-        id,
-        title,
-        phase_id,
-        project_phases!inner (
-          phase_id,
-          name,
-          project_id
-        )
-      )
-    `)
-    .eq("deliverables.project_phases.project_id", projectId)
-    .neq("status", "completed")
-    .order("position", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Deliverable queries                                                        */
-/* -------------------------------------------------------------------------- */
-
-// Get overdue deliverables
-export async function getOverdueDeliverables(projectId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("deliverables")
-    .select(`
-      *,
-      project_phases!inner (
-        phase_id,
-        name,
-        project_id
-      )
-    `)
-    .eq("project_phases.project_id", projectId)
-    .lt("due_date", new Date().toISOString())
-    .neq("status", "completed")
-    .order("due_date", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get upcoming deliverables
-export async function getUpcomingDeliverables(
-  projectId: string,
-  limit = 10,
-) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("deliverables")
-    .select(`
-      *,
-      project_phases!inner (
-        phase_id,
-        name,
-        project_id
-      )
-    `)
-    .eq("project_phases.project_id", projectId)
-    .neq("status", "completed")
-    .order("due_date", { ascending: true })
-    .limit(limit);
-
-  if (error) throw error;
-
-  return data;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Milestones                                                                 */
-/* -------------------------------------------------------------------------- */
-
-// Get project milestones
-export async function getProjectMilestones(projectId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("milestones")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("date", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get milestones for a phase
-export async function getPhaseMilestones(phaseId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("milestones")
-    .select("*")
-    .eq("phase_id", phaseId)
-    .order("date", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Phase status                                                               */
-/* -------------------------------------------------------------------------- */
-
-// Get current/active phases
-export async function getActiveProjectPhases(projectId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("project_phases")
-    .select("*")
-    .eq("project_id", projectId)
-    .eq("status", "in_progress")
-    .order("planned_start", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get completed phases
-export async function getCompletedProjectPhases(projectId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("project_phases")
-    .select("*")
-    .eq("project_id", projectId)
-    .eq("status", "completed")
-    .order("planned_end", { ascending: false });
-
-  if (error) throw error;
-
-  return data;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Project phase tree                                                         */
-/* -------------------------------------------------------------------------- */
-
-// Get all project phases with their complete hierarchy
-export async function getProjectPhaseTree(projectId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("project_phases")
-    .select(`
-      *,
-      deliverables (
-        *,
-        Stages (*)
-      ),
-      milestones (*)
-    `)
-    .eq("project_id", projectId)
-    .order("sort_order", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Progress                                                                   */
-/* -------------------------------------------------------------------------- */
-
-// Get basic project progress data
-export async function getProjectProgress(projectId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("project_phases")
-    .select(`
-      phase_id,
-      name,
-      status,
-      progress,
-      deliverables (
-        id,
-        title,
-        status,
-        progress,
-        Stages (
-          id,
-          status
-        )
-      )
-    `)
-    .eq("project_id", projectId)
-    .order("sort_order", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get a phase's progress data
-export async function getPhaseProgress(phaseId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("project_phases")
-    .select(`
-      phase_id,
-      name,
-      status,
-      progress,
-      deliverables (
-        id,
-        title,
-        status,
-        progress,
-        Stages (
-          id,
-          status
-        )
-      )
-    `)
-    .eq("phase_id", phaseId)
-    .single();
-
-  if (error) throw error;
-
-  return data;
-}
-
-// Get phase statistics
-export async function getPhaseStats(phaseId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("deliverables")
-    .select(`
-      id,
-      title,
-      status,
-      progress,
-      Stages (
-        id,
-        status
-      )
-    `)
-    .eq("phase_id", phaseId);
-
-  if (error) throw error;
-
-  return data;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Activity                                                                   */
-/* -------------------------------------------------------------------------- */
-
-// Get project activity/history
-export async function getProjectActivity(projectId: string) {
-  const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from("activity")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-
-  return data;
-}
 
 export async function getProjectPhaseBoard(projectId: string) {
-  const supabase = await getSupabase();
+  const supabase = await createClient();
 
-  const { data: phases, error: phasesError } = await supabase
-    .from("project_phases")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("sort_order", { ascending: true });
+  // Fetch independent project data concurrently.
+  const [phasesResult, tasksResult, milestonesResult] =
+    await Promise.all([
+      supabase
+        .from("project_phases")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("sort_order", { ascending: true }),
 
-  if (phasesError) throw phasesError;
+      supabase
+        .from("tasks")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("position", { ascending: true }),
 
-  const phaseIds = (phases ?? []).map((phase) => phase.phase_id);
+      supabase
+        .from("milestones")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("date", { ascending: true }),
+    ]);
 
-  let Stages: Database["public"]["Tables"]["phase_stages"]["Row"][] = [];
-  let deliverables: Database["public"]["Tables"]["deliverables"]["Row"][] = [];
-  let milestones: Database["public"]["Tables"]["milestones"]["Row"][] = [];
+  if (phasesResult.error) throw phasesResult.error;
+  if (tasksResult.error) throw tasksResult.error;
+  if (milestonesResult.error) throw milestonesResult.error;
+
+  const phases = phasesResult.data ?? [];
+  const tasks = tasksResult.data ?? [];
+  const milestones = milestonesResult.data ?? [];
+
+  // Fetch stages only when phases exist.
+  const phaseIds = phases.map((phase) => phase.phase_id);
+
+  let stages: Database["public"]["Tables"]["phase_stages"]["Row"][] = [];
 
   if (phaseIds.length > 0) {
-    const [StagesResult, deliverablesResult, milestonesResult] =
-      await Promise.all([
-        supabase
-          .from("phase_stages")
-          .select("*")
-          .in("phase_id", phaseIds)
-          .order("sort_order", { ascending: true }),
+    const { data, error } = await supabase
+      .from("phase_stages")
+      .select("*")
+      .in("phase_id", phaseIds)
+      .order("sort_order", { ascending: true });
 
-        supabase
-          .from("deliverables")
-          .select("*")
-          .in("phase_id", phaseIds)
-          .order("sort_order", { ascending: true }),
+    if (error) throw error;
 
-        supabase
-          .from("milestones")
-          .select("*")
-          .eq("project_id", projectId)
-          .order("date", { ascending: true }),
-      ]);
-
-    if (StagesResult.error) throw StagesResult.error;
-    if (deliverablesResult.error) throw deliverablesResult.error;
-    if (milestonesResult.error) throw milestonesResult.error;
-
-    Stages = StagesResult.data ?? [];
-    deliverables = deliverablesResult.data ?? [];
-    milestones = milestonesResult.data ?? [];
+    stages = data ?? [];
   }
 
   return {
-    phases: phases ?? [],
-    Stages,
-    deliverables,
+    phases,
+    stages,
+    tasks,
     milestones,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phase Detail                                                               */
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/* Phase Detail                                                               */
+/* -------------------------------------------------------------------------- */
+
+export async function getPhaseDetail(
+  projectId: string,
+  phaseId: string,
+) {
+  const supabase = await createClient();
+
+  /* ------------------------------------------------------------------------ */
+  /* 1. Authentication                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error("A sessão expirou. Inicie sessão novamente.");
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* 2. Fetch project                                                         */
+  /* ------------------------------------------------------------------------ */
+
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("project_id, title, project_code")
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (projectError) throw projectError;
+
+  if (!project) {
+    throw new Error("O projecto não foi encontrado.");
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* 3. Fetch phase                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  const { data: phase, error: phaseError } = await supabase
+    .from("project_phases")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("phase_id", phaseId)
+    .maybeSingle();
+
+  if (phaseError) throw phaseError;
+
+  if (!phase) {
+    throw new Error("A fase não existe ou não pertence a este projecto.");
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* 4. Fetch stages, tasks and milestones                                    */
+  /* ------------------------------------------------------------------------ */
+
+  const [
+    stagesResult,
+    tasksResult,
+    milestonesResult,
+  ] = await Promise.all([
+    supabase
+      .from("phase_stages")
+      .select("*")
+      .eq("phase_id", phaseId)
+      .order("sort_order", { ascending: true }),
+
+    supabase
+      .from("tasks")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("phase_id", phaseId)
+      .order("position", { ascending: true }),
+
+    supabase
+      .from("milestones")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("phase_id", phaseId)
+      .order("date", { ascending: true }),
+  ]);
+
+  if (stagesResult.error) {
+    console.error("[getPhaseDetail] Stages query failed:", stagesResult.error);
+    throw stagesResult.error;
+  }
+
+  if (tasksResult.error) {
+    console.error("[getPhaseDetail] Tasks query failed:", tasksResult.error);
+    throw tasksResult.error;
+  }
+
+  if (milestonesResult.error) {
+    console.error(
+      "[getPhaseDetail] Milestones query failed:",
+      milestonesResult.error,
+    );
+    throw milestonesResult.error;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* 5. Return phase detail                                                   */
+  /* ------------------------------------------------------------------------ */
+
+  return {
+    phase,
+    project,
+    stages: stagesResult.data ?? [],
+    tasks: tasksResult.data ?? [],
+    milestones: milestonesResult.data ?? [],
   };
 }

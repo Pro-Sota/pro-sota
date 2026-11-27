@@ -31,7 +31,7 @@ async function getProjectRole(
     role: ProjectRole | null;
     error?: string;
 }> {
-    const supabase = await createClient(await cookies());
+    const supabase = await createClient();
 
     const { data, error } = await supabase
         .from("project_roles")
@@ -75,7 +75,7 @@ export async function addTeamMember(
     }
 
     try {
-        const supabase = await createClient(await cookies());
+        const supabase = await createClient();
 
         const {
             role,
@@ -205,7 +205,7 @@ export async function removeProjectTeamMemberAction(
     }
 
     try {
-        const supabase = await createClient(await cookies());
+        const supabase = await createClient();
 
         const { error } = await supabase
             .from("project_members")
@@ -257,7 +257,7 @@ export async function assignProjectRole(
     }
 
     try {
-        const supabase = await createClient(await cookies());
+        const supabase = await createClient();
 
         const {
             role,
@@ -370,7 +370,7 @@ export async function removeTeamMember(
     }
 
     try {
-        const supabase = await createClient(await cookies());
+        const supabase = await createClient();
 
         const { error } = await supabase
             .from("project_members")

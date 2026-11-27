@@ -131,7 +131,7 @@ Exemplo existente: `management/projects/page.tsx` carrega `getProjects()` de `se
 ### 4.2 Separação cliente/servidor
 
 - `app/lib/supabase/client.ts`: cria o cliente de navegador.
-- `app/lib/supabase/server.ts`: recebe o cookie store obtido com `await cookies()` e cria o cliente SSR.
+- `app/lib/supabase/server.ts`: recebe o cookie store obtido com `` e cria o cliente SSR.
 - `app/lib/supabase/middleware.ts`: gere cookies no contexto do pedido e da resposta.
 - `app/actions/message.ts` e `app/actions/resources.ts`: expõem funções com `"use server"`.
 - Componentes com `"use client"` suportam estado, eventos e APIs do navegador.

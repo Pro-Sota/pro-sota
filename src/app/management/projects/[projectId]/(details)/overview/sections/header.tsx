@@ -34,7 +34,7 @@ export default function ProjectHeader({
             {project.code || LABELS.defaultCode}
           </p>
           <h1 className="mt-1 break-words text-xl tracking-wider text-gray-900 sm:text-2xl">
-            {project.name || LABELS.unnamedProject}
+            {project.title || LABELS.unnamedProject}
           </h1>
         </div>
 

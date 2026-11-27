@@ -151,7 +151,7 @@ function uniqueIds(values: (string | null | undefined)[]): string[] {
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 async function getSupabase(): Promise<SupabaseServerClient> {
-    return createClient(await cookies());
+    return createClient();
 }
 
 /**
@@ -865,7 +865,7 @@ export type CalendarRangeRecord = {
 };
 
 export async function getCalendarRangeEvents(): Promise<CalendarRangeRecord[]> {
-    const supabase = await createClient(await cookies());
+    const supabase = await createClient();
 
     const [projectsResult, tasksResult, submissionsResult] =
         await Promise.all([

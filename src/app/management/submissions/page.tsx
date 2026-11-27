@@ -9,7 +9,7 @@ import {
 } from "@/services/submissions";
 
 export default async function ApprovalsAndReviewsPage() {
-  const supabase = await createClient(await cookies());
+  const supabase = await createClient();
 
   const {
     data: { user },

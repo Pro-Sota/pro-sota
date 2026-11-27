@@ -27,13 +27,12 @@ export async function getProjectActivity(
     };
   }
 
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   const {
     data: { user },
     error: authError,
-  } = await supabase.auth.getUser();
+  } = await (await supabase).auth.getUser();
 
   if (authError || !user) {
     return { status: "unauthenticated" };
@@ -47,7 +46,7 @@ export async function getProjectActivity(
     data: activityData,
     error: activityError,
     count,
-  } = await supabase
+  } = await (await supabase)
     .from("activity_logs")
     .select(
       `
@@ -89,7 +88,7 @@ export async function getProjectActivity(
   let profiles: ActivityProfile[] = [];
 
   if (userIds.length > 0) {
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileData, error: profileError } = await (await supabase)
       .from("profiles")
       .select("profile_id, first_name, last_name")
       .in("profile_id", userIds);

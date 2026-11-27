@@ -17,9 +17,8 @@ export type TeamMemberProfile =
 export async function getTeamMemberProfile(
     profileId: string
 ): Promise<TeamMemberProfile | null> {
-    const cookieStore = await cookies();
     const supabase =
-        await createClient(cookieStore);
+        await createClient();
 
     const {
         data: profile,

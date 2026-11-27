@@ -24,8 +24,6 @@ export async function generateMetadata({
   const project = await getProject(slug);
 
 
-  console.log("Projecto encontrado: " + project);
-
   if (!project) {
     return {
       title: "Projecto não encontrado | PRO SOTA",

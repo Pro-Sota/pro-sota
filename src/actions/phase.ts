@@ -23,8 +23,7 @@ type PhasePayload = {
 };
 
 async function getSupabase() {
-  const cookieStore = await cookies();
-  return createClient(cookieStore);
+  return createClient();
 }
 
 export async function savePhase(

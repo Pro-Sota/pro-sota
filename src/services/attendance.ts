@@ -79,8 +79,7 @@ function normalizeError(error: unknown): Error {
 export async function getAttendanceProfiles(): Promise<
     AttendanceProfile[]
 > {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('profiles')
@@ -111,8 +110,7 @@ export async function getAttendanceProfiles(): Promise<
 export async function getAttendanceByDate(
     attendanceDate = getTodayDate(),
 ): Promise<AttendanceWithProfile[]> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('attendance_records')
@@ -155,8 +153,7 @@ export async function getAttendanceByMonth(
     startDate: string,
     endDate: string,
 ): Promise<AttendanceRecord[]> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('attendance_records')
@@ -194,8 +191,7 @@ export async function getAttendanceByProfile(
     startDate?: string,
     endDate?: string,
 ): Promise<AttendanceRecord[]> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     let query = supabase
         .from('attendance_records')
@@ -227,8 +223,7 @@ export async function getAttendanceByProfile(
 export async function getAttendanceById(
     attendanceId: string,
 ): Promise<AttendanceRecord | null> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('attendance_records')
@@ -251,8 +246,7 @@ export async function getAttendanceForMemberAndDate(
     profileId: string,
     attendanceDate = getTodayDate(),
 ): Promise<AttendanceRecord | null> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('attendance_records')
@@ -279,8 +273,7 @@ export async function getAttendanceForMemberAndDate(
 export async function createAttendance(
     input: CreateAttendanceInput,
 ): Promise<AttendanceRecord> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const payload = {
         profile_id: input.profile_id,
@@ -313,8 +306,7 @@ export async function updateAttendance(
     attendanceId: string,
     input: UpdateAttendanceInput,
 ): Promise<AttendanceRecord> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('attendance_records')
@@ -337,8 +329,7 @@ export async function updateAttendance(
 export async function deleteAttendance(
     attendanceId: string,
 ): Promise<void> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { error } = await supabase
         .from('attendance_records')
@@ -401,8 +392,7 @@ export async function registerCheckIn(
         );
     }
 
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('attendance_records')
@@ -569,8 +559,7 @@ export async function registerCheckOut(
 export async function upsertAttendance(
     input: CreateAttendanceInput,
 ): Promise<AttendanceRecord> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const payload = {
         profile_id: input.profile_id,

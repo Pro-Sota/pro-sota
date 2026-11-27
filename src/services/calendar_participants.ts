@@ -10,18 +10,18 @@ export type CalendarParticipant = {
 export async function getCalendarParticipants(): Promise<
   CalendarParticipant[]
 > {
-  const supabase = createClient(await cookies());
+  const supabase = createClient();
 
   const {
     data: { user },
     error: authError,
-  } = await supabase.auth.getUser();
+  } = await (await supabase).auth.getUser();
 
   if (authError || !user) {
     throw new Error("Sessão inválida. Inicie sessão novamente.");
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await (await supabase)
     .from("profiles")
     .select("profile_id, first_name, email")
     .order("first_name", { ascending: true });

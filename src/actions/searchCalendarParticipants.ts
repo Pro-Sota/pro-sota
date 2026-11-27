@@ -21,7 +21,7 @@ export async function searchCalendarParticipants(
         );
         const { cookies } = await import("next/headers");
 
-        const supabase = await createClient(await cookies());
+        const supabase = await createClient();
 
         const {
             data: { user },

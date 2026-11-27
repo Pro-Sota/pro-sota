@@ -13,8 +13,7 @@ export type TeamMember = Profile & {
 };
 
 export async function getTeamMembers(): Promise<TeamMember[]> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
@@ -82,8 +81,7 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
 }
 
 export async function getUserById(userId: string): Promise<Profile | null> {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data: profile, error } = await supabase
         .from("profiles")

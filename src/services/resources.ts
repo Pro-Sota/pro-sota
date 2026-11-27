@@ -339,9 +339,8 @@ export const RESOURCE_MOVEMENT_TYPE_LABELS: Record<
 /* -------------------------------------------------------------------------- */
 
 async function getSupabase() {
-  const cookieStore = await cookies();
 
-  return createClient(cookieStore);
+  return createClient();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1520,8 +1519,7 @@ export async function getProjectsForResourceMovement(): Promise<
   ResourceMovementProjectOption[]
 > {
   try {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("projects")
@@ -1570,8 +1568,7 @@ export type ResourceMovementFormInput = {
 export async function createResourceMovement(
   input: ResourceMovementFormInput,
 ) {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
+  const supabase = await createClient();
 
   if (!input.resource_id) {
     throw new Error("O recurso é obrigatório.");
@@ -1690,8 +1687,7 @@ export async function getProfilesForResourceMovement(): Promise<
   ResourceMovementProfileOption[]
 > {
   try {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("profiles")

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { getPhase } from "@/services/project_phases";
+import { getPhaseDetail } from "@/services/project_phases";
 import { PhaseForm } from "../../phase_form";
 
 export default async function Page({
@@ -15,11 +15,7 @@ export default async function Page({
 }) {
   const { projectId, phaseId } = await params;
 
-  const phase = await getPhase(phaseId);
-
-  if (phase.project_id !== projectId) {
-    notFound();
-  }
+  const phase = await getPhaseDetail(projectId,phaseId);
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -36,7 +32,7 @@ export default async function Page({
 
         <PhaseForm
           projectId={projectId}
-          phase={phase}
+          phase={phase.phase}
         />
       </div>
     </div>

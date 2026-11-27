@@ -64,7 +64,7 @@ const REMINDER_SELECT = `
 /* -------------------------------------------------------------------------- */
 
 async function getSupabase() {
-    return createClient(await cookies());
+    return createClient();
 }
 
 /* -------------------------------------------------------------------------- */

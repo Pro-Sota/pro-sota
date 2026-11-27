@@ -1,39 +1,52 @@
-
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { Database } from "@/app/lib/supabase/models";
+import {
+  Eye,
+  FilePlus2,
+  ListPlus,
+  Pencil,
+  Plus,
+} from "lucide-react";
 
 import { PhaseTimeline } from "./PhaseTimeline";
-import { Metric } from "./Metric";
 import { StatusPill } from "./StatusPill";
 import { EmptyState } from "./EmptyState";
 import { ProgressBar } from "./ProgressBar";
+
 import AddPhaseModal from "./create_phase_modal";
 import { StageModal } from "./stage_modal";
 import { DeliverableModal } from "./deliverable_modal";
 
-import {
-  Eye,
-  ListPlus,
-  FilePlus2,
-  Plus,
-  Pencil,
-} from "lucide-react";
+import GanttChart from "@/app/components/gant_chart/gantt";
 
 import type {
   GanttPhase,
-  GanttDeliverable,
   GanttStep,
+  GanttDeliverable,
 } from "@/app/components/gant_chart/gantt";
 
-import GanttChart from "@/app/components/gant_chart/gantt";
+import type { Database } from "../../../../../../../models";
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 type Phase = Database["public"]["Tables"]["project_phases"]["Row"];
 type Stage = Database["public"]["Tables"]["phase_stages"]["Row"];
-type Deliverable = Database["public"]["Tables"]["deliverables"]["Row"];
 
+type Task = Database["public"]["Tables"]["tasks"]["Row"] & {
+  stage_id: string | null;
+};
+
+type Props = {
+  phases: Phase[];
+  stages: Stage[];
+  tasks: Task[];
+};
+
+type Tab = "workspace" | "gantt";
 
 type StatusValue =
   | "Completed"
@@ -48,712 +61,91 @@ type StatusItem = {
   status: StatusValue;
 };
 
-interface Props {
-  phases: Phase[];
-  Stages: Stage[];
-  deliverables: Deliverable[];
-}
+/* -------------------------------------------------------------------------- */
+/* Constants                                                                   */
+/* -------------------------------------------------------------------------- */
 
-const STATUS: Record<StatusValue, { label: string; color: string }> = {
+const STATUS = {
   Completed: {
     label: "Concluída",
-    color: "bg-green-50 text-green-700 border-green-200",
+    color: "border-green-200 bg-green-50 text-green-700",
   },
   Current: {
     label: "Em curso",
-    color: "bg-amber-50 text-amber-700 border-amber-200",
+    color: "border-amber-200 bg-amber-50 text-amber-700",
   },
   Upcoming: {
     label: "Por iniciar",
-    color: "bg-gray-50 text-gray-500 border-gray-200",
-  },
-  Pending: {
-    label: "Pendente",
-    color: "bg-gray-100 text-gray-600 border-gray-200",
+    color: "border-gray-200 bg-gray-50 text-gray-600",
   },
   "In Review": {
     label: "Em revisão",
-    color: "bg-blue-50 text-blue-700 border-blue-200",
+    color: "border-blue-200 bg-blue-50 text-blue-700",
   },
-};
+  Pending: {
+    label: "Alterações solicitadas",
+    color: "border-gray-200 bg-gray-100 text-gray-600",
+  },
+} as const;
 
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2";
 
+const SECONDARY_BUTTON =
+  `inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-[#002950] ${FOCUS_RING}`;
 
-const PHASE_STATUS_LABELS: Record<string, string> = {
-  not_started: "Por iniciar",
-  in_progress: "Em curso",
-  completed: "Concluída",
-};
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                     */
+/* -------------------------------------------------------------------------- */
 
-const DELIVERABLE_STATUS: Record<string, StatusValue> = {
-  not_started: "Upcoming",
-  in_progress: "Current",
-  completed: "Completed",
-  on_hold: "Pending",
-  cancelled: "Pending",
-};
-
-const STAGE_STATUS: Record<string, StatusValue> = {
-  not_started: "Upcoming",
-  in_progress: "Current",
-  completed: "Completed",
-};
-
-function clampProgress(value: number | null | undefined): number {
-  if (value == null || !Number.isFinite(value)) return 0;
-  return Math.round(Math.min(100, Math.max(0, value)));
+function clamp(value: number) {
+  return Math.max(0, Math.min(100, value));
 }
 
-function getStageProgress(stage: Stage): number {
+function average(values: number[]) {
+  if (!values.length) return 0;
+
+  return Math.round(
+    values.reduce((sum, value) => sum + value, 0) / values.length,
+  );
+}
+
+function getTaskProgress(task: Task) {
+  return task.review_status === "approved" ? 100 : 0;
+}
+
+function getStageProgress(stage: Stage) {
   return stage.status === "completed"
     ? 100
-    : clampProgress(stage.progress);
+    : clamp(stage.progress ?? 0);
 }
 
-function getPhaseProgress(phase: Phase, phaseStages: Stage[]): number {
-  if (phase.status === "completed") return 100;
-
-  if (phaseStages.length === 0) {
-    return clampProgress(phase.progress);
-  }
-
-  const total = phaseStages.reduce(
-    (sum, stage) => sum + getStageProgress(stage),
-    0,
-  );
-
-  return Math.round(total / phaseStages.length);
+function getPhaseProgress(tasks: Task[]) {
+  return average(tasks.map(getTaskProgress));
 }
 
-function getPhaseStatusLabel(phase: Phase): string {
-  return PHASE_STATUS_LABELS[phase.status] ?? phase.status;
+function getPhaseStatusLabel(phase: Phase): StatusValue {
+  if (phase.status === "completed") return "Completed";
+  if (phase.status === "in_progress") return "Current";
+  return "Upcoming";
 }
 
-function getStageStatus(status: string): StatusValue {
-  return STAGE_STATUS[status] ?? "Pending";
+function getStageStatus(stage: Stage): StatusValue {
+  if (stage.status === "completed") return "Completed";
+  if (stage.status === "in_progress") return "Current";
+  return "Upcoming";
 }
 
-function getDeliverableStatus(status: string): StatusValue {
-  return DELIVERABLE_STATUS[status] ?? "Pending";
+function getTaskStatus(task: Task): StatusValue {
+  if (task.review_status === "approved") return "Completed";
+  if (task.review_status === "in_review") return "In Review";
+  if (task.review_status === "changes_requested") return "Pending";
+  return "Upcoming";
 }
 
-export default function PhasesPageInner({
-  phases,
-  Stages,
-  deliverables,
-}: Props) {
-  const router = useRouter();
-  const params = useParams<{ projectId: string }>();
-  const projectId = params.projectId;
-
-  const [isAddPhaseOpen, setIsAddPhaseOpen] = useState(false);
-
-  const [selectedPhaseId, setSelectedPhaseId] = useState<string>();
-
-  const [isStageModalOpen, setIsStageModalOpen] = useState(false);
-  const [editingStage, setEditingStage] = useState<Stage | null>(null);
-
-  const [isDeliverableModalOpen, setIsDeliverableModalOpen] =
-    useState(false);
-
-  const [editingDeliverable, setEditingDeliverable] =
-    useState<Deliverable | null>(null);
-
-  const sortedPhases = useMemo(
-    () =>
-      [...phases].sort(
-        (a, b) =>
-          (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
-          a.name.localeCompare(b.name, "pt") ||
-          a.phase_id.localeCompare(b.phase_id),
-      ),
-    [phases],
-  );
-
-  const stagesByPhase = useMemo(() => {
-    const result = new Map<string, Stage[]>();
-
-    for (const stage of Stages) {
-      const existing = result.get(stage.phase_id) ?? [];
-      existing.push(stage);
-      result.set(stage.phase_id, existing);
-    }
-
-    for (const phaseStages of result.values()) {
-      phaseStages.sort(
-        (a, b) =>
-          (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
-          a.name.localeCompare(b.name, "pt") ||
-          a.stage_id.localeCompare(b.stage_id),
-      );
-    }
-
-    return result;
-  }, [Stages]);
-
-  const progressByPhase = useMemo(() => {
-    const result = new Map<string, number>();
-
-    for (const phase of sortedPhases) {
-      result.set(
-        phase.phase_id,
-        getPhaseProgress(
-          phase,
-          stagesByPhase.get(phase.phase_id) ?? [],
-        ),
-      );
-    }
-
-    return result;
-  }, [sortedPhases, stagesByPhase]);
-
-  const activePhase = useMemo(
-    () => sortedPhases.find((phase) => phase.status === "in_progress"),
-    [sortedPhases],
-  );
-
-  const nextPhase = useMemo(
-    () => sortedPhases.find((phase) => phase.status === "not_started"),
-    [sortedPhases],
-  );
-
-  const allPhasesCompleted =
-    sortedPhases.length > 0 &&
-    sortedPhases.every((phase) => phase.status === "completed");
-
-  const lastCompletedPhase = useMemo(
-    () =>
-      [...sortedPhases]
-        .reverse()
-        .find((phase) => phase.status === "completed"),
-    [sortedPhases],
-  );
-
-  const selectedPhase = useMemo(
-    () =>
-      sortedPhases.find(
-        (phase) => phase.phase_id === selectedPhaseId,
-      ) ??
-      activePhase ??
-      nextPhase ??
-      lastCompletedPhase ??
-      sortedPhases[0],
-    [
-      sortedPhases,
-      selectedPhaseId,
-      activePhase,
-      nextPhase,
-      lastCompletedPhase,
-    ],
-  );
-
-  const overallProgress = useMemo(() => {
-    if (sortedPhases.length === 0) return 0;
-    if (allPhasesCompleted) return 100;
-
-    const total = sortedPhases.reduce(
-      (sum, phase) =>
-        sum + (progressByPhase.get(phase.phase_id) ?? 0),
-      0,
-    );
-
-    return Math.round(total / sortedPhases.length);
-  }, [sortedPhases, progressByPhase, allPhasesCompleted]);
-
-  const scopedStages = useMemo(
-    () =>
-      selectedPhase
-        ? stagesByPhase.get(selectedPhase.phase_id) ?? []
-        : [],
-    [stagesByPhase, selectedPhase],
-  );
-
-  const scopedDeliverables = useMemo(
-    () =>
-      selectedPhase
-        ? deliverables.filter(
-            (item) => item.phase_id === selectedPhase.phase_id,
-          )
-        : [],
-    [deliverables, selectedPhase],
-  );
-
-  const chartPhases = useMemo<GanttPhase[]>(
-    () =>
-      sortedPhases.map((phase) => ({
-        id: phase.phase_id,
-        name: phase.name,
-        sortOrder: phase.sort_order,
-        progress: progressByPhase.get(phase.phase_id) ?? 0,
-      })),
-    [sortedPhases, progressByPhase],
-  );
-
-  const chartStages = useMemo<GanttStep[]>(
-    () =>
-      Stages.map((stage) => ({
-        id: stage.stage_id,
-        name: stage.name,
-        phaseId: stage.phase_id,
-        startDate: stage.planned_start,
-        endDate: stage.planned_end,
-        progress: getStageProgress(stage),
-        sortOrder: stage.sort_order,
-      })),
-    [Stages],
-  );
-
-  const chartDeliverables = useMemo<GanttDeliverable[]>(
-    () =>
-      deliverables.map((item) => ({
-        id: item.id,
-        name: item.title,
-        phaseId: item.phase_id,
-        startDate: item.start_date,
-        endDate: item.due_date,
-        progress: clampProgress(item.progress),
-      })),
-    [deliverables],
-  );
-
-  const handleSelectPhase = useCallback((phaseId: string) => {
-    setSelectedPhaseId(phaseId);
-  }, []);
-
-  const handleViewDetails = useCallback(() => {
-    if (!selectedPhase) return;
-
-    router.push(
-      `/management/projects/${projectId}/phases/${selectedPhase.phase_id}`,
-    );
-  }, [router, projectId, selectedPhase]);
-
-  const handleAddStage = useCallback(() => {
-    if (!selectedPhase) return;
-
-    setEditingStage(null);
-    setIsStageModalOpen(true);
-  }, [selectedPhase]);
-
-  const handleEditStage = useCallback(
-    (stageId: string) => {
-      const stage = scopedStages.find(
-        (item) => item.stage_id === stageId,
-      );
-
-      if (!stage) return;
-
-      setEditingStage(stage);
-      setIsStageModalOpen(true);
-    },
-    [scopedStages],
-  );
-
-  const handleCloseStageModal = useCallback(() => {
-    setIsStageModalOpen(false);
-    setEditingStage(null);
-  }, []);
-
-  const handleAddDeliverable = useCallback(() => {
-    if (!selectedPhase) return;
-
-    setEditingDeliverable(null);
-    setIsDeliverableModalOpen(true);
-  }, [selectedPhase]);
-
-  const handleEditDeliverable = useCallback(
-    (deliverableId: string) => {
-      const deliverable = scopedDeliverables.find(
-        (item) => item.id === deliverableId,
-      );
-
-      if (!deliverable) return;
-
-      setEditingDeliverable(deliverable);
-      setIsDeliverableModalOpen(true);
-    },
-    [scopedDeliverables],
-  );
-
-  const handleCloseDeliverableModal = useCallback(() => {
-    setIsDeliverableModalOpen(false);
-    setEditingDeliverable(null);
-  }, []);
-
-  const handleStageSaved = useCallback(() => {
-    setIsStageModalOpen(false);
-    setEditingStage(null);
-    router.refresh();
-  }, [router]);
-
-  const handleDeliverableSaved = useCallback(() => {
-    setIsDeliverableModalOpen(false);
-    setEditingDeliverable(null);
-    router.refresh();
-  }, [router]);
-
-  const nextSortOrder = useMemo(
-    () =>
-      sortedPhases.reduce(
-        (max, phase) => Math.max(max, phase.sort_order ?? 0),
-        0,
-      ) + 1,
-    [sortedPhases],
-  );
-
-  const displayedPhase = activePhase ?? nextPhase ?? lastCompletedPhase;
-
-  const displayedPhaseProgress = displayedPhase
-    ? progressByPhase.get(displayedPhase.phase_id) ?? 0
-    : 0;
-
-  const displayedPhaseTitle = allPhasesCompleted
-    ? "Projecto concluído"
-    : activePhase
-      ? "Fase em curso"
-      : nextPhase
-        ? "Próxima fase"
-        : "Fase actual";
-
-  return (
-    <div className="min-h-screen">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-        <div className="space-y-8 sm:space-y-10">
-          <header className="border-b border-gray-200 pb-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900 sm:text-3xl">
-                  Fases
-                </h1>
-                <p className="mt-1 text-sm text-gray-600">
-                  Metodologia do projecto · {phases.length}{" "}
-                  {phases.length === 1
-                    ? "fase definida"
-                    : "fases definidas"}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <button
-                  type="button"
-                  onClick={handleViewDetails}
-                  disabled={!selectedPhase}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
-                >
-                  <Eye size={16} aria-hidden="true" />
-                  Ver detalhes
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleAddStage}
-                  disabled={!selectedPhase}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
-                >
-                  <ListPlus size={16} aria-hidden="true" />
-                  Adicionar etapa
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleAddDeliverable}
-                  disabled={!selectedPhase}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
-                >
-                  <FilePlus2 size={16} aria-hidden="true" />
-                  Adicionar entregável
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsAddPhaseOpen(true)}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#BD9655] px-4 py-2 text-sm font-semibold text-[#002950] transition-colors hover:bg-[#BD9655]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
-                >
-                  <Plus size={16} aria-hidden="true" />
-                  Adicionar fase
-                </button>
-              </div>
-            </div>
-          </header>
-
-          <section
-            aria-labelledby="project-progress-heading"
-            className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
-          >
-            <div className="border-b border-gray-200 px-6 py-5 sm:px-8 sm:py-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-500">
-                    {displayedPhaseTitle}
-                  </p>
-
-                  <h2
-                    id="project-progress-heading"
-                    className="text-xl font-semibold text-gray-900 sm:text-2xl"
-                  >
-                    {allPhasesCompleted
-                      ? "Todas as fases concluídas"
-                      : displayedPhase?.name ??
-                        (phases.length === 0
-                          ? "Sem fases definidas"
-                          : "Sem fases activas ou por iniciar")}
-                  </h2>
-
-                  <p className="mt-2 text-sm text-gray-500">
-                    {allPhasesCompleted
-                      ? "O projecto tem todas as fases concluídas."
-                      : displayedPhase
-                        ? getPhaseStatusLabel(displayedPhase)
-                        : "Adicione uma fase para começar a organizar o projecto."}
-                  </p>
-                </div>
-
-                <div className="sm:text-right">
-                  <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">
-                    Progresso geral
-                  </p>
-                  <p className="font-mono text-3xl font-bold tabular-nums text-gray-900 sm:text-4xl">
-                    {overallProgress}%
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {displayedPhase && (
-              <div className="px-6 py-6 sm:px-8 sm:py-8">
-                <div className="space-y-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-sm font-medium text-gray-700">
-                      Progresso da fase
-                    </span>
-                    <span className="font-mono text-sm font-semibold text-gray-900">
-                      {displayedPhaseProgress}%
-                    </span>
-                  </div>
-
-                  <div
-                    role="progressbar"
-                    aria-label={`Progresso da fase ${displayedPhase.name}`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={displayedPhaseProgress}
-                  >
-                    <ProgressBar percent={displayedPhaseProgress} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </section>
-
-          <section
-            aria-labelledby="project-gantt-heading"
-            className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
-          >
-            <div className="border-b border-gray-200 px-6 py-5 sm:px-8 sm:py-6">
-              <h2
-                id="project-gantt-heading"
-                className="text-lg font-semibold text-gray-900"
-              >
-                Cronograma do projecto
-              </h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Visualize as fases, as etapas agendadas e os marcos do projecto.
-              </p>
-            </div>
-
-            <div className="p-4 sm:p-6">
-              <GanttChart
-                phases={chartPhases}
-                steps={chartStages}
-                deliverables={chartDeliverables}
-              />
-            </div>
-          </section>
-
-          <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div className="border-b border-gray-200 px-6 py-5 sm:px-8 sm:py-6">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Mapa de evolução
-              </h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Seleccione uma fase para consultar as etapas e os entregáveis associados.
-              </p>
-            </div>
-
-            <div className="px-6 py-6 sm:px-8 sm:py-8">
-              {sortedPhases.length > 0 ? (
-                <PhaseTimeline
-                  phases={sortedPhases}
-                  selectedPhaseId={selectedPhase?.phase_id}
-                  onSelectPhaseAction={handleSelectPhase}
-                />
-              ) : (
-                <EmptyState message="Ainda não existem fases definidas para este projecto. Adicione a primeira fase para começar." />
-              )}
-            </div>
-          </section>
-
-          <section aria-label="Métricas do projecto">
-            <div className="mb-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                Métricas do projecto
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-              <Metric
-                title="Entregáveis"
-                value={String(deliverables.length)}
-              />
-              <Metric title="Etapas" value={String(Stages.length)} />
-              <Metric title="Fases" value={String(phases.length)} />
-              <Metric
-                title="Concluídas"
-                value={String(
-                  phases.filter((phase) => phase.status === "completed")
-                    .length,
-                )}
-              />
-            </div>
-          </section>
-
-          <section aria-labelledby="selected-phase-heading">
-            <div className="mb-4 border-b border-gray-200 pb-3">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                <p
-                  id="selected-phase-heading"
-                  className="text-xs font-semibold uppercase tracking-widest text-gray-500"
-                >
-                  Fase seleccionada
-                </p>
-                <p className="text-sm font-medium text-gray-900">
-                  {selectedPhase?.name ?? "Nenhuma fase seleccionada"}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-6 py-4 sm:py-5">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
-                      Entregáveis
-                    </h3>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Entregáveis associados à fase seleccionada
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleAddDeliverable}
-                    disabled={!selectedPhase}
-                    className="inline-flex min-h-8 shrink-0 items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
-                  >
-                    + Adicionar
-                  </button>
-                </div>
-
-                <div className="px-6 py-5 sm:py-6">
-                  {scopedDeliverables.length > 0 ? (
-                    <StatusList
-                      items={scopedDeliverables.map((item) => ({
-                        id: item.id,
-                        name: item.title,
-                        status: getDeliverableStatus(item.status),
-                      }))}
-                      onEdit={handleEditDeliverable}
-                      editLabel="Editar entregável"
-                    />
-                  ) : (
-                    <EmptyState
-                      message={
-                        selectedPhase
-                          ? "Esta fase ainda não tem entregáveis. Adicione um para acompanhar as entregas previstas."
-                          : "Seleccione uma fase para consultar os seus entregáveis."
-                      }
-                    />
-                  )}
-                </div>
-              </section>
-
-              <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-6 py-4 sm:py-5">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Etapas</h3>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Etapas de execução da fase seleccionada
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleAddStage}
-                    disabled={!selectedPhase}
-                    className="inline-flex min-h-8 shrink-0 items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
-                  >
-                    + Adicionar
-                  </button>
-                </div>
-
-                <div className="px-6 py-5 sm:py-6">
-                  {scopedStages.length > 0 ? (
-                    <StatusList
-                      items={scopedStages.map((item) => ({
-                        id: item.stage_id,
-                        name: item.name,
-                        status: getStageStatus(item.status),
-                      }))}
-                      onEdit={handleEditStage}
-                      editLabel="Editar etapa"
-                    />
-                  ) : (
-                    <EmptyState
-                      message={
-                        selectedPhase
-                          ? "Esta fase ainda não tem etapas. Adicione a primeira para organizar a execução."
-                          : "Seleccione uma fase para consultar as suas etapas."
-                      }
-                    />
-                  )}
-                </div>
-              </section>
-            </div>
-          </section>
-        </div>
-      </div>
-
-      {isAddPhaseOpen && (
-        <AddPhaseModal
-          projectId={projectId}
-          nextSortOrder={nextSortOrder}
-          onClose={() => setIsAddPhaseOpen(false)}
-        />
-      )}
-
-      {isStageModalOpen && selectedPhase && (
-        <StageModal
-          projectId={projectId}
-          phaseId={editingStage?.phase_id ?? selectedPhase.phase_id}
-          stage={editingStage as Stage | null}
-          onClose={handleCloseStageModal}
-          onSaved={handleStageSaved}
-        />
-      )}
-
-      {isDeliverableModalOpen &&
-        (editingDeliverable || selectedPhase) && (
-          <DeliverableModal
-          projectId={projectId}
-          phaseId={editingDeliverable?.phase_id ??
-            selectedPhase!.phase_id}
-          deliverable={editingDeliverable}
-          onClose={handleCloseDeliverableModal}
-          onSaved={handleDeliverableSaved} stages={[]}          />
-        )}
-    </div>
-  );
-}
+/* -------------------------------------------------------------------------- */
+/* Status list                                                                 */
+/* -------------------------------------------------------------------------- */
 
 function StatusList({
   items,
@@ -764,6 +156,10 @@ function StatusList({
   onEdit?: (id: string) => void;
   editLabel?: string;
 }) {
+  if (!items.length) {
+    return <EmptyState message="Sem registos." />;
+  }
+
   return (
     <div className="divide-y divide-gray-100">
       {items.map((item) => {
@@ -772,9 +168,9 @@ function StatusList({
         return (
           <div
             key={item.id}
-            className="flex items-center justify-between gap-3 py-3"
+            className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"
           >
-            <span className="min-w-0 flex-1 text-sm text-gray-700">
+            <span className="min-w-0 flex-1 break-words text-sm font-medium leading-6 text-gray-700">
               {item.name}
             </span>
 
@@ -790,15 +186,477 @@ function StatusList({
                   onClick={() => onEdit(item.id)}
                   aria-label={`${editLabel} ${item.name}`}
                   title={editLabel}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-[#002950] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002950] focus-visible:ring-offset-2"
+                  className={`rounded-md p-2 text-gray-500 hover:text-[#002950] ${FOCUS_RING}`}
                 >
-                  <Pencil size={15} aria-hidden="true" />
+                  <Pencil size={15} />
                 </button>
               )}
             </div>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Page                                                                        */
+/* -------------------------------------------------------------------------- */
+
+export default function PhasesPageInner({
+  phases,
+  stages,
+  tasks,
+}: Props) {
+  const router = useRouter();
+  const params = useParams<{ projectId: string }>();
+  const projectId = params.projectId;
+
+  const [tab, setTab] = useState<Tab>("workspace");
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(
+    null,
+  );
+
+  const [isAddPhaseOpen, setIsAddPhaseOpen] = useState(false);
+
+  const [isStageModalOpen, setIsStageModalOpen] = useState(false);
+  const [editingStage, setEditingStage] = useState<Stage | null>(null);
+
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  /* ------------------------------------------------------------------------ */
+  /* Sorted data                                                               */
+  /* ------------------------------------------------------------------------ */
+
+  const sortedPhases = useMemo(
+    () =>
+      [...phases].sort(
+        (a, b) =>
+          (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+          a.name.localeCompare(b.name) ||
+          a.phase_id.localeCompare(b.phase_id),
+      ),
+    [phases],
+  );
+
+  const sortedStages = useMemo(
+    () =>
+      [...stages].sort(
+        (a, b) =>
+          (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+          a.stage_id.localeCompare(b.stage_id),
+      ),
+    [stages],
+  );
+
+  const sortedTasks = useMemo(
+    () =>
+      [...tasks].sort(
+        (a, b) =>
+          (a.position ?? 0) - (b.position ?? 0) ||
+          a.title.localeCompare(b.title) ||
+          a.task_id.localeCompare(b.task_id),
+      ),
+    [tasks],
+  );
+
+  const stagesByPhase = useMemo(() => {
+    const map = new Map<string, Stage[]>();
+
+    for (const stage of sortedStages) {
+      const items = map.get(stage.phase_id) ?? [];
+      items.push(stage);
+      map.set(stage.phase_id, items);
+    }
+
+    return map;
+  }, [sortedStages]);
+
+  const tasksByPhase = useMemo(() => {
+    const map = new Map<string, Task[]>();
+
+    for (const task of sortedTasks) {
+      if (!task.phase_id) continue;
+
+      const items = map.get(task.phase_id) ?? [];
+      items.push(task);
+      map.set(task.phase_id, items);
+    }
+
+    return map;
+  }, [sortedTasks]);
+
+  const selectedPhase =
+    sortedPhases.find((phase) => phase.phase_id === selectedPhaseId) ??
+    sortedPhases.find((phase) => phase.status === "in_progress") ??
+    sortedPhases.find((phase) => phase.status === "not_started") ??
+    sortedPhases[0] ??
+    null;
+
+  const scopedStages = selectedPhase
+    ? (stagesByPhase.get(selectedPhase.phase_id) ?? [])
+    : [];
+
+  const scopedTasks = selectedPhase
+    ? (tasksByPhase.get(selectedPhase.phase_id) ?? [])
+    : [];
+
+  const approvedCount = sortedTasks.filter(
+    (task) => task.review_status === "approved",
+  ).length;
+
+  const overallProgress = getPhaseProgress(sortedTasks);
+  const phaseProgress = getPhaseProgress(scopedTasks);
+
+  const nextSortOrder =
+    sortedPhases.reduce(
+      (max, phase) => Math.max(max, phase.sort_order ?? 0),
+      0,
+    ) + 1;
+
+  /* ------------------------------------------------------------------------ */
+  /* Gantt data                                                                */
+  /* ------------------------------------------------------------------------ */
+
+  const ganttPhases: GanttPhase[] = useMemo(
+    () =>
+      sortedPhases.map((phase) => ({
+        id: phase.phase_id,
+        name: phase.name,
+        sortOrder: phase.sort_order ?? 0,
+        progress: getPhaseProgress(
+          tasksByPhase.get(phase.phase_id) ?? [],
+        ),
+      })),
+    [sortedPhases, tasksByPhase],
+  );
+
+  const ganttSteps: GanttStep[] = useMemo(
+    () =>
+      sortedStages.map((stage) => ({
+        id: stage.stage_id,
+        name: stage.name,
+        phaseId: stage.phase_id,
+        startDate: stage.planned_start_date,
+        endDate: stage.planned_end_date,
+        progress: getStageProgress(stage),
+        sortOrder: stage.sort_order ?? 0,
+      })),
+    [sortedStages],
+  );
+
+  const ganttDeliverables: GanttDeliverable[] = useMemo(
+    () =>
+      sortedTasks
+        .filter((task) => task.phase_id)
+        .map((task) => ({
+          id: task.task_id,
+          name: task.title,
+          phaseId: task.phase_id!,
+          startDate: task.start_date,
+          endDate: task.due_date,
+          progress: getTaskProgress(task),
+        })),
+    [sortedTasks],
+  );
+
+  /* ------------------------------------------------------------------------ */
+  /* Actions                                                                   */
+  /* ------------------------------------------------------------------------ */
+
+  function closeStageModal() {
+    setIsStageModalOpen(false);
+    setEditingStage(null);
+  }
+
+  function closeTaskModal() {
+    setIsTaskModalOpen(false);
+    setEditingTask(null);
+  }
+
+  function openStage(stage: Stage | null = null) {
+    setEditingStage(stage);
+    setIsStageModalOpen(true);
+  }
+
+  function openTask(task: Task | null = null) {
+    setEditingTask(task);
+    setIsTaskModalOpen(true);
+  }
+
+  function refreshAfterSave() {
+    router.refresh();
+  }
+
+  const phaseStatus = selectedPhase
+    ? STATUS[getPhaseStatusLabel(selectedPhase)]
+    : null;
+
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                    */
+  /* ------------------------------------------------------------------------ */
+
+  return (
+    <div className="mx-auto w-full max-w-[1600px] space-y-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      {/* Header */}
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold text-[#002950]">
+            Fases do projecto
+          </h2>
+
+          <p className="mt-1 text-sm leading-6 text-gray-600">
+            Acompanhe o progresso e organize o trabalho por fase.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsAddPhaseOpen(true)}
+          className={`inline-flex items-center gap-2 rounded-lg bg-[#002950] px-4 py-2.5 text-sm font-medium text-white ${FOCUS_RING}`}
+        >
+          <Plus size={17} />
+          Nova fase
+        </button>
+      </header>
+
+      {/* Overall project progress */}
+      <section className="rounded-2xl border border-[#002950]/15 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-600">
+              Progresso geral do projecto
+            </p>
+
+            <p className="mt-2 text-3xl font-semibold tabular-nums text-[#002950]">
+              {overallProgress}%
+            </p>
+          </div>
+
+          <p className="text-sm text-gray-600">
+            {approvedCount} de {sortedTasks.length} tarefas aprovadas
+          </p>
+        </div>
+
+        <div className="mt-5">
+          <ProgressBar percent={overallProgress} />
+        </div>
+      </section>
+
+      {/* View navigation */}
+      <nav
+        aria-label="Visualização do projecto"
+        className="flex gap-2 overflow-x-auto border-b border-gray-200"
+      >
+        {(
+          [
+            ["workspace", "Fases e tarefas"],
+            ["gantt", "Cronograma"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setTab(value)}
+            aria-pressed={tab === value}
+            className={`shrink-0 border-b-2 px-4 py-3 text-sm font-medium ${FOCUS_RING} ${
+              tab === value
+                ? "border-[#002950] text-[#002950]"
+                : "border-transparent text-gray-600"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === "gantt" ? (
+        <section className="min-w-0 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          {sortedPhases.length ? (
+            <GanttChart
+              phases={ganttPhases}
+              steps={ganttSteps}
+              deliverables={ganttDeliverables}
+            />
+          ) : (
+            <EmptyState message="Crie uma fase para visualizar o cronograma." />
+          )}
+        </section>
+      ) : (
+        <>
+          {/* Phase selection */}
+          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+            <h3 className="mb-4 text-sm font-semibold text-[#002950]">
+              Seleccionar fase
+            </h3>
+
+            {sortedPhases.length ? (
+              <PhaseTimeline
+                phases={sortedPhases}
+                selectedPhaseId={selectedPhase?.phase_id ?? null}
+                onSelectPhaseAction={setSelectedPhaseId}
+              />
+            ) : (
+              <EmptyState message="Nenhuma fase criada." />
+            )}
+          </section>
+
+          {/* Selected phase */}
+          {selectedPhase && (
+            <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-200 bg-[#F7F7F5] p-5 sm:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-600">
+                      Fase seleccionada
+                    </p>
+
+                    <h3 className="mt-2 break-words text-lg font-semibold text-[#002950]">
+                      {selectedPhase.name}
+                    </h3>
+
+                    {phaseStatus && (
+                      <div className="mt-3">
+                        <StatusPill
+                          label={phaseStatus.label}
+                          color={phaseStatus.color}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/management/projects/${projectId}/phases/${selectedPhase.phase_id}`,
+                      )
+                    }
+                    className={SECONDARY_BUTTON}
+                  >
+                    <Eye size={16} />
+                    Detalhes
+                  </button>
+                </div>
+
+                <div className="mt-6">
+                  <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                    <span className="text-gray-600">
+                      Progresso da fase
+                    </span>
+
+                    <span className="font-semibold tabular-nums text-[#002950]">
+                      {phaseProgress}%
+                    </span>
+                  </div>
+
+                  <ProgressBar percent={phaseProgress} />
+                </div>
+              </div>
+
+              {/* Stages and tasks */}
+              <div className="grid grid-cols-1 gap-8 p-5 sm:p-6 lg:grid-cols-2 lg:gap-10">
+                <div className="min-w-0">
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <h4 className="font-semibold text-[#002950]">
+                      Etapas ({scopedStages.length})
+                    </h4>
+
+                    <button
+                      type="button"
+                      onClick={() => openStage()}
+                      className={SECONDARY_BUTTON}
+                    >
+                      <ListPlus size={16} />
+                      Etapa
+                    </button>
+                  </div>
+
+                  <StatusList
+                    items={scopedStages.map((stage) => ({
+                      id: stage.stage_id,
+                      name: stage.name,
+                      status: getStageStatus(stage),
+                    }))}
+                    onEdit={(id) => {
+                      const stage = scopedStages.find(
+                        (item) => item.stage_id === id,
+                      );
+
+                      if (stage) openStage(stage);
+                    }}
+                    editLabel="Editar etapa"
+                  />
+                </div>
+
+                <div className="min-w-0 border-t border-gray-200 pt-8 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <h4 className="font-semibold text-[#002950]">
+                      Tarefas ({scopedTasks.length})
+                    </h4>
+
+                    <button
+                      type="button"
+                      onClick={() => openTask()}
+                      className={SECONDARY_BUTTON}
+                    >
+                      <FilePlus2 size={16} />
+                      Tarefa
+                    </button>
+                  </div>
+
+                  <StatusList
+                    items={scopedTasks.map((task) => ({
+                      id: task.task_id,
+                      name: task.title,
+                      status: getTaskStatus(task),
+                    }))}
+                    onEdit={(id) => {
+                      const task = scopedTasks.find(
+                        (item) => item.task_id === id,
+                      );
+
+                      if (task) openTask(task);
+                    }}
+                    editLabel="Editar tarefa"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      {/* Modals */}
+      {isAddPhaseOpen && (
+        <AddPhaseModal
+          projectId={projectId}
+          nextSortOrder={nextSortOrder}
+          onClose={() => setIsAddPhaseOpen(false)}
+        />
+      )}
+
+      {isStageModalOpen && selectedPhase && (
+        <StageModal
+          projectId={projectId}
+          phaseId={selectedPhase.phase_id}
+          stage={editingStage}
+          onClose={closeStageModal}
+          onSaved={refreshAfterSave}
+        />
+      )}
+
+      {isTaskModalOpen && selectedPhase && (
+        <DeliverableModal
+          projectId={projectId}
+          phaseId={selectedPhase.phase_id}
+          task={editingTask}
+          stages={scopedStages}
+          onClose={closeTaskModal}
+          onSaved={refreshAfterSave}
+        />
+      )}
     </div>
   );
 }

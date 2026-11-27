@@ -86,7 +86,7 @@ type ActionResult = {
 /* -------------------------------------------------------------------------- */
 
 async function getSupabase() {
-    return createClient(await cookies());
+    return createClient();
 }
 
 function revalidateCalendar() {

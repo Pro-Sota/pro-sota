@@ -1,6 +1,3 @@
-"use client";
-
-import { useSearchParams } from "next/navigation";
 
 import {
   MapSkeleton,
@@ -9,14 +6,17 @@ import {
   Skeleton,
 } from "@/app/components/project_skeletons";
 
-/**
- * Place at: app/management/projects/loading.tsx
- *
- * Shown while the server fetches projects. It reads ?view= so the skeleton
- * matches the layout the person is about to see.
- */
-export default function ProjectsLoading() {
-  const view = useSearchParams().get("view");
+interface ProjectsLoadingProps {
+  searchParams?: Promise<{
+    view?: string;
+  }>;
+}
+
+export default async function ProjectsLoading({
+  searchParams,
+}: ProjectsLoadingProps) {
+  const params = await searchParams;
+  const view = params?.view;
 
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-gray-900">

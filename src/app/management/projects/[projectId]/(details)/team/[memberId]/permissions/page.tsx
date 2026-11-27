@@ -18,7 +18,7 @@ export default async function ProjectPermissionsPage({
 }: PageProps) {
   const { projectId, memberId } = await params;
 
-  const supabase = createClient(await cookies());
+  const supabase = createClient();
 
   /*
    * ---------------------------------------------------------
@@ -29,7 +29,7 @@ export default async function ProjectPermissionsPage({
   const {
     data: project,
     error: projectError,
-  } = await supabase
+  } = await (await supabase)
     .from("projects")
     .select("project_id, project_code")
     .eq("project_id", projectId)
@@ -56,7 +56,7 @@ export default async function ProjectPermissionsPage({
   const {
     data: memberRows,
     error: memberError,
-  } = await supabase
+  } = await (await supabase)
     .from("project_members")
     .select(`
       project_members_id,
@@ -93,7 +93,7 @@ export default async function ProjectPermissionsPage({
   const {
     data: profile,
     error: profileError,
-  } = await supabase
+  } = await (await supabase)
     .from("profiles")
     .select(`
       profile_id,
@@ -139,7 +139,7 @@ export default async function ProjectPermissionsPage({
     const {
       data: projectRoles,
       error: projectRolesError,
-    } = await supabase
+    } = await (await supabase)
       .from("project_roles")
       .select("role_id, name")
       .in("role_id", roleIds);
@@ -174,7 +174,7 @@ export default async function ProjectPermissionsPage({
   const {
     data: permissionRows,
     error: permissionsError,
-  } = await supabase
+  } = await (await supabase)
     .from("project_permissions")
     .select("permission_id")
     .eq("project_id", projectId)
@@ -215,7 +215,7 @@ export default async function ProjectPermissionsPage({
     const {
       data: permissions,
       error: permissionDefinitionsError,
-    } = await supabase
+    } = await (await supabase)
       .from("permissions")
       .select("permission_id, key")
       .in("permission_id", permissionIds);

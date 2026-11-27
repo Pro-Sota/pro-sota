@@ -40,13 +40,13 @@ function normalizeSeverity(value: RiskItem["severity"]): Severity {
 }
 
 export default function RisksSection({
-  data,
+  risks: rawRisks,
   projectBase,
 }: {
-  data: OverviewData;
+  risks: OverviewData["risks"];
   projectBase: string;
 }) {
-  const risks = [...data.risks].sort(
+  const risks = [...rawRisks].sort(
     (a, b) =>
       SEVERITY_ORDER[normalizeSeverity(a.severity)] -
       SEVERITY_ORDER[normalizeSeverity(b.severity)],

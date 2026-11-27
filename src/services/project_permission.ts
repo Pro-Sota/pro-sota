@@ -8,10 +8,9 @@ export async function getProjectMemberPermissions(
   projectId: number,
   profileId: string,
 ): Promise<Permission[]> {
-  const cookiesStore = await cookies();
-  const supabase = createClient(cookiesStore);
+  const supabase = createClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await (await supabase)
     .from("project_permissions")
     .select(`
       permission_id,

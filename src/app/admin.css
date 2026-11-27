@@ -127,3 +127,18 @@
   .admin__card{ flex-wrap:wrap; }
 }
 
+.management-ui {
+  font-family: var(--font-body-face), Arial, sans-serif;
+  color: #1f2937;
+}
+
+.management-ui .font-data {
+  font-family: var(--font-mono-face), monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.management-ui h1,
+.management-ui h2,
+.management-ui h3 {
+  letter-spacing: -0.025em;
+}

@@ -11,10 +11,9 @@ export async function isProjectMember(
   profileId: string,
 ): Promise<boolean> {
   
-    const cookiesStore = await cookies();
-    const supabase = createClient(cookiesStore);
+    const supabase = createClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await (await supabase)
     .from("project_members")
     .select("project_members_id")
     .eq("project_id", projectId)

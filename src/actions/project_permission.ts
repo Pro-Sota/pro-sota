@@ -10,8 +10,7 @@ import { createClient } from "@/app/lib/supabase/server";
 import { cookies } from "next/headers";
 
 async function getSupabase(){
-    const cookiesStore = await cookies();
-    return createClient(cookiesStore);
+    return createClient();
 }
 
 export async function updateProjectPermissions(

@@ -25,8 +25,7 @@ import type {
 /* -------------------------------------------------------------------------- */
 
 async function getSupabase() {
-    const cookieStore = await cookies();
-    return createClient(cookieStore);
+    return createClient();
 }
 
 /* -------------------------------------------------------------------------- */

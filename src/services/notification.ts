@@ -85,7 +85,7 @@ function projectName(projects: Row["projects"]): string {
 export async function getNotifications(
   limit = 100
 ): Promise<NotificationItem[]> {
-  const supabase = await createClient(await cookies());
+  const supabase = await createClient();
 
   const {
     data: { user },

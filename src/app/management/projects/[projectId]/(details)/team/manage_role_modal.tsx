@@ -44,13 +44,6 @@ export default function ManageRolesModal({
         currentCoordinator?.profile_id ?? "",
     );
 
-    console.log("ManageRolesModal members:", members);
-
-    console.log("Current manager:", currentManager);
-    console.log("Current coordinator:", currentCoordinator);
-    console.log("Manager ID:", managerId);
-    console.log("Coordinator ID:", coordinatorId);
-
     /*
      * Keep the selected values synchronized with the current
      * project members.

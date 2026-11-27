@@ -123,16 +123,16 @@ const menuItems: SidebarItem[] = [
     icon: FolderKanban,
     permission: "projects.view",
   },
-{
-  name: "Briefings",
-  href: "/management/project-briefing",
-  icon: FileText,
-  permission: "project_briefing.view",
-  access: {
-    departments: ["architecture"],
-    grantedDepartments: ["architecture"],
+  {
+    name: "Briefings",
+    href: "/management/project-briefing",
+    icon: FileText,
+    permission: "project_briefing.view",
+    access: {
+      departments: ["architecture"],
+      grantedDepartments: ["architecture"],
+    },
   },
-},
   {
     name: "Submissões",
     href: "/management/submissions",
@@ -511,23 +511,26 @@ export default function ManagementMenu({
         <Link
           href="/management"
           aria-label="Ir para a visão geral"
-          className={[
-            "min-w-0",
-            collapsed ? "flex justify-center" : "",
-          ].join(" ")}
+          className="flex min-w-0 items-center justify-center"
         >
-          <Image
-            src="/images/logo.png"
-            alt="Pro-Sota"
-            width={collapsed ? 42 : 150}
-            height={collapsed ? 42 : 60}
-            priority
-            className={
-              collapsed
-                ? "h-9 w-9 object-contain"
-                : "h-auto max-w-full object-contain"
-            }
-          />
+          {collapsed ? (
+            <Image
+              src="/images/logo2.png"
+              alt="PRO SOTA"
+              width={40}
+              height={40}
+           
+              priority
+            />
+          ) : (
+            <Image
+              src="/images/logo.png"
+              alt="PRO SOTA"
+              width={150}
+              height={60}
+              priority
+            />
+          )}
         </Link>
 
         {!collapsed && (

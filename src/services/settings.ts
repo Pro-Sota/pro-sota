@@ -230,8 +230,7 @@ const NUMERIC_RANGES: Record<string, [number, number]> = {
 /* -------------------------------------------------------------------------- */
 
 async function getAuthenticatedUser() {
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const {
         data: { user },

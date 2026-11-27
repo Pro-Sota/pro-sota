@@ -38,7 +38,7 @@ export async function saveMemberPermissions(
       return { success: false, error: "Os dados enviados são inválidos." };
     }
 
-    const supabase = await createClient(await cookies());
+    const supabase = await createClient();
 
     const {
       data: { user },

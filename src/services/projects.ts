@@ -9,8 +9,7 @@ import type { Database } from "@/app/lib/supabase/models";
 /* -------------------------------------------------------------------------- */
 
 async function getSupabase() {
-    const cookieStore = await cookies();
-    return createClient(cookieStore);
+    return createClient();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -680,11 +679,11 @@ export async function getProjectById(projectId: string) {
 export async function getProjectClient(projectId:string): Promise<
   { id: string; name: string }[]
 > {
-  const supabase = createClient(await cookies());
+  const supabase = createClient();
 
   const project = await getProjectById(projectId);
 
-  const { data, error } = await supabase
+  const { data, error } = await (await supabase)
     .from("clients")
     .select(`
       client_id,

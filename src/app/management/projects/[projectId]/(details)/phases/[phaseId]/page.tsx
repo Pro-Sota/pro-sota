@@ -1,7 +1,7 @@
-import PhaseDetailPage from "./phase_detail";
 import { getPhaseDetail } from "@/services/project_phases";
+import PhaseDetailPage from "./phase_detail";
 
-export default async function PhaseDetail({
+export default async function Page({
   params,
 }: {
   params: Promise<{
@@ -14,16 +14,18 @@ export default async function PhaseDetail({
   const {
     phase,
     project,
+    stages,
+    tasks,
     milestones,
-    deliverables,
   } = await getPhaseDetail(projectId, phaseId);
 
   return (
     <PhaseDetailPage
       phase={phase}
       project={project}
+      stages={stages}
+      tasks={tasks}
       milestones={milestones}
-      deliverables={deliverables}
     />
   );
 }

@@ -1,18 +1,37 @@
+
+/* -------------------------------------------------------------------------- */
+/* Task                                                                        */
+/* -------------------------------------------------------------------------- */
+
 export type TaskPriority =
   | "low"
   | "medium"
   | "high"
   | "critical";
 
+export type TaskReviewStatus =
+  | "not_submitted"
+  | "in_review"
+  | "changes_requested"
+  | "approved";
+
+/* -------------------------------------------------------------------------- */
+/* Board scope                                                                 */
+/* -------------------------------------------------------------------------- */
+
 export type TaskScope =
   | {
-      type: "general";
-      projectId: null;
-    }
+    type: "general";
+    projectId: null;
+  }
   | {
-      type: "project";
-      projectId: string;
-    };
+    type: "project";
+    projectId: string;
+  };
+
+/* -------------------------------------------------------------------------- */
+/* Kanban column                                                               */
+/* -------------------------------------------------------------------------- */
 
 export type KanbanColumn = {
   columnId: string;
@@ -20,32 +39,38 @@ export type KanbanColumn = {
   name: string;
   position: number;
   isCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
+
+/* -------------------------------------------------------------------------- */
+/* Task member                                                                 */
+/* -------------------------------------------------------------------------- */
 
 export type TaskMember = {
   profileId: string;
   firstName: string;
   lastName: string;
+  picture: string | null;
 };
+
+/* -------------------------------------------------------------------------- */
+/* Task                                                                        */
+/* -------------------------------------------------------------------------- */
 
 export type Task = {
   taskId: string;
-
-  /**
-   * Null for general/personal tasks.
-   * Set for project tasks.
-   */
   projectId: string | null;
-
-  /**
-   * User who created the task.
-   *
-   * This is NOT an assignment.
-   * The creator does not automatically become a task member.
-   */
   createdBy: string;
 
   columnId: string | null;
+
+  // Project deliverable associations
+  phaseId: string | null;
+  stageId: string | null;
+
+  // Review workflow
+  reviewStatus: TaskReviewStatus;
 
   title: string;
   description: string | null;
@@ -59,19 +84,22 @@ export type Task = {
   actualHours: number | null;
 
   position: number;
+  submittedAt: string | null,
+  reviewedAt: string | null,
+  reviewedBy: string | null,
+  reviewNotes: string | null,
 
   createdAt: string;
   updatedAt: string;
 
   completed: boolean;
 
-  /**
-   * Users explicitly assigned to the task.
-   *
-   * The creator may or may not be included here.
-   */
   members: TaskMember[];
 };
+
+/* -------------------------------------------------------------------------- */
+/* Kanban board                                                                */
+/* -------------------------------------------------------------------------- */
 
 export type KanbanBoardData = {
   scope: TaskScope;
@@ -79,17 +107,19 @@ export type KanbanBoardData = {
   tasks: Task[];
 };
 
+/* -------------------------------------------------------------------------- */
+/* Create task                                                                 */
+/* -------------------------------------------------------------------------- */
+
 export type CreateTaskInput = {
   title: string;
   description?: string | null;
 
   columnId?: string | null;
 
-  /**
-   * Explicitly assigned users.
-   *
-   * Do not automatically add the authenticated user here.
-   */
+  phaseId?: string | null;
+  stageId?: string | null;
+
   memberIds?: string[];
 
   priority?: TaskPriority;
@@ -100,15 +130,67 @@ export type CreateTaskInput = {
   estimatedHours?: number | null;
 };
 
-export type UpdateTaskInput = Partial<
-  Omit<CreateTaskInput, "columnId">
-> & {
-  columnId?: string | null;
+/* -------------------------------------------------------------------------- */
+/* Update task                                                                 */
+/* -------------------------------------------------------------------------- */
+
+export type UpdateTaskInput = Partial<CreateTaskInput> & {
   actualHours?: number | null;
   completed?: boolean;
 };
 
+/* -------------------------------------------------------------------------- */
+/* Create column                                                               */
+/* -------------------------------------------------------------------------- */
+
 export type CreateColumnInput = {
   name: string;
   isCompleted?: boolean;
+};
+
+
+export type TaskSubmissionStatus =
+  | "draft"
+  | "pending"
+  | "under_review"
+  | "approved"
+  | "rejected"
+  | "changes_requested";
+
+export type TaskSubmissionFile = {
+  submissionFileId: string;
+  submissionId: string;
+  fileName: string;
+  storagePath: string;
+  fileType: string | null;
+  fileSize: number | null;
+  createdAt: string;
+};
+
+export type TaskSubmission = {
+  submissionId: string;
+  taskId: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  status: TaskSubmissionStatus;
+  revisionNumber: number;
+  submittedBy: string;
+  submittedAt: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  notes: string | null;
+  files: TaskSubmissionFile[];
+};
+
+export type SubmitTaskInput = {
+  taskId: string;
+  notes: string;
+  files: File[];
+};
+
+export type ReviewTaskInput = {
+  taskId: string;
+  submissionId: string;
+  notes: string;
 };

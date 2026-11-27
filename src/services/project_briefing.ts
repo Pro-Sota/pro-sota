@@ -199,7 +199,7 @@ const ALL_STATUSES: ProjectBriefStatus[] = [
 /* -------------------------------------------------------------------------- */
 
 async function getSupabase() {
-    return createClient(await cookies());
+    return createClient();
 }
 
 /**

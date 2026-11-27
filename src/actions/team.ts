@@ -15,8 +15,7 @@ export async function deactivateTeamMember(
         };
     }
 
-    const cookieStore = await cookies();
-    const supabase = await createClient(cookieStore);
+    const supabase = await createClient();
 
     const { error } = await supabase
         .from("profiles")
@@ -79,9 +78,8 @@ export async function updateTeamMember(
         };
     }
 
-    const cookieStore = await cookies();
     const supabase =
-        await createClient(cookieStore);
+        await createClient();
 
     const { error } = await supabase
         .from("profiles")

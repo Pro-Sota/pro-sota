@@ -1,9 +1,21 @@
-// src/app/lib/supabase/middleware.ts
 
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+const REMEMBER_COOKIE = "pro-sota-remember-me";
+const REMEMBER_MAX_AGE = 60 * 60 * 24 * 30;
+
 export function createClient(request: NextRequest) {
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase environment variables are missing.");
+  }
+
+  const rememberMe =
+    request.cookies.get(REMEMBER_COOKIE)?.value === "1";
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -11,17 +23,20 @@ export function createClient(request: NextRequest) {
   });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
+      cookieOptions: {
+        maxAge: rememberMe ? REMEMBER_MAX_AGE : undefined,
+      },
+
       cookies: {
         getAll() {
           return request.cookies.getAll();
         },
 
         setAll(cookiesToSet) {
-          // Update request cookies so subsequent server-side
-          // operations in this request see the refreshed session.
+          // Synchronize refreshed cookies with this request.
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value);
           }
@@ -33,7 +48,7 @@ export function createClient(request: NextRequest) {
             },
           });
 
-          // Forward refreshed cookies to the browser.
+          // Forward refreshed cookies with their options.
           for (const { name, value, options } of cookiesToSet) {
             response.cookies.set(name, value, options);
           }
@@ -44,6 +59,7 @@ export function createClient(request: NextRequest) {
 
   return {
     supabase,
+
     get response() {
       return response;
     },

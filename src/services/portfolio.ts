@@ -96,7 +96,7 @@ export interface UploadedPortfolioImage {
 }
 
 async function getSupabase() {
-  return createClient(await cookies());
+  return createClient();
 }
 
 /* -------------------------------------------------------------------------- */

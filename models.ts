@@ -930,6 +930,8 @@ export type Database = {
       }
       phase_stages: {
         Row: {
+          planned_start_date: any
+          planned_end_date: any
           actual_end: string | null
           actual_start: string | null
           created_at: string
@@ -2698,6 +2700,8 @@ export type Database = {
       }
       tasks: {
         Row: {
+          review_status: string
+          phase_id: any
           actual_hours: number | null
           column_id: string | null
           completed: boolean

@@ -31,7 +31,7 @@ export async function updateProfileAction(
   input: UpdateProfileInput
 ): Promise<ProfileActionResult> {
   try {
-    const supabase = await createClient(await cookies());
+    const supabase = await createClient();
 
     const {
       data: { user },

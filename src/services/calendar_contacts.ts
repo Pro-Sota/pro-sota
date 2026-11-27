@@ -31,7 +31,7 @@ export type CalendarContacts = {
 };
 
 export async function getCalendarContacts(): Promise<CalendarContacts> {
-  const supabase = await createClient(await cookies());
+  const supabase = await createClient();
 
   const [profilesResult, clientsResult, suppliersResult] =
     await Promise.all([

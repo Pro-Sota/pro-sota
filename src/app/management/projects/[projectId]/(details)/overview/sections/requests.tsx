@@ -1,12 +1,18 @@
 import { ListChecks } from "lucide-react";
 
-import type { OverviewData } from "@/services/project_overview";
+import type {
+  OverviewData,
+  OverviewSubmission,
+} from "@/services/project_overview";
 
 import EmptyState from "../components/empty_state";
 import ListRow from "../components/list_row";
 import SectionCard from "../components/section_card";
 import { LABELS, ROUTES, SECTION_IDS } from "../constants";
 import { formatMilestoneDate, plural } from "../components/format";
+
+/** Rows shown per card; the "view all" link covers the rest. */
+const MAX_ROWS = 5;
 
 interface RequestListItem {
   id: string;
@@ -16,28 +22,27 @@ interface RequestListItem {
 }
 
 export default function RequestsSection({
-  data,
+  rfis,
+  submittals,
   projectBase,
 }: {
-  data: OverviewData;
+  rfis: OverviewData["rfis"];
+  submittals: OverviewSubmission[];
   projectBase: string;
 }) {
-  // Both lists go through the same date formatter.
-  const rfiItems: RequestListItem[] = data.rfis.map((rfi) => ({
+  const rfiItems: RequestListItem[] = rfis.map((rfi) => ({
     id: rfi.id,
     subject: rfi.subject,
     status: rfi.status,
     due: formatMilestoneDate(rfi.due),
   }));
 
-  const submissionItems: RequestListItem[] = data.submittals.map(
-    (submission) => ({
-      id: submission.submission_id,
-      subject: submission.title,
-      status: submission.status,
-      due: formatMilestoneDate(submission.due_date),
-    }),
-  );
+  const submissionItems: RequestListItem[] = submittals.map((submission) => ({
+    id: submission.submission_id,
+    subject: submission.title,
+    status: submission.status,
+    due: formatMilestoneDate(submission.due_date),
+  }));
 
   const sections = [
     {
@@ -68,7 +73,7 @@ export default function RequestsSection({
         >
           {items.length > 0 ? (
             <ul className="divide-y divide-gray-100">
-              {items.map((item) => (
+              {items.slice(0, MAX_ROWS).map((item) => (
                 <ListRow
                   key={item.id}
                   title={item.subject}

@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   graphql_public: {
     Tables: {
@@ -140,7 +140,6 @@ export type Database = {
       }
       attendance_records: {
         Row: {
-          absence_reason: string | null
           attendance_date: string
           attendance_id: string
           check_in: string | null
@@ -152,7 +151,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          absence_reason?: string | null
           attendance_date?: string
           attendance_id?: string
           check_in?: string | null
@@ -164,7 +162,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          absence_reason?: string | null
           attendance_date?: string
           attendance_id?: string
           check_in?: string | null
@@ -187,37 +184,24 @@ export type Database = {
       }
       calendar_event_participants: {
         Row: {
-          client_id: string | null
           created_at: string
           event_id: string
           event_participant_id: string
-          profile_id: string | null
-          supplier_id: string | null
+          profile_id: string
         }
         Insert: {
-          client_id?: string | null
           created_at?: string
           event_id: string
           event_participant_id?: string
-          profile_id?: string | null
-          supplier_id?: string | null
+          profile_id: string
         }
         Update: {
-          client_id?: string | null
           created_at?: string
           event_id?: string
           event_participant_id?: string
-          profile_id?: string | null
-          supplier_id?: string | null
+          profile_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "calendar_event_participants_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
           {
             foreignKeyName: "calendar_event_participants_event_id_fkey"
             columns: ["event_id"]
@@ -232,13 +216,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["profile_id"]
           },
-          {
-            foreignKeyName: "calendar_event_participants_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["supplier_id"]
-          },
         ]
       }
       calendar_events: {
@@ -251,11 +228,8 @@ export type Database = {
           end_at: string | null
           event_id: string
           event_type: string
-          lead_id: string | null
           location: string | null
           project_id: string | null
-          source_id: string | null
-          source_type: string | null
           start_at: string
           task_id: string | null
           title: string
@@ -270,11 +244,8 @@ export type Database = {
           end_at?: string | null
           event_id?: string
           event_type: string
-          lead_id?: string | null
           location?: string | null
           project_id?: string | null
-          source_id?: string | null
-          source_type?: string | null
           start_at: string
           task_id?: string | null
           title: string
@@ -289,11 +260,8 @@ export type Database = {
           end_at?: string | null
           event_id?: string
           event_type?: string
-          lead_id?: string | null
           location?: string | null
           project_id?: string | null
-          source_id?: string | null
-          source_type?: string | null
           start_at?: string
           task_id?: string | null
           title?: string
@@ -313,13 +281,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "calendar_events_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "calendar_events_project_id_fkey"
@@ -436,65 +397,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["profile_id"]
-          },
-        ]
-      }
-      contact_requests: {
-        Row: {
-          assigned_to: string | null
-          created_at: string
-          email: string | null
-          id: string
-          image_path: string | null
-          lead_id: string | null
-          message: string | null
-          name: string
-          phone: string
-          service: string
-          source: string
-          status: string
-          updated_at: string
-          urgency: string | null
-        }
-        Insert: {
-          assigned_to?: string | null
-          created_at?: string
-          email?: string | null
-          id?: string
-          image_path?: string | null
-          lead_id?: string | null
-          message?: string | null
-          name: string
-          phone: string
-          service: string
-          source?: string
-          status?: string
-          updated_at?: string
-          urgency?: string | null
-        }
-        Update: {
-          assigned_to?: string | null
-          created_at?: string
-          email?: string | null
-          id?: string
-          image_path?: string | null
-          lead_id?: string | null
-          message?: string | null
-          name?: string
-          phone?: string
-          service?: string
-          source?: string
-          status?: string
-          updated_at?: string
-          urgency?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contact_requests_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -777,237 +679,51 @@ export type Database = {
           },
         ]
       }
-      lead_notes: {
-        Row: {
-          content: string
-          created_at: string
-          created_by: string | null
-          lead_id: string
-          note_id: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          content: string
-          created_at?: string
-          created_by?: string | null
-          lead_id: string
-          note_id?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          created_by?: string | null
-          lead_id?: string
-          note_id?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_notes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "lead_notes_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["lead_id"]
-          },
-          {
-            foreignKeyName: "lead_notes_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
-        ]
-      }
-      lead_reminders: {
-        Row: {
-          assigned_to: string | null
-          completed_at: string | null
-          created_at: string
-          created_by: string | null
-          description: string | null
-          due_at: string
-          event_id: string | null
-          lead_id: string
-          reminder_id: string
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          assigned_to?: string | null
-          completed_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          due_at: string
-          event_id?: string | null
-          lead_id: string
-          reminder_id?: string
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          assigned_to?: string | null
-          completed_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          due_at?: string
-          event_id?: string | null
-          lead_id?: string
-          reminder_id?: string
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_reminders_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "lead_reminders_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "lead_reminders_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "calendar_events"
-            referencedColumns: ["event_id"]
-          },
-          {
-            foreignKeyName: "lead_reminders_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["lead_id"]
-          },
-        ]
-      }
-      lead_stage_history: {
-        Row: {
-          changed_by: string | null
-          created_at: string
-          history_id: string
-          lead_id: string
-          new_status: string
-          notes: string | null
-          previous_status: string | null
-        }
-        Insert: {
-          changed_by?: string | null
-          created_at?: string
-          history_id?: string
-          lead_id: string
-          new_status: string
-          notes?: string | null
-          previous_status?: string | null
-        }
-        Update: {
-          changed_by?: string | null
-          created_at?: string
-          history_id?: string
-          lead_id?: string
-          new_status?: string
-          notes?: string | null
-          previous_status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_stage_history_changed_by_fkey"
-            columns: ["changed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "lead_stage_history_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["lead_id"]
-          },
-        ]
-      }
       leads: {
         Row: {
           budget: number | null
           company: string | null
           created_at: string
           created_by: string | null
-          description: string | null
           email: string | null
-          image_path: string | null
           lead_id: string
           location: string | null
           name: string
-          notes: string | null
           phone: string | null
           project_name: string
           project_type: string
-          source: string
           status: string
           updated_at: string
-          urgency: string | null
         }
         Insert: {
           budget?: number | null
           company?: string | null
           created_at?: string
           created_by?: string | null
-          description?: string | null
           email?: string | null
-          image_path?: string | null
           lead_id?: string
           location?: string | null
           name: string
-          notes?: string | null
           phone?: string | null
           project_name: string
           project_type: string
-          source?: string
           status?: string
           updated_at?: string
-          urgency?: string | null
         }
         Update: {
           budget?: number | null
           company?: string | null
           created_at?: string
           created_by?: string | null
-          description?: string | null
           email?: string | null
-          image_path?: string | null
           lead_id?: string
           location?: string | null
           name?: string
-          notes?: string | null
           phone?: string | null
           project_name?: string
           project_type?: string
-          source?: string
           status?: string
           updated_at?: string
-          urgency?: string | null
         }
         Relationships: [
           {
@@ -1024,27 +740,21 @@ export type Database = {
           content: string
           conversation_id: string | null
           created_at: string | null
-          delivered_at: string | null
           id: string
-          read_at: string | null
           sender_id: string | null
         }
         Insert: {
           content: string
           conversation_id?: string | null
           created_at?: string | null
-          delivered_at?: string | null
           id?: string
-          read_at?: string | null
           sender_id?: string | null
         }
         Update: {
           content?: string
           conversation_id?: string | null
           created_at?: string | null
-          delivered_at?: string | null
           id?: string
-          read_at?: string | null
           sender_id?: string | null
         }
         Relationships: [
@@ -1188,110 +898,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tasks"
             referencedColumns: ["task_id"]
-          },
-        ]
-      }
-      organisation_notification_settings: {
-        Row: {
-          channel_email: boolean
-          channel_in_app: boolean
-          created_at: string
-          id: number
-          notify_approvals: boolean
-          notify_attendance: boolean
-          notify_deadlines: boolean
-          notify_mentions: boolean
-          notify_messages: boolean
-          notify_project_updates: boolean
-          notify_task_assignments: boolean
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          channel_email?: boolean
-          channel_in_app?: boolean
-          created_at?: string
-          id?: number
-          notify_approvals?: boolean
-          notify_attendance?: boolean
-          notify_deadlines?: boolean
-          notify_mentions?: boolean
-          notify_messages?: boolean
-          notify_project_updates?: boolean
-          notify_task_assignments?: boolean
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          channel_email?: boolean
-          channel_in_app?: boolean
-          created_at?: string
-          id?: number
-          notify_approvals?: boolean
-          notify_attendance?: boolean
-          notify_deadlines?: boolean
-          notify_mentions?: boolean
-          notify_messages?: boolean
-          notify_project_updates?: boolean
-          notify_task_assignments?: boolean
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "organisation_notification_settings_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
-        ]
-      }
-      permission_audit_logs: {
-        Row: {
-          actor_profile_id: string | null
-          audit_id: number
-          created_at: string
-          new_effect: string | null
-          permission_key: string
-          previous_effect: string | null
-          reason: string | null
-          target_profile_id: string | null
-        }
-        Insert: {
-          actor_profile_id?: string | null
-          audit_id?: never
-          created_at?: string
-          new_effect?: string | null
-          permission_key: string
-          previous_effect?: string | null
-          reason?: string | null
-          target_profile_id?: string | null
-        }
-        Update: {
-          actor_profile_id?: string | null
-          audit_id?: never
-          created_at?: string
-          new_effect?: string | null
-          permission_key?: string
-          previous_effect?: string | null
-          reason?: string | null
-          target_profile_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "permission_audit_logs_actor_profile_id_fkey"
-            columns: ["actor_profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "permission_audit_logs_target_profile_id_fkey"
-            columns: ["target_profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -1651,215 +1257,212 @@ export type Database = {
           },
         ]
       }
-      project_brief_attachments: {
-        Row: {
-          brief_id: string
-          created_at: string
-          file_size: number
-          id: string
-          mime_type: string
-          original_name: string
-          storage_path: string
-        }
-        Insert: {
-          brief_id: string
-          created_at?: string
-          file_size: number
-          id?: string
-          mime_type: string
-          original_name: string
-          storage_path: string
-        }
-        Update: {
-          brief_id?: string
-          created_at?: string
-          file_size?: number
-          id?: string
-          mime_type?: string
-          original_name?: string
-          storage_path?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_brief_attachments_brief_id_fkey"
-            columns: ["brief_id"]
-            isOneToOne: false
-            referencedRelation: "project_briefs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       project_briefs: {
         Row: {
-          architectural_style: string[]
-          attachments: Json
-          bedrooms_count: number | null
-          budget: number | null
-          cars_count: number | null
-          colour_material_preferences: string | null
-          contact_email: string
-          contact_phone: string
-          converted_project_id: string | null
-          created_at: string
-          current_home_dislikes: string | null
-          current_home_likes: string | null
-          decision_makers: string | null
-          desired_spaces: string[]
-          domestic_workers: string | null
-          domestic_workers_count: number | null
-          essential_space: string | null
-          existing_buildings: string | null
-          family_growth: string | null
-          floor_count: string | null
-          full_name: string
-          has_trees: string | null
-          id: string
-          infrastructure: string[]
-          internal_notes: string | null
-          kitchen_layout: string | null
-          land_area: number | null
-          land_length: number | null
-          land_ownership: string | null
-          land_type: string | null
-          land_width: number | null
-          location_address: string | null
-          location_city: string | null
-          location_municipality: string | null
-          location_neighborhood: string | null
-          location_province: string | null
-          location_reference: string | null
-          map_link: string | null
-          natural_light_rating: number | null
-          other_information: string | null
-          pets: string | null
-          preferred_contact: string | null
-          privacy_rating: number | null
-          reference_links: string | null
-          rejection_reason: string | null
-          resident_profiles: string | null
-          residents_count: number | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status: string
-          suites_count: number | null
-          updated_at: string
-          visitors_frequency: string | null
-          works_from_home: string | null
-        }
+          id: string;
+          created_at: string;
+          updated_at: string;
+          status: string;
+          full_name: string;
+          contact_phone: string;
+          contact_email: string;
+          decision_makers: string | null;
+          preferred_contact: string | null;
+          location_address: string | null;
+          location_neighborhood: string | null;
+          location_municipality: string | null;
+          location_reference: string | null;
+          location_city: string | null;
+          location_province: string | null;
+          map_link: string | null;
+          land_ownership: string | null;
+          land_area: number | null;
+          land_length: number | null;
+          land_width: number | null;
+          land_type: string | null;
+          existing_buildings: string | null;
+          has_trees: string | null;
+          infrastructure: string[];
+          residents_count: number | null;
+          domestic_workers: string | null;
+          domestic_workers_count: number | null;
+          resident_profiles: string | null;
+          family_growth: string | null;
+          works_from_home: string | null;
+          visitors_frequency: string | null;
+          pets: string | null;
+          current_home_dislikes: string | null;
+          current_home_likes: string | null;
+          bedrooms_count: number | null;
+          suites_count: number | null;
+          desired_spaces: string[];
+          cars_count: number | null;
+          kitchen_layout: string | null;
+          floor_count: string | null;
+          essential_space: string | null;
+          architectural_style: string[];
+          colour_material_preferences: string | null;
+          natural_light_rating: number | null;
+          privacy_rating: number | null;
+          reference_links: string | null;
+          other_information: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          internal_notes: string | null;
+          rejection_reason: string | null;
+          converted_project_id: string | null;
+          attachments: Json;
+          budget: number | null;
+          architectural_style_other: string | null;
+          construction_start: string | null;
+          project_priorities: string[];
+          service_scope: string;
+          latitude: number | null;
+          longitude: number | null;
+          desired_spaces_other: string | null;
+          floor_count_other: string | null;
+          budget_undisclosed: boolean;
+        };
         Insert: {
-          architectural_style?: string[]
-          attachments?: Json
-          bedrooms_count?: number | null
-          budget?: number | null
-          cars_count?: number | null
-          colour_material_preferences?: string | null
-          contact_email: string
-          contact_phone: string
-          converted_project_id?: string | null
-          created_at?: string
-          current_home_dislikes?: string | null
-          current_home_likes?: string | null
-          decision_makers?: string | null
-          desired_spaces?: string[]
-          domestic_workers?: string | null
-          domestic_workers_count?: number | null
-          essential_space?: string | null
-          existing_buildings?: string | null
-          family_growth?: string | null
-          floor_count?: string | null
-          full_name: string
-          has_trees?: string | null
-          id?: string
-          infrastructure?: string[]
-          internal_notes?: string | null
-          kitchen_layout?: string | null
-          land_area?: number | null
-          land_length?: number | null
-          land_ownership?: string | null
-          land_type?: string | null
-          land_width?: number | null
-          location_address?: string | null
-          location_city?: string | null
-          location_municipality?: string | null
-          location_neighborhood?: string | null
-          location_province?: string | null
-          location_reference?: string | null
-          map_link?: string | null
-          natural_light_rating?: number | null
-          other_information?: string | null
-          pets?: string | null
-          preferred_contact?: string | null
-          privacy_rating?: number | null
-          reference_links?: string | null
-          rejection_reason?: string | null
-          resident_profiles?: string | null
-          residents_count?: number | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          suites_count?: number | null
-          updated_at?: string
-          visitors_frequency?: string | null
-          works_from_home?: string | null
-        }
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          status?: string;
+          full_name: string;
+          contact_phone: string;
+          contact_email: string;
+          decision_makers?: string | null;
+          preferred_contact?: string | null;
+          location_address?: string | null;
+          location_neighborhood?: string | null;
+          location_municipality?: string | null;
+          location_reference?: string | null;
+          location_city?: string | null;
+          location_province?: string | null;
+          map_link?: string | null;
+          land_ownership?: string | null;
+          land_area?: number | null;
+          land_length?: number | null;
+          land_width?: number | null;
+          land_type?: string | null;
+          existing_buildings?: string | null;
+          has_trees?: string | null;
+          infrastructure?: string[];
+          residents_count?: number | null;
+          domestic_workers?: string | null;
+          domestic_workers_count?: number | null;
+          resident_profiles?: string | null;
+          family_growth?: string | null;
+          works_from_home?: string | null;
+          visitors_frequency?: string | null;
+          pets?: string | null;
+          current_home_dislikes?: string | null;
+          current_home_likes?: string | null;
+          bedrooms_count?: number | null;
+          suites_count?: number | null;
+          desired_spaces?: string[];
+          cars_count?: number | null;
+          kitchen_layout?: string | null;
+          floor_count?: string | null;
+          essential_space?: string | null;
+          architectural_style?: string[];
+          colour_material_preferences?: string | null;
+          natural_light_rating?: number | null;
+          privacy_rating?: number | null;
+          reference_links?: string | null;
+          other_information?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          internal_notes?: string | null;
+          rejection_reason?: string | null;
+          converted_project_id?: string | null;
+          attachments?: Json;
+          budget?: number | null;
+          architectural_style_other?: string | null;
+          construction_start?: string | null;
+          project_priorities?: string[];
+          service_scope?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          desired_spaces_other?: string | null;
+          floor_count_other?: string | null;
+          budget_undisclosed?: boolean;
+        };
         Update: {
-          architectural_style?: string[]
-          attachments?: Json
-          bedrooms_count?: number | null
-          budget?: number | null
-          cars_count?: number | null
-          colour_material_preferences?: string | null
-          contact_email?: string
-          contact_phone?: string
-          converted_project_id?: string | null
-          created_at?: string
-          current_home_dislikes?: string | null
-          current_home_likes?: string | null
-          decision_makers?: string | null
-          desired_spaces?: string[]
-          domestic_workers?: string | null
-          domestic_workers_count?: number | null
-          essential_space?: string | null
-          existing_buildings?: string | null
-          family_growth?: string | null
-          floor_count?: string | null
-          full_name?: string
-          has_trees?: string | null
-          id?: string
-          infrastructure?: string[]
-          internal_notes?: string | null
-          kitchen_layout?: string | null
-          land_area?: number | null
-          land_length?: number | null
-          land_ownership?: string | null
-          land_type?: string | null
-          land_width?: number | null
-          location_address?: string | null
-          location_city?: string | null
-          location_municipality?: string | null
-          location_neighborhood?: string | null
-          location_province?: string | null
-          location_reference?: string | null
-          map_link?: string | null
-          natural_light_rating?: number | null
-          other_information?: string | null
-          pets?: string | null
-          preferred_contact?: string | null
-          privacy_rating?: number | null
-          reference_links?: string | null
-          rejection_reason?: string | null
-          resident_profiles?: string | null
-          residents_count?: number | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          suites_count?: number | null
-          updated_at?: string
-          visitors_frequency?: string | null
-          works_from_home?: string | null
-        }
-        Relationships: []
-      }
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+          status?: string;
+          full_name?: string;
+          contact_phone?: string;
+          contact_email?: string;
+          decision_makers?: string | null;
+          preferred_contact?: string | null;
+          location_address?: string | null;
+          location_neighborhood?: string | null;
+          location_municipality?: string | null;
+          location_reference?: string | null;
+          location_city?: string | null;
+          location_province?: string | null;
+          map_link?: string | null;
+          land_ownership?: string | null;
+          land_area?: number | null;
+          land_length?: number | null;
+          land_width?: number | null;
+          land_type?: string | null;
+          existing_buildings?: string | null;
+          has_trees?: string | null;
+          infrastructure?: string[];
+          residents_count?: number | null;
+          domestic_workers?: string | null;
+          domestic_workers_count?: number | null;
+          resident_profiles?: string | null;
+          family_growth?: string | null;
+          works_from_home?: string | null;
+          visitors_frequency?: string | null;
+          pets?: string | null;
+          current_home_dislikes?: string | null;
+          current_home_likes?: string | null;
+          bedrooms_count?: number | null;
+          suites_count?: number | null;
+          desired_spaces?: string[];
+          cars_count?: number | null;
+          kitchen_layout?: string | null;
+          floor_count?: string | null;
+          essential_space?: string | null;
+          architectural_style?: string[];
+          colour_material_preferences?: string | null;
+          natural_light_rating?: number | null;
+          privacy_rating?: number | null;
+          reference_links?: string | null;
+          other_information?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          internal_notes?: string | null;
+          rejection_reason?: string | null;
+          converted_project_id?: string | null;
+          attachments?: Json;
+          budget?: number | null;
+          architectural_style_other?: string | null;
+          construction_start?: string | null;
+          project_priorities?: string[];
+          service_scope?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          desired_spaces_other?: string | null;
+          floor_count_other?: string | null;
+          budget_undisclosed?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_briefs_converted_project_id_fkey";
+            columns: ["converted_project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       project_members: {
         Row: {
           joined_at: string | null
@@ -1899,6 +1502,62 @@ export type Database = {
           },
           {
             foreignKeyName: "user_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+        ]
+      }
+      project_permissions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          permission_id: number
+          profile_id: string
+          project_id: string
+          project_permission_id: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          permission_id: number
+          profile_id: string
+          project_id: string
+          project_permission_id?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          permission_id?: number
+          profile_id?: string
+          project_id?: string
+          project_permission_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_permissions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "project_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["permission_id"]
+          },
+          {
+            foreignKeyName: "project_permissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "project_permissions_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -2034,32 +1693,27 @@ export type Database = {
       }
       projects: {
         Row: {
-          actual_end_date: string | null
-          actual_start_date: string | null
           address_line_1: string | null
           address_line_2: string | null
-          archived_at: string | null
           budget: number | null
           city: string | null
           client_id: string | null
-          completion_percentage: number
-          contract_number: string | null
           country: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
           end_date: string | null
           estimated_cost: number | null
-          external_reference: string | null
           image: string | null
           latitude: number | null
           longitude: number | null
           municipality: string
-          project_category: string
           project_code: string
           project_id: string
           province: string | null
+          reference_point: string | null
           start_date: string | null
+          state_province: string | null
           status: string | null
           title: string
           type: string | null
@@ -2067,32 +1721,27 @@ export type Database = {
           urgency: string | null
         }
         Insert: {
-          actual_end_date?: string | null
-          actual_start_date?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
-          archived_at?: string | null
           budget?: number | null
           city?: string | null
           client_id?: string | null
-          completion_percentage?: number
-          contract_number?: string | null
           country?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           end_date?: string | null
           estimated_cost?: number | null
-          external_reference?: string | null
           image?: string | null
           latitude?: number | null
           longitude?: number | null
           municipality: string
-          project_category?: string
           project_code: string
           project_id?: string
           province?: string | null
+          reference_point?: string | null
           start_date?: string | null
+          state_province?: string | null
           status?: string | null
           title: string
           type?: string | null
@@ -2100,32 +1749,27 @@ export type Database = {
           urgency?: string | null
         }
         Update: {
-          actual_end_date?: string | null
-          actual_start_date?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
-          archived_at?: string | null
           budget?: number | null
           city?: string | null
           client_id?: string | null
-          completion_percentage?: number
-          contract_number?: string | null
           country?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           end_date?: string | null
           estimated_cost?: number | null
-          external_reference?: string | null
           image?: string | null
           latitude?: number | null
           longitude?: number | null
           municipality?: string
-          project_category?: string
           project_code?: string
           project_id?: string
           province?: string | null
+          reference_point?: string | null
           start_date?: string | null
+          state_province?: string | null
           status?: string | null
           title?: string
           type?: string | null
@@ -2779,70 +2423,20 @@ export type Database = {
       roles: {
         Row: {
           created_at: string
-          description: string | null
           name: string | null
           role_id: number
         }
         Insert: {
           created_at?: string
-          description?: string | null
           name?: string | null
           role_id?: number
         }
         Update: {
           created_at?: string
-          description?: string | null
           name?: string | null
           role_id?: number
         }
         Relationships: []
-      }
-      settings_audit_logs: {
-        Row: {
-          action: string
-          actor_profile_id: string | null
-          audit_id: string
-          created_at: string
-          metadata: Json
-          new_value: Json | null
-          previous_value: Json | null
-          reason: string | null
-          section: string
-          setting_key: string
-        }
-        Insert: {
-          action?: string
-          actor_profile_id?: string | null
-          audit_id?: string
-          created_at?: string
-          metadata?: Json
-          new_value?: Json | null
-          previous_value?: Json | null
-          reason?: string | null
-          section: string
-          setting_key: string
-        }
-        Update: {
-          action?: string
-          actor_profile_id?: string | null
-          audit_id?: string
-          created_at?: string
-          metadata?: Json
-          new_value?: Json | null
-          previous_value?: Json | null
-          reason?: string | null
-          section?: string
-          setting_key?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "settings_audit_logs_actor_profile_id_fkey"
-            columns: ["actor_profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
-        ]
       }
       submission_files: {
         Row: {
@@ -3177,7 +2771,6 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
-          email: string | null
           nif: string | null
           person_of_contact: string | null
           phone_number: string | null
@@ -3195,7 +2788,6 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
-          email?: string | null
           nif?: string | null
           person_of_contact?: string | null
           phone_number?: string | null
@@ -3213,7 +2805,6 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
-          email?: string | null
           nif?: string | null
           person_of_contact?: string | null
           phone_number?: string | null
@@ -3313,220 +2904,188 @@ export type Database = {
       }
       tasks: {
         Row: {
-          actual_hours: number | null
-          column_id: string | null
-          completed: boolean
-          created_at: string
-          created_by: string | null
-          description: string | null
-          due_date: string | null
-          estimated_hours: number | null
-          position: number
-          priority: string
-          project_id: string | null
-          start_date: string | null
-          status: string | null
-          task_id: string
-          title: string
-          updated_at: string
-        }
+          task_id: string;
+          project_id: string | null;
+          column_id: string | null;
+          title: string;
+          description: string | null;
+          priority: string;
+          start_date: string | null;
+          due_date: string | null;
+          estimated_hours: number | null;
+          actual_hours: number | null;
+          position: number;
+          created_at: string;
+          updated_at: string;
+          completed: boolean;
+          status: string | null;
+          created_by: string | null;
+          phase_id: string | null;
+          stage_id: string | null;
+          review_status: string;
+          submitted_at: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          review_notes: string | null;
+        };
+
         Insert: {
-          actual_hours?: number | null
-          column_id?: string | null
-          completed?: boolean
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          due_date?: string | null
-          estimated_hours?: number | null
-          position?: number
-          priority?: string
-          project_id?: string | null
-          start_date?: string | null
-          status?: string | null
-          task_id?: string
-          title: string
-          updated_at?: string
-        }
+          task_id?: string;
+          project_id?: string | null;
+          column_id?: string | null;
+          title: string;
+          description?: string | null;
+          priority?: string;
+          start_date?: string | null;
+          due_date?: string | null;
+          estimated_hours?: number | null;
+          actual_hours?: number | null;
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+          completed?: boolean;
+          status?: string | null;
+          created_by?: string | null;
+          phase_id?: string | null;
+          stage_id?: string | null;
+          review_status?: string;
+          submitted_at?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          review_notes?: string | null;
+        };
+
         Update: {
-          actual_hours?: number | null
-          column_id?: string | null
-          completed?: boolean
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          due_date?: string | null
-          estimated_hours?: number | null
-          position?: number
-          priority?: string
-          project_id?: string | null
-          start_date?: string | null
-          status?: string | null
-          task_id?: string
-          title?: string
-          updated_at?: string
-        }
+          task_id?: string;
+          project_id?: string | null;
+          column_id?: string | null;
+          title?: string;
+          description?: string | null;
+          priority?: string;
+          start_date?: string | null;
+          due_date?: string | null;
+          estimated_hours?: number | null;
+          actual_hours?: number | null;
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+          completed?: boolean;
+          status?: string | null;
+          created_by?: string | null;
+          phase_id?: string | null;
+          stage_id?: string | null;
+          review_status?: string;
+          submitted_at?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          review_notes?: string | null;
+        };
+
         Relationships: [
           {
-            foreignKeyName: "tasks_column_id_fkey"
-            columns: ["column_id"]
-            isOneToOne: false
-            referencedRelation: "task_columns"
-            referencedColumns: ["column_id"]
+            foreignKeyName: "tasks_column_id_fkey";
+            columns: ["column_id"];
+            isOneToOne: false;
+            referencedRelation: "task_columns";
+            referencedColumns: ["column_id"];
           },
           {
-            foreignKeyName: "tasks_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["project_id"]
-          },
-        ]
-      }
-      user_permission_overrides: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          effect: string
-          override_id: string
-          permission_id: number
-          profile_id: string
-          reason: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          effect: string
-          override_id?: string
-          permission_id: number
-          profile_id: string
-          reason?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          effect?: string
-          override_id?: string
-          permission_id?: number
-          profile_id?: string
-          reason?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_permission_overrides_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
+            foreignKeyName: "tasks_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["project_id"];
           },
           {
-            foreignKeyName: "user_permission_overrides_permission_id_fkey"
-            columns: ["permission_id"]
-            isOneToOne: false
-            referencedRelation: "permissions"
-            referencedColumns: ["permission_id"]
+            foreignKeyName: "tasks_phase_id_fkey";
+            columns: ["phase_id"];
+            isOneToOne: false;
+            referencedRelation: "project_phases";
+            referencedColumns: ["phase_id"];
           },
           {
-            foreignKeyName: "user_permission_overrides_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
+            foreignKeyName: "tasks_stage_id_fkey";
+            columns: ["stage_id"];
+            isOneToOne: false;
+            referencedRelation: "phase_stages";
+            referencedColumns: ["stage_id"];
           },
-        ]
-      }
-      user_settings: {
-        Row: {
-          calendar_default_meeting_duration: number
-          calendar_default_view: string
-          calendar_reminder_minutes: number
-          compact_mode: boolean
-          created_at: string
-          language: string
-          notify_approvals: boolean
-          notify_attendance: boolean
-          notify_deadlines: boolean
-          notify_email: boolean
-          notify_mentions: boolean
-          notify_messages: boolean
-          notify_project_updates: boolean
-          notify_task_assignments: boolean
-          profile_id: string
-          theme: string
-          timezone: string
-          updated_at: string
-        }
-        Insert: {
-          calendar_default_meeting_duration?: number
-          calendar_default_view?: string
-          calendar_reminder_minutes?: number
-          compact_mode?: boolean
-          created_at?: string
-          language?: string
-          notify_approvals?: boolean
-          notify_attendance?: boolean
-          notify_deadlines?: boolean
-          notify_email?: boolean
-          notify_mentions?: boolean
-          notify_messages?: boolean
-          notify_project_updates?: boolean
-          notify_task_assignments?: boolean
-          profile_id: string
-          theme?: string
-          timezone?: string
-          updated_at?: string
-        }
-        Update: {
-          calendar_default_meeting_duration?: number
-          calendar_default_view?: string
-          calendar_reminder_minutes?: number
-          compact_mode?: boolean
-          created_at?: string
-          language?: string
-          notify_approvals?: boolean
-          notify_attendance?: boolean
-          notify_deadlines?: boolean
-          notify_email?: boolean
-          notify_mentions?: boolean
-          notify_messages?: boolean
-          notify_project_updates?: boolean
-          notify_task_assignments?: boolean
-          profile_id?: string
-          theme?: string
-          timezone?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_settings_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["profile_id"]
-          },
-        ]
-      }
+        ];
+      };
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      has_management_permission: {
-        Args: { requested_permission: string }
-        Returns: boolean
+      get_or_create_direct_conversation: {
+        Args: { other_user: string; profile_id: string }
+        Returns: string
       }
-      sync_calendar_deadlines: { Args: never; Returns: Json }
-      sync_project_deadline: {
-        Args: { p_project_id: string }
-        Returns: undefined
+      provision_project_defaults: {
+        Args: { p_creator_profile_id: string; p_project_id: string }
+        Returns: Json
       }
-      sync_task_deadline: { Args: { p_task_id: string }; Returns: undefined }
     }
     Enums: {
-      [_ in never]: never
+      activity_action:
+      | "created"
+      | "updated"
+      | "deleted"
+      | "uploaded"
+      | "assigned"
+      | "unassigned"
+      | "status_changed"
+      | "completed"
+      | "approved"
+      | "rejected"
+      | "archived"
+      | "restored"
+      | "commented"
+      activity_entity_type:
+      | "project"
+      | "task"
+      | "document"
+      | "drawing"
+      | "client"
+      | "member"
+      | "invoice"
+      | "payment"
+      | "equipment"
+      | "meeting"
+      conversation_type: "direct" | "project"
+      new_project_status:
+      | "Em Espera"
+      | "Em Curso"
+      | "Em Observação"
+      | "Concluído"
+      | "Cancelado"
+      priority_type: "Low" | "Medium" | "High" | "Critical"
+      project_member_role:
+      | "Manager"
+      | "Engineer"
+      | "Architect"
+      | "Supervisor"
+      | "Viewer"
+      | "Admin"
+      project_role:
+      | "Manager"
+      | "Coordinator"
+      | "Architect"
+      | "Engineer"
+      | "Consultant"
+      | "Other"
+      project_status:
+      | "Planning"
+      | "In Progress"
+      | "On Hold"
+      | "Completed"
+      | "Cancelled"
+      task_status:
+      | "Pending"
+      | "In Progress"
+      | "Review"
+      | "Completed"
+      | "Cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3540,37 +3099,37 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-    ? R
-    : never
+  ? R
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
+    DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] &
+    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+  ? R
+  : never
+  : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
@@ -3580,22 +3139,22 @@ export type TablesInsert<
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
+    Insert: infer I
+  }
+  ? I
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Insert: infer I
+  }
+  ? I
+  : never
+  : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
@@ -3605,22 +3164,22 @@ export type TablesUpdate<
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
+    Update: infer U
+  }
+  ? U
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Update: infer U
+  }
+  ? U
+  : never
+  : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Enums"]
+  | { schema: keyof DatabaseWithoutInternals },
   EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
@@ -3631,13 +3190,13 @@ export type Enums<
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["CompositeTypes"]
+  | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
@@ -3648,14 +3207,81 @@ export type CompositeTypes<
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
 
 export const Constants = {
   graphql_public: {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      activity_action: [
+        "created",
+        "updated",
+        "deleted",
+        "uploaded",
+        "assigned",
+        "unassigned",
+        "status_changed",
+        "completed",
+        "approved",
+        "rejected",
+        "archived",
+        "restored",
+        "commented",
+      ],
+      activity_entity_type: [
+        "project",
+        "task",
+        "document",
+        "drawing",
+        "client",
+        "member",
+        "invoice",
+        "payment",
+        "equipment",
+        "meeting",
+      ],
+      conversation_type: ["direct", "project"],
+      new_project_status: [
+        "Em Espera",
+        "Em Curso",
+        "Em Observação",
+        "Concluído",
+        "Cancelado",
+      ],
+      priority_type: ["Low", "Medium", "High", "Critical"],
+      project_member_role: [
+        "Manager",
+        "Engineer",
+        "Architect",
+        "Supervisor",
+        "Viewer",
+        "Admin",
+      ],
+      project_role: [
+        "Manager",
+        "Coordinator",
+        "Architect",
+        "Engineer",
+        "Consultant",
+        "Other",
+      ],
+      project_status: [
+        "Planning",
+        "In Progress",
+        "On Hold",
+        "Completed",
+        "Cancelled",
+      ],
+      task_status: [
+        "Pending",
+        "In Progress",
+        "Review",
+        "Completed",
+        "Cancelled",
+      ],
+    },
   },
 } as const

@@ -440,11 +440,6 @@ export default function NewProjectForm({
         );
       }
 
-      console.log(
-        "[NewProject] Project created:",
-        project
-      );
-
       /* ------------------------------------------------------------------ */
       /* Remove saved draft                                                  */
       /* ------------------------------------------------------------------ */

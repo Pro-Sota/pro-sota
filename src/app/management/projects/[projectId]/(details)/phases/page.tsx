@@ -1,4 +1,3 @@
-
 import { getProjectPhaseBoard } from "@/services/project_phases";
 import PhasesPageInner from "./phases_inner";
 
@@ -11,14 +10,14 @@ export default async function PhasesPage({
 }) {
   const { projectId } = await params;
 
-  const { phases, Stages, deliverables } =
+  const { phases, stages, tasks } =
     await getProjectPhaseBoard(projectId);
 
   return (
     <PhasesPageInner
       phases={phases}
-      Stages={Stages}
-      deliverables={deliverables}
+      stages={stages}
+      tasks={tasks}
     />
   );
 }

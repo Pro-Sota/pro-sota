@@ -60,8 +60,7 @@ export async function createMemberAction(
     let uploadedPath: string | null = null;
 
     try {
-        const cookieStore = await cookies();
-        const supabase = await createClient(cookieStore);
+        const supabase = await createClient();
 
         // Require an authenticated administrator.
         const {

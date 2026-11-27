@@ -70,7 +70,6 @@ export default async function HomePage() {
       };
     });
 
-  console.log("displayProjects", displayProjects);
 
   return (
     <main>

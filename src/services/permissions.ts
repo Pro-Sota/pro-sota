@@ -94,7 +94,7 @@ function getFullName(profile: ProfileRow): string {
 }
 
 export async function getPermissionsPageData(): Promise<PermissionPageData> {
-  const supabase = await createClient(await cookies());
+  const supabase = await createClient();
 
   const [
     profilesResult,

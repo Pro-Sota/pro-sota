@@ -1,10 +1,11 @@
+
 "use client";
 
 import {
   Trash2,
   X,
-  Check,
   Calendar,
+  Check,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -27,6 +28,7 @@ type TaskModalProps = {
   task: Task;
   columns: KanbanColumn[];
   availableMembers: TaskMember[];
+  canAssignMembers?: boolean;
   onClose: () => void;
   onUpdate: (
     taskId: string,
@@ -39,10 +41,20 @@ export default function TaskModal({
   task,
   columns,
   availableMembers,
+  canAssignMembers = false,
   onClose,
   onUpdate,
   onDelete,
 }: TaskModalProps) {
+  const isPersonalTask = task.projectId == null;
+
+  const canManageMembers =
+    !isPersonalTask && canAssignMembers;
+
+  const isApproved =
+    String(task.reviewStatus ?? "").toLowerCase() ===
+    "approved";
+
   const [title, setTitle] = useState(task.title);
 
   const [members, setMembers] = useState<TaskMember[]>(
@@ -68,6 +80,7 @@ export default function TaskModal({
   );
 
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setTitle(task.title);
@@ -77,6 +90,7 @@ export default function TaskModal({
     setStartDate(task.startDate ?? "");
     setDueDate(task.dueDate ?? "");
     setMembers(task.members ?? []);
+    setError(null);
   }, [
     task.taskId,
     task.title,
@@ -88,15 +102,22 @@ export default function TaskModal({
     task.members,
   ]);
 
+  const currentColumn =
+    columns.find(
+      (column) => column.columnId === task.columnId,
+    )?.name ?? "Sem estado";
+
+  const isConcluded = isPersonalTask
+    ? completed
+    : isApproved;
+
   function handleAddMember(member: TaskMember) {
     setMembers((current) => {
       const alreadyAdded = current.some(
         (item) => item.profileId === member.profileId,
       );
 
-      if (alreadyAdded) {
-        return current;
-      }
+      if (alreadyAdded) return current;
 
       return [...current, member];
     });
@@ -110,43 +131,54 @@ export default function TaskModal({
     );
   }
 
-  const currentColumn =
-    columns.find(
-      (column) => column.columnId === task.columnId,
-    )?.name ?? "Sem estado";
-
   async function handleSave() {
     const trimmedTitle = title.trim();
     const trimmedDescription = description.trim();
 
     if (!trimmedTitle) {
-      setTitle(task.title);
+      setError("O título da tarefa é obrigatório.");
+      return;
+    }
+
+    if (startDate && dueDate && dueDate < startDate) {
+      setError(
+        "A data de conclusão não pode ser anterior à data de início.",
+      );
       return;
     }
 
     const input: UpdateTaskInput = {
       title: trimmedTitle,
       description: trimmedDescription || null,
-      completed,
+      completed: isPersonalTask
+        ? completed
+        : Boolean(task.completed),
       priority,
       startDate: startDate || null,
       dueDate: dueDate || null,
-
-      // Explicit assignment list.
-      // The creator is NOT automatically added.
-      memberIds: members.map(
-        (member) => member.profileId,
-      ),
+      ...(canManageMembers
+        ? {
+            memberIds: members.map(
+              (member) => member.profileId,
+            ),
+          }
+        : {}),
     };
 
     setIsSaving(true);
+    setError(null);
 
     try {
-      await Promise.resolve(
-        onUpdate(task.taskId, input),
-      );
-
+      await onUpdate(task.taskId, input);
       onClose();
+    } catch (err) {
+      console.error("Erro ao actualizar tarefa:", err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível guardar as alterações.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -158,32 +190,33 @@ export default function TaskModal({
       onMouseDown={onClose}
     >
       <div
-        onMouseDown={(event) =>
-          event.stopPropagation()
-        }
+        onMouseDown={(event) => event.stopPropagation()}
         className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
       >
         {/* Header */}
         <header className="border-b border-gray-100 px-6 py-5">
           <div className="flex items-start gap-4">
-            <button
-              type="button"
-              onClick={() =>
-                setCompleted((value) => !value)
-              }
-              aria-label={
-                completed
-                  ? "Marcar tarefa como incompleta"
-                  : "Marcar tarefa como concluída"
-              }
-              className={`mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
-                completed
-                  ? "border-emerald-500 bg-emerald-500 text-white"
-                  : "border-gray-300 bg-white text-transparent hover:border-emerald-400"
-              }`}
-            >
-              <Check className="h-4 w-4" />
-            </button>
+            {isPersonalTask && (
+              <button
+                type="button"
+                onClick={() =>
+                  setCompleted((value) => !value)
+                }
+                aria-label={
+                  completed
+                    ? "Marcar tarefa como incompleta"
+                    : "Marcar tarefa como concluída"
+                }
+                disabled={isSaving}
+                className={`mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  completed
+                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    : "border-gray-300 bg-white text-transparent hover:border-emerald-400"
+                }`}
+              >
+                <Check name="check" size="sm" />
+              </button>
+            )}
 
             <div className="min-w-0 flex-1">
               <input
@@ -201,8 +234,9 @@ export default function TaskModal({
                     event.currentTarget.blur();
                   }
                 }}
+                disabled={isSaving}
                 className={`w-full bg-transparent text-xl font-semibold tracking-tight outline-none ${
-                  completed
+                  isConcluded
                     ? "text-gray-400 line-through"
                     : "text-gray-900"
                 }`}
@@ -213,24 +247,21 @@ export default function TaskModal({
                   {currentColumn}
                 </span>
 
-                <span className="text-gray-300">
-                  •
-                </span>
-
-                <span className="text-xs text-gray-400">
-                  {completed
-                    ? "Concluída"
-                    : "Em aberto"}
-                </span>
+                {isPersonalTask && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <span className="text-xs text-gray-400">
+                      {completed ? "Concluída" : "Em aberto"}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
-                onClick={() =>
-                  onDelete(task.taskId)
-                }
+                onClick={() => onDelete(task.taskId)}
                 aria-label="Eliminar tarefa"
                 title="Eliminar tarefa"
                 disabled={isSaving}
@@ -256,45 +287,48 @@ export default function TaskModal({
         {/* Body */}
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-7 p-6">
-            {/* Status */}
-            <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-              <div>
-                <p className="text-xs font-medium text-gray-400">
-                  Estado
-                </p>
+            {/* Completion status - personal tasks only */}
+            {isPersonalTask && (
+              <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-400">
+                    Estado
+                  </p>
 
-                <p className="mt-1 text-sm font-medium text-gray-800">
-                  {completed
-                    ? "Concluída"
-                    : currentColumn}
-                </p>
-              </div>
+                  <p className="mt-1 text-sm font-medium text-gray-800">
+                    {completed
+                      ? "Concluída"
+                      : currentColumn}
+                  </p>
+                </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  setCompleted((value) => !value)
-                }
-                aria-label={
-                  completed
-                    ? "Marcar como incompleta"
-                    : "Marcar como concluída"
-                }
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                  completed
-                    ? "bg-emerald-500"
-                    : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCompleted((value) => !value)
+                  }
+                  aria-label={
                     completed
-                      ? "translate-x-5"
-                      : "translate-x-0.5"
+                      ? "Marcar como incompleta"
+                      : "Marcar como concluída"
+                  }
+                  disabled={isSaving}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    completed
+                      ? "bg-emerald-500"
+                      : "bg-gray-300"
                   }`}
-                />
-              </button>
-            </div>
+                >
+                  <span
+                    className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                      completed
+                        ? "translate-x-5"
+                        : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
 
             {/* Priority */}
             <div>
@@ -310,9 +344,7 @@ export default function TaskModal({
 
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {TASK_PRIORITIES.map(({ value }) => {
-                  const selected =
-                    priority === value;
-
+                  const selected = priority === value;
                   const priorityConfig =
                     PRIORITY_CONFIG[value];
 
@@ -320,10 +352,9 @@ export default function TaskModal({
                     <button
                       key={value}
                       type="button"
-                      onClick={() =>
-                        setPriority(value)
-                      }
-                      className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-left transition ${
+                      onClick={() => setPriority(value)}
+                      disabled={isSaving}
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
                         selected
                           ? priorityConfig.active
                           : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
@@ -356,8 +387,7 @@ export default function TaskModal({
                 </p>
 
                 <p className="mt-0.5 text-xs text-gray-400">
-                  Defina quando a tarefa começa e
-                  termina.
+                  Defina quando a tarefa começa e termina.
                 </p>
               </div>
 
@@ -373,12 +403,12 @@ export default function TaskModal({
                     <input
                       type="date"
                       value={startDate}
+                      max={dueDate || undefined}
                       onChange={(event) =>
-                        setStartDate(
-                          event.target.value,
-                        )
+                        setStartDate(event.target.value)
                       }
-                      className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+                      disabled={isSaving}
+                      className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100 disabled:cursor-not-allowed disabled:bg-gray-50"
                     />
                   </div>
                 </div>
@@ -396,24 +426,25 @@ export default function TaskModal({
                       value={dueDate}
                       min={startDate || undefined}
                       onChange={(event) =>
-                        setDueDate(
-                          event.target.value,
-                        )
+                        setDueDate(event.target.value)
                       }
-                      className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+                      disabled={isSaving}
+                      className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100 disabled:cursor-not-allowed disabled:bg-gray-50"
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Members */}
-            <TaskMembers
-              members={members}
-              availableMembers={availableMembers}
-              onAdd={handleAddMember}
-              onRemove={handleRemoveMember}
-            />
+            {/* Members - project tasks, Admin or Project Manager only */}
+            {canManageMembers && (
+              <TaskMembers
+                members={members}
+                availableMembers={availableMembers}
+                onAdd={handleAddMember}
+                onRemove={handleRemoveMember}
+              />
+            )}
 
             {/* Description */}
             <div>
@@ -423,8 +454,7 @@ export default function TaskModal({
                 </p>
 
                 <p className="mt-0.5 text-xs text-gray-400">
-                  Adicione informações ou instruções
-                  importantes para esta tarefa.
+                  Adicione informações ou instruções importantes para esta tarefa.
                 </p>
               </div>
 
@@ -442,6 +472,16 @@ export default function TaskModal({
                 </span>
               </div>
             </div>
+
+            {/* Save error */}
+            {error && (
+              <div
+                role="alert"
+                className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600"
+              >
+                {error}
+              </div>
+            )}
           </div>
         </div>
 
@@ -449,22 +489,26 @@ export default function TaskModal({
         <footer className="flex items-center justify-between border-t border-gray-100 bg-gray-50/70 px-6 py-4">
           <span
             className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-              completed
+              isConcluded
                 ? "text-emerald-600"
                 : "text-gray-400"
             }`}
           >
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                completed
+                isConcluded
                   ? "bg-emerald-500"
                   : "bg-gray-300"
               }`}
             />
 
-            {completed
-              ? "Tarefa concluída"
-              : "Tarefa em aberto"}
+            {isPersonalTask
+              ? completed
+                ? "Tarefa concluída"
+                : "Tarefa em aberto"
+              : isApproved
+                ? "Tarefa concluída"
+                : "Tarefa em curso"}
           </span>
 
           <div className="flex items-center gap-2">
@@ -483,9 +527,7 @@ export default function TaskModal({
               disabled={isSaving}
               className="rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSaving
-                ? "A guardar..."
-                : "Guardar alterações"}
+              {isSaving ? "A guardar..." : "Guardar alterações"}
             </button>
           </div>
         </footer>

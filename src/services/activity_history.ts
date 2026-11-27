@@ -43,8 +43,7 @@ const ACTIVITY_HISTORY_LIMIT = 500;
 /* -------------------------------------------------------------------------- */
 
 export async function getActivityPageData(): Promise<ActivityPageResult> {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   /* ------------------------------------------------------------------------ */
   /* Authentication                                                           */
@@ -53,7 +52,7 @@ export async function getActivityPageData(): Promise<ActivityPageResult> {
   const {
     data: { user },
     error: authError,
-  } = await supabase.auth.getUser();
+  } = await (await supabase).auth.getUser();
 
   if (authError) {
     throw new Error(
@@ -72,7 +71,7 @@ export async function getActivityPageData(): Promise<ActivityPageResult> {
   /* Authorization                                                            */
   /* ------------------------------------------------------------------------ */
 
-  const { data: currentProfile, error: profileError } = await supabase
+  const { data: currentProfile, error: profileError } = await (await supabase)
     .from("profiles")
     .select("profile_id, role_id")
     .eq("profile_id", user.id)
@@ -95,7 +94,7 @@ export async function getActivityPageData(): Promise<ActivityPageResult> {
   /* Activity logs                                                            */
   /* ------------------------------------------------------------------------ */
 
-  const { data: activityData, error: activityError, count } = await supabase
+  const { data: activityData, error: activityError, count } = await (await supabase)
     .from("activity_logs")
     .select(
       `
@@ -152,7 +151,7 @@ export async function getActivityPageData(): Promise<ActivityPageResult> {
   let profiles: ActivityProfile[] = [];
 
   if (userIds.length > 0) {
-    const { data: profileData, error: authorsError } = await supabase
+    const { data: profileData, error: authorsError } = await (await supabase)
       .from("profiles")
       .select("profile_id, first_name, last_name")
       .in("profile_id", userIds);

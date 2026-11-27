@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -18,10 +19,6 @@ interface ScheduleSectionProps {
   deliverables: OverviewData["deliverables"];
 }
 
-/**
- * The only client section: it owns the collapse state. It receives just the
- * slices it needs, so the rest of the page data is not serialised to the client.
- */
 export default function ScheduleSection({
   projectBase,
   phases,
@@ -31,45 +28,53 @@ export default function ScheduleSection({
   const [isOpen, setIsOpen] = useState(true);
   const contentId = "schedule-content";
 
+  const hasPhases = phases.length > 0;
+
   const chartPhases = useMemo(
     () =>
-      phases.map((phase) => ({
-        id: phase.id,
-        name: phase.name,
-        sortOrder: phase.sortOrder ?? 0,
-        progress: clampPercent(phase.progress),
-      })),
-    [phases],
+      isOpen
+        ? phases.map((phase) => ({
+            id: phase.id,
+            name: phase.name,
+            sortOrder: phase.sortOrder ?? 0,
+            startDate: phase.startDate ?? null,
+            endDate: phase.endDate ?? null,
+            progress: clampPercent(phase.progress),
+          }))
+        : [],
+    [isOpen, phases],
   );
 
   const chartStages = useMemo(
     () =>
-      tasks.map((task) => ({
-        id: task.id,
-        name: task.name,
-        phaseId: task.phaseId,
-        startDate: task.startDate,
-        endDate: task.endDate,
-        progress: clampPercent(task.progress),
-      })),
-    [tasks],
+      isOpen
+        ? tasks.map((task) => ({
+            id: task.id,
+            name: task.name,
+            phaseId: task.phaseId,
+            startDate: task.startDate,
+            endDate: task.endDate,
+            progress: clampPercent(task.progress),
+          }))
+        : [],
+    [isOpen, tasks],
   );
 
   const chartDeliverables = useMemo(
     () =>
-      deliverables.map((deliverable) => ({
-        id: deliverable.id,
-        name: deliverable.title,
-        phaseId: deliverable.phase_id,
-        startDate: deliverable.start_date,
-        endDate: deliverable.due_date,
-        progress: clampPercent(deliverable.progress),
-        sortOrder: deliverable.sort_order,
-      })),
-    [deliverables],
+      isOpen
+        ? deliverables.map((deliverable) => ({
+            id: deliverable.id,
+            name: deliverable.title,
+            phaseId: deliverable.phase_id,
+            startDate: deliverable.start_date,
+            endDate: deliverable.due_date,
+            progress: clampPercent(deliverable.progress),
+            sortOrder: deliverable.sort_order,
+          }))
+        : [],
+    [isOpen, deliverables],
   );
-
-  const hasPhases = chartPhases.length > 0;
 
   return (
     <SectionCard
@@ -94,26 +99,29 @@ export default function ScheduleSection({
             <ChevronDown
               size={14}
               aria-hidden="true"
-              className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
+              className={`transition-transform ${
+                isOpen ? "rotate-180" : ""
+              }`}
             />
           </button>
         ) : null
       }
     >
       <div id={contentId} hidden={!isOpen}>
-        {hasPhases ? (
-          <GanttChart
-            phases={chartPhases}
-            steps={chartStages}
-            deliverables={chartDeliverables}
-          />
-        ) : (
-          <EmptyState
-            icon={CalendarDays}
-            title={LABELS.emptySchedule}
-            message={LABELS.emptyScheduleMessage}
-          />
-        )}
+        {isOpen &&
+          (hasPhases ? (
+            <GanttChart
+              phases={chartPhases}
+              steps={chartStages}
+              deliverables={chartDeliverables}
+            />
+          ) : (
+            <EmptyState
+              icon={CalendarDays}
+              title={LABELS.emptySchedule}
+              message={LABELS.emptyScheduleMessage}
+            />
+          ))}
       </div>
     </SectionCard>
   );

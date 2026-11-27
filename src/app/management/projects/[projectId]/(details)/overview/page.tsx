@@ -16,7 +16,6 @@ export default async function OverviewPage({
 }: OverviewPageProps) {
   const { projectId } = await params;
 
-  // Fetch overview data and authenticate concurrently.
   const [data, { userRole }] = await Promise.all([
     getOverviewData(projectId),
     requireUser(),
@@ -28,5 +27,11 @@ export default async function OverviewPage({
 
   const isAdmin = userRole?.toLowerCase() === "admin";
 
-  return <OverviewClientPage data={data} isAdmin={isAdmin} />;
+  return (
+    <OverviewClientPage
+      data={data}
+      isAdmin={isAdmin}
+    />
+  );
 }
+

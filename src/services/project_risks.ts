@@ -46,7 +46,7 @@ export function assessSeverity(probability: number, impact: number): RiskSeverit
 }
 
 export async function getProjectRisks(projectId: string): Promise<ProjectRisk[]> {
-  const supabase = await createClient(await cookies());
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("project_risks")
     .select("risk_id, project_id, phase_id, risk_code, title, description, category, response_strategy, probability, impact, risk_score, severity, estimated_exposure, budget_impact, mitigation_plan, contingency_plan, owner_id, status, approval_status, review_date, created_at, updated_at")
@@ -59,7 +59,7 @@ export async function getProjectRisks(projectId: string): Promise<ProjectRisk[]>
 }
 
 export async function getRiskFormOptions(projectId: string) {
-  const supabase = await createClient(await cookies());
+  const supabase = await createClient();
   const [{ data: phases, error: phaseError }, { data: members, error: memberError }] = await Promise.all([
     supabase.from("project_phases").select("phase_id, name").eq("project_id", projectId).order("name"),
     supabase.from("project_members").select("profile_id, profiles(profile_id, first_name, last_name)").eq("project_id", projectId),

@@ -44,7 +44,7 @@ export async function createProjectRisk(
     const access = await assertProjectRiskAccess(projectId, "manage", score);
     const approvalRequired = score >= 10 || input.estimatedExposure >= 1000000 || input.budgetImpact >= 1000000 || input.responseStrategy === "accept";
     const approvalStatus = approvalRequired ? "pending" : "not_required";
-    const supabase = await createClient(await cookies());
+    const supabase = await createClient();
 
     // Generate a readable project-local code; unique constraint is the final guard.
     const { count, error: countError } = await supabase.from("project_risks").select("risk_id", { count: "exact", head: true }).eq("project_id", projectId);
@@ -104,7 +104,7 @@ export async function closeProjectRisk(projectId: string, riskId: string, justif
   try {
     if (justification.trim().length < 3) throw new Error("Indique o motivo do encerramento.");
     const access = await assertProjectRiskAccess(projectId, "manage");
-    const supabase = await createClient(await cookies());
+    const supabase = await createClient();
     const { data: risk, error: readError } = await supabase.from("project_risks").select("risk_id, project_id, status").eq("risk_id", riskId).eq("project_id", projectId).single();
     if (readError || !risk) throw new Error("Risco não encontrado ou sem acesso.");
     const { error } = await supabase.from("project_risks").update({ status: "closed", closed_at: new Date().toISOString() }).eq("risk_id", riskId).eq("project_id", projectId);

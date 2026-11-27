@@ -99,12 +99,12 @@ function validateStage(input: PhaseStageInput | PhaseStageUpdate) {
 }
 
 async function getAuthorizedClient() {
-  const supabase =  createClient(await cookies());
+  const supabase =  createClient();
 
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser();
+  } = await (await supabase).auth.getUser();
 
   if (error || !user) {
     return {
@@ -124,7 +124,7 @@ export async function createPhaseStage(
 ): Promise<ActionResult> {
   if (!phaseId) return fail("A fase do projeto é obrigatória.");
 
-  const supabase = createClient(await cookies());
+  const supabase = createClient();
 
   const validationError = validateStage(input);
   if (validationError) return fail(validationError);
@@ -133,7 +133,7 @@ export async function createPhaseStage(
   if ("error" in auth) return fail(auth.error ?? "");
 
 
-  const { data: phase, error: phaseError } = await supabase
+  const { data: phase, error: phaseError } = await (await supabase)
     .from("project_phases")
     .select("phase_id, project_id")
     .eq("phase_id", phaseId)
@@ -142,7 +142,7 @@ export async function createPhaseStage(
   if (phaseError) return fail(phaseError.message);
   if (!phase) return fail("A fase não existe ou não tem acesso a ela.");
 
-  const { data, error } = await supabase
+  const { data, error } = await (await supabase)
     .from("phase_stages")
     .insert({
       phase_id: phaseId,
@@ -184,9 +184,9 @@ export async function updatePhaseStage(
   const auth = await getAuthorizedClient();
   if ("error" in auth) return fail(auth.error ?? "");
 
-  const supabase = createClient(await cookies());
+  const supabase = createClient();
 
-  const { data: stage, error: stageError } = await supabase
+  const { data: stage, error: stageError } = await (await supabase)
     .from("phase_stages")
     .select("stage_id, phase_id")
     .eq("stage_id", stageId)
@@ -195,7 +195,7 @@ export async function updatePhaseStage(
   if (stageError) return fail(stageError.message);
   if (!stage) return fail("A etapa não existe ou não tem acesso a ela.");
 
-  const { data: phase, error: phaseError } = await supabase
+  const { data: phase, error: phaseError } = await (await supabase)
     .from("project_phases")
     .select("project_id")
     .eq("phase_id", stage.phase_id)
@@ -236,7 +236,7 @@ export async function updatePhaseStage(
     return fail("Não existem alterações para guardar.");
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await (await supabase)
     .from("phase_stages")
     .update(updates)
     .eq("stage_id", stageId)
@@ -287,9 +287,9 @@ export async function deletePhaseStage(
   const auth = await getAuthorizedClient();
   if ("error" in auth) return fail(auth.error ?? "");
 
-  const supabase = createClient(await cookies());
+  const supabase = createClient();
 
-  const { data: stage, error: stageError } = await supabase
+  const { data: stage, error: stageError } = await (await supabase)
     .from("phase_stages")
     .select("stage_id, phase_id")
     .eq("stage_id", stageId)
@@ -298,7 +298,7 @@ export async function deletePhaseStage(
   if (stageError) return fail(stageError.message);
   if (!stage) return fail("A etapa não existe ou não tem acesso a ela.");
 
-  const { data: phase, error: phaseError } = await supabase
+  const { data: phase, error: phaseError } = await (await supabase)
     .from("project_phases")
     .select("project_id")
     .eq("phase_id", stage.phase_id)
@@ -307,7 +307,7 @@ export async function deletePhaseStage(
   if (phaseError) return fail(phaseError.message);
   if (!phase) return fail("Não foi possível localizar a fase.");
 
-  const { data: deleted, error } = await supabase
+  const { data: deleted, error } = await (await supabase)
     .from("phase_stages")
     .delete()
     .eq("stage_id", stageId)
@@ -354,7 +354,7 @@ type SavePhaseStageResult =
 export async function savePhaseStage(
   input: SavePhaseStageInput
 ): Promise<SavePhaseStageResult> {
-  const supabase = await createClient(await cookies());
+  const supabase = await createClient();
 
   const {
     data: { user },

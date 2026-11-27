@@ -33,8 +33,7 @@ export type ClientDetails = ClientRow & {
 };
 
 async function getSupabase() {
-  const cookieStore = await cookies();
-  return createClient(cookieStore);
+  return createClient();
 }
 
 export async function getClients(): Promise<ClientWithProjectCount[]> {
@@ -157,8 +156,7 @@ export async function clientExists(
 import type { ClientOption } from "@/app/management/clients/types";
 
 export async function getClientOptions(): Promise<ClientOption[]> {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("clients")

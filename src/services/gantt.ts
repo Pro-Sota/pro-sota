@@ -195,9 +195,9 @@ export async function getProjectGanttData(
     projectId: string,
 ): Promise<GanttData> {
     
-    const supabase = createClient(await cookies());
+    const supabase = createClient();
 
-    const { data, error } = await supabase
+    const { data, error } = await (await supabase)
         .from("project_phases")
         .select(PHASES_WITH_ITEMS_SELECT)
         .eq("project_id", projectId)

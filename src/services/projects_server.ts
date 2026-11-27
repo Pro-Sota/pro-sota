@@ -1,8 +1,7 @@
-import { createClient } from "@/app/lib/supabase/server";
+
 import { cookies } from "next/headers";
 
-
-// src/services/project_tasks_server.ts
+import { createClient } from "@/app/lib/supabase/server";
 
 import type {
   Task,
@@ -15,6 +14,11 @@ import type {
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
+
+async function getSupabase() {
+  return createClient();
+}
+
 function mapTask(row: TaskRow): Task {
   return {
     id: row.task_id,
@@ -34,7 +38,7 @@ function mapTask(row: TaskRow): Task {
     labels: [],
     members: [],
     assignedMembers: [],
-    completed: false,
+    completed: row.completed ?? false,
   };
 }
 
@@ -45,39 +49,41 @@ function mapColumn(row: TaskColumnRow): TaskColumn {
     projectId: row.project_id,
     position: row.position,
     name: row.name,
-    column_id: "",
+    column_id: row.column_id,
     is_completed: false,
-    projectName: row.name,
+    projectName: null,
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Current authenticated user                                                 */
-/* -------------------------------------------------------------------------- */
+function getLuandaToday(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Luanda",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
 
-async function getCurrentProfileId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  return `${values.year}-${values.month}-${values.day}`;
+}
 
-  if (error) {
-    console.error(
-      "getCurrentProfileId auth error:",
-      error,
-    );
+function getErrorMessage(error: {
+  message: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+}): string {
+  console.error("Supabase error:", {
+    message: error.message,
+    details: error.details,
+    hint: error.hint,
+    code: error.code,
+  });
 
-    throw new Error(error.message);
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  return user.id;
+  return error.message;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -87,225 +93,113 @@ async function getCurrentProfileId(): Promise<string | null> {
 export async function getTaskBoard(
   projectId?: string | null,
 ): Promise<TaskBoard> {
-  const profileId =
-    await getCurrentProfileId();
+  const supabase = await getSupabase();
 
-  if (!profileId) {
+  /* ------------------------------------------------------------------------ */
+  /* Authentication                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    throw new Error(
+      getErrorMessage(authError),
+    );
+  }
+
+  if (!user) {
     return {
       tasks: [],
       columns: [],
     };
   }
 
-  const cookieStore = await cookies();
-  const supabase = await createClient(
-    cookieStore,
-  );
+  /* ------------------------------------------------------------------------ */
+  /* Project membership                                                       */
+  /* ------------------------------------------------------------------------ */
 
-  /* ------------------------------------------------------------------------ */
-  /* Verify project membership                                                */
-  /* ------------------------------------------------------------------------ */
+  let accessibleProjectIds: string[] = [];
 
   if (projectId) {
-    const {
-      data: membership,
-      error: membershipError,
-    } = await supabase
+    const { data: membership, error } = await supabase
       .from("project_members")
-      .select("profile_id")
+      .select("project_id")
       .eq("project_id", projectId)
-      .eq("profile_id", profileId)
-      .limit(1);
+      .eq("profile_id", user.id)
+      .maybeSingle();
 
-    if (membershipError) {
-      console.error(
-        "getTaskBoard membership error:",
-        membershipError.message,
-        membershipError.details,
-        membershipError.hint,
-        membershipError.code,
-      );
-
-      throw new Error(
-        membershipError.message,
-      );
+    if (error) {
+      throw new Error(getErrorMessage(error));
     }
 
-    if (!membership || membership.length === 0) {
+    if (!membership) {
+      return {
+        tasks: [],
+        columns: [],
+      };
+    }
+
+    accessibleProjectIds = [projectId];
+  } else {
+    const { data: memberships, error } = await supabase
+      .from("project_members")
+      .select("project_id")
+      .eq("profile_id", user.id);
+
+    if (error) {
+      throw new Error(getErrorMessage(error));
+    }
+
+    accessibleProjectIds = [
+      ...new Set(
+        (memberships ?? [])
+          .map((membership) => membership.project_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+
+    if (accessibleProjectIds.length === 0) {
       return {
         tasks: [],
         columns: [],
       };
     }
   }
+
   /* ------------------------------------------------------------------------ */
-  /* Tasks                                                                    */
+  /* Tasks and columns                                                        */
   /* ------------------------------------------------------------------------ */
 
   let tasksQuery = supabase
     .from("tasks")
     .select("*")
-    .order("position", {
-      ascending: true,
-    })
-    .order("created_at", {
-      ascending: true,
-    });
-
-  if (projectId) {
-    tasksQuery = tasksQuery.eq(
-      "project_id",
-      projectId,
-    );
-  } else {
-    /*
-     * No projectId:
-     * only return tasks belonging to projects
-     * where the current user is a member.
-     */
-    const {
-      data: memberships,
-      error: membershipsError,
-    } = await supabase
-      .from("project_members")
-      .select("project_id")
-      .eq("profile_id", profileId);
-
-    if (membershipsError) {
-      console.error(
-        "getTaskBoard memberships error:",
-        membershipsError.message,
-        membershipsError.details,
-        membershipsError.hint,
-        membershipsError.code,
-      );
-
-      throw new Error(
-        membershipsError.message,
-      );
-    }
-
-    const projectIds = (
-      memberships ?? []
-    ).map(
-      (membership) =>
-        membership.project_id,
-    );
-
-    if (projectIds.length === 0) {
-      return {
-        tasks: [],
-        columns: [],
-      };
-    }
-
-    tasksQuery = tasksQuery.in(
-      "project_id",
-      projectIds,
-    );
-  }
-
-  const {
-    data: taskData,
-    error: taskError,
-  } = await tasksQuery;
-
-  if (taskError) {
-    console.error(
-      "getTaskBoard tasks error:",
-      taskError.message,
-      taskError.details,
-      taskError.hint,
-      taskError.code,
-    );
-
-    throw new Error(
-      taskError.message,
-    );
-  }
-
-  /* ------------------------------------------------------------------------ */
-  /* Columns                                                                  */
-  /* ------------------------------------------------------------------------ */
+    .in("project_id", accessibleProjectIds)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
 
   let columnsQuery = supabase
     .from("task_columns")
     .select("*")
+    .in("project_id", accessibleProjectIds)
     .order("position", { ascending: true });
 
-  if (projectId) {
-    columnsQuery.eq("project_id", projectId);
-  } else {
-    columnsQuery.is("project_id", null);
+  const [
+    { data: taskData, error: taskError },
+    { data: columnData, error: columnError },
+  ] = await Promise.all([
+    tasksQuery,
+    columnsQuery,
+  ]);
+
+  if (taskError) {
+    throw new Error(getErrorMessage(taskError));
   }
-
-  if (projectId) {
-    columnsQuery = columnsQuery.eq(
-      "project_id",
-      projectId,
-    );
-  } else {
-    const {
-      data: memberships,
-      error: membershipsError,
-    } = await supabase
-      .from("project_members")
-      .select("project_id")
-      .eq("profile_id", profileId);
-
-    if (membershipsError) {
-      console.error(
-        "getTaskBoard column memberships error:",
-        membershipsError.message,
-        membershipsError.details,
-        membershipsError.hint,
-        membershipsError.code,
-      );
-
-      throw new Error(
-        membershipsError.message,
-      );
-    }
-
-    const projectIds = (
-      memberships ?? []
-    ).map(
-      (membership) =>
-        membership.project_id,
-    );
-
-    if (projectIds.length === 0) {
-      return {
-        tasks: (taskData ?? []).map(
-          mapTask,
-        ),
-        columns: [],
-      };
-    }
-
-    columnsQuery = columnsQuery.in(
-      "project_id",
-      projectIds,
-    );
-  }
-
-  const {
-    data: columnData,
-    error: columnError,
-  } = await columnsQuery;
 
   if (columnError) {
-    console.error(
-      "getTaskBoard columns error:",
-      columnError.message,
-      columnError.details,
-      columnError.hint,
-      columnError.code,
-    );
-
-    throw new Error(
-      columnError.message,
-    );
+    throw new Error(getErrorMessage(columnError));
   }
 
   /* ------------------------------------------------------------------------ */
@@ -324,11 +218,9 @@ export async function getTaskBoard(
   /* Virtual "Sem lista" column                                               */
   /* ------------------------------------------------------------------------ */
 
-  const hasUnassignedTasks =
-    tasks.some(
-      (task) =>
-        task.columnId === null,
-    );
+  const hasUnassignedTasks = tasks.some(
+    (task) => task.columnId === null,
+  );
 
   if (hasUnassignedTasks) {
     columns.unshift({
@@ -354,8 +246,7 @@ export async function getTaskBoard(
 /* -------------------------------------------------------------------------- */
 
 export async function getAllTasks(): Promise<Task[]> {
-  const board =
-    await getTaskBoard();
+  const board = await getTaskBoard();
 
   return board.tasks;
 }
@@ -368,18 +259,23 @@ export async function getProjectTaskBoard(
   projectId: string,
 ): Promise<TaskBoard> {
   if (!projectId) {
-    throw new Error(
-      "projectId is required.",
-    );
+    throw new Error("projectId is required.");
   }
 
   return getTaskBoard(projectId);
 }
-export async function getProjects(options?: { all?: boolean }) {
-  const supabase = createClient(await cookies());
+
+/* -------------------------------------------------------------------------- */
+/* Projects                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export async function getProjects(
+  options?: { all?: boolean },
+) {
+  const supabase = await getSupabase();
 
   /* ------------------------------------------------------------------------ */
-  /* Current user                                                             */
+  /* Authentication                                                           */
   /* ------------------------------------------------------------------------ */
 
   const {
@@ -387,35 +283,28 @@ export async function getProjects(options?: { all?: boolean }) {
     error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
+  if (userError) {
+    throw new Error(getErrorMessage(userError));
+  }
+
+  if (!user) {
     throw new Error("Utilizador não autenticado.");
   }
 
   /* ------------------------------------------------------------------------ */
-  /* Get accessible project IDs                                               */
+  /* Accessible project IDs                                                   */
   /* ------------------------------------------------------------------------ */
 
   let projectIds: string[] | null = null;
 
   if (!options?.all) {
-    const {
-      data: memberships,
-      error: membershipsError,
-    } = await supabase
+    const { data: memberships, error } = await supabase
       .from("project_members")
       .select("project_id")
       .eq("profile_id", user.id);
 
-    if (membershipsError) {
-      console.error(
-        "Failed to fetch project memberships:",
-        membershipsError.message,
-        membershipsError.details,
-        membershipsError.hint,
-        membershipsError.code,
-      );
-
-      throw new Error(membershipsError.message);
+    if (error) {
+      throw new Error(getErrorMessage(error));
     }
 
     projectIds = [
@@ -454,62 +343,79 @@ export async function getProjects(options?: { all?: boolean }) {
     );
   }
 
-  const {
-    data: projects,
-    error: projectsError,
-  } = await projectsQuery;
+  const { data: projects, error: projectsError } =
+    await projectsQuery;
 
   if (projectsError) {
-    console.error(
-      "Failed to fetch projects:",
-      projectsError.message,
-      projectsError.details,
-      projectsError.hint,
-      projectsError.code,
-    );
-
-    throw new Error(projectsError.message);
+    throw new Error(getErrorMessage(projectsError));
   }
 
-  if (!projects || projects.length === 0) {
+  if (!projects?.length) {
     return [];
   }
-
-  /* ------------------------------------------------------------------------ */
-  /* Project IDs                                                               */
-  /* ------------------------------------------------------------------------ */
 
   const allProjectIds = projects.map(
     (project) => project.project_id,
   );
 
   /* ------------------------------------------------------------------------ */
-  /* Project members                                                          */
+  /* Fetch project data concurrently                                          */
   /* ------------------------------------------------------------------------ */
 
-  const {
-    data: members,
-    error: membersError,
-  } = await supabase
-    .from("project_members")
-    .select(`
-      project_id,
-      profile_id,
-      role_id
-    `)
-    .in("project_id", allProjectIds);
+  const [
+    membersResult,
+    tasksResult,
+    phasesResult,
+  ] = await Promise.all([
+    supabase
+      .from("project_members")
+      .select(`
+        project_id,
+        profile_id,
+        role_id
+      `)
+      .in("project_id", allProjectIds),
 
-  if (membersError) {
-    console.error(
-      "Failed to fetch project members:",
-      membersError.message,
-      membersError.details,
-      membersError.hint,
-      membersError.code,
-    );
+    supabase
+      .from("tasks")
+      .select(`
+        task_id,
+        project_id,
+        completed,
+        due_date,
+        column_id
+      `)
+      .in("project_id", allProjectIds),
 
-    throw new Error(membersError.message);
+    supabase
+      .from("project_phases")
+      .select(`
+        phase_id,
+        project_id,
+        name,
+        sort_order
+      `)
+      .in("project_id", allProjectIds)
+      .order("sort_order", {
+        ascending: true,
+      }),
+  ]);
+
+  if (membersResult.error) {
+    throw new Error(getErrorMessage(membersResult.error));
   }
+
+  if (tasksResult.error) {
+    throw new Error(getErrorMessage(tasksResult.error));
+  }
+
+  if (phasesResult.error) {
+    throw new Error(getErrorMessage(phasesResult.error));
+  }
+
+  const members = membersResult.data ?? [];
+  const tasks = tasksResult.data ?? [];
+  const phases = phasesResult.data ?? [];
 
   /* ------------------------------------------------------------------------ */
   /* Member profile IDs                                                       */
@@ -517,7 +423,7 @@ export async function getProjects(options?: { all?: boolean }) {
 
   const memberProfileIds = [
     ...new Set(
-      (members ?? [])
+      members
         .map((member) => member.profile_id)
         .filter((id): id is string => Boolean(id)),
     ),
@@ -535,10 +441,7 @@ export async function getProjects(options?: { all?: boolean }) {
   }> = [];
 
   if (memberProfileIds.length > 0) {
-    const {
-      data: profileData,
-      error: profilesError,
-    } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select(`
         profile_id,
@@ -546,28 +449,17 @@ export async function getProjects(options?: { all?: boolean }) {
         last_name,
         profile_picture
       `)
-      .in(
-        "profile_id",
-        memberProfileIds,
-      );
+      .in("profile_id", memberProfileIds);
 
-    if (profilesError) {
-      console.error(
-        "Failed to fetch profiles:",
-        profilesError.message,
-        profilesError.details,
-        profilesError.hint,
-        profilesError.code,
-      );
-
-      throw new Error(profilesError.message);
+    if (error) {
+      throw new Error(getErrorMessage(error));
     }
 
-    profiles = profileData ?? [];
+    profiles = data ?? [];
   }
 
   /* ------------------------------------------------------------------------ */
-  /* Profile lookup                                                           */
+  /* Lookup maps                                                              */
   /* ------------------------------------------------------------------------ */
 
   const profileMap = new Map(
@@ -577,76 +469,62 @@ export async function getProjects(options?: { all?: boolean }) {
     ]),
   );
 
-  /* ------------------------------------------------------------------------ */
-  /* Project tasks                                                            */
-  /* ------------------------------------------------------------------------ */
+  const membersByProject = new Map<
+    string,
+    typeof members
+  >();
 
-  const {
-    data: tasks,
-    error: tasksError,
-  } = await supabase
-    .from("tasks")
-    .select(`
-      task_id,
-      project_id,
-      completed,
-      due_date,
-      column_id
-    `)
-    .in("project_id", allProjectIds);
+  const tasksByProject = new Map<
+    string,
+    typeof tasks
+  >();
 
-  if (tasksError) {
-    console.error(
-      "Failed to fetch project tasks:",
-      tasksError.message,
-      tasksError.details,
-      tasksError.hint,
-      tasksError.code,
-    );
+  const phasesByProject = new Map<
+    string,
+    typeof phases
+  >();
 
-    throw new Error(tasksError.message);
+  for (const member of members) {
+    const existing =
+      membersByProject.get(member.project_id) ?? [];
+
+    existing.push(member);
+
+    membersByProject.set(member.project_id, existing);
+  }
+
+  for (const task of tasks) {
+    const existing =
+      tasksByProject.get(task.project_id) ?? [];
+
+    existing.push(task);
+
+    tasksByProject.set(task.project_id, existing);
+  }
+
+  for (const phase of phases) {
+    const existing =
+      phasesByProject.get(phase.project_id) ?? [];
+
+    existing.push(phase);
+
+    phasesByProject.set(phase.project_id, existing);
   }
 
   /* ------------------------------------------------------------------------ */
-  /* Project phases                                                           */
+  /* Deadline reference                                                       */
   /* ------------------------------------------------------------------------ */
 
-  const {
-    data: phases,
-    error: phasesError,
-  } = await supabase
-    .from("project_phases")
-    .select(`
-      phase_id,
-      project_id,
-      name,
-      sort_order
-    `)
-    .in("project_id", allProjectIds)
-    .order("sort_order", {
-      ascending: true,
-    });
-
-  if (phasesError) {
-    console.error(
-      "Failed to fetch project phases:",
-      phasesError.message,
-      phasesError.details,
-      phasesError.hint,
-      phasesError.code,
-    );
-
-    throw new Error(phasesError.message);
-  }
+  const today = getLuandaToday();
 
   /* ------------------------------------------------------------------------ */
-  /* Return enriched projects                                                 */
+  /* Enriched projects                                                        */
   /* ------------------------------------------------------------------------ */
 
   return projects.map((project) => {
-    /* ---------------------------------------------------------------------- */
-    /* Client                                                                  */
-    /* ---------------------------------------------------------------------- */
+    const projectId = project.project_id;
+
+    /* Client */
 
     const client = Array.isArray(project.clients)
       ? project.clients[0]
@@ -654,14 +532,10 @@ export async function getProjects(options?: { all?: boolean }) {
 
     const clientName = client?.name ?? null;
 
-    /* ---------------------------------------------------------------------- */
-    /* Members                                                                 */
-    /* ---------------------------------------------------------------------- */
+    /* Members */
 
-    const projectMembers = (members ?? []).filter(
-      (member) =>
-        member.project_id === project.project_id,
-    );
+    const projectMembers =
+      membersByProject.get(projectId) ?? [];
 
     const memberAvatars = projectMembers
       .map((member) => {
@@ -669,17 +543,16 @@ export async function getProjects(options?: { all?: boolean }) {
           return null;
         }
 
-        return profileMap.get(member.profile_id)
-          ?.profile_picture ?? null;
+        return (
+          profileMap.get(member.profile_id)
+            ?.profile_picture ?? null
+        );
       })
       .filter(
-        (avatar): avatar is string =>
-          Boolean(avatar),
+        (avatar): avatar is string => Boolean(avatar),
       );
 
-    /* ---------------------------------------------------------------------- */
-    /* Project manager                                                         */
-    /* ---------------------------------------------------------------------- */
+    /* Project manager */
 
     const manager = projectMembers.find(
       (member) => member.role_id === 3,
@@ -693,14 +566,10 @@ export async function getProjects(options?: { all?: boolean }) {
       ? `${managerProfile.first_name} ${managerProfile.last_name}`.trim()
       : null;
 
-    /* ---------------------------------------------------------------------- */
-    /* Tasks                                                                   */
-    /* ---------------------------------------------------------------------- */
+    /* Tasks */
 
-    const projectTasks = (tasks ?? []).filter(
-      (task) =>
-        task.project_id === project.project_id,
-    );
+    const projectTasks =
+      tasksByProject.get(projectId) ?? [];
 
     const taskCount = projectTasks.length;
 
@@ -715,55 +584,28 @@ export async function getProjects(options?: { all?: boolean }) {
           )
         : 0;
 
-    /* ---------------------------------------------------------------------- */
-    /* Next deadline                                                           */
-    /* ---------------------------------------------------------------------- */
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    /* Next deadline */
 
     const upcomingDeadlines = projectTasks
       .map((task) => task.due_date)
       .filter(
-        (date): date is string =>
-          Boolean(date),
+        (date): date is string => Boolean(date),
       )
-      .filter((date) => {
-        const deadline = new Date(
-          `${date}T00:00:00`,
-        );
-
-        return deadline >= today;
-      })
+      .filter((date) => date >= today)
       .sort();
 
     const nextDeadline =
-      upcomingDeadlines[0] ??
-      null;
+      upcomingDeadlines[0] ?? null;
 
-    /* ---------------------------------------------------------------------- */
-    /* Current / first phase                                                   */
-    /* ---------------------------------------------------------------------- */
+    /* Phases */
 
-    const projectPhases = (phases ?? [])
-      .filter(
-        (phase) =>
-          phase.project_id ===
-          project.project_id,
-      )
-      .sort(
-        (a, b) =>
-          (a.sort_order ?? 0) -
-          (b.sort_order ?? 0),
-      );
+    const projectPhases =
+      phasesByProject.get(projectId) ?? [];
 
     const phaseName =
-      projectPhases[0]?.name ??
-      null;
+      projectPhases[0]?.name ?? null;
 
-    /* ---------------------------------------------------------------------- */
-    /* Return                                                                 */
-    /* ---------------------------------------------------------------------- */
+    /* Result */
 
     return {
       ...project,
@@ -776,24 +618,19 @@ export async function getProjects(options?: { all?: boolean }) {
 
       task_count: taskCount,
 
-      completed_task_count:
-        completedTaskCount,
+      completed_task_count: completedTaskCount,
 
-      member_count:
-        projectMembers.length,
+      member_count: projectMembers.length,
 
-      member_avatars:
-        memberAvatars,
+      member_avatars: memberAvatars,
 
-      next_deadline:
-        nextDeadline,
+      next_deadline: nextDeadline,
 
-      project_manager:
-        managerName
-          ? {
-              name: managerName,
-            }
-          : null,
+      project_manager: managerName
+        ? {
+            name: managerName,
+          }
+        : null,
     };
   });
 }

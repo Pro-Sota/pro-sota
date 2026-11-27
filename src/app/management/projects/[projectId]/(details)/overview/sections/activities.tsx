@@ -1,18 +1,22 @@
 import { Inbox } from "lucide-react";
 
-import type { OverviewData } from "@/services/project_overview";
+import type { OverviewActivity } from "@/services/project_overview";
 
 import EmptyState from "../components/empty_state";
 import SectionCard from "../components/section_card";
 import { LABELS } from "../constants";
 import { formatDateTime } from "../components/format";
 
-export default function ActivitiesSection({ data }: { data: OverviewData }) {
+export default function ActivitiesSection({
+  activities,
+}: {
+  activities: OverviewActivity[];
+}) {
   return (
     <SectionCard title={LABELS.recentActivities}>
-      {data.activities.length > 0 ? (
+      {activities.length > 0 ? (
         <ul className="divide-y divide-gray-100">
-          {data.activities.map((activity) => (
+          {activities.map((activity) => (
             <li
               key={activity.activity_id}
               className="py-3 first:pt-0 last:pb-0"

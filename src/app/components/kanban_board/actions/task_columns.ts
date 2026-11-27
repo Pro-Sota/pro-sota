@@ -16,7 +16,7 @@ export async function createTaskColumnAction(
   scope: TaskScope,
   input: CreateColumnInput,
 ) {
-  return createTaskColumn(scope, input);
+  return await createTaskColumn(scope, input);
 }
 
 export async function updateTaskColumnAction(
@@ -26,18 +26,16 @@ export async function updateTaskColumnAction(
     isCompleted?: boolean;
   },
 ) {
-  return updateTaskColumn(columnId, input);
+  return await updateTaskColumn(columnId, input);
 }
 
-export async function deleteTaskColumnAction(
-  columnId: string,
-) {
-  return deleteTaskColumn(columnId);
+export async function deleteTaskColumnAction(columnId: string) {
+  return await deleteTaskColumn(columnId);
 }
 
 export async function reorderTaskColumnsAction(
   scope: TaskScope,
   orderedColumnIds: string[],
 ) {
-  return reorderTaskColumns(scope, orderedColumnIds);
+  return await reorderTaskColumns(scope, orderedColumnIds);
 }

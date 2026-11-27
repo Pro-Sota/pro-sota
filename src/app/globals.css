@@ -296,11 +296,7 @@ body {
 }
 
 html {
-  scroll-behavior: auto;
-}
-
-html:focus-within {
-  scroll-behavior: auto;
+  scroll-behavior: smooth;
 }
 
 .hide-scrollbar {

@@ -176,7 +176,7 @@ export async function createContactSubmission(
     /* Authenticated Supabase Server Client                                    */
     /* ---------------------------------------------------------------------- */
 
-    const supabase = await createClient(await cookies());
+    const supabase = await createClient();
 
     /* ---------------------------------------------------------------------- */
     /* Upload Image                                                            */
@@ -232,7 +232,7 @@ export async function createContactSubmission(
 
     if (uploadedPath) {
       try {
-        const supabase = await createClient(await cookies());
+        const supabase = await createClient();
 
         const { error: cleanupError } = await supabase.storage
           .from(STORAGE_BUCKET)

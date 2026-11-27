@@ -92,7 +92,7 @@ export async function getProjectMembers(
         throw new Error("Project ID is required.");
     }
 
-    const supabase = await createClient(await cookies());
+    const supabase = await createClient();
 
     const {
         data: memberRows,
@@ -247,7 +247,7 @@ export async function getProjectMembers(
 export async function getRoleByName(
     roleName: string,
 ) {
-    const supabase = await createClient(await cookies());
+    const supabase = await createClient();
 
     const {
         data,

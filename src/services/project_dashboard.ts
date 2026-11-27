@@ -279,7 +279,7 @@ export async function updateProjectDetails(
             }
         }
 
-        supabase = await createClient(await cookies());
+        supabase = await createClient();
 
         /* Authenticate the current user. */
         const {

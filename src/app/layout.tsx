@@ -1,11 +1,9 @@
-
 import type { Metadata, Viewport } from "next";
+
 import {
   Manrope,
   IBM_Plex_Mono,
-  Roboto_Condensed
 } from "next/font/google";
-import localFont from "next/font/local";
 
 import "./globals.css";
 import "./admin.css";
@@ -17,12 +15,10 @@ import { ToastProvider } from "./components/toast/toast_provider";
 import OrganizationSchema from "./components/organization_schema";
 import { Analytics } from "@vercel/analytics/next";
 
-const bigShoulders = localFont({
-  src: "../../public/fonts/BigShoulders-VariableFont_opsz,wght.ttf",
-  variable: "--font-big-shoulders",
-  display: "swap",
-  weight: "100 900",
-});
+/* -------------------------------------------------------------------------- */
+/* Fonts                                                                      */
+/* -------------------------------------------------------------------------- */
+
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -31,19 +27,11 @@ const manrope = Manrope({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-
-const roboto = Roboto_Condensed({
-  subsets: ["latin"],
-  style: "normal",
-  variable: "--font-body",
-  display: "swap",
-});
-
 const mono = IBM_Plex_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
   variable: "--font-mono-face",
   display: "swap",
+  weight: ["400", "500", "600"],
 });
 
 const SITE_URL = "https://prosota.ao";
@@ -152,19 +140,19 @@ export default function RootLayout({
     <html
       lang="pt-AO"
       className={[
-        "min-h-full",
-        "antialiased",
-        roboto.variable,
+        "min-h-full antialiased",
         manrope.variable,
         mono.variable,
       ].join(" ")}
+      data-scroll-behavior="smooth"
     >
-      <body className="flex min-h-svh flex-col font-body">
+      <body className="flex min-h-svh flex-col">
         <OrganizationSchema />
 
         <ToastProvider>
           {children}
         </ToastProvider>
+
         <Analytics />
       </body>
     </html>

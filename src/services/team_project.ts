@@ -21,9 +21,8 @@ export async function getTeamMemberProjects(
     member: Profile;
     projects: TeamProject[];
 } | null> {
-    const cookieStore = await cookies();
     const supabase =
-        await createClient(cookieStore);
+        await createClient();
 
     const {
         data: member,

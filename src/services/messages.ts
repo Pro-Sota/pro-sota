@@ -81,12 +81,12 @@ function validateId(value: string, label: string) {
 }
 
 async function getAuthenticatedClient() {
-  const supabase = createClient(await cookies());
+  const supabase = createClient();
 
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser();
+  } = await (await supabase).auth.getUser();
 
   if (error) {
     throw new Error(
@@ -110,7 +110,7 @@ async function isAdmin(
   >["supabase"],
   userId: string,
 ): Promise<boolean> {
-  const { data, error } = await supabase
+  const { data, error } = await (await supabase)
     .from("profiles")
     .select("role_id")
     .eq("profile_id", userId)
@@ -132,7 +132,7 @@ async function assertCanReadConversation(
   conversationId: string,
   userId: string,
 ) {
-  const { data: conversation, error } = await supabase
+  const { data: conversation, error } = await (await supabase)
     .from("conversations")
     .select("id, conversation_type")
     .eq("id", conversationId)
@@ -171,7 +171,7 @@ async function assertParticipant(
   conversationId: string,
   userId: string,
 ) {
-  const { data, error } = await supabase
+  const { data, error } = await (await supabase)
     .from("conversation_participants")
     .select("conversation_id")
     .eq("conversation_id", conversationId)
@@ -218,8 +218,7 @@ export async function getOrCreateConversation(
   const {
     data: ownConversations,
     error: ownConversationsError,
-  } = await supabase
-    .from("conversation_participants")
+  } = await (await supabase).from("conversation_participants")
     .select(
       `
         conversation_id,
@@ -260,7 +259,7 @@ export async function getOrCreateConversation(
     const {
       data: matchingParticipants,
       error: matchingParticipantsError,
-    } = await supabase
+    } = await (await supabase)
       .from("conversation_participants")
       .select(
         "conversation_id, profile_id",
@@ -318,7 +317,7 @@ export async function getOrCreateConversation(
   const {
     data: conversation,
     error: conversationError,
-  } = await supabase
+  } = await (await supabase)
     .from("conversations")
     .insert({
       is_group: false,
@@ -339,7 +338,7 @@ export async function getOrCreateConversation(
   }
 
   const { error: insertError } =
-    await supabase
+    await (await supabase)
       .from("conversation_participants")
       .insert([
         {
@@ -355,7 +354,7 @@ export async function getOrCreateConversation(
       ]);
 
   if (insertError) {
-    await supabase
+    await (await supabase)
       .from("conversations")
       .delete()
       .eq(
@@ -404,7 +403,7 @@ export async function getChats(
     const {
       data: participantRows,
       error: participantError,
-    } = await supabase
+    } = await (await supabase)
       .from("conversation_participants")
       .select("conversation_id")
       .eq("profile_id", user.id);
@@ -425,7 +424,7 @@ export async function getChats(
     }
   }
 
-  let conversationsQuery = supabase
+  let conversationsQuery = (await supabase)
     .from("conversations")
     .select("id, project_id, created_at")
     .eq("conversation_type", conversationType)
@@ -460,7 +459,7 @@ export async function getChats(
   const {
     data: participants,
     error: participantsError,
-  } = await supabase
+  } = await (await supabase)
     .from("conversation_participants")
     .select("conversation_id, profile_id")
     .in("conversation_id", selectedConversationIds);
@@ -497,21 +496,21 @@ export async function getChats(
     { data: profiles, error: profilesError },
     { data: projects, error: projectsError },
   ] = await Promise.all([
-    supabase
+    (await supabase)
       .from("messages")
       .select("conversation_id, content, created_at")
       .in("conversation_id", selectedConversationIds)
       .order("created_at", { ascending: false }),
 
     profileIds.length > 0
-      ? supabase
+      ? (await supabase)
         .from("profiles")
         .select("profile_id, first_name, last_name")
         .in("profile_id", profileIds)
       : Promise.resolve({ data: [], error: null }),
 
     projectIds.length > 0
-      ? supabase
+      ? (await supabase)
         .from("projects")
         .select("project_id, title")
         .in("project_id", projectIds)
@@ -675,7 +674,7 @@ export async function getConversation(
       error: conversationError,
     },
   ] = await Promise.all([
-    supabase
+    (await supabase)
       .from("conversation_participants")
       .select("conversation_id")
       .eq(
@@ -685,7 +684,7 @@ export async function getConversation(
       .eq("profile_id", user.id)
       .maybeSingle(),
 
-    supabase
+   (await supabase)
       .from("conversations")
       .select(
         "id, project_id, conversation_type, created_at",
@@ -733,7 +732,7 @@ export async function getConversation(
       error: latestMessageError,
     },
   ] = await Promise.all([
-    supabase
+    (await supabase)
       .from("conversation_participants")
       .select("profile_id")
       .eq(
@@ -741,7 +740,7 @@ export async function getConversation(
         conversationId,
       ),
 
-    supabase
+    (await supabase)
       .from("messages")
       .select(
         "content, created_at",
@@ -790,7 +789,7 @@ export async function getConversation(
       const {
         data: project,
         error: projectError,
-      } = await supabase
+      } = await (await supabase)
         .from("projects")
         .select("project_id, title")
         .eq("project_id", conversation.project_id)
@@ -810,7 +809,7 @@ export async function getConversation(
     const {
       data: profile,
       error: profileError,
-    } = await supabase
+    } = await (await supabase)
       .from("profiles")
       .select("profile_id, first_name, last_name")
       .eq("profile_id", otherParticipantId)
@@ -884,7 +883,7 @@ export async function getMessages(
     user.id,
   );
 
-  let query = supabase
+  let query = (await supabase)
     .from("messages")
     .select("id, content, sender_id, created_at")
     .eq("conversation_id", conversationId)
@@ -942,7 +941,7 @@ export async function getMessages(
     attachmentsByMessage,
   ] = await Promise.all([
     senderIds.length > 0
-      ? supabase
+      ? (await supabase)
         .from("profiles")
         .select("profile_id, first_name, last_name")
         .in("profile_id", senderIds)
@@ -1036,7 +1035,7 @@ export async function sendMessage(
   const {
     data,
     error,
-  } = await supabase
+  } = await (await supabase)
     .from("messages")
     .insert({
       conversation_id:
@@ -1064,7 +1063,7 @@ export async function sendMessage(
   const {
     data: senderProfile,
     error: senderProfileError,
-  } = await supabase
+  } = await (await supabase)
     .from("profiles")
     .select(
       "first_name, last_name",
@@ -1108,7 +1107,7 @@ export async function getMessageRecipients(): Promise<
   const {
     data,
     error,
-  } = await supabase
+  } = await (await supabase)
     .from("profiles")
     .select(
       "profile_id, first_name, last_name, department",
@@ -1205,7 +1204,7 @@ async function getAttachmentsForMessages(
     return result;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await (await supabase)
     .from("message_attachments")
     .select(
       "id, message_id, file_name, storage_path, mime_type, file_size",
@@ -1224,7 +1223,7 @@ async function getAttachmentsForMessages(
   const signedAttachments = await Promise.all(
     attachments.map(async (attachment) => {
       const { data: signed, error: signedError } =
-        await supabase.storage
+        await (await supabase).storage
           .from("chat-attachments")
           .createSignedUrl(
             attachment.storage_path,
@@ -1301,7 +1300,7 @@ export async function sendMessageWithAttachments(
   );
 
   const { data: profile, error: profileError } =
-    await supabase
+    await (await supabase)
       .from("profiles")
       .select("first_name, last_name")
       .eq("profile_id", user.id)
@@ -1316,7 +1315,7 @@ export async function sendMessageWithAttachments(
       .trim() || "Utilizador";
 
   const { data: message, error: messageError } =
-    await supabase
+    await (await supabase)
       .from("messages")
       .insert({
         conversation_id: conversationId,
@@ -1347,7 +1346,7 @@ export async function sendMessageWithAttachments(
       ].join("/");
 
       const { error: uploadError } =
-        await supabase.storage
+        await (await supabase).storage
           .from("chat-attachments")
           .upload(path, file, {
             contentType: file.type,
@@ -1363,7 +1362,7 @@ export async function sendMessageWithAttachments(
       uploadedPaths.push(path);
 
       const { error: attachmentError } =
-        await supabase
+        await (await supabase)
           .from("message_attachments")
           .insert({
             message_id: message.id,
@@ -1401,12 +1400,12 @@ export async function sendMessageWithAttachments(
     };
   } catch (error) {
     if (uploadedPaths.length) {
-      await supabase.storage
+      await (await supabase).storage
         .from("chat-attachments")
         .remove(uploadedPaths);
     }
 
-    await supabase
+    await (await supabase)
       .from("messages")
       .delete()
       .eq("id", message.id);
@@ -1423,7 +1422,7 @@ export async function getMessageById(
   const { supabase, user } =
     await getAuthenticatedClient();
 
-  const { data: message, error } = await supabase
+  const { data: message, error } = await (await supabase)
     .from("messages")
     .select(
       "id, conversation_id, content, sender_id, created_at",
@@ -1463,7 +1462,7 @@ export async function getMessageById(
     ),
 
     message.sender_id
-      ? supabase
+      ? (await supabase)
         .from("profiles")
         .select("first_name, last_name")
         .eq("profile_id", message.sender_id)

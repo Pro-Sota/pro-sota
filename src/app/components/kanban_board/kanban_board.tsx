@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -30,7 +31,13 @@ interface KanbanBoardProps {
   scope: TaskScope;
   initialBoard: KanbanBoardData;
   availableMembers: TaskMember[];
+
+  // Board management permissions.
   canManageBoard?: boolean;
+
+  // Only Admin or the Project Manager of the current project.
+  // This permission must be calculated by the server.
+  canAssignMembers?: boolean;
 }
 
 const useIsomorphicLayoutEffect =
@@ -101,6 +108,7 @@ export default function KanbanBoard({
   initialBoard,
   availableMembers,
   canManageBoard = true,
+  canAssignMembers = false,
 }: KanbanBoardProps) {
   const board = useKanbanState({
     scope,
@@ -138,8 +146,7 @@ export default function KanbanBoard({
   );
 
   /**
-   * Shows success only after the action's Promise resolves.
-   * Failed actions display an error instead.
+   * Handles board operations that should display a toast.
    */
   async function runBoardAction(
     action: () => Promise<unknown>,
@@ -241,13 +248,18 @@ export default function KanbanBoard({
     );
   }
 
-  function handleUpdateTask(
+  /**
+   * Important:
+   * Do not swallow update errors here.
+   *
+   * TaskModal handles the error and remains open when saving fails.
+   */
+  async function handleUpdateTask(
     ...args: Parameters<typeof board.updateTask>
   ) {
-    return runBoardAction( 
-      () => board.updateTask(...args),
-      "Tarefa actualizada com sucesso.",
-    );
+    await board.updateTask(...args);
+
+    success("Tarefa actualizada com sucesso.");
   }
 
   function handleMoveTask(
@@ -434,11 +446,10 @@ export default function KanbanBoard({
               <span className="text-xs text-slate-400">
                 {hasSearch
                   ? `${visibleTaskCount} de ${totalTaskCount} tarefas`
-                  : `${totalTaskCount} ${
-                      totalTaskCount === 1
-                        ? "tarefa"
-                        : "tarefas"
-                    }`}
+                  : `${totalTaskCount} ${totalTaskCount === 1
+                    ? "tarefa"
+                    : "tarefas"
+                  }`}
               </span>
             )}
           </div>
@@ -572,9 +583,9 @@ export default function KanbanBoard({
                     onColumnDragStart={
                       canManageBoard
                         ? () =>
-                            handleColumnDragStart(
-                              column.columnId,
-                            )
+                          handleColumnDragStart(
+                            column.columnId,
+                          )
                         : undefined
                     }
                     onColumnDrop={
@@ -605,12 +616,18 @@ export default function KanbanBoard({
       {/* Task modal */}
       {board.selectedTask && (
         <TaskModal
+          key={board.selectedTask.taskId}
           task={board.selectedTask}
           columns={board.columns}
+          availableMembers={availableMembers}
+          canAssignMembers={
+            !board.selectedTask.projectId
+              ? false
+              : canAssignMembers
+          }
           onClose={board.closeTask}
           onUpdate={handleUpdateTask}
           onDelete={handleDeleteTask}
-          availableMembers={availableMembers}
         />
       )}
 

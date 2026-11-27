@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  Clock3,
   LockKeyhole,
   Mail,
   MapPin,
@@ -22,59 +23,50 @@ const services = [
   { label: "Fiscalização & Consultoria", href: "/services" },
 ];
 
-// Preencher com os contactos oficiais e os links publicados.
+// Preencher com os dados oficiais antes de publicar.
 const footerConfig = {
   phone: "",
   email: "",
-  whatsapp: "",
-  briefingUrl: "",
-  privacyUrl: "",
+  whatsappUrl: "",
   linkedinUrl: "",
   instagramUrl: "",
+  businessHours: "",
+  briefingUrl: "/contact",
+  privacyUrl: "", // Ex.: "/privacy" depois de publicar a página.
 };
 
 const linkClass =
-  "text-sm text-[#F7F7F5]/70 transition-colors duration-300 hover:text-[#D7B477] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D7B477]";
+  "text-sm text-[#F7F7F5]/75 transition-colors duration-300 hover:text-[#D7B477] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D7B477]";
 
 const headingClass =
-  "mb-4 text-sm uppercase tracking-wider text-[#BD9655]";
+  "mb-4 text-sm font-medium uppercase tracking-wider text-[#BD9655]";
 
 export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="bg-[#002950] text-[#F7F7F5]">
-      <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
+    <footer className="bg-[#002950] text-[#F7F7F5] border-t border-white/15">
+      <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8 ">
+
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.2fr_0.8fr_1fr_1fr]">
           {/* Marca */}
           <div className="space-y-4">
             <Link
               href="/"
-              className="inline-block text-2xl tracking-[0.16em] transition-colors duration-300 hover:text-[#D7B477]"
+              className="inline-block text-2xl tracking-[0.16em] transition-colors hover:text-[#D7B477]"
             >
               PRO SOTA
             </Link>
 
-            <p className="max-w-sm text-sm leading-6 text-[#F7F7F5]/70">
+            <p className="max-w-sm text-sm leading-6 text-[#F7F7F5]/75">
               Arquitectura, engenharia e construção. Soluções pensadas para
               transformar espaços e concretizar projectos.
             </p>
-
-            {footerConfig.briefingUrl && (
-              <Link
-                href={footerConfig.briefingUrl}
-                className="inline-flex items-center gap-2 text-sm text-[#BD9655] transition-colors hover:text-[#D7B477]"
-              >
-                Iniciar um projecto
-                <ArrowUpRight size={14} aria-hidden="true" />
-              </Link>
-            )}
           </div>
 
           {/* Navegação */}
           <nav aria-label="Navegação do rodapé">
             <h2 className={headingClass}>Navegação</h2>
-
             <ul className="space-y-3">
               {navigation.map((item) => (
                 <li key={item.href}>
@@ -89,7 +81,6 @@ export default function Footer() {
           {/* Serviços */}
           <nav aria-label="Serviços">
             <h2 className={headingClass}>Serviços</h2>
-
             <ul className="space-y-3">
               {services.map((service) => (
                 <li key={service.label}>
@@ -105,9 +96,13 @@ export default function Footer() {
           <div>
             <h2 className={headingClass}>Contactos</h2>
 
-            <address className="space-y-3 text-sm not-italic text-[#F7F7F5]/70">
+            <address className="space-y-3 text-sm not-italic text-[#F7F7F5]/75">
               <p className="flex items-start gap-2">
-                <MapPin size={15} className="mt-1 shrink-0 text-[#BD9655]" />
+                <MapPin
+                  size={16}
+                  className="mt-0.5 shrink-0 text-[#BD9655]"
+                  aria-hidden="true"
+                />
                 <span>
                   Lar do Patriota
                   <br />
@@ -144,12 +139,19 @@ export default function Footer() {
                 Ver localização
                 <ArrowUpRight size={13} aria-hidden="true" />
               </a>
+
+              {footerConfig.businessHours && (
+                <p className="flex items-start gap-2">
+                  <Clock3 size={15} className="mt-0.5 shrink-0" />
+                  <span>{footerConfig.businessHours}</span>
+                </p>
+              )}
             </address>
 
             <div className="mt-4 flex flex-wrap gap-4">
-              {footerConfig.whatsapp && (
+              {footerConfig.whatsappUrl && (
                 <a
-                  href={footerConfig.whatsapp}
+                  href={footerConfig.whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={linkClass}
@@ -184,8 +186,8 @@ export default function Footer() {
         </div>
 
         {/* Barra inferior */}
-        <div className="mt-10 flex flex-col gap-4 border-t border-[#F7F7F5]/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs leading-5 text-[#F7F7F5]/50">
+        <div className="mt-10 flex flex-col gap-4 border-t border-white/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs leading-5 text-[#F7F7F5]/60">
             © {year} PRO SOTA. Todos os direitos reservados.
           </p>
 
@@ -198,7 +200,7 @@ export default function Footer() {
 
             <Link
               href="/management"
-              className="inline-flex items-center gap-2 text-xs text-[#F7F7F5]/50 transition-colors hover:text-[#D7B477]"
+              className="inline-flex items-center gap-2 text-xs text-[#F7F7F5]/60 transition-colors hover:text-[#D7B477]"
             >
               <LockKeyhole size={13} aria-hidden="true" />
               Área Reservada

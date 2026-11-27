@@ -1,17 +1,19 @@
-import { useState } from 'react';
+"use client";
+
+import { useCallback, useState } from "react";
 
 export function useTaskDrag() {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
-  function startTaskDrag(taskId: string) {
+  const startTaskDrag = useCallback((taskId: string) => {
     setDraggedTaskId(taskId);
-  }
+  }, []);
 
-  function clearTaskDrag() {
+  const clearTaskDrag = useCallback(() => {
     setDraggedTaskId(null);
     setDragOverColumnId(null);
-  }
+  }, []);
 
   return {
     draggedTaskId,

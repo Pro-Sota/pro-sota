@@ -11,8 +11,7 @@ type Role = {
 };
 
 export async function getAuthenticatedUser() {
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
+  const supabase = await createClient();
 
   const {
     data: { user },
@@ -31,8 +30,7 @@ export async function requireUser(profileId?: string) {
     redirect("/login");
   }
 
-  const cookieStore = await cookies();
-  const supabase = await createClient(cookieStore);
+  const supabase = await createClient();
 
   // Fetch the complete profile being edited.
   const { data: profile, error: profileError } = await supabase

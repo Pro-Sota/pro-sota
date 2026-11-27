@@ -1,10 +1,8 @@
-import { Suspense } from "react";
 
 import { requireUser } from "@/app/lib/supabase/auth";
 import { getProjects } from "@/services/projects_server";
 
 import ProjectsPageInner from "./projects";
-import { hasAllPermissions } from "@/app/lib/permissions";
 
 export default async function ProjectsPage() {
   const user = await requireUser();
@@ -15,14 +13,10 @@ export default async function ProjectsPage() {
     all: isAdmin,
   });
 
-  const canCreateProject =  isAdmin;
-
   return (
-    <Suspense fallback={null}>
-      <ProjectsPageInner
-        projects={projects ?? []}
-        canCreateProject={canCreateProject}
-      />
-    </Suspense>
+    <ProjectsPageInner
+      projects={projects ?? []}
+      canCreateProject={isAdmin}
+    />
   );
 }

@@ -161,10 +161,9 @@ function validate(
 }
 
 async function getCurrentUserId() {
-  const cookieStore = await cookies();
 
   const supabase =
-    await createClient(cookieStore);
+    await createClient();
 
   const {
     data: { user },

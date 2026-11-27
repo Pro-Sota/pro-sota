@@ -2,13 +2,58 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+
 import { createClient } from "@/app/lib/supabase/server";
 import type { Database } from "@/app/lib/supabase/models";
 
+/* -------------------------------------------------------------------------- */
+/* Supabase                                                                    */
+/* -------------------------------------------------------------------------- */
+
 async function getSupabase() {
-  const cookieStore = await cookies();
-  return createClient(cookieStore);
+  return createClient();
 }
+
+async function getAuthenticatedUser() {
+  const supabase = await getSupabase();
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  // A missing session is a normal unauthenticated state.
+  if (error?.name === "AuthSessionMissingError") {
+    redirect("/login");
+  }
+
+  // Do not hide unexpected authentication errors.
+  if (error) {
+    console.error("Failed to get authenticated user:", {
+      name: error.name,
+      message: error.message,
+      status: error.status,
+      code: error.code,
+    });
+
+    throw new Error(
+      `Authentication failed: ${
+        error.message || "Unknown Supabase auth error"
+      }`,
+    );
+  }
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  return { supabase, user };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                       */
+/* -------------------------------------------------------------------------- */
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Project = Database["public"]["Tables"]["projects"]["Row"];
@@ -20,7 +65,8 @@ type Activity = Database["public"]["Tables"]["activity_logs"]["Row"];
 
 type Lead = Database["public"]["Tables"]["leads"]["Row"];
 type ProjectBrief = Database["public"]["Tables"]["project_briefs"]["Row"];
-type AttendanceRecord = Database["public"]["Tables"]["attendance_records"]["Row"];
+type AttendanceRecord =
+  Database["public"]["Tables"]["attendance_records"]["Row"];
 type Resource = Database["public"]["Tables"]["resources"]["Row"];
 type CalendarEvent = Database["public"]["Tables"]["calendar_events"]["Row"];
 type ProjectPhase = Database["public"]["Tables"]["project_phases"]["Row"];
@@ -74,6 +120,10 @@ type QueryError = {
   hint?: string;
 } | null;
 
+/* -------------------------------------------------------------------------- */
+/* Utilities                                                                   */
+/* -------------------------------------------------------------------------- */
+
 function logQueryErrors(
   scope: string,
   queries: Array<{ name: string; error: QueryError }>,
@@ -109,39 +159,8 @@ function getLuandaDate() {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-async function getAuthenticatedUser() {
-  const supabase = await getSupabase();
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error) {
-    console.error("Failed to get authenticated user:", error);
-    console.error("Auth error details:", {
-      name: error.name,
-      message: error.message,
-      status: error.status,
-      code: error.code,
-      cause: error.cause,
-      details: Object.getOwnPropertyNames(error),
-    });
-
-    throw new Error(
-      `Authentication failed: ${error.message || error.name || "Unknown Supabase auth error"}`
-    );
-  }
-
-  if (!user) {
-    throw new Error("Utilizador não autenticado.");
-  }
-
-  return { supabase, user };
-}
-
 /* -------------------------------------------------------------------------- */
-/* User dashboard                                                             */
+/* User dashboard                                                              */
 /* -------------------------------------------------------------------------- */
 
 export async function getDashboardData(): Promise<DashboardData> {
@@ -180,7 +199,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       .select("task_id, tasks(*)")
       .eq("profile_id", user.id),
 
-    // Personal activity only
+    // Personal activity only.
     supabase
       .from("activity_logs")
       .select("*")
@@ -199,7 +218,9 @@ export async function getDashboardData(): Promise<DashboardData> {
   ]);
 
   if (failedQueries.length > 0) {
-    throw new Error(`Failed dashboard queries: ${failedQueries.join(", ")}`);
+    throw new Error(
+      `Failed dashboard queries: ${failedQueries.join(", ")}`,
+    );
   }
 
   const currentUser = currentUserResult.data;
@@ -212,6 +233,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   for (const member of taskMembersResult.data ?? []) {
     const relation = member.tasks;
+
     const relatedTasks = Array.isArray(relation)
       ? relation
       : relation
@@ -219,7 +241,9 @@ export async function getDashboardData(): Promise<DashboardData> {
         : [];
 
     for (const task of relatedTasks) {
-      if (task) taskMap.set(task.task_id, task as Task);
+      if (task) {
+        taskMap.set(task.task_id, task as Task);
+      }
     }
   }
 
@@ -230,6 +254,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     .sort((a, b) => {
       const aDate = new Date(a.due_date as string).getTime();
       const bDate = new Date(b.due_date as string).getTime();
+
       return aDate - bDate;
     });
 
@@ -248,7 +273,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Admin dashboard                                                            */
+/* Admin dashboard                                                             */
 /* -------------------------------------------------------------------------- */
 
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
@@ -277,6 +302,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   }
 
   const now = new Date();
+
   const nextSevenDays = new Date(
     now.getTime() + 7 * 24 * 60 * 60 * 1000,
   );
@@ -372,7 +398,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       .order("planned_end", { ascending: true })
       .limit(20),
 
-    getTeamWorkload(),
+    // Reuse the already authenticated Supabase client.
+    getTeamWorkload(supabase),
   ]);
 
   const failedQueries = logQueryErrors("Admin dashboard", [
@@ -394,7 +421,9 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   ]);
 
   if (failedQueries.length > 0) {
-    throw new Error(`Failed admin dashboard queries: ${failedQueries.join(", ")}`);
+    throw new Error(
+      `Failed admin dashboard queries: ${failedQueries.join(", ")}`,
+    );
   }
 
   const users = usersResult.data ?? [];
@@ -429,11 +458,14 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Team workload                                                              */
+/* Team workload                                                               */
 /* -------------------------------------------------------------------------- */
 
-export async function getTeamWorkload(): Promise<TeamWorkload[]> {
-  const { supabase } = await getAuthenticatedUser();
+export async function getTeamWorkload(
+  existingSupabase?: Awaited<ReturnType<typeof getSupabase>>,
+): Promise<TeamWorkload[]> {
+  const supabase =
+    existingSupabase ?? (await getAuthenticatedUser()).supabase;
 
   const { data: taskMembers, error } = await supabase
     .from("task_members")
@@ -454,11 +486,16 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     `);
 
   if (error) {
-    logQueryErrors("Team workload", [{ name: "taskMembers", error }]);
+    logQueryErrors("Team workload", [
+      { name: "taskMembers", error },
+    ]);
+
     throw new Error("Failed to fetch team workload");
   }
 
-  if (!taskMembers?.length) return [];
+  if (!taskMembers?.length) {
+    return [];
+  }
 
   const members = new Map<string, TeamWorkload>();
   const seenAssignments = new Set<string>();
@@ -467,6 +504,7 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     if (!member.profile_id) continue;
 
     const taskRelation = member.tasks;
+
     const task = Array.isArray(taskRelation)
       ? taskRelation[0]
       : taskRelation;
@@ -476,9 +514,11 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     const assignmentKey = `${member.profile_id}:${task.task_id}`;
 
     if (seenAssignments.has(assignmentKey)) continue;
+
     seenAssignments.add(assignmentKey);
 
     const profileRelation = member.profiles;
+
     const profile = Array.isArray(profileRelation)
       ? profileRelation[0]
       : profileRelation;
@@ -498,6 +538,7 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     );
 
     const isCompleted = task.completed === true;
+
     const workload = members.get(member.profile_id);
 
     if (workload) {
@@ -509,6 +550,7 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
         workload.completed_tasks += 1;
       } else {
         workload.pending_tasks += 1;
+
         workload.hours_remaining += Math.max(
           0,
           estimatedHours - actualHours,
@@ -542,8 +584,8 @@ export async function getTeamWorkload(): Promise<TeamWorkload[]> {
     member.workload_percentage =
       totalRemainingHours > 0
         ? Math.round(
-          (member.hours_remaining / totalRemainingHours) * 100,
-        )
+            (member.hours_remaining / totalRemainingHours) * 100,
+          )
         : 0;
   }
 

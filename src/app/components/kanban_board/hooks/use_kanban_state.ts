@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -22,6 +23,8 @@ import {
   deleteTaskAction,
   reorderTasksAction,
   updateTaskAction,
+  submitTaskWorkAction,
+  reviewTaskWorkAction,
 } from "../actions/tasks";
 
 import {
@@ -30,6 +33,63 @@ import {
   reorderTaskColumnsAction,
   updateTaskColumnAction,
 } from "../actions/task_columns";
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Project deliverables must always have a valid Kanban column.
+ *
+ * If a deliverable has no column, or its column is not part
+ * of the current project board, display it under "Por Fazer".
+ *
+ * This is a client-side fallback. The database should also
+ * have the correct column_id assigned by saveDeliverable.
+ */
+function normalizeBoardTasks(
+  tasks: Task[],
+  columns: KanbanBoardData["columns"],
+  scope: TaskScope,
+): Task[] {
+  if (scope.type !== "project") {
+    return tasks;
+  }
+
+  const todoColumn = columns.find(
+    (column) =>
+      column.name.trim().toLowerCase() === "por fazer",
+  );
+
+  if (!todoColumn) {
+    return tasks;
+  }
+
+  const validColumnIds = new Set(
+    columns.map((column) => column.columnId),
+  );
+
+  return tasks.map((task) => {
+    const isDeliverable = Boolean(task.phaseId);
+
+    const hasInvalidColumn =
+      !task.columnId ||
+      !validColumnIds.has(task.columnId);
+
+    if (isDeliverable && hasInvalidColumn) {
+      return {
+        ...task,
+        columnId: todoColumn.columnId,
+      };
+    }
+
+    return task;
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Hook                                                                       */
+/* -------------------------------------------------------------------------- */
 
 export function useKanbanState({
   scope,
@@ -43,7 +103,12 @@ export function useKanbanState({
   );
 
   const [tasks, setTasks] = useState(
-    () => initialBoard.tasks,
+    () =>
+      normalizeBoardTasks(
+        initialBoard.tasks,
+        initialBoard.columns,
+        scope,
+      ),
   );
 
   const [searchQuery, setSearchQuery] =
@@ -61,16 +126,48 @@ export function useKanbanState({
   const modal = useTaskModal(tasks);
 
   /* ---------------------------------------------------------------------- */
-  /* Sync board when the server provides a new board                        */
+  /* Async transition helper                                                */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Keeps the returned Promise pending until the server action
+   * finishes. This allows the parent component to catch errors
+   * and display accurate success/error notifications.
+   */
+  function runInTransition<T>(
+    action: () => Promise<T>,
+  ): Promise<T> {
+    return new Promise((resolve, reject) => {
+      startTransition(async () => {
+        try {
+          const result = await action();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Sync board when the server provides updated data                      */
   /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
     setColumns(initialBoard.columns);
-    setTasks(initialBoard.tasks);
-    setSearchQuery("");
-    setDeletedTask(null);
+
+    setTasks(
+      normalizeBoardTasks(
+        initialBoard.tasks,
+        initialBoard.columns,
+        scope,
+      ),
+    );
   }, [
-    initialBoard,
+    initialBoard.columns,
+    initialBoard.tasks,
+    scope.type,
+    scope.projectId,
   ]);
 
   /* ---------------------------------------------------------------------- */
@@ -80,13 +177,13 @@ export function useKanbanState({
   useEffect(() => {
     if (!deletedTask) return;
 
-    const timeout = window.setTimeout(
-      () => setDeletedTask(null),
-      5000,
-    );
+    const timeout = window.setTimeout(() => {
+      setDeletedTask(null);
+    }, 5000);
 
-    return () =>
+    return () => {
       window.clearTimeout(timeout);
+    };
   }, [deletedTask]);
 
   /* ---------------------------------------------------------------------- */
@@ -96,15 +193,9 @@ export function useKanbanState({
   const visibleTasks = useMemo(
     () =>
       tasks.filter((task) =>
-        taskMatchesSearch(
-          task,
-          searchQuery,
-        ),
+        taskMatchesSearch(task, searchQuery),
       ),
-    [
-      tasks,
-      searchQuery,
-    ],
+    [tasks, searchQuery],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -112,10 +203,7 @@ export function useKanbanState({
   /* ---------------------------------------------------------------------- */
 
   const tasksByColumn = useMemo(() => {
-    const result: Record<
-      string,
-      Task[]
-    > = {};
+    const result: Record<string, Task[]> = {};
 
     for (const column of columns) {
       result[column.columnId] = [];
@@ -126,17 +214,12 @@ export function useKanbanState({
         task.columnId &&
         result[task.columnId]
       ) {
-        result[task.columnId].push(
-          task,
-        );
+        result[task.columnId].push(task);
       }
     }
 
     return result;
-  }, [
-    columns,
-    visibleTasks,
-  ]);
+  }, [columns, visibleTasks]);
 
   /* ---------------------------------------------------------------------- */
   /* Add task                                                               */
@@ -146,23 +229,18 @@ export function useKanbanState({
     columnId: string,
     title: string,
   ) {
-    const normalizedTitle =
-      title.trim();
+    const normalizedTitle = title.trim();
 
-    if (!normalizedTitle) {
-      return;
-    }
+    if (!normalizedTitle) return;
 
-    startTransition(async () => {
-      const task =
-        await createTaskAction(
-          scope,
-          {
-            title:
-              normalizedTitle,
-            columnId,
-          },
-        );
+    return runInTransition(async () => {
+      const task = await createTaskAction(
+        scope,
+        {
+          title: normalizedTitle,
+          columnId,
+        },
+      );
 
       if (task) {
         setTasks((current) => [
@@ -170,27 +248,26 @@ export function useKanbanState({
           task,
         ]);
       }
+
+      return task;
     });
   }
 
   /* ---------------------------------------------------------------------- */
-  /* Update task                                                             */
+  /* Update task                                                            */
   /* ---------------------------------------------------------------------- */
 
   async function updateTask(
     taskId: string,
     input: UpdateTaskInput,
   ) {
-    startTransition(async () => {
-      const updated =
-        await updateTaskAction(
-          taskId,
-          input,
-        );
+    return runInTransition(async () => {
+      const updated = await updateTaskAction(
+        taskId,
+        input,
+      );
 
-      if (!updated) {
-        return;
-      }
+      if (!updated) return;
 
       setTasks((current) =>
         current.map((task) =>
@@ -199,28 +276,23 @@ export function useKanbanState({
             : task,
         ),
       );
+
+      return updated;
     });
   }
 
   /* ---------------------------------------------------------------------- */
-  /* Delete task                                                             */
+  /* Delete task                                                            */
   /* ---------------------------------------------------------------------- */
 
-  async function deleteTask(
-    taskId: string,
-  ) {
-    const index =
-      tasks.findIndex(
-        (task) =>
-          task.taskId === taskId,
-      );
+  async function deleteTask(taskId: string) {
+    const index = tasks.findIndex(
+      (task) => task.taskId === taskId,
+    );
 
-    if (index === -1) {
-      return;
-    }
+    if (index === -1) return;
 
-    const task =
-      tasks[index];
+    const task = tasks[index];
 
     setDeletedTask({
       task,
@@ -229,35 +301,23 @@ export function useKanbanState({
 
     setTasks((current) =>
       current.filter(
-        (item) =>
-          item.taskId !==
-          taskId,
+        (item) => item.taskId !== taskId,
       ),
     );
 
-    if (
-      modal.selectedTaskId ===
-      taskId
-    ) {
+    if (modal.selectedTaskId === taskId) {
       modal.closeTask();
     }
 
-    startTransition(async () => {
+    return runInTransition(async () => {
       try {
-        await deleteTaskAction(
-          taskId,
-        );
+        await deleteTaskAction(taskId);
       } catch (error) {
         setTasks((current) => {
-          const next = [
-            ...current,
-          ];
+          const next = [...current];
 
           next.splice(
-            Math.min(
-              index,
-              next.length,
-            ),
+            Math.min(index, next.length),
             0,
             task,
           );
@@ -273,7 +333,7 @@ export function useKanbanState({
   }
 
   /* ---------------------------------------------------------------------- */
-  /* Move task                                                               */
+  /* Move task                                                              */
   /* ---------------------------------------------------------------------- */
 
   async function moveTask(
@@ -281,70 +341,48 @@ export function useKanbanState({
     columnId: string,
     orderedTaskIds: string[],
   ) {
-    const previous =
-      tasks;
+    const previous = tasks;
 
     setTasks((current) => {
-      const moved =
-        current.find(
-          (task) =>
-            task.taskId ===
-            taskId,
-        );
-
-      if (!moved) {
-        return current;
-      }
-
-      const updated =
-        current.map(
-          (task) =>
-            task.taskId ===
-            taskId
-              ? {
-                  ...task,
-                  columnId,
-                }
-              : task,
-        );
-
-      return updated.sort(
-        (a, b) => {
-          if (
-            a.columnId !==
-              columnId &&
-            b.columnId !==
-              columnId
-          ) {
-            return (
-              a.position -
-              b.position
-            );
-          }
-
-          const aIndex =
-            orderedTaskIds.indexOf(
-              a.taskId,
-            );
-
-          const bIndex =
-            orderedTaskIds.indexOf(
-              b.taskId,
-            );
-
-          return (
-            (aIndex === -1
-              ? 999999
-              : aIndex) -
-            (bIndex === -1
-              ? 999999
-              : bIndex)
-          );
-        },
+      const moved = current.find(
+        (task) => task.taskId === taskId,
       );
+
+      if (!moved) return current;
+
+      const updated = current.map((task) =>
+        task.taskId === taskId
+          ? {
+              ...task,
+              columnId,
+            }
+          : task,
+      );
+
+      return updated.sort((a, b) => {
+        if (
+          a.columnId !== columnId &&
+          b.columnId !== columnId
+        ) {
+          return a.position - b.position;
+        }
+
+        const aIndex = orderedTaskIds.indexOf(
+          a.taskId,
+        );
+
+        const bIndex = orderedTaskIds.indexOf(
+          b.taskId,
+        );
+
+        return (
+          (aIndex === -1 ? 999999 : aIndex) -
+          (bIndex === -1 ? 999999 : bIndex)
+        );
+      });
     });
 
-    startTransition(async () => {
+    return runInTransition(async () => {
       try {
         await reorderTasksAction({
           scope,
@@ -366,23 +404,18 @@ export function useKanbanState({
     name: string,
     isCompleted = false,
   ) {
-    const normalizedName =
-      name.trim();
+    const normalizedName = name.trim();
 
-    if (!normalizedName) {
-      return;
-    }
+    if (!normalizedName) return;
 
-    startTransition(async () => {
-      const column =
-        await createTaskColumnAction(
-          scope,
-          {
-            name:
-              normalizedName,
-            isCompleted,
-          },
-        );
+    return runInTransition(async () => {
+      const column = await createTaskColumnAction(
+        scope,
+        {
+          name: normalizedName,
+          isCompleted,
+        },
+      );
 
       if (column) {
         setColumns((current) => [
@@ -390,6 +423,8 @@ export function useKanbanState({
           column,
         ]);
       }
+
+      return column;
     });
   }
 
@@ -401,35 +436,29 @@ export function useKanbanState({
     columnId: string,
     name: string,
   ) {
-    const normalizedName =
-      name.trim();
+    const normalizedName = name.trim();
 
-    if (!normalizedName) {
-      return;
-    }
+    if (!normalizedName) return;
 
-    startTransition(async () => {
-      const updated =
-        await updateTaskColumnAction(
-          columnId,
-          {
-            name:
-              normalizedName,
-          },
-        );
+    return runInTransition(async () => {
+      const updated = await updateTaskColumnAction(
+        columnId,
+        {
+          name: normalizedName,
+        },
+      );
 
-      if (!updated) {
-        return;
-      }
+      if (!updated) return;
 
       setColumns((current) =>
         current.map((column) =>
-          column.columnId ===
-          columnId
+          column.columnId === columnId
             ? updated
             : column,
         ),
       );
+
+      return updated;
     });
   }
 
@@ -437,44 +466,28 @@ export function useKanbanState({
   /* Delete column                                                          */
   /* ---------------------------------------------------------------------- */
 
-  async function deleteColumn(
-    columnId: string,
-  ) {
-    const previousColumns =
-      columns;
-
-    const previousTasks =
-      tasks;
+  async function deleteColumn(columnId: string) {
+    const previousColumns = columns;
+    const previousTasks = tasks;
 
     setColumns((current) =>
       current.filter(
-        (column) =>
-          column.columnId !==
-          columnId,
+        (column) => column.columnId !== columnId,
       ),
     );
 
     setTasks((current) =>
       current.filter(
-        (task) =>
-          task.columnId !==
-          columnId,
+        (task) => task.columnId !== columnId,
       ),
     );
 
-    startTransition(async () => {
+    return runInTransition(async () => {
       try {
-        await deleteTaskColumnAction(
-          columnId,
-        );
+        await deleteTaskColumnAction(columnId);
       } catch (error) {
-        setColumns(
-          previousColumns,
-        );
-
-        setTasks(
-          previousTasks,
-        );
+        setColumns(previousColumns);
+        setTasks(previousTasks);
 
         throw error;
       }
@@ -488,32 +501,24 @@ export function useKanbanState({
   async function reorderColumns(
     orderedColumnIds: string[],
   ) {
-    const previous =
-      columns;
+    const previous = columns;
 
-    const order =
-      new Map(
-        orderedColumnIds.map(
-          (id, index) => [
-            id,
-            index,
-          ],
-        ),
-      );
+    const order = new Map(
+      orderedColumnIds.map((id, index) => [
+        id,
+        index,
+      ]),
+    );
 
     setColumns((current) =>
       [...current].sort(
         (a, b) =>
-          (order.get(
-            a.columnId,
-          ) ?? 999999) -
-          (order.get(
-            b.columnId,
-          ) ?? 999999),
+          (order.get(a.columnId) ?? 999999) -
+          (order.get(b.columnId) ?? 999999),
       ),
     );
 
-    startTransition(async () => {
+    return runInTransition(async () => {
       try {
         await reorderTaskColumnsAction(
           scope,
@@ -531,14 +536,10 @@ export function useKanbanState({
   /* ---------------------------------------------------------------------- */
 
   function undoDelete() {
-    if (!deletedTask) {
-      return;
-    }
+    if (!deletedTask) return;
 
     setTasks((current) => {
-      const next = [
-        ...current,
-      ];
+      const next = [...current];
 
       next.splice(
         Math.min(
@@ -554,6 +555,46 @@ export function useKanbanState({
 
     setDeletedTask(null);
   }
+
+
+  async function submitTask(
+  taskId: string,
+  notes: string,
+) {
+  return runInTransition(async () => {
+    const updated = await submitTaskWorkAction(taskId, notes);
+
+    setTasks((current) =>
+      current.map((task) =>
+        task.taskId === taskId ? updated : task,
+      ),
+    );
+
+    return updated;
+  });
+}
+
+async function reviewTask(
+  submissionId: string,
+  decision: "approved" | "changes_requested",
+  notes: string,
+) {
+  return runInTransition(async () => {
+    const updated = await reviewTaskWorkAction(
+      submissionId,
+      decision,
+      notes,
+    );
+
+    setTasks((current) =>
+      current.map((task) =>
+        task.taskId === updated.taskId ? updated : task,
+      ),
+    );
+
+    return updated;
+  });
+}
 
   /* ---------------------------------------------------------------------- */
   /* Return                                                                 */
@@ -581,6 +622,9 @@ export function useKanbanState({
     updateTask,
     deleteTask,
     moveTask,
+
+    reviewTask,
+    submitTask,
 
     addColumn,
     renameColumn,

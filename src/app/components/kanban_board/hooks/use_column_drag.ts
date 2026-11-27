@@ -1,4 +1,6 @@
-import { useState } from 'react';
+"use client";
+
+import { useState } from "react";
 
 export function useColumnDrag() {
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);

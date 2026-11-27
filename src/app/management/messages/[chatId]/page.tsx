@@ -37,16 +37,14 @@ export default async function ChatPage({
     notFound();
   }
 
-  const cookieStore = await cookies();
-  const supabase =
-    createClient(cookieStore);
+  const supabase = createClient();
 
   const {
     data: {
       user,
     },
     error: userError,
-  } = await supabase.auth.getUser();
+  } = await (await supabase).auth.getUser();
 
   if (userError || !user) {
     notFound();

@@ -1,3 +1,4 @@
+
 import { cookies } from "next/headers";
 
 import { createClient } from "@/app/lib/supabase/server";
@@ -8,6 +9,8 @@ import type {
   TaskScope,
 } from "../types";
 
+type Supabase = Awaited<ReturnType<typeof getSupabase>>;
+
 type TaskColumnRow = {
   column_id: string;
   project_id: string | null;
@@ -15,7 +18,47 @@ type TaskColumnRow = {
   name: string;
   position: number;
   is_completed: boolean;
+  created_at: string;
+  updated_at: string;
 };
+
+type UserProfile = {
+  profile_id: string;
+  role_id: number;
+};
+
+async function getSupabase() {
+  return createClient();
+}
+
+async function getCurrentContext() {
+  const supabase = await getSupabase();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error("Utilizador não autenticado.");
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("profile_id, role_id")
+    .eq("profile_id", user.id)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error("Perfil do utilizador não encontrado.");
+  }
+
+  return {
+    supabase,
+    user,
+    profile: profile as UserProfile,
+  };
+}
 
 function mapColumn(row: TaskColumnRow): KanbanColumn {
   return {
@@ -24,197 +67,167 @@ function mapColumn(row: TaskColumnRow): KanbanColumn {
     name: row.name,
     position: row.position,
     isCompleted: row.is_completed,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
-async function getSupabase() {
-  const cookieStore = await cookies();
-  return createClient(cookieStore);
-}
-
-async function getCurrentUserId(): Promise<string> {
-  const supabase = await getSupabase();
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    throw new Error("Utilizador não autenticado.");
-  }
-
-  return user.id;
-}
-
-async function getCurrentProfileId(): Promise<string> {
-  const supabase = await getSupabase();
-  const userId = await getCurrentUserId();
-
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("profile_id")
-    .eq("profile_id", userId)
-    .single();
-
-  if (error || !profile) {
-    throw new Error("Perfil do utilizador não encontrado.");
-  }
-
-  return profile.profile_id;
-}
-
-/**
- * Admin = role_id 1.
- * The role is always resolved server-side.
- */
-async function isCurrentUserAdmin(): Promise<boolean> {
-  const supabase = await getSupabase();
-  const userId = await getCurrentUserId();
-
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("role_id")
-    .eq("profile_id", userId)
-    .single();
-
-  if (error || !profile) {
-    throw new Error("Perfil do utilizador não encontrado.");
-  }
-
-  return profile.role_id === 1;
-}
-
-/**
- * Admins bypass project membership checks.
- * Other users must belong to the project.
- */
 async function assertProjectMember(
+  supabase: Supabase,
   projectId: string,
+  profile: UserProfile,
 ): Promise<void> {
-  const supabase = await getSupabase();
-  const userId = await getCurrentUserId();
+  if (profile.role_id === 1) return;
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("profile_id, role_id")
-    .eq("profile_id", userId)
-    .single();
-
-  if (profileError || !profile) {
-    throw new Error("Perfil do utilizador não encontrado.");
-  }
-
-  if (profile.role_id === 1) {
-    return;
-  }
-
-  const { data: member, error: memberError } = await supabase
+  const { data, error } = await supabase
     .from("project_members")
-    .select("project_id")
+    .select("project_members_id")
     .eq("project_id", projectId)
     .eq("profile_id", profile.profile_id)
     .limit(1)
     .maybeSingle();
 
-  if (memberError) {
-    console.error(
-      "[assertProjectMember] Membership lookup failed:",
-      memberError,
-    );
-
-    throw new Error(
-      "Não foi possível verificar o acesso ao projecto.",
-    );
+  if (error) {
+    throw new Error("Não foi possível verificar o acesso ao projecto.");
   }
 
-  if (!member) {
+  if (!data) {
     throw new Error("Não tem acesso a este projecto.");
   }
 }
 
-/**
- * Returns task columns visible to the current user.
- *
- * Admin:
- *   Can load columns from any project and personal boards.
- *
- * General:
- *   Non-admin users see only their own columns.
- *
- * Project:
- *   Non-admin users must be project members.
- */
-export async function getTaskColumns(scope: TaskScope) {
-  const supabase = await getSupabase();
-  const isAdmin = await isCurrentUserAdmin();
+async function assertProjectBoardManager(
+  supabase: Supabase,
+  projectId: string,
+  profile: UserProfile,
+): Promise<void> {
+  // Admin da plataforma.
+  if (profile.role_id === 1) return;
+
+  // Project Manager deste projecto.
+  const { data, error } = await supabase
+    .from("project_members")
+    .select("project_members_id")
+    .eq("project_id", projectId)
+    .eq("profile_id", profile.profile_id)
+    .eq("role_id", 1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Não foi possível verificar as permissões do projecto.");
+  }
+
+  if (!data) {
+    throw new Error(
+      "Apenas o Project Manager ou um Administrador pode gerir este quadro.",
+    );
+  }
+}
+
+function assertPersonalBoardOwner(
+  columnProfileId: string | null,
+  currentProfileId: string,
+): void {
+  if (!columnProfileId || columnProfileId !== currentProfileId) {
+    throw new Error("Não tem permissão para gerir esta lista pessoal.");
+  }
+}
+
+async function getColumn(
+  supabase: Supabase,
+  columnId: string,
+): Promise<TaskColumnRow> {
+  const { data, error } = await supabase
+    .from("task_columns")
+    .select(
+      "column_id, project_id, profile_id, name, position, is_completed, created_at, updated_at",
+    )
+    .eq("column_id", columnId)
+    .maybeSingle();
+
+  if (error || !data) {
+    throw new Error("Lista não encontrada.");
+  }
+
+  return data as TaskColumnRow;
+}
+
+function validateColumnName(name: string): string {
+  const trimmed = name.trim();
+
+  if (!trimmed) {
+    throw new Error("O nome da lista é obrigatório.");
+  }
+
+  if (trimmed.length > 100) {
+    throw new Error("O nome da lista não pode exceder 100 caracteres.");
+  }
+
+  return trimmed;
+}
+
+async function assertScopeAccess(
+  supabase: Supabase,
+  scope: TaskScope,
+  profile: UserProfile,
+  management = false,
+): Promise<void> {
+  if (scope.type === "general") return;
+
+  if (management) {
+    await assertProjectBoardManager(supabase, scope.projectId, profile);
+  } else {
+    await assertProjectMember(supabase, scope.projectId, profile);
+  }
+}
+
+/* GET */
+
+export async function getTaskColumns(
+  scope: TaskScope,
+): Promise<KanbanColumn[]> {
+  const { supabase, profile } = await getCurrentContext();
+
+  await assertScopeAccess(supabase, scope, profile);
 
   let query = supabase
     .from("task_columns")
     .select(
-      "column_id, project_id, profile_id, name, position, is_completed",
+      "column_id, project_id, profile_id, name, position, is_completed, created_at, updated_at",
     )
     .order("position", { ascending: true });
 
   if (scope.type === "general") {
-    query = query.is("project_id", null);
-
-    if (!isAdmin) {
-      const profileId = await getCurrentProfileId();
-      query = query.eq("profile_id", profileId);
-    }
+    query = query
+      .is("project_id", null)
+      .eq("profile_id", profile.profile_id);
   } else {
-    await assertProjectMember(scope.projectId);
     query = query.eq("project_id", scope.projectId);
   }
 
   const { data, error } = await query;
 
   if (error) {
-    throw new Error(
-      `Não foi possível carregar as listas: ${error.message}`,
-    );
+    throw new Error(`Não foi possível carregar as listas: ${error.message}`);
   }
 
-  return (data ?? []).map(mapColumn);
+  return (data ?? []).map((row) => mapColumn(row as TaskColumnRow));
 }
 
-/**
- * Creates a task column.
- *
- * Admin:
- *   Can create columns on personal boards and project boards.
- *
- * General:
- *   Non-admin columns belong to the current user.
- *
- * Project:
- *   Non-admin users must be project members.
- */
+/* CREATE */
+
 export async function createTaskColumn(
   scope: TaskScope,
   input: CreateColumnInput,
-) {
-  const supabase = await getSupabase();
-  const isAdmin = await isCurrentUserAdmin();
+): Promise<KanbanColumn> {
+  const { supabase, profile } = await getCurrentContext();
 
-  const name = input.name.trim();
+  await assertScopeAccess(supabase, scope, profile, true);
 
-  if (!name) {
-    throw new Error("O nome da lista é obrigatório.");
-  }
+  const name = validateColumnName(input.name);
 
-  let profileId: string | null = null;
-  let projectId: string | null = null;
-
-  if (scope.type === "general") {
-    // Admin-created personal-board columns are owned by Admin.
-    // Non-admin users can create only their own columns.
-    profileId = await getCurrentProfileId();
-  } else {
-    await assertProjectMember(scope.projectId);
-    projectId = scope.projectId;
-  }
+  const projectId = scope.type === "project" ? scope.projectId : null;
+  const profileId = scope.type === "general" ? profile.profile_id : null;
 
   let positionQuery = supabase
     .from("task_columns")
@@ -225,15 +238,12 @@ export async function createTaskColumn(
   if (scope.type === "general") {
     positionQuery = positionQuery
       .is("project_id", null)
-      .eq("profile_id", profileId);
+      .eq("profile_id", profile.profile_id);
   } else {
-    positionQuery = positionQuery.eq("project_id", projectId);
+    positionQuery = positionQuery.eq("project_id", scope.projectId);
   }
 
-  const {
-    data: existingColumns,
-    error: positionError,
-  } = await positionQuery;
+  const { data: existing, error: positionError } = await positionQuery;
 
   if (positionError) {
     throw new Error(
@@ -241,7 +251,7 @@ export async function createTaskColumn(
     );
   }
 
-  const position = (existingColumns?.[0]?.position ?? -1) + 1;
+  const position = (existing?.[0]?.position ?? -1) + 1;
 
   const { data, error } = await supabase
     .from("task_columns")
@@ -253,48 +263,49 @@ export async function createTaskColumn(
       is_completed: input.isCompleted ?? false,
     })
     .select(
-      "column_id, project_id, profile_id, name, position, is_completed",
+      "column_id, project_id, profile_id, name, position, is_completed, created_at, updated_at",
     )
     .single();
 
-  if (error) {
+  if (error || !data) {
     throw new Error(
-      `Não foi possível criar a lista: ${error.message}`,
+      `Não foi possível criar a lista: ${error?.message ?? "Erro desconhecido."}`,
     );
   }
 
-  return mapColumn(data);
+  return mapColumn(data as TaskColumnRow);
 }
 
-/**
- * Updates a task column.
- *
- * Admin:
- *   Can update any column, subject to database RLS.
- *
- * General:
- *   Non-admin users can update only their own columns.
- *
- * Project:
- *   Non-admin users must be project members.
- */
+/* UPDATE */
+
 export async function updateTaskColumn(
   columnId: string,
-  input: Partial<CreateColumnInput>,
-) {
-  const supabase = await getSupabase();
-  const isAdmin = await isCurrentUserAdmin();
+  input: {
+    name?: string;
+    isCompleted?: boolean;
+  },
+): Promise<KanbanColumn> {
+  if (!columnId) {
+    throw new Error("ID da lista inválido.");
+  }
 
-  const payload: Record<string, unknown> = {};
+  const { supabase, profile } = await getCurrentContext();
+  const column = await getColumn(supabase, columnId);
+
+  if (column.project_id === null) {
+    assertPersonalBoardOwner(column.profile_id, profile.profile_id);
+  } else {
+    await assertProjectBoardManager(supabase, column.project_id, profile);
+  }
+
+  const payload: {
+    name?: string;
+    is_completed?: boolean;
+    updated_at?: string;
+  } = {};
 
   if (input.name !== undefined) {
-    const name = input.name.trim();
-
-    if (!name) {
-      throw new Error("O nome da lista é obrigatório.");
-    }
-
-    payload.name = name;
+    payload.name = validateColumnName(input.name);
   }
 
   if (input.isCompleted !== undefined) {
@@ -305,66 +316,28 @@ export async function updateTaskColumn(
     throw new Error("Nenhuma alteração foi fornecida.");
   }
 
-  const {
-    data: column,
-    error: findError,
-  } = await supabase
-    .from("task_columns")
-    .select(
-      "column_id, project_id, profile_id, name, position, is_completed",
-    )
-    .eq("column_id", columnId)
-    .single();
-
-  if (findError || !column) {
-    throw new Error("Lista não encontrada.");
-  }
-
-  if (column.project_id === null) {
-    if (
-      !isAdmin &&
-      column.profile_id !== (await getCurrentProfileId())
-    ) {
-      throw new Error(
-        "Não tem permissão para alterar esta lista.",
-      );
-    }
-  } else {
-    await assertProjectMember(column.project_id);
-  }
+  payload.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
     .from("task_columns")
     .update(payload)
     .eq("column_id", columnId)
     .select(
-      "column_id, project_id, profile_id, name, position, is_completed",
+      "column_id, project_id, profile_id, name, position, is_completed, created_at, updated_at",
     )
     .single();
 
-  if (error) {
+  if (error || !data) {
     throw new Error(
-      `Não foi possível actualizar a lista: ${error.message}`,
+      `Não foi possível actualizar a lista: ${error?.message ?? "Erro desconhecido."}`,
     );
   }
 
-  return mapColumn(data);
+  return mapColumn(data as TaskColumnRow);
 }
 
-/**
- * Deletes a task column.
- *
- * General board:
- *   - Non-admin users can delete only their own empty columns.
- *   - Admins can delete populated columns after choosing a destination.
- *   - Only tasks belonging to the current user's personal board
- *     are moved.
- *
- * Project board:
- *   - The user must have project access.
- *   - Admins can delete populated columns after choosing a destination.
- *   - Other users can delete only empty columns.
- */
+/* DELETE */
+
 export async function deleteTaskColumn(
   columnId: string,
   destinationColumnId?: string,
@@ -373,62 +346,29 @@ export async function deleteTaskColumn(
     throw new Error("ID da lista inválido.");
   }
 
-  const supabase = await getSupabase();
-  const isAdmin = await isCurrentUserAdmin();
-  const currentUserId = await getCurrentUserId();
-  const currentProfileId = await getCurrentProfileId();
+  const { supabase, user, profile } = await getCurrentContext();
+  const column = await getColumn(supabase, columnId);
 
-  const {
-    data: column,
-    error: columnError,
-  } = await supabase
-    .from("task_columns")
-    .select("column_id, project_id, profile_id")
-    .eq("column_id", columnId)
-    .single();
-
-  if (columnError || !column) {
-    throw new Error("Lista não encontrada.");
-  }
-
-  // Verify access to the source column.
   if (column.project_id === null) {
-    if (
-      !isAdmin &&
-      column.profile_id !== currentProfileId
-    ) {
-      throw new Error(
-        "Não tem permissão para eliminar esta lista.",
-      );
-    }
+    assertPersonalBoardOwner(column.profile_id, profile.profile_id);
   } else {
-    await assertProjectMember(column.project_id);
+    await assertProjectBoardManager(supabase, column.project_id, profile);
   }
 
-  // Count only tasks belonging to the relevant board scope.
   let tasksQuery = supabase
     .from("tasks")
-    .select("task_id", {
-      count: "exact",
-      head: true,
-    })
+    .select("task_id", { count: "exact", head: true })
     .eq("column_id", columnId);
 
   if (column.project_id === null) {
     tasksQuery = tasksQuery
       .is("project_id", null)
-      .eq("created_by", currentUserId);
+      .eq("created_by", user.id);
   } else {
-    tasksQuery = tasksQuery.eq(
-      "project_id",
-      column.project_id,
-    );
+    tasksQuery = tasksQuery.eq("project_id", column.project_id);
   }
 
-  const {
-    count,
-    error: countError,
-  } = await tasksQuery;
+  const { count, error: countError } = await tasksQuery;
 
   if (countError) {
     throw new Error(
@@ -438,25 +378,15 @@ export async function deleteTaskColumn(
 
   const taskCount = count ?? 0;
 
-  // Non-admin users cannot delete populated columns.
-  if (taskCount > 0 && !isAdmin) {
+  if (taskCount > 0 && !destinationColumnId) {
     throw new Error(
-      "Não é possível eliminar uma lista que contém tarefas. Mova as tarefas primeiro.",
+      "Esta lista contém tarefas. Seleccione uma lista de destino antes de eliminar.",
     );
   }
 
-  // Move tasks before deleting a populated column.
-  if (taskCount > 0) {
-    if (!destinationColumnId) {
-      throw new Error(
-        "Esta lista contém tarefas. Seleccione uma lista de destino antes de eliminar.",
-      );
-    }
-
+  if (destinationColumnId) {
     if (destinationColumnId === columnId) {
-      throw new Error(
-        "A lista de destino tem de ser diferente da lista a eliminar.",
-      );
+      throw new Error("A lista de destino tem de ser diferente da lista a eliminar.");
     }
 
     let destinationQuery = supabase
@@ -467,18 +397,13 @@ export async function deleteTaskColumn(
     if (column.project_id === null) {
       destinationQuery = destinationQuery
         .is("project_id", null)
-        .eq("profile_id", column.profile_id);
+        .eq("profile_id", profile.profile_id);
     } else {
-      destinationQuery = destinationQuery.eq(
-        "project_id",
-        column.project_id,
-      );
+      destinationQuery = destinationQuery.eq("project_id", column.project_id);
     }
 
-    const {
-      data: destination,
-      error: destinationError,
-    } = await destinationQuery.maybeSingle();
+    const { data: destination, error: destinationError } =
+      await destinationQuery.maybeSingle();
 
     if (destinationError || !destination) {
       throw new Error(
@@ -486,138 +411,104 @@ export async function deleteTaskColumn(
       );
     }
 
-    let moveQuery = supabase
-      .from("tasks")
-      .update({ column_id: destinationColumnId })
-      .eq("column_id", columnId);
+    if (taskCount > 0) {
+      let moveQuery = supabase
+        .from("tasks")
+        .update({
+          column_id: destinationColumnId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("column_id", columnId);
 
-    if (column.project_id === null) {
-      moveQuery = moveQuery
-        .is("project_id", null)
-        .eq("created_by", currentUserId);
-    } else {
-      moveQuery = moveQuery.eq(
-        "project_id",
-        column.project_id,
-      );
-    }
+      if (column.project_id === null) {
+        moveQuery = moveQuery
+          .is("project_id", null)
+          .eq("created_by", user.id);
+      } else {
+        moveQuery = moveQuery.eq("project_id", column.project_id);
+      }
 
-    const { error: moveError } = await moveQuery;
+      const { error: moveError } = await moveQuery;
 
-    if (moveError) {
-      throw new Error(
-        `Não foi possível mover as tarefas: ${moveError.message}`,
-      );
+      if (moveError) {
+        throw new Error(`Não foi possível mover as tarefas: ${moveError.message}`);
+      }
     }
   }
 
-  // Delete only after the required task movement succeeds.
   const { error: deleteError } = await supabase
     .from("task_columns")
     .delete()
     .eq("column_id", columnId);
 
   if (deleteError) {
-    throw new Error(
-      `Não foi possível eliminar a lista: ${deleteError.message}`,
-    );
+    throw new Error(`Não foi possível eliminar a lista: ${deleteError.message}`);
   }
 }
 
-/**
- * Reorders task columns.
- *
- * Admin:
- *   Can reorder any personal-board columns and project columns.
- *
- * General:
- *   Non-admin users can reorder only their own columns.
- *
- * Project:
- *   Non-admin users must be project members.
- */
+/* REORDER */
+
 export async function reorderTaskColumns(
   scope: TaskScope,
   orderedColumnIds: string[],
 ): Promise<void> {
-  const supabase = await getSupabase();
-  const isAdmin = await isCurrentUserAdmin();
+  const { supabase, profile } = await getCurrentContext();
 
-  let profileId: string | null = null;
+  await assertScopeAccess(supabase, scope, profile, true);
 
-  if (scope.type === "general") {
-    if (!isAdmin) {
-      profileId = await getCurrentProfileId();
-    }
-  } else {
-    await assertProjectMember(scope.projectId);
+  if (new Set(orderedColumnIds).size !== orderedColumnIds.length) {
+    throw new Error("A lista contém IDs duplicados.");
   }
 
-  // Validate the entire ordered set before changing positions.
-  if (orderedColumnIds.length > 0) {
-    const { data: columns, error: columnsError } = await supabase
-      .from("task_columns")
-      .select("column_id, project_id, profile_id")
-      .in("column_id", orderedColumnIds);
+  let query = supabase
+    .from("task_columns")
+    .select("column_id");
 
-    if (columnsError) {
-      throw new Error(
-        `Não foi possível validar as listas: ${columnsError.message}`,
-      );
-    }
+  if (scope.type === "general") {
+    query = query
+      .is("project_id", null)
+      .eq("profile_id", profile.profile_id);
+  } else {
+    query = query.eq("project_id", scope.projectId);
+  }
 
-    const foundColumns = columns ?? [];
+  const { data, error } = await query;
 
-    if (foundColumns.length !== new Set(orderedColumnIds).size) {
-      throw new Error(
-        "Uma ou mais listas não foram encontradas.",
-      );
-    }
+  if (error) {
+    throw new Error(`Não foi possível validar as listas: ${error.message}`);
+  }
 
-    const allInScope = foundColumns.every((column) => {
-      if (scope.type === "general") {
-        return (
-          column.project_id === null &&
-          (isAdmin || column.profile_id === profileId)
-        );
-      }
+  const availableIds = new Set((data ?? []).map((item) => item.column_id));
 
-      return column.project_id === scope.projectId;
-    });
-
-    if (!allInScope) {
-      throw new Error(
-        "Não pode reordenar listas que pertencem a outro quadro.",
-      );
-    }
+  if (
+    orderedColumnIds.length !== availableIds.size ||
+    orderedColumnIds.some((id) => !availableIds.has(id))
+  ) {
+    throw new Error("A ordem enviada não corresponde às listas deste quadro.");
   }
 
   for (let index = 0; index < orderedColumnIds.length; index += 1) {
-    let query = supabase
+    let updateQuery = supabase
       .from("task_columns")
-      .update({ position: index })
+      .update({
+        position: index,
+        updated_at: new Date().toISOString(),
+      })
       .eq("column_id", orderedColumnIds[index]);
 
     if (scope.type === "general") {
-      query = query.is("project_id", null);
-
-      if (!isAdmin) {
-        query = query.eq("profile_id", profileId);
-      }
+      updateQuery = updateQuery
+        .is("project_id", null)
+        .eq("profile_id", profile.profile_id);
     } else {
-      query = query.eq("project_id", scope.projectId);
+      updateQuery = updateQuery.eq("project_id", scope.projectId);
     }
 
-    const { error } = await query;
+    const { error: updateError } = await updateQuery;
 
-    if (error) {
-      console.error("[reorderTaskColumns] Failed:", {
-        columnId: orderedColumnIds[index],
-        error,
-      });
-
+    if (updateError) {
       throw new Error(
-        `Não foi possível reordenar as listas: ${error.message}`,
+        `Não foi possível reordenar as listas: ${updateError.message}`,
       );
     }
   }
